@@ -1,0 +1,105 @@
+{
+  "$schema": "./assets-catalog.schema.json",
+  "version": "0.1.0",
+  "note": "Canon asset catalog for the Scourge universe. Entity sprites are PER-GAME renders of shared canon (companion to issue #6). The 'shared' section lists truly game-agnostic assets that every game uses identically.",
+  "entities": [
+    {
+      "id": "scourge-swarm",
+      "kind": "entity",
+      "name": "Scourge Swarm",
+      "canon": "Basic host-puppet of the Choir. Weak alone, lethal in numbers; severing a breach repeater stuns the local swarm.",
+      "variants": {
+        "scourge-survivors": "entities/scourge-swarm/scourge-survivors.png",
+        "deadlane": "entities/scourge-swarm/deadlane.png",
+        "pactfall": "entities/scourge-swarm/pactfall.png",
+        "starblight": "entities/scourge-swarm/starblight.png",
+        "redline": "entities/scourge-swarm/redline.png",
+        "rothulk": "entities/scourge-swarm/rothulk.png"
+      }
+    },
+    {
+      "id": "scourge-elite",
+      "kind": "entity",
+      "name": "Scourge Elite",
+      "canon": "Reinforced host-puppet acting as a forward repeater for the Choir. Carries the hive signal; priority isolation target.",
+      "variants": {
+        "scourge-survivors": "entities/scourge-elite/scourge-survivors.png",
+        "deadlane": "entities/scourge-elite/deadlane.png",
+        "pactfall": null,
+        "starblight": "entities/scourge-elite/starblight.png",
+        "redline": "entities/scourge-elite/redline.png",
+        "rothulk": "entities/scourge-elite/rothulk.png"
+      }
+    },
+    {
+      "id": "breach-boss",
+      "kind": "boss",
+      "name": "Breach Heart",
+      "canon": "The living nest at the center of a breach. Not a general — a physical repeater hub. Destroy it to sever the local Choir and collapse the breach.",
+      "variants": {
+        "scourge-survivors": "entities/breach-boss/scourge-survivors.png",
+        "deadlane": "entities/breach-boss/deadlane.png",
+        "pactfall": "entities/breach-boss/pactfall.png",
+        "starblight": "entities/breach-boss/starblight.png",
+        "redline": null,
+        "rothulk": "entities/breach-boss/rothulk.png"
+      }
+    }
+  ],
+  "shared": [
+    {
+      "id": "fx-blood-splatter",
+      "kind": "fx",
+      "name": "Blood Splatter",
+      "path": "shared/fx/blood-splatter.png"
+    },
+    {
+      "id": "fx-ember-burst",
+      "kind": "fx",
+      "name": "Ember Burst",
+      "path": "shared/fx/ember-burst.png"
+    },
+    {
+      "id": "fx-muzzle-flash",
+      "kind": "fx",
+      "name": "Muzzle Flash",
+      "path": "shared/fx/muzzle-flash.png"
+    },
+    {
+      "id": "ui-icon-pyre",
+      "kind": "ui",
+      "name": "Pyre Faction Icon",
+      "path": "shared/ui/icon-pyre.svg"
+    },
+    {
+      "id": "ui-icon-warden",
+      "kind": "ui",
+      "name": "Warden Faction Icon",
+      "path": "shared/ui/icon-warden.svg"
+    },
+    {
+      "id": "font-oswald",
+      "kind": "font",
+      "name": "Oswald (display)",
+      "path": "shared/fonts/oswald.woff2"
+    },
+    {
+      "id": "font-inter",
+      "kind": "font",
+      "name": "Inter (body)",
+      "path": "shared/fonts/inter.woff2"
+    },
+    {
+      "id": "audio-breach-collapse",
+      "kind": "audio",
+      "name": "Breach Collapse SFX",
+      "path": "shared/audio/breach-collapse.ogg"
+    },
+    {
+      "id": "audio-choir-whisper",
+      "kind": "audio",
+      "name": "Choir Whisper Ambience",
+      "path": "shared/audio/choir-whisper.ogg"
+    }
+  ]
+}
