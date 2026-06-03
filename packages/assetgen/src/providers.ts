@@ -53,14 +53,20 @@ export const fal: Provider = async (prompt) => {
   return Buffer.from(await (await fetch(url)).arrayBuffer());
 };
 
-/** Local Codex CLI — delegates to the authed `codex` agent (its key lives in the keychain). */
+/** Local Codex CLI — drives the authed `codex` agent on YOUR subscription (no API key). */
 export const codex: Provider = async (prompt) => {
   const dir = await mkdtemp(join(tmpdir(), "assetgen-"));
   const out = join(dir, "out.png");
   await pexec(
     "codex",
-    ["exec", "--full-auto", `Generate one PNG image and save it to ${out} (transparent background). Image: ${prompt}`],
-    { timeout: 240_000, maxBuffer: 1024 * 1024 * 32 },
+    [
+      "exec",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--skip-git-repo-check",
+      "-C", dir,
+      `Generate a single PNG image with a transparent background and save it to ${out}. Use any image-generation capability you have. The image: ${prompt}`,
+    ],
+    { timeout: 280_000, maxBuffer: 1024 * 1024 * 32 },
   );
   return readFile(out);
 };

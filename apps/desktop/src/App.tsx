@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 
-// Studio cockpit. Sprites is wired to @shipshit/assetgen via the studio IPC bridge,
-// with a live streaming log. Provider + API keys are configured once in Settings.
+// Studio cockpit. Sprites is wired to @shipshit/assetgen via the studio IPC bridge with a
+// live streaming log. Provider + keys are configured once in Settings (topbar gear).
+// Default provider = codex CLI (your subscription — no API key).
 
-type SectionId = "maps" | "sprites" | "music" | "3d" | "codegen" | "settings";
-type Group = "Generators" | "Codegen" | "Studio";
+type SectionId = "maps" | "sprites" | "music" | "3d" | "codegen";
+type Group = "Generators" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
 interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null }
@@ -30,12 +31,12 @@ const SECTIONS: Section[] = [
   { id: "music", label: "Music + SFX", group: "Generators", glyph: "♪", blurb: "Brutal scores and combat SFX for the shipshitshow." },
   { id: "3d", label: "3D", group: "Generators", glyph: "◈", blurb: "Meshes, props and Warden engineering for the 3D titles." },
   { id: "codegen", label: "Codegen", group: "Codegen", glyph: "λ", blurb: "Plan → Review → Execute → Verify → Ship over the local CLI." },
-  { id: "settings", label: "Settings", group: "Studio", glyph: "⚙", blurb: "Providers, API keys, and defaults — set once, used by every generator." },
 ];
-const GROUPS: Group[] = ["Generators", "Codegen", "Studio"];
+const GROUPS: Group[] = ["Generators", "Codegen"];
 
 const PROVIDERS = [
-  { id: "openai", label: "OpenAI (gpt-image-2)" },
+  { id: "codex", label: "Codex CLI — your subscription (no key)" },
+  { id: "openai", label: "OpenAI API (gpt-image-2)" },
   { id: "fal", label: "fal.ai (FLUX)" },
   { id: "replicate", label: "Replicate" },
   { id: "mock", label: "Mock (offline test)" },
@@ -47,7 +48,7 @@ const KEYED = [
 ];
 
 function SettingsPane() {
-  const [settings, setSettings] = useState<Settings>({ defaultProvider: "openai", defaultGame: "scourge-survivors" });
+  const [settings, setSettings] = useState<Settings>({ defaultProvider: "codex", defaultGame: "scourge-survivors" });
   const [games, setGames] = useState<string[]>(["scourge-survivors"]);
   const [status, setStatus] = useState<Record<string, boolean>>({});
   const [inputs, setInputs] = useState<Record<string, string>>({});
@@ -81,7 +82,8 @@ function SettingsPane() {
         </label>
       </div>
       <div className="set-group">
-        <div className="set-group-title">API keys — stored in your macOS keychain</div>
+        <div className="set-group-title">API keys — only for key-based providers</div>
+        <p className="gen-note">Codex uses your ChatGPT/Codex subscription — no key needed. Only fal / Replicate / OpenAI-API need a key. Stored in your macOS keychain.</p>
         {KEYED.map((k) => (
           <div className="set-key-row" key={k.id}>
             <span className="label">{k.label}</span>
@@ -90,7 +92,6 @@ function SettingsPane() {
             <span className={"badge " + (status[k.id] ? "ok" : "no")}>{status[k.id] ? "set" : "none"}</span>
           </div>
         ))}
-        <p className="gen-note">Codex is a coding agent — it can't make images. For sprites use an image-model key (OpenAI gpt-image-2 / fal / Replicate).</p>
       </div>
     </div>
   );
@@ -101,7 +102,7 @@ function SpritesPane() {
   const [prompt, setPrompt] = useState("a rotting bio-husk of the Scourge, mid-lunge, gore");
   const [game, setGame] = useState("scourge-survivors");
   const [games, setGames] = useState<string[]>(["scourge-survivors"]);
-  const [provider, setProvider] = useState("openai");
+  const [provider, setProvider] = useState("codex");
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState("");
   const [result, setResult] = useState<GenResult | null>(null);
@@ -141,11 +142,11 @@ function SpritesPane() {
             {games.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </label>
-        <div className="gen-active">provider <b>{provider}</b> · change in Settings</div>
+        <div className="gen-active">provider <b>{provider}</b> · change in Settings (topbar ⚙)</div>
         <button className="gen-btn" disabled={busy || !id || !prompt} onClick={generate}>
           {busy ? "Forging…" : "Generate"}
         </button>
-        <p className="gen-note">Auto-styled with the DOOM DESIGN.md suffix · writes the .webp + updates the game's assets.json</p>
+        <p className="gen-note">Auto-styled with the DOOM DESIGN.md suffix · writes the .webp + updates the game's assets.json. Codex runs take a minute — watch the log.</p>
       </div>
       <div className="gen-preview">
         {result?.dataUrl ? <img src={result.dataUrl} alt={id} /> : <div className="gen-preview-empty">{busy ? "forging…" : "preview"}</div>}
@@ -158,6 +159,7 @@ function SpritesPane() {
 
 export default function App() {
   const [active, setActive] = useState<SectionId>("sprites");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const section = SECTIONS.find((s) => s.id === active) ?? SECTIONS[0];
 
   return (
@@ -184,6 +186,11 @@ export default function App() {
       </aside>
 
       <div className="workspace">
+        <header className="topbar">
+          <span className="topbar-label">{section.group} / {section.label}</span>
+          <button className="topbar-gear" title="Settings" aria-label="Settings" onClick={() => setSettingsOpen(true)}>⚙</button>
+        </header>
+
         <main className="pane">
           <header className="pane-head">
             <div className="pane-eyebrow">{section.group}</div>
@@ -191,15 +198,13 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "sprites" ? <SpritesPane />
-              : active === "settings" ? <SettingsPane />
-              : (
-                <div className="placeholder-card">
-                  <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
-                  <p><strong>{section.label}</strong> workspace coming online.</p>
-                  <p className="placeholder-sub">Same shape as Sprites — wiring lands in a later issue.</p>
-                </div>
-              )}
+            {active === "sprites" ? <SpritesPane /> : (
+              <div className="placeholder-card">
+                <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
+                <p><strong>{section.label}</strong> workspace coming online.</p>
+                <p className="placeholder-sub">Same shape as Sprites — wiring lands in a later issue.</p>
+              </div>
+            )}
           </div>
         </main>
 
@@ -215,6 +220,18 @@ export default function App() {
           </div>
         </section>
       </div>
+
+      {settingsOpen && (
+        <div className="modal-backdrop" onClick={() => setSettingsOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <span className="modal-title">Settings</span>
+              <button className="modal-close" aria-label="Close" onClick={() => setSettingsOpen(false)}>×</button>
+            </div>
+            <div className="modal-body"><SettingsPane /></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

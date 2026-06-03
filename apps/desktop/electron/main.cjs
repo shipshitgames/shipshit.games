@@ -17,7 +17,7 @@ const gameDir = (g) => path.join(WORKSPACE, g === "shared" ? "scourge-survivors"
 
 // ---- settings (non-secret) ----
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
-const DEFAULTS = { defaultProvider: "openai", defaultGame: "scourge-survivors" };
+const DEFAULTS = { defaultProvider: "codex", defaultGame: "scourge-survivors" };
 function readSettings() {
   try { return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsPath(), "utf8")) }; }
   catch { return { ...DEFAULTS }; }

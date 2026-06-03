@@ -74,7 +74,22 @@ body {
 .sidebar-foot { padding: 12px 18px; border-top: 1px solid var(--line); font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); }
 
 /* ---- Workspace ---- */
-.workspace { display: grid; grid-template-rows: 1fr var(--terminal-h); min-width: 0; height: 100vh; }
+.workspace { display: grid; grid-template-rows: auto 1fr var(--terminal-h); min-width: 0; height: 100vh; }
+
+/* ---- Topbar (settings gear, shipcode-style) ---- */
+.topbar { display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--bg-panel); }
+.topbar-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
+.topbar-gear { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-dim); background: transparent; border: 1px solid transparent; border-radius: 2px; cursor: pointer; }
+.topbar-gear:hover { color: var(--hellfire); border-color: var(--line-bright); }
+
+/* ---- Settings modal ---- */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.62); display: flex; align-items: flex-start; justify-content: center; padding: 64px 16px; z-index: 50; }
+.modal { width: min(680px, 100%); max-height: 80vh; overflow: auto; background: var(--bg); border: 1px solid var(--line-bright); border-radius: 4px; box-shadow: 0 24px 80px -20px #000; }
+.modal-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.modal-title { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; font-size: 18px; color: var(--text); }
+.modal-close { width: 30px; height: 30px; font-size: 18px; color: var(--text-dim); background: transparent; border: 1px solid var(--line); border-radius: 2px; cursor: pointer; }
+.modal-close:hover { color: var(--blood); border-color: var(--blood); }
+.modal-body { padding: 22px; }
 .pane { display: flex; flex-direction: column; min-height: 0; padding: 32px 36px; overflow-y: auto; }
 .pane-head { border-bottom: 1px solid var(--line); padding-bottom: 20px; }
 .pane-eyebrow { font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--hellfire); }
