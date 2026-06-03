@@ -249,6 +249,81 @@
       "gameplayRead": ["Sturdier ship and armor profile than the Pyre pilot", "Shield-control harness", "Defensive drones or barrier upgrades"],
       "visualMotifs": ["Reinforced Warden flight suit", "Gunmetal plating and industrial yellow marks", "Ember-lit shield hardware", "Practical, repaired cockpit gear"],
       "appearsIn": ["starblight"], "spriteBase": null
+    },
+    {
+      "slug": "pyre-courier",
+      "name": "Pyre Courier",
+      "factionSlug": "the-pyre",
+      "factionName": "The Pyre",
+      "role": "Redline courier",
+      "tagline": "Runs a burn order down the dead roads faster than the Choir can close them.",
+      "accent": "hellfire",
+      "overview": "When the Scourge cuts the lanes and the wired relays go dark, the order still has to move — so you move it on foot, faster than the horde can re-route to cut you off.\n\nThe Pyre way: strip the armor, take the boost, and burn every repeater-pylon you pass. Stop, and the Choir's omniscience snaps shut around you. So don't stop.",
+      "gameplayRead": [
+        "Light, forward-leaning silhouette built for pure momentum",
+        "Trades armor for top speed and aggressive boost",
+        "Clips repeater-pylons on the way past — each kill sends the local horde feral"
+      ],
+      "visualMotifs": [
+        "Stripped scorched plate and ash-cloth streamers",
+        "Blood-hot Pyre heat lines trailing the limbs",
+        "Furnace visor and a hellfire message canister",
+        "Rust-and-gunmetal road grime, no neon"
+      ],
+      "appearsIn": [
+        "redline"
+      ],
+      "spriteBase": null
+    },
+    {
+      "slug": "warden-courier",
+      "name": "Warden Courier",
+      "factionSlug": "the-wardens",
+      "factionName": "The Wardens",
+      "role": "Redline courier",
+      "tagline": "Carries a hold order through the rot and intends to deliver it intact.",
+      "accent": "rust",
+      "overview": "Someone has to get the hold order to the next holdout, and they intend to arrive with it intact. The Warden Courier trades the Pyre runner's reckless top speed for control and a cargo rig that survives contact.\n\nSpeed as a duty, not a gamble — keep momentum through the rot, protect the message like a wall, and don't let the lane between holdouts become a grave.",
+      "gameplayRead": [
+        "Heavier, steadier runner than the Pyre Courier",
+        "Reinforced cargo rig — the order survives the hits",
+        "Holds momentum through contact instead of gambling on raw pace"
+      ],
+      "visualMotifs": [
+        "Gunmetal road armor with sparing industrial-yellow stripes",
+        "Armored, sealed message-case and courier harness",
+        "Ember rangefinder lamps, worn steel, weld scars",
+        "Boxy, modular Warden shape language"
+      ],
+      "appearsIn": [
+        "redline"
+      ],
+      "spriteBase": null
+    },
+    {
+      "slug": "pyre-saboteur",
+      "name": "Pyre Saboteur",
+      "factionSlug": "the-pyre",
+      "factionName": "The Pyre",
+      "role": "Rothulk saboteur",
+      "tagline": "Climbs a living breach-ship to its heart and sets the core on fire.",
+      "accent": "hellfire",
+      "overview": "A rothulk is a beached Scourge breach-ship grown into the ground, and you're the one Purger going inside it. Light, agile, and carrying a single ignition charge, you platform up the living nest toward the breach-core that keeps it connected.\n\nThis isn't a firefight — it's a climb. Stay out of the Choir's massed sight, reach the heart, set it on fire, and run as the severed node turns feral around you.",
+      "gameplayRead": [
+        "Light, agile climber built for jumps, swings, and wall-work",
+        "Carries sabotage charges — reaching the core matters, not clearing the room",
+        "Survives by routing through the gaps in the Choir's massed sight"
+      ],
+      "visualMotifs": [
+        "Stripped, dark, low-profile infiltration rig",
+        "Furnace visor dimmed to a sliver so the nest can't read the glow",
+        "A hellfire ignition charge at the hip",
+        "Bone-ceramic grips, blood-hot scars, rust and gore from the climb"
+      ],
+      "appearsIn": [
+        "rothulk"
+      ],
+      "spriteBase": null
     }
   ],
   "bestiary": [
