@@ -23,10 +23,21 @@ bun packages/assetgen/src/cli.ts --provider mock --dry-run --id test --prompt "x
 ```
 
 ## Providers
-- `openai` — gpt-image-1, transparent PNG (`OPENAI_API_KEY`)
-- `fal` — FLUX (`FAL_KEY`)
-- `codex` — delegates to the local authed `codex` CLI
+- `openai` — **gpt-image-2** (default; `--model` to override), transparent PNG
+- `fal` — FLUX
+- `codex` — delegates to the local authed `codex` CLI (no key wiring needed)
 - `mock` — offline placeholder for testing the pipeline
+
+## Keys (shipcode-style)
+No raw env vars required. Keys resolve from the **macOS keychain** first (env var as
+fallback). Store one with:
+
+```bash
+security add-generic-password -a shipshit -s shipshit-openai -w <OPENAI_KEY>
+security add-generic-password -a shipshit -s shipshit-fal    -w <FAL_KEY>
+```
+
+The `codex` provider rides codex's own keychain auth — nothing to store.
 
 ## Style
 Every prompt is suffixed with the DOOM canon from `lore/DESIGN.md` and framed per game

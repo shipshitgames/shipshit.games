@@ -18,6 +18,7 @@ const prompt = flag("prompt");
 const game = flag("game", "shared")!;
 const kind = flag("kind", "sprite")!;
 const provider = flag("provider", "openai")!;
+const model = flag("model", "gpt-image-2")!;
 const size = parseInt(flag("size", "1024")!, 10);
 const repo = flag("repo", process.cwd())!;
 const dryRun = has("dry-run");
@@ -25,7 +26,7 @@ const dryRun = has("dry-run");
 if (!id || !prompt) {
   console.error(
     "usage: assetgen --id <id> --prompt <text> [--game scourge-survivors|deadlane|bloodlane|shared]\n" +
-      "                [--kind sprite|texture|icon] [--provider openai|fal|codex|mock]\n" +
+      "                [--kind sprite|texture|icon] [--provider openai|fal|codex|mock] [--model gpt-image-2]\n" +
       "                [--size 1024] [--repo <game-repo-path>] [--dry-run]",
   );
   process.exit(1);
@@ -39,10 +40,10 @@ if (!gen) {
   process.exit(1);
 }
 
-console.log(`[assetgen] provider=${which} game=${game} kind=${kind} id=${id}`);
+console.log(`[assetgen] provider=${which}${which === "openai" ? ` model=${model}` : ""} game=${game} kind=${kind} id=${id}`);
 console.log(`[prompt] ${full}`);
 
-const raw = await gen(full, { size: `${size}x${size}` });
+const raw = await gen(full, { size: `${size}x${size}`, model });
 const webp = await toWebp(raw, { size });
 
 const sub = kind === "sprite" ? "sprites" : kind === "texture" ? "textures" : kind;
