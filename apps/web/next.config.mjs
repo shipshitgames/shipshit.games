@@ -10,6 +10,8 @@ const GAME_DEPLOYS = {
   starblight: "https://starblight.vercel.app",
   redline: "https://redline-eight-theta.vercel.app",
   rothulk: "https://rothulk.vercel.app",
+  // The persistent meta-layer (EPIC #34). Vite SPA in apps/warline; deploy to Vercel to activate.
+  warline: "https://warline.vercel.app",
 };
 
 const nextConfig = {

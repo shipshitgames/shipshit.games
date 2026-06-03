@@ -6,6 +6,10 @@ The studio platform: marketing + gallery, the members portal, the desktop studio
 
 ## Apps
 - **`apps/web`** — marketing site + open-source game **gallery** (→ games.shipshit.dev)
+- **`apps/warline`** — **Warline**, the persistent *War for the Lanes* strategy hub (EPIC #34): a
+  Vite/React front map over a PartyKit Durable Object. Every game is an **operation** that credits
+  one shared front. Runs standalone (local sim) or live (shared server). Hosted at
+  games.shipshit.dev/warline/
 - **`apps/app`** — members **portal** (one-time **lifetime** All Access + gated content)
 - **`apps/desktop`** — the **Studio**: an Electron generator hub (maps / sprites / 3D / music + SFX)
   that drives the **Codex CLI locally** plus **fal.ai / Replicate / Suno** integrations, and the
@@ -15,6 +19,8 @@ The studio platform: marketing + gallery, the members portal, the desktop studio
 ## Packages
 - **`packages/ui`** — shared React + Tailwind + shadcn components
 - **`packages/shared`** — shared types / utilities
+- **`packages/warline`** — `@shipshit/warline`: the pure world-state model + reducers + per-game
+  operation contract + client SDK shared by the Warline server, hub, and (eventually) each game
 - consumes **`@shipshit/engine`** (separate repo) for game code
 
 ## Games

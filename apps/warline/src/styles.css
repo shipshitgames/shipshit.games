@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+/* Ship Shit Games — DOOM design tokens (see DESIGN.md) */
+@theme {
+  --color-void: #0a0a0a;
+  --color-coal: #121214;
+  --color-iron: #1e1e22;
+  --color-gunmetal: #34343c;
+  --color-blood: #c1121f;
+  --color-blood-hot: #ff2a18;
+  --color-hellfire: #ff6a00;
+  --color-rust: #8a4b2a;
+  --color-bone: #e9e3d6;
+  --color-ash: #9b958a;
+  --color-toxic: #8bdc1f;
+
+  --font-display: 'Oswald', 'Arial Narrow', 'Helvetica Neue', sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+
+  --shadow-ember: 0 0 0 1px rgba(255, 106, 0, 0.35),
+    0 0 26px -6px rgba(193, 18, 31, 0.65);
+
+  /* Pulse for active breach markers on the war map. */
+  --animate-breachpulse: breachpulse 1.6s ease-in-out infinite;
+
+  @keyframes breachpulse {
+    0%,
+    100% {
+      opacity: 0.85;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.35;
+      transform: scale(1.55);
+    }
+  }
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-void);
+  color: var(--color-ash);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Heavy uppercase display headings — DOOM HUD chrome. */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
