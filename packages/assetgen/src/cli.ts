@@ -8,11 +8,13 @@ import { providers } from "./providers.ts";
 import { toWebp } from "./postprocess.ts";
 import { register } from "./manifest.ts";
 import { runMatrix } from "./matrix.ts";
+import { runTokens } from "./tokens.ts";
 import type { GameSlug } from "../../assets/src/index.ts";
 
 const argv = process.argv.slice(2);
-// `matrix` is the only subcommand; otherwise every arg is a flag (single-asset mode).
-const sub = argv[0] === "matrix" ? "matrix" : undefined;
+// Verb dispatcher: argv[0] is a subcommand if known; otherwise single-asset mode.
+const SUBCOMMANDS = new Set(["matrix", "tokens"]);
+const sub = SUBCOMMANDS.has(argv[0]) ? argv[0] : undefined;
 const rest = sub ? argv.slice(1) : argv;
 
 const flag = (name: string, def?: string): string | undefined => {
@@ -52,6 +54,23 @@ if (sub === "matrix") {
     log: (m) => console.log(m),
   });
   console.log(`[matrix] done: ${res.generated} generated, ${res.skipped} skipped of ${res.jobs} cell(s)`);
+  process.exit(0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// `assetgen tokens` — compile lore/DESIGN.md → style.generated.ts + token artifacts.
+// `--check` exits 1 on drift (CI gate); `--design <path>` overrides the source.
+// ─────────────────────────────────────────────────────────────────────────────
+if (sub === "tokens") {
+  const res = await runTokens({
+    check: has("check"),
+    design: flag("design"),
+    log: (m) => console.log(m),
+  });
+  if (res.drift) {
+    console.error("[tokens] drift detected — commit the regenerated artifacts.");
+    process.exit(1);
+  }
   process.exit(0);
 }
 

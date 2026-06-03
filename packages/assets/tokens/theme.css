@@ -1,0 +1,17 @@
+/* GENERATED FROM lore/DESIGN.md v0.1.0 hash:85d5b7fb — DO NOT EDIT. Run: bun assetgen tokens */
+@theme {
+  --color-void: #0a0a0a;
+  --color-coal: #121214;
+  --color-iron: #1e1e22;
+  --color-gunmetal: #34343c;
+  --color-blood: #c1121f;
+  --color-blood-hot: #ff2a18;
+  --color-hellfire: #ff6a00;
+  --color-rust: #8a4b2a;
+  --color-bone: #e9e3d6;
+  --color-ash: #9b958a;
+  --color-toxic: #8bdc1f;
+  --font-display: Oswald, 'Arial Narrow', 'Helvetica Neue', sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
+}
