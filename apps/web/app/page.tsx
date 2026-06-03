@@ -44,7 +44,12 @@ export default function Home() {
       </section>
 
       <footer className="mt-20 border-t border-gunmetal pt-8 text-xs uppercase tracking-widest text-ash">
-        Ship Shit Games — open-core. Forged on the shipshitshow.
+        <div>Ship Shit Games — open-core. Forged on the shipshitshow.</div>
+        <div className="mt-3 flex flex-wrap gap-5">
+          <a className="text-hellfire transition-colors hover:text-blood" href="https://github.com/shipshitgames/lore" target="_blank" rel="noreferrer">Universe / Lore ↗</a>
+          <a className="text-hellfire transition-colors hover:text-blood" href="https://github.com/shipshitgames/skills" target="_blank" rel="noreferrer">Skills ↗</a>
+          <a className="text-hellfire transition-colors hover:text-blood" href="https://github.com/shipshitgames" target="_blank" rel="noreferrer">GitHub ↗</a>
+        </div>
       </footer>
     </main>
   );

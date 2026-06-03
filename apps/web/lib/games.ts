@@ -23,24 +23,27 @@ export const games: Game[] = [
     slug: "deadlane",
     title: "Deadlane",
     blurb:
-      "3D tower defense. Hold the line for the Wardens against everything the lane vomits up.",
-    status: "IN DEV",
+      "3D tower defense. Hold the lane for the Wardens — place towers, grind the Scourge wave by wave.",
+    status: "PLAYABLE",
     repo: "https://github.com/shipshitgames/deadlane",
+    demo: "https://deadlane-one.vercel.app",
   },
   {
     slug: "pactfall",
     title: "Pactfall",
     blurb:
-      "Pyre-vs-Wardens MOBA. Two factions test the Pact in the blood-arena — pick a side and burn.",
-    status: "CONCEPT",
+      "Pyre-vs-Wardens MOBA. Push the lane, fight over the neutral Scourge — test the Pact.",
+    status: "PLAYABLE",
     repo: "https://github.com/shipshitgames/pactfall",
+    demo: "https://pactfall.vercel.app",
   },
   {
     slug: "starblight",
     title: "Starblight",
     blurb:
       "Arcade pilot shooter. Space Invaders x Galaga x Survivors — burn the orbital infection.",
-    status: "CONCEPT",
+    status: "PLAYABLE",
     repo: "https://github.com/shipshitgames/starblight",
+    demo: "https://starblight.vercel.app",
   },
 ];
