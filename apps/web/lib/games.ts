@@ -46,4 +46,22 @@ export const games: Game[] = [
     repo: "https://github.com/shipshitgames/starblight",
     demo: "https://starblight.vercel.app",
   },
+  {
+    slug: "redline",
+    title: "Redline",
+    blurb:
+      "High-speed courier runner. Sonic-like — outrun the Scourge down the rot-lanes to deliver the message.",
+    status: "PLAYABLE",
+    repo: "https://github.com/shipshitgames/redline",
+    demo: "https://redline-eight-theta.vercel.app",
+  },
+  {
+    slug: "rothulk",
+    title: "Rothulk",
+    blurb:
+      "Infiltration platformer. Mario-like — platform through a living Scourge bio-ship and ignite its core.",
+    status: "PLAYABLE",
+    repo: "https://github.com/shipshitgames/rothulk",
+    demo: "https://rothulk.vercel.app",
+  },
 ];
