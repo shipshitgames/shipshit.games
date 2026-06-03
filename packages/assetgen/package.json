@@ -5,7 +5,8 @@
   "type": "module",
   "bin": { "assetgen": "./src/cli.ts" },
   "scripts": {
-    "gen": "bun src/cli.ts"
+    "gen": "bun src/cli.ts",
+    "matrix": "bun src/cli.ts matrix"
   },
   "dependencies": {
     "sharp": "^0.34.2"

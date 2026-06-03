@@ -22,6 +22,34 @@ bun packages/assetgen/src/cli.ts --provider codex --id ... --prompt "..." --repo
 bun packages/assetgen/src/cli.ts --provider mock --dry-run --id test --prompt "x"
 ```
 
+## The variant matrix (issue #6)
+
+`assetgen matrix` generates the **per-game sprite variant matrix** from the canon
+roster in [`@shipshit/assets`](../assets). It expands every `(entity × intended
+game)` cell, builds a per-game prompt (`promptBase` + game framing + DOOM suffix),
+generates, writes the render into the assets package at
+`entities/<id>/<game>.webp`, and records the path back into the catalog's
+`variants`. Swap the provider to fill the identical paths with real art.
+
+```bash
+# Whole matrix, placeholder fills (no keys) — proves the pipeline + populates paths:
+bun packages/assetgen/src/cli.ts matrix --provider mock
+
+# Real art (codex rides your subscription; no key wiring):
+bun packages/assetgen/src/cli.ts matrix --provider codex
+
+# Scope it: one row / one column / only-missing are composable + idempotent:
+bun packages/assetgen/src/cli.ts matrix --id scourge-swarm
+bun packages/assetgen/src/cli.ts matrix --game pactfall --only-missing
+
+# Optionally fan a reference into each game's src/assets/assets.json too:
+bun packages/assetgen/src/cli.ts matrix --provider mock --sync-games
+```
+
+Flags: `--provider` (default `mock` — safe to batch), `--game`, `--id`,
+`--only-missing` (skip cells already rendered on disk), `--size`, `--dry-run`
+(force mock), `--sync-games`, `--assets-dir`.
+
 ## Providers
 - `openai` — **gpt-image-2** (default; `--model` to override), transparent PNG
 - `fal` — FLUX
@@ -40,11 +68,13 @@ security add-generic-password -a shipshit -s shipshit-fal    -w <FAL_KEY>
 The `codex` provider rides codex's own keychain auth — nothing to store.
 
 ## Style
-Every prompt is suffixed with the DOOM canon from `lore/DESIGN.md` and framed per game
-(FPS billboard / TD top-down / MOBA isometric / shared). Output is trimmed, optionally
-sized, encoded to `.webp`, and upserted into the target game's `src/assets/assets.json`.
-When `--repo` is omitted, the CLI prefers the studio layout: `./games/<game>` or
-`../games/<game>`.
+Every prompt is suffixed with the DOOM canon from `lore/DESIGN.md` and framed per game.
+All six games are covered: scourge-survivors (FPS billboard) / deadlane (TD top-down) /
+pactfall (MOBA iso) / starblight (arcade) / redline (runner side-on) / rothulk
+(platformer side-on), plus `shared`. Output is trimmed, optionally sized, encoded to
+`.webp`. Single-asset mode upserts into the target game's `src/assets/assets.json`
+(`--repo` defaults to `./games/<game>` or `../games/<game>`); matrix mode writes into
+`@shipshit/assets`.
 
-> TODO (board): background-removal step (rembg) for non-transparent providers; the
-> per-game variant matrix (issue #6); wire into the Electron studio UI.
+> TODO (board): background-removal step (rembg) for non-transparent providers; wire the
+> matrix mode into the Electron studio UI.

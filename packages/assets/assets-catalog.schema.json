@@ -1,0 +1,121 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://shipshit.dev/schemas/assets-catalog.json",
+  "title": "Scourge-universe canon asset catalog",
+  "description": "Single source of truth for the per-game sprite variant matrix (issue #6): canon entities with a per-game render matrix, plus truly game-agnostic shared assets.",
+  "type": "object",
+  "required": ["version", "entities", "shared"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "string", "description": "Semver of the catalog format/content." },
+    "note": { "type": "string" },
+    "entities": {
+      "type": "array",
+      "description": "Canonical universe entities. Each renders per game via the variant matrix.",
+      "items": { "$ref": "#/definitions/entity" }
+    },
+    "shared": {
+      "type": "array",
+      "description": "Truly game-agnostic assets used identically by every game (FX, UI, fonts, audio).",
+      "items": { "$ref": "#/definitions/shared" }
+    }
+  },
+  "definitions": {
+    "gameSlug": {
+      "type": "string",
+      "enum": [
+        "scourge-survivors",
+        "deadlane",
+        "pactfall",
+        "starblight",
+        "redline",
+        "rothulk"
+      ]
+    },
+    "faction": {
+      "type": "string",
+      "enum": ["scourge", "pyre", "wardens", "neutral"]
+    },
+    "hostFamily": {
+      "description": "Scourge host family, or null for non-Scourge entities.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "rot-flesh",
+            "chitin",
+            "mycelial",
+            "machine-graft",
+            "bone-titan",
+            "voidship"
+          ]
+        },
+        { "type": "null" }
+      ]
+    },
+    "variants": {
+      "type": "object",
+      "description": "Per-game render paths (relative to this package). null = no render for that game.",
+      "required": [
+        "scourge-survivors",
+        "deadlane",
+        "pactfall",
+        "starblight",
+        "redline",
+        "rothulk"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scourge-survivors": { "type": ["string", "null"] },
+        "deadlane": { "type": ["string", "null"] },
+        "pactfall": { "type": ["string", "null"] },
+        "starblight": { "type": ["string", "null"] },
+        "redline": { "type": ["string", "null"] },
+        "rothulk": { "type": ["string", "null"] }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "faction",
+        "hostFamily",
+        "canon",
+        "promptBase",
+        "games",
+        "variants"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        "kind": { "type": "string", "enum": ["entity", "boss"] },
+        "name": { "type": "string" },
+        "faction": { "$ref": "#/definitions/faction" },
+        "hostFamily": { "$ref": "#/definitions/hostFamily" },
+        "canon": { "type": "string" },
+        "promptBase": { "type": "string" },
+        "games": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/gameSlug" }
+        },
+        "variants": { "$ref": "#/definitions/variants" }
+      }
+    },
+    "shared": {
+      "type": "object",
+      "required": ["id", "kind", "name", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        "kind": { "type": "string", "enum": ["fx", "ui", "font", "audio"] },
+        "name": { "type": "string" },
+        "path": { "type": "string" },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}

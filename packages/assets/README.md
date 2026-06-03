@@ -6,17 +6,49 @@ assets every game shares identically.
 
 ## What lives here
 
-- **`assets-catalog.json`** — the canon catalog. Two parts:
-  - `entities` — canonical universe entities (`scourge-swarm`, `scourge-elite`,
-    `breach-boss`, ...). Each entity has shared canon plus a `variants` map of
-    per-game render paths (one per game slug), where a path may be `null` when a
-    game has no render yet.
+- **`assets-catalog.json`** — the canon catalog (schema: `assets-catalog.schema.json`).
+  Two parts:
+  - `entities` — the canonical roster (22 entities) pulled from the lore vault:
+    the Scourge bestiary (`scourge-swarm`, `scourge-spitter`, `scourge-elite`,
+    `graft-breacher`, `rot-engine`, `breach-boss`, `trucebreaker`,
+    `scourge-fighter`, `orbital-breach-carrier`) and the human factions
+    (`pyre-*`, `warden-*`). Each entity carries its `faction`, Scourge
+    `hostFamily` (or `null`), one-line `canon`, a generation `promptBase`, the
+    `games` it renders in (**the matrix row**), and a `variants` map of per-game
+    render paths (`null` until rendered).
   - `shared` — truly game-agnostic assets used **identically** by every game:
-    FX (blood / ember / muzzle), UI icons, fonts (Oswald / Inter), and audio.
-- **`shared/{fx,ui,fonts,audio}/`** — the binary assets themselves (placeholder
-  READMEs for now).
-- **`src/index.ts`** — TypeScript types (`Asset`, `AssetCatalog`, `GameSlug`,
-  `AssetKind`, ...) and the `getAsset(catalog, id, game)` resolver.
+    FX (blood / ember / muzzle / breach-glow), UI icons (Pyre / Warden / Scourge
+    / breach / lane), fonts (Oswald / Inter), and audio.
+- **`entities/<id>/<game>.webp`** — the per-game entity renders, produced by the
+  variant-matrix generator (see below). This is what makes the catalog's
+  `variants` paths resolve.
+- **`shared/{fx,ui,fonts,audio}/`** — the game-agnostic binary assets.
+- **`src/index.ts`** — TypeScript types (`Asset`, `AssetCatalog`, `EntityAsset`,
+  `Faction`, `HostFamily`, `GameSlug`, ...), the `getAsset(catalog, id, game)`
+  resolver, and matrix helpers (`gamesFor`, `renderedGames`, `pendingGames`,
+  `matrixRows`).
+
+## The variant matrix (issue #6)
+
+Each entity is **one canon id** rendered per game. `entity.games` declares which
+games render it (the matrix's intent); `entity.variants[game]` holds the actual
+render path once produced. The renders are generated from the single roster by
+[`@shipshit/assetgen`](../assetgen):
+
+```bash
+# Populate the whole matrix with placeholders (no API keys):
+bun packages/assetgen/src/cli.ts matrix --provider mock
+
+# Real art into the identical paths (swap the provider; codex needs no key):
+bun packages/assetgen/src/cli.ts matrix --provider codex
+
+# One row or one column, only what's missing:
+bun packages/assetgen/src/cli.ts matrix --id scourge-swarm --only-missing
+bun packages/assetgen/src/cli.ts matrix --game deadlane
+```
+
+Inspect coverage in code with `matrixRows(catalog)` — per entity, which games are
+`intended` vs already `rendered`.
 
 ## The rule: entities are per-game renders
 
@@ -40,11 +72,11 @@ import { catalog, getAsset, GAME_SLUGS } from "@shipshit/assets";
 
 // Per-game entity render (companion to issue #6):
 getAsset(catalog, "scourge-swarm", "deadlane");
-//   { id, kind: "entity", name, path: "entities/scourge-swarm/deadlane.png", game: "deadlane" }
+//   { id, kind: "entity", name, path: "entities/scourge-swarm/deadlane.webp", game: "deadlane" }
 
-// A game with no render yet -> path is null:
-getAsset(catalog, "scourge-elite", "pactfall");
-//   { ..., path: null, game: "pactfall" }
+// A game the entity does not render in -> path is null:
+getAsset(catalog, "scourge-swarm", "starblight");
+//   { ..., path: null, game: "starblight" }
 
 // A shared, game-agnostic asset (game arg is ignored):
 getAsset(catalog, "fx-blood-splatter");

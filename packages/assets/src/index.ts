@@ -33,6 +33,21 @@ export const GAME_SLUGS: readonly GameSlug[] = [
 /** What an asset represents. */
 export type AssetKind = "entity" | "boss" | "fx" | "ui" | "font" | "audio";
 
+/** The factions of the Scourge universe (drives material/silhouette canon). */
+export type Faction = "scourge" | "pyre" | "wardens" | "neutral";
+
+/**
+ * Scourge host families from the lore Variation-Matrix — the conquered medium a
+ * Scourge form visibly wears. `null` for non-Scourge entities.
+ */
+export type HostFamily =
+  | "rot-flesh"
+  | "chitin"
+  | "mycelial"
+  | "machine-graft"
+  | "bone-titan"
+  | "voidship";
+
 /**
  * Per-game variant paths for a canonical entity. Each game slug maps to the
  * relative path of that game's render, or `null` when the game has no render
@@ -50,8 +65,23 @@ export interface EntityAsset {
   kind: "entity" | "boss";
   /** Display name. */
   name: string;
+  /** Faction this entity belongs to (drives material/silhouette canon). */
+  faction: Faction;
+  /** Scourge host family, or `null` for non-Scourge (human-faction) entities. */
+  hostFamily: HostFamily | null;
   /** One-line canon description (kept in sync with lore/CANON.md). */
   canon: string;
+  /**
+   * Generation seed for the matrix generator: the entity's body/silhouette/
+   * materials WITHOUT camera framing or the DOOM style suffix (those are added
+   * per game by `@shipshit/assetgen`).
+   */
+  promptBase: string;
+  /**
+   * The games this entity is intended to render in — the variant-matrix row.
+   * `variants[game]` may be non-null only for a `game` listed here.
+   */
+  games: GameSlug[];
   /** Per-game render paths, relative to this package. */
   variants: AssetVariants;
 }
@@ -92,7 +122,11 @@ export interface Asset {
 
 /** The full canon asset catalog: per-game entities plus shared assets. */
 export interface AssetCatalog {
+  /** JSON Schema reference (`./assets-catalog.schema.json`). */
+  $schema?: string;
   version: string;
+  /** Human note describing the catalog (preserved on generator write-back). */
+  note?: string;
   entities: EntityAsset[];
   shared: SharedAsset[];
 }
@@ -139,4 +173,62 @@ export function getAsset(
   }
 
   return undefined;
+}
+
+/** One cell of the variant matrix: an entity's intent/state for a single game. */
+export interface MatrixCell {
+  game: GameSlug;
+  /** This game is in the entity's `games` (the matrix intends a render here). */
+  intended: boolean;
+  /** A render exists for this game (its `variants` path is non-null). */
+  rendered: boolean;
+  /** The render path, or `null` when not yet rendered. */
+  path: string | null;
+}
+
+/** A full matrix row: one entity across every game. */
+export interface MatrixRow {
+  id: string;
+  name: string;
+  faction: Faction;
+  cells: MatrixCell[];
+}
+
+/** The games an entity is intended to render in (the matrix row's intent). */
+export function gamesFor(catalog: AssetCatalog, id: string): GameSlug[] {
+  return catalog.entities.find((e) => e.id === id)?.games ?? [];
+}
+
+/** The games for which an entity has an actual render (non-null variant path). */
+export function renderedGames(entity: EntityAsset): GameSlug[] {
+  return GAME_SLUGS.filter((g) => (entity.variants[g] ?? null) !== null);
+}
+
+/**
+ * The games an entity is intended to render in but has not rendered yet — the
+ * work the matrix generator still has to do for that entity.
+ */
+export function pendingGames(entity: EntityAsset): GameSlug[] {
+  return entity.games.filter((g) => (entity.variants[g] ?? null) === null);
+}
+
+/**
+ * The variant matrix as rows × game cells — the populated state of the catalog.
+ * Use it to drive the studio's matrix view or to audit coverage.
+ */
+export function matrixRows(catalog: AssetCatalog): MatrixRow[] {
+  return catalog.entities.map((e) => ({
+    id: e.id,
+    name: e.name,
+    faction: e.faction,
+    cells: GAME_SLUGS.map((game) => {
+      const path = e.variants[game] ?? null;
+      return {
+        game,
+        intended: e.games.includes(game),
+        rendered: path !== null,
+        path,
+      };
+    }),
+  }));
 }
