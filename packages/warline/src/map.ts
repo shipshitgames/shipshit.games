@@ -13,7 +13,7 @@ export function clamp(n: number, lo: number, hi: number): number {
 // Source-of-truth map tables (spec §3). Cloned fresh by createInitialWorld.
 const REGION_SEED: Region[] = [
   { id: "spire", name: "The Spire", faction: "wardens", pressure: 8, defense: 60, x: 14, y: 20, revealed: true },
-  { id: "foundry", name: "Foundry Wards", faction: "wardens", pressure: 14, defense: 50, x: 22, y: 48, revealed: true },
+  { id: "ashgate", name: "Ashgate", faction: "wardens", pressure: 14, defense: 50, x: 22, y: 48, revealed: true },
   { id: "pyregate", name: "The Pyre Gate", faction: "pyre", pressure: 10, defense: 45, x: 12, y: 76, revealed: true },
   { id: "ashreach", name: "Ash Reach", faction: "pyre", pressure: 18, defense: 35, x: 30, y: 78, revealed: true },
   { id: "rustmarch", name: "Rustmarch", faction: "neutral", pressure: 38, defense: 18, x: 44, y: 32, revealed: true },
@@ -21,30 +21,30 @@ const REGION_SEED: Region[] = [
   { id: "skyhook", name: "The Skyhook (Orbital Ring)", faction: "neutral", pressure: 30, defense: 20, x: 56, y: 12, revealed: true },
   { id: "maw", name: "The Maw", faction: "scourge", pressure: 92, defense: 0, x: 82, y: 28, breachId: "breach-primus", revealed: false },
   { id: "cinder", name: "Cinder Flats", faction: "scourge", pressure: 84, defense: 0, x: 86, y: 60, breachId: "breach-cinder", revealed: false },
-  { id: "choir", name: "Choir Hollow", faction: "scourge", pressure: 96, defense: 0, x: 74, y: 82, breachId: "breach-choir", revealed: false },
+  { id: "perdition", name: "Perdition", faction: "scourge", pressure: 96, defense: 0, x: 74, y: 82, breachId: "breach-perdition", revealed: false },
 ];
 
 const BREACH_SEED: Breach[] = [
   { id: "breach-primus", name: "Breach Primus", regionId: "maw", intensity: 80, active: true, sabotaged: 0 },
   { id: "breach-cinder", name: "The Cinder Breach", regionId: "cinder", intensity: 70, active: true, sabotaged: 0 },
-  { id: "breach-choir", name: "The Choir Node", regionId: "choir", intensity: 92, active: true, sabotaged: 0 },
+  { id: "breach-perdition", name: "The Choir Node", regionId: "perdition", intensity: 92, active: true, sabotaged: 0 },
 ];
 
 const LANE_SEED: Lane[] = [
-  { id: "l-spire-foundry", name: "Spire Causeway", from: "spire", to: "foundry", flow: 30, control: "wardens" },
-  { id: "l-foundry-pyregate", name: "Wardwalk", from: "foundry", to: "pyregate", flow: 28, control: "wardens" },
+  { id: "l-spire-ashgate", name: "Spire Causeway", from: "spire", to: "ashgate", flow: 30, control: "wardens" },
+  { id: "l-ashgate-pyregate", name: "Wardwalk", from: "ashgate", to: "pyregate", flow: 28, control: "wardens" },
   { id: "l-pyregate-ashreach", name: "Pyre Road", from: "pyregate", to: "ashreach", flow: 26, control: "pyre" },
   { id: "l-spire-rustmarch", name: "North Front", from: "spire", to: "rustmarch", flow: 52, control: "neutral" },
-  { id: "l-foundry-hollow", name: "Foundry Front", from: "foundry", to: "hollowlanes", flow: 58, control: "neutral" },
+  { id: "l-ashgate-hollow", name: "Foundry Front", from: "ashgate", to: "hollowlanes", flow: 58, control: "neutral" },
   { id: "l-ashreach-hollow", name: "Ash Front", from: "ashreach", to: "hollowlanes", flow: 50, control: "pyre" },
   { id: "l-rust-hollow", name: "Midspan", from: "rustmarch", to: "hollowlanes", flow: 44, control: "neutral" },
   { id: "l-rust-skyhook", name: "Skyhook Tether", from: "rustmarch", to: "skyhook", flow: 36, control: "neutral" },
   { id: "l-rust-maw", name: "The Maw Lane", from: "rustmarch", to: "maw", flow: 72, control: "scourge" },
   { id: "l-hollow-cinder", name: "Cinder Lane", from: "hollowlanes", to: "cinder", flow: 74, control: "scourge" },
-  { id: "l-hollow-choir", name: "Choir Lane", from: "hollowlanes", to: "choir", flow: 70, control: "scourge" },
+  { id: "l-hollow-perdition", name: "Choir Lane", from: "hollowlanes", to: "perdition", flow: 70, control: "scourge" },
   { id: "l-skyhook-maw", name: "Orbital Descent", from: "skyhook", to: "maw", flow: 48, control: "scourge" },
   { id: "l-maw-cinder", name: "Scourge Spine N", from: "maw", to: "cinder", flow: 60, control: "scourge" },
-  { id: "l-cinder-choir", name: "Scourge Spine S", from: "cinder", to: "choir", flow: 58, control: "scourge" },
+  { id: "l-cinder-perdition", name: "Scourge Spine S", from: "cinder", to: "perdition", flow: 58, control: "scourge" },
 ];
 
 /**
