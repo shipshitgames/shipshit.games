@@ -1,0 +1,13 @@
+{
+  "name": "@shipshit/assetgen",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "assetgen": "./src/cli.ts" },
+  "scripts": {
+    "gen": "bun src/cli.ts"
+  },
+  "dependencies": {
+    "sharp": "^0.34.2"
+  }
+}

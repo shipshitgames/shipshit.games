@@ -1,0 +1,19 @@
+// DOOM style canon — mirrors lore/DESIGN.md. Every generated asset carries this.
+export const DOOM_SUFFIX =
+  "dark, gritty, DOOM-like, blood and rust and gunmetal, hellfire ember light, " +
+  "grimy industrial, high contrast, heavy shadows, NO neon, no text, " +
+  "centered, transparent background";
+
+// Per-game framing — the same canon entity rendered for each game's camera.
+export const GAME_FRAMING: Record<string, string> = {
+  "scourge-survivors": "first-person game billboard sprite, front-facing, full body",
+  deadlane: "top-down / high-angle game sprite, silhouette readable from above",
+  bloodlane: "isometric 3/4-view game sprite, champion scale",
+  shared: "game asset",
+};
+
+export function buildPrompt(opts: { prompt: string; game: string; kind: string }): string {
+  const framing = GAME_FRAMING[opts.game] ?? GAME_FRAMING.shared;
+  const kind = opts.kind === "texture" ? "seamless tileable texture" : opts.kind;
+  return `${opts.prompt}. ${kind}. ${framing}. ${DOOM_SUFFIX}.`;
+}
