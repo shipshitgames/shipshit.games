@@ -1,5 +1,5 @@
 // Ship Shit Games — Studio shell (Electron preload)
-// Isolated context. Exposes a small, explicit API on `window.studio` via contextBridge.
+// Isolated context. Exposes an explicit API on `window.studio` via contextBridge.
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("studio", {
@@ -9,12 +9,22 @@ contextBridge.exposeInMainWorld("studio", {
     chrome: process.versions.chrome,
     node: process.versions.node,
   },
-  // Asset generation — runs @shipshit/assetgen in the main process.
+  // Asset generation (runs @shipshit/assetgen in the main process).
   generate: (opts) => ipcRenderer.invoke("studio:generate", opts),
   listGames: () => ipcRenderer.invoke("studio:listGames"),
-  // Placeholder for the future PTY-backed terminal bridge.
-  terminal: {
-    onData: (_listener) => () => {},
-    write: (_data) => {},
+  // Live generation log stream. Returns an unsubscribe fn.
+  onGenLog: (cb) => {
+    const h = (_e, chunk) => cb(chunk);
+    ipcRenderer.on("studio:gen-log", h);
+    return () => ipcRenderer.removeListener("studio:gen-log", h);
+  },
+  // Settings (non-secret) + keychain-backed API keys.
+  settings: {
+    get: () => ipcRenderer.invoke("settings:get"),
+    set: (partial) => ipcRenderer.invoke("settings:set", partial),
+  },
+  keys: {
+    status: () => ipcRenderer.invoke("keys:status"),
+    set: (provider, key) => ipcRenderer.invoke("keys:set", { provider, key }),
   },
 });

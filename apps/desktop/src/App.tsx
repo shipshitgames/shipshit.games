@@ -1,40 +1,25 @@
 import { useEffect, useState } from "react";
 
-// Studio cockpit: left sidebar of generator + codegen sections, a main pane that
-// swaps per section, and a bottom "terminal" placeholder. The Sprites pane is wired
-// to @shipshit/assetgen via the studio IPC bridge; the others land in later issues.
+// Studio cockpit. Sprites is wired to @shipshit/assetgen via the studio IPC bridge,
+// with a live streaming log. Provider + API keys are configured once in Settings.
 
-type SectionId = "maps" | "sprites" | "music" | "3d" | "codegen";
+type SectionId = "maps" | "sprites" | "music" | "3d" | "codegen" | "settings";
+type Group = "Generators" | "Codegen" | "Studio";
+type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
-type Section = {
-  id: SectionId;
-  label: string;
-  group: "Generators" | "Codegen";
-  glyph: string;
-  blurb: string;
-};
-
-interface GenResult {
-  ok: boolean;
-  log: string;
-  path: string | null;
-  dataUrl: string | null;
-}
+interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null }
+interface Settings { defaultProvider: string; defaultGame: string }
 
 declare global {
   interface Window {
     studio?: {
       platform: string;
       versions: Record<string, string>;
-      generate: (opts: {
-        id: string;
-        prompt: string;
-        provider: string;
-        game: string;
-        kind: string;
-      }) => Promise<GenResult>;
+      generate: (opts: { id: string; prompt: string; game: string; kind: string; provider?: string }) => Promise<GenResult>;
       listGames: () => Promise<string[]>;
-      terminal: { onData: (l: (d: string) => void) => () => void; write: (d: string) => void };
+      onGenLog: (cb: (chunk: string) => void) => () => void;
+      settings: { get: () => Promise<Settings>; set: (p: Partial<Settings>) => Promise<Settings> };
+      keys: { status: () => Promise<Record<string, boolean>>; set: (provider: string, key: string) => Promise<Record<string, boolean>> };
     };
   }
 }
@@ -45,34 +30,98 @@ const SECTIONS: Section[] = [
   { id: "music", label: "Music + SFX", group: "Generators", glyph: "♪", blurb: "Brutal scores and combat SFX for the shipshitshow." },
   { id: "3d", label: "3D", group: "Generators", glyph: "◈", blurb: "Meshes, props and Warden engineering for the 3D titles." },
   { id: "codegen", label: "Codegen", group: "Codegen", glyph: "λ", blurb: "Plan → Review → Execute → Verify → Ship over the local CLI." },
+  { id: "settings", label: "Settings", group: "Studio", glyph: "⚙", blurb: "Providers, API keys, and defaults — set once, used by every generator." },
+];
+const GROUPS: Group[] = ["Generators", "Codegen", "Studio"];
+
+const PROVIDERS = [
+  { id: "openai", label: "OpenAI (gpt-image-2)" },
+  { id: "fal", label: "fal.ai (FLUX)" },
+  { id: "replicate", label: "Replicate" },
+  { id: "mock", label: "Mock (offline test)" },
+];
+const KEYED = [
+  { id: "openai", label: "OpenAI" },
+  { id: "fal", label: "fal.ai" },
+  { id: "replicate", label: "Replicate" },
 ];
 
-const GROUPS: Array<Section["group"]> = ["Generators", "Codegen"];
+function SettingsPane() {
+  const [settings, setSettings] = useState<Settings>({ defaultProvider: "openai", defaultGame: "scourge-survivors" });
+  const [games, setGames] = useState<string[]>(["scourge-survivors"]);
+  const [status, setStatus] = useState<Record<string, boolean>>({});
+  const [inputs, setInputs] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    window.studio?.settings.get().then(setSettings).catch(() => {});
+    window.studio?.keys.status().then(setStatus).catch(() => {});
+    window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
+  }, []);
+
+  const update = (p: Partial<Settings>) => window.studio?.settings.set(p).then(setSettings).catch(() => {});
+  const saveKey = (provider: string) => {
+    const key = inputs[provider];
+    if (!key) return;
+    window.studio?.keys.set(provider, key).then((s) => { setStatus(s); setInputs((k) => ({ ...k, [provider]: "" })); }).catch(() => {});
+  };
+
+  return (
+    <div className="settings">
+      <div className="set-group">
+        <div className="set-group-title">Defaults</div>
+        <label className="set-field"><span>Default provider — used by every generator</span>
+          <select value={settings.defaultProvider} onChange={(e) => update({ defaultProvider: e.target.value })}>
+            {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+        </label>
+        <label className="set-field"><span>Default game</span>
+          <select value={settings.defaultGame} onChange={(e) => update({ defaultGame: e.target.value })}>
+            {games.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="set-group">
+        <div className="set-group-title">API keys — stored in your macOS keychain</div>
+        {KEYED.map((k) => (
+          <div className="set-key-row" key={k.id}>
+            <span className="label">{k.label}</span>
+            <input type="password" placeholder={status[k.id] ? "•••••••• stored" : "paste key"} value={inputs[k.id] || ""} onChange={(e) => setInputs((s) => ({ ...s, [k.id]: e.target.value }))} />
+            <button className="set-btn" onClick={() => saveKey(k.id)}>Save</button>
+            <span className={"badge " + (status[k.id] ? "ok" : "no")}>{status[k.id] ? "set" : "none"}</span>
+          </div>
+        ))}
+        <p className="gen-note">Codex is a coding agent — it can't make images. For sprites use an image-model key (OpenAI gpt-image-2 / fal / Replicate).</p>
+      </div>
+    </div>
+  );
+}
 
 function SpritesPane() {
   const [id, setId] = useState("swarm-husk");
   const [prompt, setPrompt] = useState("a rotting bio-husk of the Scourge, mid-lunge, gore");
-  const [provider, setProvider] = useState("codex");
   const [game, setGame] = useState("scourge-survivors");
   const [games, setGames] = useState<string[]>(["scourge-survivors"]);
+  const [provider, setProvider] = useState("openai");
   const [busy, setBusy] = useState(false);
+  const [log, setLog] = useState("");
   const [result, setResult] = useState<GenResult | null>(null);
 
   useEffect(() => {
-    window.studio?.listGames?.().then((g) => { if (g?.length) { setGames(g); setGame(g[0]); } }).catch(() => {});
+    window.studio?.settings.get().then((s) => { setProvider(s.defaultProvider); setGame(s.defaultGame); }).catch(() => {});
+    window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
+    const off = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    return () => { off?.(); };
   }, []);
 
   async function generate() {
-    if (!window.studio?.generate) {
-      setResult({ ok: false, log: "studio bridge unavailable (restart the app)", path: null, dataUrl: null });
-      return;
-    }
+    if (!window.studio?.generate) { setLog("studio bridge unavailable — restart the app"); return; }
     setBusy(true);
     setResult(null);
+    setLog("");
     try {
-      setResult(await window.studio.generate({ id, prompt, provider, game, kind: "sprite" }));
+      setResult(await window.studio.generate({ id, prompt, game, kind: "sprite" }));
     } catch (e) {
-      setResult({ ok: false, log: String((e as Error)?.message ?? e), path: null, dataUrl: null });
+      setLog(String((e as Error)?.message ?? e));
     } finally {
       setBusy(false);
     }
@@ -87,33 +136,20 @@ function SpritesPane() {
         <label className="gen-field gen-grow"><span>Prompt</span>
           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
         </label>
-        <div className="gen-row">
-          <label className="gen-field"><span>Game</span>
-            <select value={game} onChange={(e) => setGame(e.target.value)}>
-              {games.map((g) => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </label>
-          <label className="gen-field"><span>Provider</span>
-            <select value={provider} onChange={(e) => setProvider(e.target.value)}>
-              <option value="codex">codex (your auth)</option>
-              <option value="openai">openai (gpt-image-2)</option>
-              <option value="fal">fal</option>
-              <option value="mock">mock (test)</option>
-            </select>
-          </label>
-        </div>
+        <label className="gen-field"><span>Game</span>
+          <select value={game} onChange={(e) => setGame(e.target.value)}>
+            {games.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+        <div className="gen-active">provider <b>{provider}</b> · change in Settings</div>
         <button className="gen-btn" disabled={busy || !id || !prompt} onClick={generate}>
           {busy ? "Forging…" : "Generate"}
         </button>
         <p className="gen-note">Auto-styled with the DOOM DESIGN.md suffix · writes the .webp + updates the game's assets.json</p>
       </div>
       <div className="gen-preview">
-        {result?.dataUrl ? (
-          <img src={result.dataUrl} alt={id} />
-        ) : (
-          <div className="gen-preview-empty">{busy ? "forging…" : "preview"}</div>
-        )}
-        {result && <pre className={"gen-log" + (result.ok ? "" : " is-err")}>{result.log || (result.ok ? "done" : "failed")}</pre>}
+        {result?.dataUrl ? <img src={result.dataUrl} alt={id} /> : <div className="gen-preview-empty">{busy ? "forging…" : "preview"}</div>}
+        {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
         {result?.path && <div className="gen-path">{result.path}</div>}
       </div>
     </div>
@@ -155,15 +191,15 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "sprites" ? (
-              <SpritesPane />
-            ) : (
-              <div className="placeholder-card">
-                <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
-                <p><strong>{section.label}</strong> workspace coming online.</p>
-                <p className="placeholder-sub">Same shape as Sprites — wiring lands in a later issue.</p>
-              </div>
-            )}
+            {active === "sprites" ? <SpritesPane />
+              : active === "settings" ? <SettingsPane />
+              : (
+                <div className="placeholder-card">
+                  <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
+                  <p><strong>{section.label}</strong> workspace coming online.</p>
+                  <p className="placeholder-sub">Same shape as Sprites — wiring lands in a later issue.</p>
+                </div>
+              )}
           </div>
         </main>
 
