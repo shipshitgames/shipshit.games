@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
+import { existsSync } from "node:fs";
 import { writeFile, mkdir } from "node:fs/promises";
-import { join, dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { buildPrompt } from "./style.ts";
 import { providers } from "./providers.ts";
 import { toWebp } from "./postprocess.ts";
@@ -20,14 +21,29 @@ const kind = flag("kind", "sprite")!;
 const provider = flag("provider", "openai")!;
 const model = flag("model", "gpt-image-2")!;
 const size = parseInt(flag("size", "1024")!, 10);
-const repo = flag("repo", process.cwd())!;
+const repo = flag("repo") || defaultRepo(game);
 const dryRun = has("dry-run");
+
+function defaultRepo(game: string): string {
+  if (game === "shared") return process.cwd();
+  const cwd = process.cwd();
+  if (basename(cwd) === game) return cwd;
+
+  const workspaceGamesPath = join(cwd, "games", game);
+  if (existsSync(workspaceGamesPath)) return workspaceGamesPath;
+
+  const siblingGamesPath = join(cwd, "..", "games", game);
+  if (existsSync(siblingGamesPath)) return siblingGamesPath;
+
+  return cwd;
+}
 
 if (!id || !prompt) {
   console.error(
-    "usage: assetgen --id <id> --prompt <text> [--game scourge-survivors|deadlane|bloodlane|shared]\n" +
+    "usage: assetgen --id <id> --prompt <text> [--game scourge-survivors|deadlane|pactfall|starblight|shared]\n" +
       "                [--kind sprite|texture|icon] [--provider openai|fal|codex|mock] [--model gpt-image-2]\n" +
-      "                [--size 1024] [--repo <game-repo-path>] [--dry-run]",
+      "                [--size 1024] [--repo <game-repo-path>] [--dry-run]\n" +
+      "                Default game repo lookup prefers ./games/<game> or ../games/<game>.",
   );
   process.exit(1);
 }

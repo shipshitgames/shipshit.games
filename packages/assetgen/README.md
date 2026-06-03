@@ -13,7 +13,7 @@ CLI today; the Electron studio will wrap it with a UI later.
 OPENAI_API_KEY=sk-... bun packages/assetgen/src/cli.ts \
   --id swarm-husk --game scourge-survivors --kind sprite \
   --prompt "a rotting bio-husk of the Scourge, lunging" \
-  --repo ../scourge-survivors
+  --repo ../games/scourge-survivors
 
 # Or use your authed Codex CLI as the generator:
 bun packages/assetgen/src/cli.ts --provider codex --id ... --prompt "..." --repo ...
@@ -43,6 +43,8 @@ The `codex` provider rides codex's own keychain auth — nothing to store.
 Every prompt is suffixed with the DOOM canon from `lore/DESIGN.md` and framed per game
 (FPS billboard / TD top-down / MOBA isometric / shared). Output is trimmed, optionally
 sized, encoded to `.webp`, and upserted into the target game's `src/assets/assets.json`.
+When `--repo` is omitted, the CLI prefers the studio layout: `./games/<game>` or
+`../games/<game>`.
 
 > TODO (board): background-removal step (rembg) for non-transparent providers; the
 > per-game variant matrix (issue #6); wire into the Electron studio UI.

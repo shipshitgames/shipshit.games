@@ -16,5 +16,8 @@ export const GAME_FRAMING: Record<string, string> = {
 export function buildPrompt(opts: { prompt: string; game: string; kind: string }): string {
   const framing = GAME_FRAMING[opts.game] ?? GAME_FRAMING.shared;
   const kind = opts.kind === "texture" ? "seamless tileable texture" : opts.kind;
-  return `${opts.prompt}. ${kind}. ${framing}. ${DOOM_SUFFIX}.`;
+  const scourgeRule = /\bscourge\b/i.test(opts.prompt)
+    ? "Scourge subjects must read as one parasite army wearing conquered host races: ruptured host flesh, invasive tendrils, embedded breach cores, black chitin over stolen bone/metal, fused wreckage or machinery; host family can vary between flesh, chitin, fungal, machine-graft, bone titan, or voidship, but avoid standalone generic demon or alien designs"
+    : "";
+  return `${opts.prompt}. ${kind}. ${framing}. ${DOOM_SUFFIX}${scourgeRule ? `. ${scourgeRule}` : ""}.`;
 }

@@ -9,15 +9,17 @@ const { spawn, execFileSync } = require("node:child_process");
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
 const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
 
-const MONOREPO = path.join(__dirname, "..", "..", "..");
-const WORKSPACE = path.join(MONOREPO, "..");
-const ASSETGEN = path.join(MONOREPO, "packages", "assetgen", "src", "cli.ts");
+const STUDIO_REPO = path.join(__dirname, "..", "..", "..");
+const WORKSPACE = path.join(STUDIO_REPO, "..");
+const GAMES_ROOT = path.join(WORKSPACE, "games");
+const ASSETGEN = path.join(STUDIO_REPO, "packages", "assetgen", "src", "cli.ts");
+const DEFAULT_GAME = "scourge-survivors";
 const ALL_GAMES = ["scourge-survivors", "deadlane", "pactfall", "starblight"];
-const gameDir = (g) => path.join(WORKSPACE, g === "shared" ? "scourge-survivors" : g);
+const gameDir = (g) => path.join(GAMES_ROOT, g === "shared" ? DEFAULT_GAME : g);
 
 // ---- settings (non-secret) ----
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
-const DEFAULTS = { defaultProvider: "codex", defaultGame: "scourge-survivors" };
+const DEFAULTS = { defaultProvider: "codex", defaultGame: DEFAULT_GAME };
 function readSettings() {
   try { return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsPath(), "utf8")) }; }
   catch { return { ...DEFAULTS }; }
@@ -62,7 +64,7 @@ ipcMain.handle("studio:generate", async (e, opts) => {
   send(`$ assetgen --provider ${provider} --game ${game} --kind ${opts?.kind || "sprite"} --id ${opts?.id}\n`);
   return await new Promise((resolve) => {
     let child;
-    try { child = spawn("bun", args, { cwd: MONOREPO }); }
+    try { child = spawn("bun", args, { cwd: STUDIO_REPO }); }
     catch (err) { send(`spawn failed: ${err}\n`); return resolve({ ok: false, log: String(err), path: null, dataUrl: null }); }
     let buf = "";
     const onData = (d) => { const s = d.toString(); buf += s; send(s); };

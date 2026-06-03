@@ -46,10 +46,17 @@ export const GAMES: Game[] = [
     repoUrl: "https://github.com/shipshitgames/deadlane",
   },
   {
-    slug: "bloodlane",
-    title: "Bloodlane",
-    blurb: "Pyre-vs-Wardens MOBA.",
+    slug: "pactfall",
+    title: "Pactfall",
+    blurb: "Pyre-vs-Wardens MOBA built around the Pact.",
     status: "concept",
-    repoUrl: "https://github.com/shipshitgames/bloodlane",
+    repoUrl: "https://github.com/shipshitgames/pactfall",
+  },
+  {
+    slug: "starblight",
+    title: "Starblight",
+    blurb: "Arcade pilot shooter against the orbital infection.",
+    status: "concept",
+    repoUrl: "https://github.com/shipshitgames/starblight",
   },
 ];

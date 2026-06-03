@@ -1,4 +1,4 @@
-# Ship Shit Games — Monorepo (`shipshitgames/shipshitgames`)
+# Ship Shit Games (`shipshitgames/shipshitgames`)
 
 The studio platform: marketing + gallery, the members portal, the desktop studio, and docs.
 **Turborepo + Bun.** Part of the Ship Shit Games universe (canon in
@@ -17,9 +17,11 @@ The studio platform: marketing + gallery, the members portal, the desktop studio
 - **`packages/shared`** — shared types / utilities
 - consumes **`@shipshit/engine`** (separate repo) for game code
 
-## Games (separate repos, shown in the gallery)
-`scourge-survivors` (FPS) · `deadlane` (TD) · `bloodlane` (MOBA, concept)
+## Games
+Local game repos live under `../games/<slug>` by default.
+
+`scourge-survivors` (FPS) · `deadlane` (TD) · `pactfall` (MOBA, concept) · `starblight` (arcade shooter, concept)
 
 ## Status
-Repo initialized — apps scaffolding is tracked on the **Monorepo** project board.
+Repo initialized — apps scaffolding is tracked on the **Ship Shit Games** project board.
 Default branch `master`. Open-core (web/gallery/docs public; portal sells lifetime access).
