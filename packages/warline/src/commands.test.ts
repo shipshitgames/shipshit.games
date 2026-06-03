@@ -10,13 +10,13 @@ const NOW = 1_700_000_000_000;
 
 test("fortify raises defense, lowers pressure, and costs scrap+fuel", () => {
   const w = createInitialWorld(NOW);
-  const defBefore = regionById(w, "foundry")!.defense;
+  const defBefore = regionById(w, "ashgate")!.defense;
   const scrapBefore = w.resources.scrap;
   const fuelBefore = w.resources.fuel;
-  const cmd: Command = { kind: "fortify", regionId: "foundry", faction: "wardens" };
+  const cmd: Command = { kind: "fortify", regionId: "ashgate", faction: "wardens" };
   const res = applyCommand(w, cmd, NOW);
   assert.equal(res.ok, true);
-  const region = regionById(res.state, "foundry")!;
+  const region = regionById(res.state, "ashgate")!;
   assert.equal(region.defense, defBefore + COMMAND_EFFECT.fortifyDefense);
   assert.equal(res.state.resources.scrap, scrapBefore - (COMMAND_COSTS.fortify.scrap ?? 0));
   assert.equal(res.state.resources.fuel, fuelBefore - (COMMAND_COSTS.fortify.fuel ?? 0));
@@ -83,7 +83,7 @@ test("canAfford is false when broke; applyCommand returns ok:false unchanged", (
   assert.equal(canAfford(w, "fortify"), false);
   assert.equal(canAfford(w, "deploy"), false);
   const snapshot = JSON.stringify(w);
-  const res = applyCommand(w, { kind: "fortify", regionId: "foundry", faction: "wardens" }, NOW);
+  const res = applyCommand(w, { kind: "fortify", regionId: "ashgate", faction: "wardens" }, NOW);
   assert.equal(res.ok, false);
   assert.equal(JSON.stringify(res.state), snapshot);
 });

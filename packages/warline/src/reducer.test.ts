@@ -54,10 +54,10 @@ test("magnitude: victory in band, defeat low", () => {
 
 test("purge-breach lowers breach intensity and credits biomass", () => {
   const w = createInitialWorld(NOW);
-  // hottest active breach is breach-choir (intensity 92)
-  const before = breachById(w, "breach-choir")!.intensity;
+  // hottest active breach is breach-perdition (intensity 92)
+  const before = breachById(w, "breach-perdition")!.intensity;
   const { state, credited } = applyOperation(w, op({ game: "scourge-survivors" }), NOW);
-  const after = breachById(state, "breach-choir")!.intensity;
+  const after = breachById(state, "breach-perdition")!.intensity;
   assert.ok(after < before, "intensity should drop");
   assert.ok((credited.biomass ?? 0) > 0, "biomass credited");
   assert.equal(state.feed.length, 1);
@@ -67,17 +67,17 @@ test("purge-breach lowers breach intensity and credits biomass", () => {
 test("purge can seal a breach (active=false, intel bonus, event.sealed)", () => {
   let w = createInitialWorld(NOW);
   // force the choir breach low so a single purge seals it
-  const b = w.breaches.find((x) => x.id === "breach-choir")!;
+  const b = w.breaches.find((x) => x.id === "breach-perdition")!;
   b.intensity = 5;
   // and lower the others so choir stays the targeted (hottest) one is fine either way,
   // but explicitly target it via targetId for determinism.
   const intelBefore = w.resources.intel;
   const { state } = applyOperation(
     w,
-    op({ game: "scourge-survivors", targetId: "breach-choir", score: 4000 }),
+    op({ game: "scourge-survivors", targetId: "breach-perdition", score: 4000 }),
     NOW,
   );
-  const sealed = breachById(state, "breach-choir")!;
+  const sealed = breachById(state, "breach-perdition")!;
   assert.equal(sealed.active, false);
   assert.equal(sealed.intensity, 0);
   assert.ok(state.resources.intel >= intelBefore + 120, "intel seal bonus");
@@ -120,14 +120,14 @@ test("run-logistics musters army and credits scrap+fuel", () => {
 
 test("defeat still trickles intel and is mild", () => {
   const w = createInitialWorld(NOW);
-  const before = breachById(w, "breach-choir")!.intensity;
+  const before = breachById(w, "breach-perdition")!.intensity;
   const { state, credited } = applyOperation(
     w,
-    op({ game: "scourge-survivors", outcome: "defeat", targetId: "breach-choir" }),
+    op({ game: "scourge-survivors", outcome: "defeat", targetId: "breach-perdition" }),
     NOW,
   );
   assert.equal((credited.intel ?? 0), 8, "defeat recon trickle");
-  assert.equal(breachById(state, "breach-choir")!.intensity, before, "no purge on defeat");
+  assert.equal(breachById(state, "breach-perdition")!.intensity, before, "no purge on defeat");
 });
 
 test("tick raises pressure near a breach and never exceeds 100", () => {

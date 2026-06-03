@@ -5,6 +5,7 @@ import {
   accentVars,
   gameCharacters,
   gameCreatures,
+  gameImageUrl,
   spriteUrl,
   type Game,
   type GameStatus,
@@ -47,6 +48,7 @@ function keySprite(game: Game): string | null {
 
 export function GameCard({ game }: { game: Game }) {
   const sprite = keySprite(game);
+  const image = gameImageUrl(game.slug);
   return (
     <Link
       href={`/games/${game.slug}`}
@@ -54,8 +56,14 @@ export function GameCard({ game }: { game: Game }) {
       className="group relative flex h-72 flex-col justify-end overflow-hidden rounded-md border border-gunmetal bg-coal transition-all duration-300 hover:border-[var(--page-accent)] hover:shadow-[0_0_44px_-14px_var(--page-accent)]"
     >
       <div aria-hidden className="absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(85%_60%_at_50%_-5%,color-mix(in_srgb,var(--page-accent)_22%,transparent),transparent_70%)] opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
-        {sprite ? (
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover opacity-70 saturate-125 transition-all duration-500 group-hover:scale-105 group-hover:opacity-85"
+          />
+        ) : sprite ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={sprite}
@@ -67,6 +75,8 @@ export function GameCard({ game }: { game: Game }) {
             {game.title.charAt(0)}
           </span>
         )}
+        <div className="absolute inset-0 bg-[radial-gradient(85%_60%_at_50%_-5%,color-mix(in_srgb,var(--page-accent)_18%,transparent),transparent_70%)] opacity-80 transition-opacity duration-300 group-hover:opacity-100" />
+        <div className="absolute inset-0 bg-gradient-to-t from-void via-void/45 to-void/10" />
         <div className="vignette absolute inset-0" />
       </div>
 

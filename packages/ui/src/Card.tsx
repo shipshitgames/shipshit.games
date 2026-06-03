@@ -1,18 +1,28 @@
-import type { HTMLAttributes } from "react";
+import { cloneElement, isValidElement, type HTMLAttributes, type ReactElement } from "react";
 import { cn } from "./cn";
 
-export type CardProps = HTMLAttributes<HTMLDivElement>;
+export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  asChild?: boolean;
+}
 
-export function Card({ className, ...props }: CardProps) {
+const baseCard = "ssg-panel";
+
+export function Card({ className, asChild = false, children, ...props }: CardProps) {
+  if (asChild && isValidElement(children)) {
+    const child = children as ReactElement<{ className?: string }>;
+    return cloneElement(child, {
+      ...props,
+      className: cn(baseCard, child.props.className, className),
+    });
+  }
+
   return (
     <div
-      className={cn(
-        "rounded-lg border border-[#ff2d95]/20 bg-[#0a0a0f]/80 p-5 text-zinc-100 " +
-          "transition-colors duration-150 hover:border-[#ff2d95]/60",
-        className,
-      )}
+      className={cn(baseCard, className)}
       {...props}
-    />
+    >
+      {children}
+    </div>
   );
 }
 
@@ -20,7 +30,7 @@ export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingEle
   return (
     <h3
       className={cn(
-        "text-lg font-bold uppercase tracking-wide text-[#ff2d95]",
+        "ssg-card-title",
         className,
       )}
       {...props}
@@ -29,5 +39,5 @@ export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingEle
 }
 
 export function CardBody({ className, ...props }: CardProps) {
-  return <div className={cn("mt-2 text-sm text-zinc-400", className)} {...props} />;
+  return <div className={cn("ssg-card-body", className)} {...props} />;
 }

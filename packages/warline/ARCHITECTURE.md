@@ -193,7 +193,7 @@ Lay out left (human) → right (Scourge); coords are `x,y` in 0..100.
 | id | name | faction | pressure | defense | x | y | breachId | revealed |
 |----|------|---------|----------|---------|---|---|----------|----------|
 | spire | The Spire | wardens | 8 | 60 | 14 | 20 | — | true |
-| foundry | Foundry Wards | wardens | 14 | 50 | 22 | 48 | — | true |
+| ashgate | Ashgate | wardens | 14 | 50 | 22 | 48 | — | true |
 | pyregate | The Pyre Gate | pyre | 10 | 45 | 12 | 76 | — | true |
 | ashreach | Ash Reach | pyre | 18 | 35 | 30 | 78 | — | true |
 | rustmarch | Rustmarch | neutral | 38 | 18 | 44 | 32 | — | true |
@@ -201,32 +201,32 @@ Lay out left (human) → right (Scourge); coords are `x,y` in 0..100.
 | skyhook | The Skyhook (Orbital Ring) | neutral | 30 | 20 | 56 | 12 | — | true |
 | maw | The Maw | scourge | 92 | 0 | 82 | 28 | breach-primus | false |
 | cinder | Cinder Flats | scourge | 84 | 0 | 86 | 60 | breach-cinder | false |
-| choir | Choir Hollow | scourge | 96 | 0 | 74 | 82 | breach-choir | false |
+| perdition | Perdition | scourge | 96 | 0 | 74 | 82 | breach-perdition | false |
 
 ### Breaches (3)
 | id | name | regionId | intensity | active | sabotaged |
 |----|------|----------|-----------|--------|-----------|
 | breach-primus | Breach Primus | maw | 80 | true | 0 |
 | breach-cinder | The Cinder Breach | cinder | 70 | true | 0 |
-| breach-choir | The Choir Node | choir | 92 | true | 0 |
+| breach-perdition | The Choir Node | perdition | 92 | true | 0 |
 
 ### Lanes (14) — `flow`, `control`
 | id | name | from | to | flow | control |
 |----|------|------|----|------|---------|
-| l-spire-foundry | Spire Causeway | spire | foundry | 30 | wardens |
-| l-foundry-pyregate | Wardwalk | foundry | pyregate | 28 | wardens |
+| l-spire-ashgate | Spire Causeway | spire | ashgate | 30 | wardens |
+| l-ashgate-pyregate | Wardwalk | ashgate | pyregate | 28 | wardens |
 | l-pyregate-ashreach | Pyre Road | pyregate | ashreach | 26 | pyre |
 | l-spire-rustmarch | North Front | spire | rustmarch | 52 | neutral |
-| l-foundry-hollow | Foundry Front | foundry | hollowlanes | 58 | neutral |
+| l-ashgate-hollow | Foundry Front | ashgate | hollowlanes | 58 | neutral |
 | l-ashreach-hollow | Ash Front | ashreach | hollowlanes | 50 | pyre |
 | l-rust-hollow | Midspan | rustmarch | hollowlanes | 44 | neutral |
 | l-rust-skyhook | Skyhook Tether | rustmarch | skyhook | 36 | neutral |
 | l-rust-maw | The Maw Lane | rustmarch | maw | 72 | scourge |
 | l-hollow-cinder | Cinder Lane | hollowlanes | cinder | 74 | scourge |
-| l-hollow-choir | Choir Lane | hollowlanes | choir | 70 | scourge |
+| l-hollow-perdition | Choir Lane | hollowlanes | perdition | 70 | scourge |
 | l-skyhook-maw | Orbital Descent | skyhook | maw | 48 | scourge |
 | l-maw-cinder | Scourge Spine N | maw | cinder | 60 | scourge |
-| l-cinder-choir | Scourge Spine S | cinder | choir | 58 | scourge |
+| l-cinder-perdition | Scourge Spine S | cinder | perdition | 58 | scourge |
 
 Also export helpers: `regionById(state, id)`, `laneById(state, id)`, `breachById(state, id)`,
 `neighborsOf(state, regionId): Region[]` (regions one lane away), `clamp(n, lo, hi)`.

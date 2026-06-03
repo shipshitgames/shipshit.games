@@ -14,8 +14,8 @@ import {
   getFaction,
   gameCharacters,
   gameCreatures,
+  gameImageUrl,
   accentVars,
-  spriteUrl,
 } from "@/lib/content";
 
 export function generateStaticParams() {
@@ -44,10 +44,7 @@ export default async function Page({
 
   const faction = game.factionSlug ? getFaction(game.factionSlug) : undefined;
 
-  const art = [...gameCreatures(game), ...gameCharacters(game)].find(
-    (e) => e.spriteBase
-  );
-  const sprite = art ? spriteUrl(art.spriteBase) : null;
+  const image = gameImageUrl(game.slug);
 
   const roster = gameCharacters(game);
   const foes = gameCreatures(game);
@@ -55,25 +52,27 @@ export default async function Page({
   return (
     <main style={accentVars(game.accent)}>
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden px-6 pt-32 pb-16">
+      <section className="relative min-h-[72vh] overflow-hidden px-6 pb-16 pt-32">
         <Backdrop />
-        {sprite ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={sprite}
-            alt=""
-            aria-hidden
-            className="pointer-events-none absolute right-0 top-1/2 hidden h-[80vh] max-h-[680px] -translate-y-1/2 object-contain opacity-50 saturate-150 drop-shadow-[0_0_90px_color-mix(in_srgb,var(--page-accent)_45%,transparent)] sm:block"
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src="/sprites/boss.webp"
-            alt=""
-            aria-hidden
-            className="pointer-events-none absolute right-0 top-1/2 hidden h-[80vh] max-h-[680px] -translate-y-1/2 object-contain opacity-[0.08] sm:block"
-          />
-        )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={image}
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-55 saturate-125"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-[radial-gradient(70%_65%_at_70%_35%,transparent,color-mix(in_srgb,var(--page-accent)_16%,transparent)_45%,#0a0a0a_90%)]"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-r from-void via-void/70 to-void/25"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-void to-transparent"
+        />
 
         <div className="relative z-10 mx-auto max-w-7xl">
           <Link

@@ -36,10 +36,18 @@ export default function Home() {
         <Backdrop />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/sprites/boss.webp"
+          src="/images/home/shipshit-hero.jpg"
           alt=""
           aria-hidden
-          className="animate-drift pointer-events-none absolute left-1/2 top-1/2 h-[68vh] max-h-[640px] -translate-x-1/2 -translate-y-[55%] object-contain opacity-[0.13] drop-shadow-[0_0_90px_rgba(255,106,0,0.45)]"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-55 saturate-125"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_42%,rgba(10,10,10,0.18),rgba(10,10,10,0.82)_72%,#0a0a0a_100%)]"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-b from-void/80 via-void/35 to-void"
         />
 
         <div className="relative z-10 flex flex-col items-center">
