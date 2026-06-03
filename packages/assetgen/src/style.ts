@@ -8,7 +8,8 @@ export const DOOM_SUFFIX =
 export const GAME_FRAMING: Record<string, string> = {
   "scourge-survivors": "first-person game billboard sprite, front-facing, full body",
   deadlane: "top-down / high-angle game sprite, silhouette readable from above",
-  bloodlane: "isometric 3/4-view game sprite, champion scale",
+  pactfall: "isometric 3/4-view game sprite, champion scale",
+  starblight: "side-on / top-down arcade space-shooter sprite, crisp readable silhouette",
   shared: "game asset",
 };
 

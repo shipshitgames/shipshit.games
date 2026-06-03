@@ -1,26 +1,20 @@
 // Ship Shit Games — Studio shell (Electron preload)
-// Runs in an isolated context with access to a limited Node surface. We expose a
-// tiny, explicit API on `window.studio` via contextBridge. The terminal / node-pty
-// and codegen wiring lands in a later issue — this is a typed stub for now.
-const { contextBridge } = require("electron");
+// Isolated context. Exposes a small, explicit API on `window.studio` via contextBridge.
+const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("studio", {
-  // Identifying metadata the renderer can show without reaching into Node.
   platform: process.platform,
   versions: {
     electron: process.versions.electron,
     chrome: process.versions.chrome,
     node: process.versions.node,
   },
+  // Asset generation — runs @shipshit/assetgen in the main process.
+  generate: (opts) => ipcRenderer.invoke("studio:generate", opts),
+  listGames: () => ipcRenderer.invoke("studio:listGames"),
   // Placeholder for the future PTY-backed terminal bridge.
   terminal: {
-    // eslint-disable-next-line no-unused-vars
-    onData: (_listener) => {
-      // no-op stub — wired up alongside xterm/node-pty later.
-      return () => {};
-    },
-    write: (_data) => {
-      // no-op stub.
-    },
+    onData: (_listener) => () => {},
+    write: (_data) => {},
   },
 });
