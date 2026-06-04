@@ -1,7 +1,14 @@
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "./cn";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost";
+export type ButtonVariant =
+  | "default"
+  | "primary"
+  | "secondary"
+  | "danger"
+  | "ghost"
+  | "stack"
+  | "back";
 export type ButtonSize = "sm" | "md" | "lg";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -9,24 +16,20 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
 }
 
-const base =
-  "inline-flex items-center justify-center gap-2 rounded-md font-bold uppercase tracking-wide " +
-  "transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-[#00e5ff] " +
-  "disabled:pointer-events-none disabled:opacity-50";
-
 const variants: Record<ButtonVariant, string> = {
-  primary:
-    "bg-[#ff2d95] text-[#0a0a0f] hover:bg-[#ff2d95]/90 shadow-[0_0_20px_rgba(255,45,149,0.5)]",
-  secondary:
-    "bg-[#00e5ff] text-[#0a0a0f] hover:bg-[#00e5ff]/90 shadow-[0_0_20px_rgba(0,229,255,0.5)]",
-  ghost:
-    "bg-transparent text-[#00e5ff] border border-[#00e5ff]/40 hover:border-[#00e5ff] hover:bg-[#00e5ff]/10",
+  default: "ssg-button--default",
+  primary: "ssg-button--primary",
+  secondary: "ssg-button--secondary",
+  danger: "ssg-button--danger",
+  ghost: "ssg-button--ghost",
+  stack: "ssg-button--stack",
+  back: "ssg-button--back",
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-xs",
-  md: "h-10 px-5 text-sm",
-  lg: "h-12 px-7 text-base",
+  sm: "ssg-button--sm",
+  md: "ssg-button--md",
+  lg: "ssg-button--lg",
 };
 
 export function Button({
@@ -39,7 +42,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={cn(base, variants[variant], sizes[size], className)}
+      className={cn("ssg-button", variants[variant], sizes[size], className)}
       {...props}
     />
   );

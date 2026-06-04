@@ -1,5 +1,5 @@
 {
-  "name": "@shipshit/ui",
+  "name": "@shipshitgames/ui",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,8 +10,12 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
-    }
+    },
+    "./styles.css": "./src/styles.css"
   },
+  "sideEffects": [
+    "./src/styles.css"
+  ],
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
