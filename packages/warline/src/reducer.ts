@@ -1,5 +1,5 @@
 /**
- * @shipshit/warline — pure reducers for the living world (spec §4 effects, §5).
+ * @shipshitgames/warline — pure reducers for the living world (spec §4 effects, §5).
  *
  * Every function clones the input WorldState and returns a new one; the input is
  * treated as frozen. No Date.now() inside — callers pass `now`.

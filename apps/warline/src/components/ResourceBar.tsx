@@ -1,5 +1,5 @@
-import type { ResourceBag, ResourceKind } from '@shipshit/warline'
-import { RESOURCE_KINDS } from '@shipshit/warline'
+import type { ResourceBag, ResourceKind } from '@shipshitgames/warline'
+import { RESOURCE_KINDS } from '@shipshitgames/warline'
 
 interface ResourceBarProps {
   resources: ResourceBag

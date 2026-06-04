@@ -1,5 +1,5 @@
 /**
- * @shipshit/warline — pure core barrel (spec §9).
+ * @shipshitgames/warline — pure core barrel (spec §9).
  *
  * Re-exports types, constants, map, operations, reducer, commands, summary.
  * Deliberately does NOT export ./client (browser-only, depends on partysocket)

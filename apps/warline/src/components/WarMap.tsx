@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import type { Faction, Region, WorldState } from '@shipshit/warline'
-import { breachById, regionById } from '@shipshit/warline'
+import type { Faction, Region, WorldState } from '@shipshitgames/warline'
+import { breachById, regionById } from '@shipshitgames/warline'
 
 interface WarMapProps {
   state: WorldState

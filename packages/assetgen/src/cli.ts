@@ -37,7 +37,7 @@ const here = dirname(fileURLToPath(import.meta.url)); // packages/assetgen/src
 if (sub === "matrix") {
   const assetsDir = flag("assets-dir") || join(here, "..", "..", "assets");
   if (!existsSync(join(assetsDir, "assets-catalog.json"))) {
-    console.error(`[matrix] no assets-catalog.json under ${assetsDir} — pass --assets-dir <@shipshit/assets path>`);
+    console.error(`[matrix] no assets-catalog.json under ${assetsDir} — pass --assets-dir <@shipshitgames/assets path>`);
     process.exit(1);
   }
   const res = await runMatrix({

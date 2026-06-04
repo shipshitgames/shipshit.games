@@ -13,7 +13,7 @@
     "party:deploy": "partykit deploy"
   },
   "dependencies": {
-    "@shipshit/warline": "workspace:*",
+    "@shipshitgames/warline": "workspace:*",
     "partysocket": "^1.1.19",
     "react": "19.1.0",
     "react-dom": "19.1.0"

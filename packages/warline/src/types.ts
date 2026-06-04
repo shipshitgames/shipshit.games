@@ -1,5 +1,5 @@
 /**
- * @shipshit/warline — core types & constants (spec §1, §2).
+ * @shipshitgames/warline — core types & constants (spec §1, §2).
  *
  * Pure data shapes for the shared "War for the Lanes" front. No runtime deps.
  */

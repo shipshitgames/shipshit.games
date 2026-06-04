@@ -1,7 +1,7 @@
 {
   "$schema": "./assets-catalog.schema.json",
   "version": "0.2.0",
-  "note": "Canon asset catalog for the Scourge universe. Entity sprites are PER-GAME renders of shared canon — the variant matrix (issue #6): each entity lists the games it renders in (`games`) and a per-game `variants` path (null until rendered by @shipshit/assetgen). The 'shared' section lists truly game-agnostic assets every game uses identically.",
+  "note": "Canon asset catalog for the Scourge universe. Entity sprites are PER-GAME renders of shared canon — the variant matrix (issue #6): each entity lists the games it renders in (`games`) and a per-game `variants` path (null until rendered by @shipshitgames/assetgen). The 'shared' section lists truly game-agnostic assets every game uses identically.",
   "entities": [
     {
       "id": "scourge-swarm",

@@ -1,4 +1,4 @@
-import type { Faction, WarEvent } from '@shipshit/warline'
+import type { Faction, WarEvent } from '@shipshitgames/warline'
 
 interface WarFeedProps {
   feed: WarEvent[]

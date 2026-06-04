@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-// Studio cockpit. Sprites is wired to @shipshit/assetgen via the studio IPC bridge with a
+// Studio cockpit. Sprites is wired to @shipshitgames/assetgen via the studio IPC bridge with a
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
 // Default provider = codex CLI (your subscription — no API key).
 

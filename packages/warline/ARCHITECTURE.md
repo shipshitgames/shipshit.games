@@ -5,7 +5,7 @@
 > (Pyre + Wardens under **The Pact** vs the **Scourge**); four resources; a build / raise-army
 > loop. Each mini-game is an **operation** that credits the shared war.
 >
-> This file is the **single source of truth**. `@shipshit/warline` (this package), the
+> This file is the **single source of truth**. `@shipshitgames/warline` (this package), the
 > PartyKit server (`apps/warline/party`), and the web hub (`apps/warline/src`) all implement
 > exactly the types, signatures, constants, map data, and protocol below. Do not diverge.
 
@@ -317,7 +317,7 @@ Push a `command` WarEvent, set updatedAt, return `{ ok:true, state, event }`.
 `summarize(state): Summary` — pure derivation (counts, frontControlPct = humanRegions/(human+scourge)·100,
 threat = clamp(mean pressure over human+neutral regions + 0.3·mean active-breach intensity, 0, 100)).
 
-## 8. Client SDK (`src/client.ts`, package subpath `@shipshit/warline/client`)
+## 8. Client SDK (`src/client.ts`, package subpath `@shipshitgames/warline/client`)
 
 Browser/fetch only. May import `partysocket`.
 ```ts
@@ -342,11 +342,11 @@ Re-export everything from types, constants, map, operations, reducer, commands, 
 (but **not** client — client is the browser subpath, exported only via `./client`, so the pure
 core stays dependency-free and server-safe).
 
-## 10. package.json (`@shipshit/warline`)
-Mirror `@shipshit/shared` but add the `./client` export and `partysocket` dependency:
+## 10. package.json (`@shipshitgames/warline`)
+Mirror `@shipshitgames/shared` but add the `./client` export and `partysocket` dependency:
 ```jsonc
 {
-  "name": "@shipshit/warline", "version": "0.0.0", "private": true, "type": "module",
+  "name": "@shipshitgames/warline", "version": "0.0.0", "private": true, "type": "module",
   "main": "./src/index.ts", "module": "./src/index.ts", "types": "./src/index.ts",
   "exports": {
     ".":        { "types": "./src/index.ts",        "default": "./src/index.ts" },
@@ -388,12 +388,12 @@ canAfford false when broke. Use a small pure event-id; no network.
 - Env via `this.room.env` (PartyKit): `WARLINE_TOKEN`, `WARLINE_ADMIN_TOKEN`. Missing → dev-permissive with a `console.warn`.
 - Broadcast helper: `this.room.broadcast(JSON.stringify({ t:'state', state }))`.
 - `partykit.json`: `{ "$schema":"https://www.partykit.io/schema.json", "name":"warline", "main":"party/warline.ts", "compatibilityDate":"2024-09-01" }`.
-- Server imports ONLY from `@shipshit/warline` (the pure core) — never `@shipshit/warline/client`.
+- Server imports ONLY from `@shipshitgames/warline` (the pure core) — never `@shipshitgames/warline/client`.
 
 ## 13. Web hub — `apps/warline/src/**` (Vite + React 19 + Tailwind v4)
 
 - **Store** `src/store.ts` — `useWarline()` hook returning `{ state, summary, status, faction, setFaction, command(cmd), simulate(game?), connected }`.
-  - Connects via `connectWarline(WARLINE_HOST, …)` from `@shipshit/warline/client`.
+  - Connects via `connectWarline(WARLINE_HOST, …)` from `@shipshitgames/warline/client`.
   - **Dual mode:** if a socket connects → mirror server `state`; `command()`/`simulate()` send over ws.
     If it never connects (no server deployed) → **local mode**: seed `createInitialWorld(Date.now())`,
     run `tick()` every `TICK_MS` via `setInterval`, and apply `applyCommand`/`applyOperation` locally
@@ -418,7 +418,7 @@ canAfford false when broke. Use a small pure event-id; no network.
     "scripts": { "dev":"vite", "dev:all":"concurrently -k -n web,party -c blue,magenta \"vite\" \"partykit dev\"",
       "build":"tsc && vite build", "preview":"vite preview", "typecheck":"tsc --noEmit",
       "party:dev":"partykit dev", "party:deploy":"partykit deploy" },
-    "dependencies": { "@shipshit/warline":"workspace:*", "partysocket":"^1.1.19", "react":"19.1.0", "react-dom":"19.1.0" },
+    "dependencies": { "@shipshitgames/warline":"workspace:*", "partysocket":"^1.1.19", "react":"19.1.0", "react-dom":"19.1.0" },
     "devDependencies": { "@tailwindcss/vite":"^4.1.8","@types/react":"19.1.6","@types/react-dom":"19.1.5",
       "@vitejs/plugin-react":"^4.3.3","concurrently":"^9.2.1","partykit":"^0.0.114","tailwindcss":"^4.1.8","typescript":"5.8.3","vite":"^5.4.10" } }
   ```

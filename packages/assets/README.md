@@ -1,4 +1,4 @@
-# @shipshit/assets
+# @shipshitgames/assets
 
 Shared, game-agnostic assets plus the **canon asset catalog** for the Scourge
 universe. One source of truth for what entities exist in the lore and which
@@ -33,7 +33,7 @@ assets every game shares identically.
 Each entity is **one canon id** rendered per game. `entity.games` declares which
 games render it (the matrix's intent); `entity.variants[game]` holds the actual
 render path once produced. The renders are generated from the single roster by
-[`@shipshit/assetgen`](../assetgen):
+[`@shipshitgames/assetgen`](../assetgen):
 
 ```bash
 # Populate the whole matrix with placeholders (no API keys):
@@ -68,7 +68,7 @@ Only **truly game-agnostic** assets (FX, UI, fonts, shared audio) live in
 ## Usage
 
 ```ts
-import { catalog, getAsset, GAME_SLUGS } from "@shipshit/assets";
+import { catalog, getAsset, GAME_SLUGS } from "@shipshitgames/assets";
 
 // Per-game entity render (companion to issue #6):
 getAsset(catalog, "scourge-swarm", "deadlane");
@@ -90,11 +90,11 @@ Two supported ways to consume this package in a game repo:
 1. **Git submodule** — vendor this directory into a game repo (the same pattern
    used for lore as `.agents/lore`), e.g. as `.agents/assets`. The game reads
    `assets-catalog.json` and the `shared/` files directly.
-2. **Published npm package** — once stable, publish `@shipshit/assets` and
+2. **Published npm package** — once stable, publish `@shipshitgames/assets` and
    import the catalog + `getAsset` resolver from it like any other dependency.
 
 Inside this monorepo it is just a workspace package; games depend on
-`@shipshit/assets` directly.
+`@shipshitgames/assets` directly.
 
 ## Design canon
 

@@ -1,5 +1,5 @@
 // Ship Shit Games — Studio shell (Electron main process)
-// Loads Vite in dev / the built renderer in prod; runs @shipshit/assetgen on IPC
+// Loads Vite in dev / the built renderer in prod; runs @shipshitgames/assetgen on IPC
 // with live streaming, plus settings + keychain-backed key management.
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("node:path");

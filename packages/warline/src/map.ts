@@ -1,5 +1,5 @@
 /**
- * @shipshit/warline — fixed starting front + map helpers (spec §3).
+ * @shipshitgames/warline — fixed starting front + map helpers (spec §3).
  */
 
 import type { Breach, Lane, Region, WorldState } from "./types";

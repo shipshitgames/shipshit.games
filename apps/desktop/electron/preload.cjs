@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld("studio", {
     chrome: process.versions.chrome,
     node: process.versions.node,
   },
-  // Asset generation (runs @shipshit/assetgen in the main process).
+  // Asset generation (runs @shipshitgames/assetgen in the main process).
   generate: (opts) => ipcRenderer.invoke("studio:generate", opts),
   listGames: () => ipcRenderer.invoke("studio:listGames"),
   // Live generation log stream. Returns an unsubscribe fn.

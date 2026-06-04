@@ -1,4 +1,4 @@
-# @shipshit/assetgen
+# @shipshitgames/assetgen
 
 DOOM-grade asset generation for Ship Shit Games. One pipeline:
 **prompt + `DESIGN.md` DOOM-suffix → provider → trim/optimize `.webp` → `assets.json`.**
@@ -25,7 +25,7 @@ bun packages/assetgen/src/cli.ts --provider mock --dry-run --id test --prompt "x
 ## The variant matrix (issue #6)
 
 `assetgen matrix` generates the **per-game sprite variant matrix** from the canon
-roster in [`@shipshit/assets`](../assets). It expands every `(entity × intended
+roster in [`@shipshitgames/assets`](../assets). It expands every `(entity × intended
 game)` cell, builds a per-game prompt (`promptBase` + game framing + DOOM suffix),
 generates, writes the render into the assets package at
 `entities/<id>/<game>.webp`, and records the path back into the catalog's
@@ -74,7 +74,7 @@ pactfall (MOBA iso) / starblight (arcade) / redline (runner side-on) / rothulk
 (platformer side-on), plus `shared`. Output is trimmed, optionally sized, encoded to
 `.webp`. Single-asset mode upserts into the target game's `src/assets/assets.json`
 (`--repo` defaults to `./games/<game>` or `../games/<game>`); matrix mode writes into
-`@shipshit/assets`.
+`@shipshitgames/assets`.
 
 > TODO (board): background-removal step (rembg) for non-transparent providers; wire the
 > matrix mode into the Electron studio UI.

@@ -19,9 +19,9 @@ The studio platform: marketing + gallery, the members portal, the desktop studio
 ## Packages
 - **`packages/ui`** — shared React + Tailwind + shadcn components
 - **`packages/shared`** — shared types / utilities
-- **`packages/warline`** — `@shipshit/warline`: the pure world-state model + reducers + per-game
+- **`packages/warline`** — `@shipshitgames/warline`: the pure world-state model + reducers + per-game
   operation contract + client SDK shared by the Warline server, hub, and (eventually) each game
-- consumes **`@shipshit/engine`** (separate repo) for game code
+- consumes **`@shipshitgames/engine`** (separate repo) for game code
 
 ## Games
 Local game repos live under `../games/<slug>` by default.

@@ -1,4 +1,4 @@
-import type { Faction } from '@shipshit/warline'
+import type { Faction } from '@shipshitgames/warline'
 
 const FACTION_COLOR: Record<Faction, string> = {
   wardens: '#c1121f',
