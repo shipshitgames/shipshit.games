@@ -54,10 +54,10 @@ const die = (m) => { console.error(`${C.red}✗ ${m}${C.rst}`); process.exit(1) 
 const readJson = (f) => JSON.parse(readFileSync(f, 'utf8'))
 const writeJson = (f, o) => writeFileSync(f, JSON.stringify(o, null, 2) + '\n')
 /** Run a command. Read-only commands always run; mutating ones are skipped (printed) in dry-run. */
-function run(cmd, { cwd = MONO, mutating = false, capture = false } = {}) {
+function run(cmd, { cwd = MONO, mutating = false, capture = false, env } = {}) {
   if (mutating && DRY) { plan(`${C.dim}${cmd}${C.rst} ${C.dim}(cwd ${cwd.replace(WORKSPACE, '.')})${C.rst}`); return '' }
   try {
-    return execSync(cmd, { cwd, stdio: capture ? ['ignore', 'pipe', 'ignore'] : 'inherit', encoding: 'utf8' })?.trim() ?? ''
+    return execSync(cmd, { cwd, env: env ? { ...process.env, ...env } : process.env, stdio: capture ? ['ignore', 'pipe', 'ignore'] : 'inherit', encoding: 'utf8' })?.trim() ?? ''
   } catch (e) {
     if (capture) return ''
     throw e
@@ -174,13 +174,23 @@ if (DO_PR && changedRepos.size) {
 // ── 6. deploy Vercel-linked targets ─────────────────────────────────────────
 step('Deploy (vercel --prod)')
 if (DO_DEPLOY) {
-  const targets = [...listDirs(join(MONO, 'apps')), ...listDirs(GAMES)]
-    .filter((d) => existsSync(join(d, '.vercel', 'project.json')))
-  if (!targets.length) skip('no Vercel-linked targets (.vercel/project.json) found')
-  for (const dir of targets) {
-    run('npx vercel pull --yes --environment=production', { cwd: dir, mutating: true })
+  const linked = (d) => existsSync(join(d, '.vercel', 'project.json'))
+  const rel = (d) => d.replace(WORKSPACE + '/', '')
+  // Monorepo apps: their Vercel project sets rootDirectory=apps/<name>, so the deploy MUST run
+  // from the monorepo root (uploading the workspace) and target the project via env vars. Running
+  // from inside apps/<name> doubles the path -> "apps/web/apps/web does not exist".
+  const apps = listDirs(join(MONO, 'apps')).filter(linked)
+  // Games are standalone repos (rootDirectory='.') -> deploy in place.
+  const games = listDirs(GAMES).filter((d) => basename(d) !== 'scourge-survivors-funpack' && linked(d))
+  if (!apps.length && !games.length) skip('no Vercel-linked targets (.vercel/project.json) found')
+  for (const dir of apps) {
+    const { orgId, projectId } = readJson(join(dir, '.vercel', 'project.json'))
+    run('npx vercel deploy --prod --yes', { cwd: MONO, env: { VERCEL_ORG_ID: orgId, VERCEL_PROJECT_ID: projectId }, mutating: true })
+    done(`deployed ${rel(dir)} ${C.dim}(from monorepo root)${C.rst}`)
+  }
+  for (const dir of games) {
     run('npx vercel deploy --prod --yes', { cwd: dir, mutating: true })
-    done(`deployed ${dir.replace(WORKSPACE + '/', '')}`)
+    done(`deployed ${rel(dir)}`)
   }
 } else skip('--no-deploy')
 
