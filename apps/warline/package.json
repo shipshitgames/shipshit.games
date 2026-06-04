@@ -11,23 +11,23 @@
     "typecheck": "tsc --noEmit",
     "party:dev": "partykit dev",
     "party:deploy": "partykit deploy",
-    "deps:update": "bunx npm-check-updates -u --cooldown 3h --target minor && bun install"
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
     "@shipshitgames/warline": "workspace:*",
     "partysocket": "^1.1.19",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.8",
-    "@types/react": "19.1.6",
-    "@types/react-dom": "19.1.5",
-    "@vitejs/plugin-react": "^4.3.3",
-    "concurrently": "^9.2.1",
-    "partykit": "^0.0.114",
-    "tailwindcss": "^4.1.8",
-    "typescript": "5.8.3",
-    "vite": "^5.4.10"
+    "@tailwindcss/vite": "4.3.0",
+    "@types/react": "19.2.16",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "concurrently": "10.0.3",
+    "partykit": "0.0.115",
+    "tailwindcss": "4.3.0",
+    "typescript": "6.0.3",
+    "vite": "8.0.16"
   }
 }

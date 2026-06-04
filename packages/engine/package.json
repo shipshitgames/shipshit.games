@@ -23,7 +23,7 @@
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "deps:update": "bunx npm-check-updates -u --cooldown 3h --target minor && bun install"
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "peerDependencies": {
     "three": "^0.169.0"
@@ -37,10 +37,10 @@
     "partysocket": "^1.1.19"
   },
   "devDependencies": {
-    "@types/three": "^0.169.0",
+    "@types/three": "0.184.1",
     "partysocket": "^1.1.19",
-    "three": "^0.169.0",
-    "typescript": "5.7.3"
+    "three": "0.184.0",
+    "typescript": "6.0.3"
   },
   "keywords": [
     "game-engine",
