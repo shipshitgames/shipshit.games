@@ -1,14 +1,7 @@
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import {
-  accentVars,
-  gameCharacters,
-  gameCreatures,
-  spriteUrl,
-  type Game,
-  type GameStatus,
-} from "@/lib/content";
+import { accentVars, type Game, type GameStatus } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<GameStatus, string> = {
@@ -38,15 +31,7 @@ export function StatusBadge({
   );
 }
 
-function keySprite(game: Game): string | null {
-  const withArt = [...gameCreatures(game), ...gameCharacters(game)].find(
-    (e) => e.spriteBase
-  );
-  return withArt ? spriteUrl(withArt.spriteBase) : null;
-}
-
 export function GameCard({ game }: { game: Game }) {
-  const sprite = keySprite(game);
   return (
     <Link
       href={`/games/${game.slug}`}
@@ -54,19 +39,16 @@ export function GameCard({ game }: { game: Game }) {
       className="group relative flex h-72 flex-col justify-end overflow-hidden rounded-md border border-gunmetal bg-coal transition-all duration-300 hover:border-[var(--page-accent)] hover:shadow-[0_0_44px_-14px_var(--page-accent)]"
     >
       <div aria-hidden className="absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(85%_60%_at_50%_-5%,color-mix(in_srgb,var(--page-accent)_22%,transparent),transparent_70%)] opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
-        {sprite ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={sprite}
-            alt=""
-            className="absolute -right-4 top-1/2 h-48 -translate-y-1/2 object-contain opacity-35 saturate-150 transition-all duration-500 group-hover:scale-110 group-hover:opacity-60"
-          />
-        ) : (
-          <span className="absolute -right-3 top-0 select-none font-display text-[8rem] font-bold leading-none text-white/[0.035] transition-colors duration-300 group-hover:text-white/[0.055]">
-            {game.title.charAt(0)}
-          </span>
-        )}
+        {/* Pixel game cover (locked house style #62) */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/images/games/${game.slug}.webp`}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-85 transition-transform duration-500 group-hover:scale-105"
+          style={{ imageRendering: "pixelated" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-coal via-coal/65 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(85%_60%_at_50%_-5%,color-mix(in_srgb,var(--page-accent)_18%,transparent),transparent_70%)] opacity-60 transition-opacity duration-300 group-hover:opacity-100" />
         <div className="vignette absolute inset-0" />
       </div>
 

@@ -91,7 +91,7 @@
     },
     "packages/engine": {
       "name": "@shipshitgames/engine",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@types/three": "^0.169.0",
         "partysocket": "^1.1.19",
@@ -109,6 +109,13 @@
         "partysocket",
       ],
     },
+    "packages/research": {
+      "name": "@shipshitgames/research",
+      "version": "0.1.0",
+      "bin": {
+        "research": "./src/cli.ts",
+      },
+    },
     "packages/shared": {
       "name": "@shipshitgames/shared",
       "version": "0.0.0",
@@ -118,7 +125,7 @@
     },
     "packages/ui": {
       "name": "@shipshitgames/ui",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "devDependencies": {
         "@types/react": "18.3.18",
         "@types/react-dom": "18.3.5",
@@ -403,6 +410,8 @@
     "@shipshitgames/assets": ["@shipshitgames/assets@workspace:packages/assets"],
 
     "@shipshitgames/engine": ["@shipshitgames/engine@workspace:packages/engine"],
+
+    "@shipshitgames/research": ["@shipshitgames/research@workspace:packages/research"],
 
     "@shipshitgames/shared": ["@shipshitgames/shared@workspace:packages/shared"],
 

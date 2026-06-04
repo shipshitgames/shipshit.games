@@ -34,13 +34,16 @@ export default function Home() {
         className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center"
       >
         <Backdrop />
+        {/* Pixel hero banner (locked house style #62) */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/sprites/boss.webp"
+          src="/images/hero.webp"
           alt=""
           aria-hidden
-          className="animate-drift pointer-events-none absolute left-1/2 top-1/2 h-[68vh] max-h-[640px] -translate-x-1/2 -translate-y-[55%] object-contain opacity-[0.13] drop-shadow-[0_0_90px_rgba(255,106,0,0.45)]"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
+          style={{ imageRendering: "pixelated" }}
         />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-void via-void/70 to-void/40" />
 
         <div className="relative z-10 flex flex-col items-center">
           <Eyebrow>Open-source AI game studio</Eyebrow>
