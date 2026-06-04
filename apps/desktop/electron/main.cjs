@@ -13,6 +13,7 @@ const STUDIO_REPO = path.join(__dirname, "..", "..", "..");
 const WORKSPACE = path.join(STUDIO_REPO, "..");
 const GAMES_ROOT = path.join(WORKSPACE, "games");
 const ASSETGEN = path.join(STUDIO_REPO, "packages", "assetgen", "src", "cli.ts");
+const RESEARCH = path.join(STUDIO_REPO, "packages", "research", "src", "cli.ts");
 const DEFAULT_GAME = "scourge-survivors";
 const ALL_GAMES = ["scourge-survivors", "deadlane", "pactfall", "starblight"];
 const gameDir = (g) => path.join(GAMES_ROOT, g === "shared" ? DEFAULT_GAME : g);
@@ -79,6 +80,39 @@ ipcMain.handle("studio:generate", async (e, opts) => {
       if (m) { outPath = m[1].trim(); try { dataUrl = `data:image/webp;base64,${(await fs.promises.readFile(outPath)).toString("base64")}`; } catch {} }
       send(`\n[exit ${code}]\n`);
       resolve({ ok: code === 0 && !!m, log: buf, path: outPath, dataUrl });
+    });
+  });
+});
+
+// Research → rules: drives @shipshitgames/research over a streaming log, same shape as
+// studio:generate. Writes the ruleset into the repo under docs/rules/ by default.
+ipcMain.handle("studio:research", async (e, opts) => {
+  // research only distills with codex | mock; ignore the image-gen default provider.
+  const provider = opts?.provider === "mock" ? "mock" : "codex";
+  const url = (opts?.url || "").trim();
+  const slug = (opts?.slug || "ruleset").replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
+  const out = path.join(STUDIO_REPO, "docs", "rules", `${slug}.md`);
+  const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:research-log", chunk); };
+  if (!url) { send("no url provided\n"); return { ok: false, log: "no url", path: null, rules: null }; }
+  const args = [RESEARCH, "--url", url, "--provider", provider, "--out", out];
+  send(`$ research --url ${url} --provider ${provider} --out ${out}\n`);
+  return await new Promise((resolve) => {
+    let child;
+    try { child = spawn("bun", args, { cwd: STUDIO_REPO, env: process.env }); }
+    catch (err) { send(`spawn failed: ${err}\n`); return resolve({ ok: false, log: String(err), path: null, rules: null }); }
+    let buf = "";
+    const onData = (d) => { const s = d.toString(); buf += s; send(s); };
+    child.stdout.on("data", onData);
+    child.stderr.on("data", onData);
+    child.on("error", (err) => { send(`\nprocess error: ${err}\n`); });
+    const killer = setTimeout(() => { try { child.kill("SIGKILL"); send("\n[timed out after 300s]\n"); } catch {} }, 300_000);
+    child.on("close", async (code) => {
+      clearTimeout(killer);
+      const m = buf.match(/\[wrote\] (.+?\.md)/);
+      let outPath = null, rules = null;
+      if (m) { outPath = m[1].trim(); try { rules = await fs.promises.readFile(outPath, "utf8"); } catch {} }
+      send(`\n[exit ${code}]\n`);
+      resolve({ ok: code === 0 && !!m, log: buf, path: outPath, rules });
     });
   });
 });

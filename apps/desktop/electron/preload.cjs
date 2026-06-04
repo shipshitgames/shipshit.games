@@ -18,6 +18,13 @@ contextBridge.exposeInMainWorld("studio", {
     ipcRenderer.on("studio:gen-log", h);
     return () => ipcRenderer.removeListener("studio:gen-log", h);
   },
+  // Research → rules (runs @shipshitgames/research in the main process).
+  research: (opts) => ipcRenderer.invoke("studio:research", opts),
+  onResearchLog: (cb) => {
+    const h = (_e, chunk) => cb(chunk);
+    ipcRenderer.on("studio:research-log", h);
+    return () => ipcRenderer.removeListener("studio:research-log", h);
+  },
   // Settings (non-secret) + keychain-backed API keys.
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),

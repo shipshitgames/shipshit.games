@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
 // Default provider = codex CLI (your subscription — no API key).
 
-type SectionId = "maps" | "sprites" | "music" | "3d" | "codegen";
-type Group = "Generators" | "Codegen";
+type SectionId = "maps" | "sprites" | "music" | "3d" | "research" | "codegen";
+type Group = "Generators" | "Research" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
 interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null }
+interface ResearchResult { ok: boolean; log: string; path: string | null; rules: string | null }
 interface Settings { defaultProvider: string; defaultGame: string }
 
 declare global {
@@ -19,6 +20,8 @@ declare global {
       generate: (opts: { id: string; prompt: string; game: string; kind: string; provider?: string }) => Promise<GenResult>;
       listGames: () => Promise<string[]>;
       onGenLog: (cb: (chunk: string) => void) => () => void;
+      research: (opts: { url: string; slug: string; provider?: string }) => Promise<ResearchResult>;
+      onResearchLog: (cb: (chunk: string) => void) => () => void;
       settings: { get: () => Promise<Settings>; set: (p: Partial<Settings>) => Promise<Settings> };
       keys: { status: () => Promise<Record<string, boolean>>; set: (provider: string, key: string) => Promise<Record<string, boolean>> };
     };
@@ -30,9 +33,10 @@ const SECTIONS: Section[] = [
   { id: "sprites", label: "Sprites", group: "Generators", glyph: "✦", blurb: "Forge DOOM-grade billboards and enemy cutouts — straight into a game's assets." },
   { id: "music", label: "Music + SFX", group: "Generators", glyph: "♪", blurb: "Brutal scores and combat SFX for the shipshitshow." },
   { id: "3d", label: "3D", group: "Generators", glyph: "◈", blurb: "Meshes, props and Warden engineering for the 3D titles." },
+  { id: "research", label: "Rules", group: "Research", glyph: "📖", blurb: "Distill a YouTube game-dev tutorial into a reusable build ruleset." },
   { id: "codegen", label: "Codegen", group: "Codegen", glyph: "λ", blurb: "Plan → Review → Execute → Verify → Ship over the local CLI." },
 ];
-const GROUPS: Group[] = ["Generators", "Codegen"];
+const GROUPS: Group[] = ["Generators", "Research", "Codegen"];
 
 const PROVIDERS = [
   { id: "codex", label: "Codex CLI — your subscription (no key)" },
@@ -157,6 +161,68 @@ function SpritesPane() {
   );
 }
 
+function slugFromUrl(url: string): string {
+  const m = url.match(/(?:v=|youtu\.be\/|\/embed\/|\/shorts\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1].toLowerCase() : "ruleset";
+}
+
+function ResearchPane() {
+  const [url, setUrl] = useState("");
+  const [slug, setSlug] = useState("");
+  const [provider, setProvider] = useState("codex");
+  const [busy, setBusy] = useState(false);
+  const [log, setLog] = useState("");
+  const [result, setResult] = useState<ResearchResult | null>(null);
+
+  useEffect(() => {
+    // research distills with codex | mock only — not the image-gen providers.
+    const off = window.studio?.onResearchLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    return () => { off?.(); };
+  }, []);
+
+  async function distill() {
+    if (!window.studio?.research) { setLog("studio bridge unavailable — restart the app"); return; }
+    setBusy(true);
+    setResult(null);
+    setLog("");
+    try {
+      setResult(await window.studio.research({ url: url.trim(), slug: (slug.trim() || slugFromUrl(url)), provider }));
+    } catch (e) {
+      setLog(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="gen">
+      <div className="gen-form">
+        <label className="gen-field gen-grow"><span>YouTube URL</span>
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
+        </label>
+        <label className="gen-field"><span>Rules file slug</span>
+          <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={url ? slugFromUrl(url) : "ruleset"} />
+        </label>
+        <label className="gen-field"><span>Provider</span>
+          <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+            <option value="codex">codex — your subscription (no key)</option>
+            <option value="mock">mock — offline (transcript only)</option>
+          </select>
+        </label>
+        <button className="gen-btn" disabled={busy || !url.trim()} onClick={distill}>
+          {busy ? "Distilling…" : "Distill rules"}
+        </button>
+        <p className="gen-note">Transcript via yt-dlp (recommended) → distilled to docs/rules/&lt;slug&gt;.md. Codex runs take a minute — watch the log.</p>
+      </div>
+      <div className="gen-preview">
+        {result?.rules ? <pre className="gen-rules">{result.rules}</pre> : <div className="gen-preview-empty">{busy ? "distilling…" : "ruleset preview"}</div>}
+        {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
+        {result?.path && <div className="gen-path">{result.path}</div>}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState<SectionId>("sprites");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -198,7 +264,7 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "sprites" ? <SpritesPane /> : (
+            {active === "sprites" ? <SpritesPane /> : active === "research" ? <ResearchPane /> : (
               <div className="placeholder-card">
                 <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
                 <p><strong>{section.label}</strong> workspace coming online.</p>
