@@ -53,7 +53,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@radix-ui/react-slot": "^1.2.4",
-        "@shipshit/ui": "*",
+        "@shipshitgames/ui": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "lucide-react": "^0.460.0",
@@ -97,8 +97,8 @@
       },
     },
     "packages/ui": {
-      "name": "@shipshit/ui",
-      "version": "0.0.0",
+      "name": "@shipshitgames/ui",
+      "version": "0.1.0",
       "devDependencies": {
         "@types/react": "18.3.18",
         "@types/react-dom": "18.3.5",
@@ -384,9 +384,9 @@
 
     "@shipshit/shared": ["@shipshit/shared@workspace:packages/shared"],
 
-    "@shipshit/ui": ["@shipshit/ui@workspace:packages/ui"],
-
     "@shipshit/warline": ["@shipshit/warline@workspace:packages/warline"],
+
+    "@shipshitgames/ui": ["@shipshitgames/ui@workspace:packages/ui"],
 
     "@sideway/address": ["@sideway/address@4.1.5", "", { "dependencies": { "@hapi/hoek": "^9.0.0" } }, "sha512-IqO/DUQHUkPeixNQ8n0JA6102hT9CmaljNTPmQ1u8MEhBo/R4Q8eKLN/vGZxuebwOroDB4cbpjheD4+/sKFK4Q=="],
 
