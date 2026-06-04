@@ -1,5 +1,5 @@
 /**
- * @shipshit/warline — build / spend / raise-army commands (spec §6).
+ * @shipshitgames/warline — build / spend / raise-army commands (spec §6).
  *
  * Open (unauthenticated) shared-front actions. Pure + immutable: clone, validate
  * against COMMAND_COSTS, deduct, apply effect, push a `command` event.

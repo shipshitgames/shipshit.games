@@ -4,8 +4,8 @@ import type {
   HumanFaction,
   Region,
   WorldState,
-} from '@shipshit/warline'
-import { canAfford, COMMAND_COSTS, regionById } from '@shipshit/warline'
+} from '@shipshitgames/warline'
+import { canAfford, COMMAND_COSTS, regionById } from '@shipshitgames/warline'
 
 interface CommandPanelProps {
   state: WorldState

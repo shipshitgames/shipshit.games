@@ -1,5 +1,5 @@
-import type { GameSlug } from '@shipshit/warline'
-import { GAME_OPERATIONS } from '@shipshit/warline'
+import type { GameSlug } from '@shipshitgames/warline'
+import { GAME_OPERATIONS } from '@shipshitgames/warline'
 
 interface OpsPanelProps {
   simulate: (game?: GameSlug) => void

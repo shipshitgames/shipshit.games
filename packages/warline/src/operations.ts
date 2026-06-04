@@ -1,5 +1,5 @@
 /**
- * @shipshit/warline — game → operation contract (spec §4).
+ * @shipshitgames/warline — game → operation contract (spec §4).
  *
  * Each Ship Shit Game maps to exactly one OperationKind. The reducer
  * (src/reducer.ts) reads operationKindFor / GAME_OPERATIONS to resolve effects.

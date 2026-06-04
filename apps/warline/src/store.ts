@@ -6,7 +6,7 @@ import {
   summarize,
   tick,
   TICK_MS,
-} from '@shipshit/warline'
+} from '@shipshitgames/warline'
 import type {
   Command,
   GameSlug,
@@ -14,9 +14,9 @@ import type {
   OperationResult,
   Summary,
   WorldState,
-} from '@shipshit/warline'
-import { connectWarline } from '@shipshit/warline/client'
-import type { WarlineSocket } from '@shipshit/warline/client'
+} from '@shipshitgames/warline'
+import { connectWarline } from '@shipshitgames/warline/client'
+import type { WarlineSocket } from '@shipshitgames/warline/client'
 
 // Resolve the server host. Empty host => skip connecting => local mode.
 const WARLINE_HOST: string =

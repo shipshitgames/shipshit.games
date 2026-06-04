@@ -1,4 +1,4 @@
-# @shipshit/warline
+# @shipshitgames/warline
 
 The pure, dependency-free core of **Warline — War for the Lanes**, the persistent
 strategy hub that links every Ship Shit Game into one shared planet front.
@@ -52,18 +52,18 @@ front.
 
 ## How it's consumed
 
-- **Server** (`apps/warline/party`) imports `@shipshit/warline` (this barrel only —
+- **Server** (`apps/warline/party`) imports `@shipshitgames/warline` (this barrel only —
   never `./client`). It holds one `WorldState`, runs `tick(state, Date.now())` on an
   alarm, applies `applyOperation` for bearer-token game reports and `applyCommand`
   for open commands, and broadcasts state over WS.
 - **Hub** (`apps/warline/src`) connects with `connectWarline()` from
-  `@shipshit/warline/client` and mirrors server state; if no server is reachable it
+  `@shipshitgames/warline/client` and mirrors server state; if no server is reachable it
   seeds `createInitialWorld()` and runs the identical reducers locally.
 - **Games** report results via `WarlineClient.reportOperation()` from
-  `@shipshit/warline/client` (Bearer token).
+  `@shipshitgames/warline/client` (Bearer token).
 
-The pure core (`@shipshit/warline`) has **no runtime dependencies**. Only the
-`@shipshit/warline/client` subpath imports `partysocket`, keeping the core safe to
+The pure core (`@shipshitgames/warline`) has **no runtime dependencies**. Only the
+`@shipshitgames/warline/client` subpath imports `partysocket`, keeping the core safe to
 import on the edge server.
 
 ## API surface
@@ -77,7 +77,7 @@ import on the edge server.
 - Reducer — `applyOperation`, `tick`, `resetWorld`, `makeEventId`, `magnitude`.
 - Commands — `canAfford`, `applyCommand`.
 - Summary — `summarize`.
-- Client (`@shipshit/warline/client`) — `WarlineClient`, `connectWarline`,
+- Client (`@shipshitgames/warline/client`) — `WarlineClient`, `connectWarline`,
   `warlineUrl`.
 
 ## Tests

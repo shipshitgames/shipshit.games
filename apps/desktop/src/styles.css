@@ -145,6 +145,10 @@ body {
   line-height: 1.5; color: var(--text-dim); background: #07070b; border: 1px solid var(--line); border-radius: 2px; white-space: pre-wrap;
 }
 .gen-log.is-err { color: #ff8a7a; border-color: rgba(193, 18, 31, 0.5); }
+.gen-rules {
+  margin: 0; max-height: 360px; overflow: auto; padding: 14px; font-family: var(--font-mono); font-size: 12px;
+  line-height: 1.55; color: var(--bone, #e9e3d6); background: #07070b; border: 1px solid var(--line-bright); border-radius: 2px; white-space: pre-wrap;
+}
 .gen-path { font-family: var(--font-mono); font-size: 11px; color: var(--hellfire); word-break: break-all; }
 
 /* ---- Terminal placeholder ---- */

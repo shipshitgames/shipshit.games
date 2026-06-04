@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { existsSync } from "node:fs";
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, readFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildPrompt, GAME_VIEW } from "./style.ts";
@@ -9,11 +9,12 @@ import { toWebp } from "./postprocess.ts";
 import { register } from "./manifest.ts";
 import { runMatrix } from "./matrix.ts";
 import { runTokens } from "./tokens.ts";
+import { pixelize } from "./pixelize.ts";
 import type { GameSlug } from "../../assets/src/index.ts";
 
 const argv = process.argv.slice(2);
 // Verb dispatcher: argv[0] is a subcommand if known; otherwise single-asset mode.
-const SUBCOMMANDS = new Set(["matrix", "tokens"]);
+const SUBCOMMANDS = new Set(["matrix", "tokens", "pixelize"]);
 const sub = SUBCOMMANDS.has(argv[0]) ? argv[0] : undefined;
 const rest = sub ? argv.slice(1) : argv;
 
@@ -37,7 +38,7 @@ const here = dirname(fileURLToPath(import.meta.url)); // packages/assetgen/src
 if (sub === "matrix") {
   const assetsDir = flag("assets-dir") || join(here, "..", "..", "assets");
   if (!existsSync(join(assetsDir, "assets-catalog.json"))) {
-    console.error(`[matrix] no assets-catalog.json under ${assetsDir} — pass --assets-dir <@shipshit/assets path>`);
+    console.error(`[matrix] no assets-catalog.json under ${assetsDir} — pass --assets-dir <@shipshitgames/assets path>`);
     process.exit(1);
   }
   const res = await runMatrix({
@@ -71,6 +72,29 @@ if (sub === "tokens") {
     console.error("[tokens] drift detected — commit the regenerated artifacts.");
     process.exit(1);
   }
+  process.exit(0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// `assetgen pixelize` — raw AI image -> clean, grid-true, palette-locked sprite.
+// The shared engine the desktop Sprites pane will also call. Enforces the TRUE
+// pixel grid the AI only approximates (see DESIGN.md assetgen.gradeParams).
+//   assetgen pixelize --in raw.png --out sprite.webp [--height 110] [--bg 42]
+// ─────────────────────────────────────────────────────────────────────────────
+if (sub === "pixelize") {
+  const inPath = flag("in");
+  const outPath = flag("out");
+  if (!inPath || !outPath) {
+    console.error("usage: assetgen pixelize --in <raw.png> --out <sprite.webp> [--height 110] [--bg 42]");
+    process.exit(1);
+  }
+  const buf = await pixelize(await readFile(inPath), {
+    height: intFlag("height", 110),
+    bgThreshold: intFlag("bg", 42),
+  });
+  await mkdir(dirname(outPath), { recursive: true });
+  await writeFile(outPath, buf);
+  console.log(`[pixelize] ${inPath} -> ${outPath} (${(buf.length / 1024).toFixed(1)} kb, ${intFlag("height", 110)}px grid)`);
   process.exit(0);
 }
 

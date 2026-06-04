@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld("studio", {
     chrome: process.versions.chrome,
     node: process.versions.node,
   },
-  // Asset generation (runs @shipshit/assetgen in the main process).
+  // Asset generation (runs @shipshitgames/assetgen in the main process).
   generate: (opts) => ipcRenderer.invoke("studio:generate", opts),
   listGames: () => ipcRenderer.invoke("studio:listGames"),
   // Live generation log stream. Returns an unsubscribe fn.
@@ -17,6 +17,13 @@ contextBridge.exposeInMainWorld("studio", {
     const h = (_e, chunk) => cb(chunk);
     ipcRenderer.on("studio:gen-log", h);
     return () => ipcRenderer.removeListener("studio:gen-log", h);
+  },
+  // Research → rules (runs @shipshitgames/research in the main process).
+  research: (opts) => ipcRenderer.invoke("studio:research", opts),
+  onResearchLog: (cb) => {
+    const h = (_e, chunk) => cb(chunk);
+    ipcRenderer.on("studio:research-log", h);
+    return () => ipcRenderer.removeListener("studio:research-log", h);
   },
   // Settings (non-secret) + keychain-backed API keys.
   settings: {

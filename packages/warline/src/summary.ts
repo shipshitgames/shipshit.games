@@ -1,5 +1,5 @@
 /**
- * @shipshit/warline — derived snapshot for HUDs (spec §7).
+ * @shipshitgames/warline — derived snapshot for HUDs (spec §7).
  */
 
 import type { Summary, WorldState } from "./types";

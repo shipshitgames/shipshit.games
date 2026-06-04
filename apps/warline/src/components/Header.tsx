@@ -1,4 +1,4 @@
-import type { Summary, WorldState } from '@shipshit/warline'
+import type { Summary, WorldState } from '@shipshitgames/warline'
 import type { WarlineStatus } from '../store'
 
 interface HeaderProps {

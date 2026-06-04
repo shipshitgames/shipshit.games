@@ -1,5 +1,5 @@
 /**
- * @shipshit/warline/client — browser SDK (spec §8).
+ * @shipshitgames/warline/client — browser SDK (spec §8).
  *
  * The ONLY module allowed to import 'partysocket'. Never imported by the index
  * barrel, so the pure core stays dependency-free and server-safe.

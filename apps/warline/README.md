@@ -7,7 +7,7 @@ build / raise-army loop. Each mini-game is an **operation** that credits the sha
 
 This is the **web hub** (`apps/warline`): a Vite + React 19 + Tailwind v4 app. It renders
 the living front, lets you issue build/deploy commands, and demos the game→operation loop.
-The pure simulation lives in the `@shipshit/warline` package; the authoritative server is
+The pure simulation lives in the `@shipshitgames/warline` package; the authoritative server is
 the PartyKit Durable Object in `party/warline.ts`.
 
 ## Dual runtime — LIVE vs LOCAL
@@ -46,7 +46,7 @@ bun run preview    # preview the production build
 
 ## Game → operation contract
 
-Every game reports exactly one operation kind (`@shipshit/warline` `GAME_OPERATIONS`):
+Every game reports exactly one operation kind (`@shipshitgames/warline` `GAME_OPERATIONS`):
 
 | game | operation | effect on the front | primary credits |
 |------|-----------|---------------------|-----------------|

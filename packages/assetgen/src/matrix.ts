@@ -1,7 +1,7 @@
 /**
  * The per-game sprite variant matrix (issue #6).
  *
- * One canon roster (`@shipshit/assets/assets-catalog.json`) drives generation of
+ * One canon roster (`@shipshitgames/assets/assets-catalog.json`) drives generation of
  * every entity's per-game render. For each entity we expand `(entity × intended
  * game)` jobs, build a per-game prompt (the entity's `promptBase` + the game's
  * framing + the DOOM style suffix), generate, post-process to `.webp`, write the
@@ -21,7 +21,7 @@ import type { AssetCatalog, EntityAsset, GameSlug } from "../../assets/src/index
 const CATALOG_FILE = "assets-catalog.json";
 
 export interface MatrixOptions {
-  /** Path to the `@shipshit/assets` package (holds the catalog + renders). */
+  /** Path to the `@shipshitgames/assets` package (holds the catalog + renders). */
   assetsDir: string;
   /** Provider key: "mock" | "openai" | "fal" | "codex". `dryRun` forces "mock". */
   provider: string;
@@ -128,7 +128,7 @@ export async function runMatrix(opts: MatrixOptions): Promise<MatrixResult> {
         id: job.entity.id,
         kind: "sprite",
         game: job.game,
-        path: `@shipshit/assets/${job.outRel}`,
+        path: `@shipshitgames/assets/${job.outRel}`,
         prompt: job.entity.promptBase,
         provider: which,
       });

@@ -8,19 +8,19 @@ import {
   tick,
   TICK_MS,
   GAME_OPERATIONS,
-} from '@shipshit/warline'
+} from '@shipshitgames/warline'
 import type {
   Command,
   GameSlug,
   HumanFaction,
   OperationResult,
   WorldState,
-} from '@shipshit/warline'
+} from '@shipshitgames/warline'
 
 // Warline front room (spec §12). Singleton room `front` on party `main`.
 // Holds the authoritative WorldState, ticks the living world on an alarm, and
 // fans out every mutation to connected clients. Imports ONLY the pure core of
-// @shipshit/warline — never the browser ./client subpath.
+// @shipshitgames/warline — never the browser ./client subpath.
 
 interface WarlineEnv {
   WARLINE_TOKEN?: string

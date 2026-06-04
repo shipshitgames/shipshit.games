@@ -1,5 +1,5 @@
 /**
- * @shipshit/assets — shared, game-agnostic assets and the canon asset catalog
+ * @shipshitgames/assets — shared, game-agnostic assets and the canon asset catalog
  * for the Scourge universe.
  *
  * ENTITY sprites are PER-GAME renders of shared canon (companion to issue #6):
@@ -74,7 +74,7 @@ export interface EntityAsset {
   /**
    * Generation seed for the matrix generator: the entity's body/silhouette/
    * materials WITHOUT camera framing or the DOOM style suffix (those are added
-   * per game by `@shipshit/assetgen`).
+   * per game by `@shipshitgames/assetgen`).
    */
   promptBase: string;
   /**
