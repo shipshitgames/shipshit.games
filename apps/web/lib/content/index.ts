@@ -130,4 +130,5 @@ export const gameCreatures = (g: Game) => g.enemySlugs.map(getCreature).filter(B
 export const characterGames = (c: Character) => c.appearsIn.map(getGame).filter(Boolean) as Game[];
 export const creatureGames = (b: Creature) => b.appearsIn.map(getGame).filter(Boolean) as Game[];
 
-export const spriteUrl = (base: string | null) => (base ? `/sprites/${base}.webp` : null);
+export const spriteUrl = (base: string | null) =>
+  base ? `/sprites/${base.includes(".") ? base : `${base}.webp`}` : null;
