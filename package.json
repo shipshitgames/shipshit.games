@@ -11,7 +11,9 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "release": "bun scripts/release.mjs",
+    "release:run": "bun scripts/release.mjs --execute"
   },
   "devDependencies": {
     "turbo": "2.3.3",

@@ -11,3 +11,6 @@ out/
 .env
 .env.*
 !.env.example
+
+# git worktrees created by the /worktree skill
+.worktrees/
