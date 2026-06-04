@@ -1,37 +1,37 @@
-/* GENERATED FROM lore/DESIGN.md v0.1.0 hash:85d5b7fb — DO NOT EDIT. Run: bun assetgen tokens */
+/* GENERATED FROM lore/DESIGN.md v0.1.0 hash:492c60dc — DO NOT EDIT. Run: bun assetgen tokens */
 // Asset-generation style, compiled from the DESIGN.md `assetgen:` block + the
 // lore Style-Bible. style.ts re-exports these; edit the bible, not this file.
 
-export const STYLE_SUFFIX = "hi-fi stylized dark-fantasy creature concept render, rendered 3D sculpt look with painterly grime, exaggerated readable silhouette, single full-body subject centered and grounded, hard hellfire rim-light raking from one low side (hellfire #ff6a00 falling to blood-hot #ff2a18), deep crushed near-black shadow on the far side, internal emissive hellfire glow from mouth, eyes and open wounds, near-monochrome warm DOOM grade of #0a0a0a/#121214/#1e1e22/#34343c body with #c1121f/#8a4b2a grime and #e9e3d6 highlights, high contrast, heavy shadows, dirty not pretty, NO neon, no text, no logo, no watermark, no UI, no background scenery, single subject only, near-black void background";
+export const STYLE_SUFFIX = "high-detail PIXEL ART game sprite on a visible chunky pixel grid (medium chunky, roughly a 110px-tall sprite), bold hand-placed pixels with hard crisp edges and NO anti-aliasing, ordered dithered shading, a clean silhouette-first readable shape with a subtle dark outline and a single hellfire rim-light from one low side (hellfire #ff6a00 into blood-hot #ff2a18) so it pops off a near-black background, fixed limited DOOM palette of #0a0a0a/#121214/#34343c body with #c1121f/#8a4b2a grime and #e9e3d6 highlights, premium modern pixel-art (Blasphemous, Dead Cells) crossed with remastered 1990s DOOM sprites, detailed but not noisy, NO neon, no text, no watermark, no UI, single subject only, near-black background, it MUST read as chunky pixel art made of visible square pixels, NOT a smooth 3D render, NOT photorealistic, NOT anti-aliased, NOT painted concept art";
 
 export const NEGATIVE_PROMPTS: string[] = [
+  "smooth 3D render",
+  "rendered 3D model",
   "photorealistic",
-  "photographic skin",
-  "shallow depth of field",
-  "lens bokeh",
-  "pixel art",
-  "flat 2D vector illustration",
+  "photographic",
+  "anti-aliased smooth edges",
+  "airbrushed",
+  "painted concept art",
+  "blurry",
+  "hi-fi render",
   "cel-shaded cartoon",
   "anime",
   "cute",
   "chibi",
   "slender elegant graceful proportions",
   "symmetrical pretty anatomy",
-  "humanoid fantasy knight in clean plate armor",
+  "clean plate-armor fantasy knight",
   "medieval robes capes or swords",
   "clean minimal sci-fi",
   "superhero proportions",
   "soft diffuse even lighting",
   "bright daylight",
-  "high-key flat lighting",
-  "glossy beauty render",
   "pastel colors",
   "rainbow saturation",
   "cool blue or teal grade",
   "magenta cyan or any neon glow",
   "clean white background",
   "background scenery or landscape",
-  "floor plane or ground shadow",
   "multiple characters",
   "text watermark or logo",
   "UI frames or HUD",
@@ -55,19 +55,21 @@ export const KIND_MAP: Record<string, string> = {
 export const SCOURGE_RULE = { pattern: /\bscourge\b/i, clause: "Scourge subjects must read as one parasite army wearing conquered host races: ruptured host flesh, invasive tendrils, embedded toxic-green (#8bdc1f) breach cores, black chitin over stolen bone/metal, fused wreckage or machinery; vary host family among flesh, chitin, mycelial, machine-graft, bone-titan, or voidship; never a standalone generic demon or alien; if it lacks this grammar it is only a monster, not the Scourge" };
 
 export const GRADE_PARAMS = {
-  "hardRemap": false,
+  "pixelGrid": 110,
+  "downscale": "box",
+  "nearestFilter": true,
+  "dither": "ordered",
+  "antialias": false,
+  "hardRemap": true,
   "targetPalette": "doom",
-  "method": "lut",
-  "lutPath": "lore/Art/grade/doom.cube",
-  "temperature": 0.18,
-  "valueContrast": 0.22,
-  "saturation": -0.3,
+  "palettePath": "lore/Art/grade/doom.gpl",
+  "outline": "subtle-dark",
   "preserveEmissive": true,
   "blackPoint": "#0a0a0a",
+  "encode": "webp-lossless",
   "cutout": {
     "tool": "rembg",
-    "model": "isnet-anime",
-    "order": "after-generate-before-grade"
+    "order": "after-generate-before-downscale"
   }
 } as const;
 
