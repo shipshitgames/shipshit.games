@@ -19,13 +19,14 @@
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types src/*.test.ts"
+    "test": "node --test --experimental-strip-types src/*.test.ts",
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
     "partysocket": "^1.1.19"
   },
   "devDependencies": {
-    "@types/node": "22.15.29",
-    "typescript": "5.7.3"
+    "@types/node": "25.9.1",
+    "typescript": "6.0.3"
   }
 }

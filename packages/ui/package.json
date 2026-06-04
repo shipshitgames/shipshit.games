@@ -25,18 +25,19 @@
   },
   "scripts": {
     "lint": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "peerDependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/react": "18.3.18",
-    "@types/react-dom": "18.3.5",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "typescript": "5.7.3"
+    "@types/react": "19.2.16",
+    "@types/react-dom": "19.2.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "typescript": "6.0.3"
   },
   "keywords": [
     "react",

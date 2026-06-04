@@ -5,6 +5,7 @@
   "type": "module",
   "bin": { "research": "./src/cli.ts" },
   "scripts": {
-    "rules": "bun src/cli.ts"
+    "rules": "bun src/cli.ts",
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   }
 }
