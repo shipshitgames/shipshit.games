@@ -1,7 +1,7 @@
 // Ship Shit Games — Studio shell (Electron main process)
 // Loads Vite in dev / the built renderer in prod; runs @shipshitgames/assetgen on IPC
 // with live streaming, plus settings + keychain-backed key management.
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { spawn, execFileSync } = require("node:child_process");
@@ -54,6 +54,65 @@ ipcMain.handle("settings:set", (_e, partial) => writeSettings({ ...readSettings(
 ipcMain.handle("keys:status", () => keyStatus());
 ipcMain.handle("keys:set", (_e, { provider, key }) => { const s = KEY_SERVICES[provider]; if (s && key) setKey(s, key); return keyStatus(); });
 ipcMain.handle("studio:listGames", () => ALL_GAMES.filter((g) => fs.existsSync(gameDir(g))));
+
+// ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
+// GUI apps inherit a minimal PATH, so resolve ffmpeg from common install locations.
+function resolveFfmpeg() {
+  const cands = [process.env.FFMPEG, "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"];
+  for (const c of cands) { if (c && fs.existsSync(c)) return c; }
+  try { const w = execFileSync("/bin/sh", ["-lc", "command -v ffmpeg"]).toString().trim(); if (w) return w; } catch {}
+  return "ffmpeg"; // last resort: hope it's on PATH
+}
+const AUDIO_CATEGORIES = ["sfx", "music", "voice"];
+const audioSlug = (file) => path.basename(file).replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+ipcMain.handle("studio:pickAudioFiles", async () => {
+  const r = await dialog.showOpenDialog({
+    title: "Pick source audio to transcode",
+    properties: ["openFile", "multiSelections"],
+    filters: [{ name: "Audio", extensions: ["mp3", "wav", "flac", "aac", "m4a", "ogg", "aiff", "opus", "webm"] }],
+  });
+  return r.canceled ? [] : r.filePaths;
+});
+
+// Transcode any audio → WebM/Opus into a game's src/assets/audio/<category>/, mirroring
+// the asset pipeline's "encode finals to .webm/opus" rule. Strips non-audio streams
+// (cover art); optional loudnorm. Streams an ffmpeg log like studio:generate.
+ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
+  const files = Array.isArray(opts?.files) ? opts.files : [];
+  const game = opts?.game || readSettings().defaultGame;
+  const category = AUDIO_CATEGORIES.includes(opts?.category) ? opts.category : "music";
+  const bitrate = Math.max(32, Math.min(320, Number(opts?.bitrate) || 128));
+  const normalize = !!opts?.normalize;
+  const outDir = path.join(gameDir(game), "src", "assets", "audio", category);
+  const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:transcode-log", chunk); };
+  if (!files.length) { send("no files selected\n"); return { ok: false, log: "no files", outputs: [] }; }
+  const ffmpeg = resolveFfmpeg();
+  fs.mkdirSync(outDir, { recursive: true });
+  const outputs = [];
+  let log = "";
+  for (const input of files) {
+    const out = path.join(outDir, `${audioSlug(input)}.webm`);
+    const args = ["-hide_banner", "-loglevel", "error", "-y", "-i", input, "-map", "0:a", "-c:a", "libopus", "-b:a", `${bitrate}k`];
+    if (normalize) args.push("-af", "loudnorm");
+    args.push(out);
+    send(`$ ffmpeg -i ${path.basename(input)} → audio/${category}/${path.basename(out)} (opus ${bitrate}k${normalize ? ", loudnorm" : ""})\n`);
+    const code = await new Promise((resolve) => {
+      let child;
+      try { child = spawn(ffmpeg, args); }
+      catch (err) { send(`spawn failed: ${err}\n`); return resolve(-1); }
+      child.stdout.on("data", (d) => { const s = d.toString(); log += s; send(s); });
+      child.stderr.on("data", (d) => { const s = d.toString(); log += s; send(s); });
+      child.on("error", (err) => { send(`\nffmpeg error: ${err} — is ffmpeg installed and on PATH?\n`); });
+      child.on("close", resolve);
+    });
+    if (code === 0) { outputs.push(out); send(`✓ ${out}\n`); }
+    else send(`✗ ffmpeg exited ${code} for ${path.basename(input)}\n`);
+  }
+  send(`\n[done: ${outputs.length}/${files.length} → ${path.relative(WORKSPACE, outDir)}]\n`);
+  send("Remember to register each track in the game's assets.json with a license record.\n");
+  return { ok: outputs.length === files.length, log, outputs };
+});
 
 ipcMain.handle("studio:generate", async (e, opts) => {
   const settings = readSettings();

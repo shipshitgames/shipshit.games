@@ -22,6 +22,9 @@ declare global {
       onGenLog: (cb: (chunk: string) => void) => () => void;
       research: (opts: { url: string; slug: string; provider?: string }) => Promise<ResearchResult>;
       onResearchLog: (cb: (chunk: string) => void) => () => void;
+      transcodeAudio: (opts: { files: string[]; game: string; category: string; bitrate?: number; normalize?: boolean }) => Promise<{ ok: boolean; log: string; outputs: string[] }>;
+      pickAudioFiles: () => Promise<string[]>;
+      onTranscodeLog: (cb: (chunk: string) => void) => () => void;
       settings: { get: () => Promise<Settings>; set: (p: Partial<Settings>) => Promise<Settings> };
       keys: { status: () => Promise<Record<string, boolean>>; set: (provider: string, key: string) => Promise<Record<string, boolean>> };
     };
@@ -223,6 +226,83 @@ function ResearchPane() {
   );
 }
 
+// Audio transcode tool: any source audio → WebM/Opus (the studio format) straight into
+// a game's src/assets/audio/<category>/, via ffmpeg in the Electron main process.
+function MusicPane() {
+  const [files, setFiles] = useState<string[]>([]);
+  const [game, setGame] = useState("scourge-survivors");
+  const [games, setGames] = useState<string[]>(["scourge-survivors"]);
+  const [category, setCategory] = useState<"sfx" | "music" | "voice">("music");
+  const [bitrate, setBitrate] = useState(128);
+  const [normalize, setNormalize] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [log, setLog] = useState("");
+  const [result, setResult] = useState<{ ok: boolean; log: string; outputs: string[] } | null>(null);
+
+  useEffect(() => {
+    window.studio?.settings.get().then((s) => setGame(s.defaultGame)).catch(() => {});
+    window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
+    const off = window.studio?.onTranscodeLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    return () => { off?.(); };
+  }, []);
+
+  async function pick() {
+    const f = await window.studio?.pickAudioFiles();
+    if (f?.length) setFiles(f);
+  }
+
+  async function transcode() {
+    if (!window.studio?.transcodeAudio) { setLog("studio bridge unavailable — restart the app"); return; }
+    setBusy(true);
+    setResult(null);
+    setLog("");
+    try {
+      setResult(await window.studio.transcodeAudio({ files, game, category, bitrate, normalize }));
+    } catch (e) {
+      setLog(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="gen">
+      <div className="gen-form">
+        <button className="set-btn" type="button" onClick={pick}>
+          {files.length ? `${files.length} file(s) selected — change` : "Pick source audio…"}
+        </button>
+        {files.length > 0 && <p className="gen-note">{files.map((f) => f.split("/").pop()).join(", ")}</p>}
+        <label className="gen-field"><span>Game</span>
+          <select value={game} onChange={(e) => setGame(e.target.value)}>
+            {games.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+        <label className="gen-field"><span>Category → src/assets/audio/&lt;category&gt;/</span>
+          <select value={category} onChange={(e) => setCategory(e.target.value as "sfx" | "music" | "voice")}>
+            <option value="sfx">sfx</option>
+            <option value="music">music</option>
+            <option value="voice">voice</option>
+          </select>
+        </label>
+        <label className="gen-field"><span>Opus bitrate (kbps)</span>
+          <input type="number" min={32} max={320} value={bitrate} onChange={(e) => setBitrate(Number(e.target.value) || 128)} />
+        </label>
+        <label className="gen-field"><span><input type="checkbox" checked={normalize} onChange={(e) => setNormalize(e.target.checked)} /> loudnorm (recommended for SFX)</span></label>
+        <button className="gen-btn" disabled={busy || !files.length} onClick={transcode}>
+          {busy ? "Transcoding…" : "Transcode → WebM/Opus"}
+        </button>
+        <p className="gen-note">ffmpeg → opus into the game's audio folder · strips cover art · then register each in assets.json with a license record. Generate new SFX with ElevenLabs SFX / OptimizerAI; music with Soundraw / Beatoven (avoid Udio/Suno for shipped in-game loops).</p>
+      </div>
+      <div className="gen-preview">
+        {result?.outputs?.length
+          ? <pre className="gen-rules">{result.outputs.map((o) => o.split("/").slice(-2).join("/")).join("\n")}</pre>
+          : <div className="gen-preview-empty">{busy ? "transcoding…" : "outputs"}</div>}
+        {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState<SectionId>("sprites");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -264,7 +344,7 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "sprites" ? <SpritesPane /> : active === "research" ? <ResearchPane /> : (
+            {active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "research" ? <ResearchPane /> : (
               <div className="placeholder-card">
                 <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
                 <p><strong>{section.label}</strong> workspace coming online.</p>
