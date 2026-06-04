@@ -19,7 +19,8 @@
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types src/*.test.ts"
+    "test": "node --test --experimental-strip-types src/*.test.ts",
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --target minor && bun install"
   },
   "dependencies": {
     "partysocket": "^1.1.19"

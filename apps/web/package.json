@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --target minor && bun install"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",

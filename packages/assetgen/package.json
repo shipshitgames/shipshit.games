@@ -6,7 +6,8 @@
   "bin": { "assetgen": "./src/cli.ts" },
   "scripts": {
     "gen": "bun src/cli.ts",
-    "matrix": "bun src/cli.ts matrix"
+    "matrix": "bun src/cli.ts matrix",
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --target minor && bun install"
   },
   "dependencies": {
     "sharp": "^0.34.2"

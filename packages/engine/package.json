@@ -22,7 +22,8 @@
   },
   "scripts": {
     "lint": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --target minor && bun install"
   },
   "peerDependencies": {
     "three": "^0.169.0"

@@ -13,7 +13,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "electron .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --target minor && bun install"
   },
   "dependencies": {
     "react": "19.1.0",
