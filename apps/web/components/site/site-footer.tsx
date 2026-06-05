@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 const LINKS: { label: string; href: string; ext?: boolean }[] = [
-  { label: "Universe / Lore", href: "/universe" },
+  { label: "Play (DEADROT) ↗", href: "https://deadrot.com", ext: true },
   { label: "GitHub ↗", href: "https://github.com/shipshitgames", ext: true },
-  { label: "Lore Vault ↗", href: "https://github.com/shipshitgames/lore", ext: true },
+  { label: "v0 scaffolder ↗", href: "https://github.com/shipshitdev/v0", ext: true },
   { label: "Skills ↗", href: "https://github.com/shipshitgames/skills", ext: true },
   { label: "shipshitshow ↗", href: "https://youtube.com/@shipshitshow", ext: true },
 ];
@@ -16,8 +16,8 @@ export function SiteFooter() {
           Ship <span className="text-blood">Shit</span> Games
         </div>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-ash">
-          Open-source AI game studio. One blood-soaked universe — DOOM × Blizzard —
-          forged live on the shipshitshow.
+          The studio building the <a href="https://deadrot.com" className="text-bone underline decoration-gunmetal underline-offset-2 hover:decoration-blood">DEADROT</a> universe
+          live with AI. We ship games in public and sell the playbook.
         </p>
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs font-bold uppercase tracking-widest">
           {LINKS.map((l) =>
@@ -43,7 +43,7 @@ export function SiteFooter() {
           )}
         </div>
         <p className="mt-8 text-[0.65rem] uppercase tracking-widest text-gunmetal">
-          © Ship Shit Games · Open-core · MIT where noted
+          © Ship Shit Games · Building in public · MIT where noted
         </p>
       </div>
     </footer>

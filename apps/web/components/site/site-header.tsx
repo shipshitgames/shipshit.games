@@ -7,10 +7,11 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { label: "Games", href: "/#games" },
-  { label: "Universe", href: "/universe" },
-  { label: "Factions", href: "/universe#factions" },
-  { label: "Bestiary", href: "/universe#bestiary" },
+  { label: "Newsletter", href: "/#newsletter" },
+  { label: "Course", href: "/#course" },
+  { label: "Templates", href: "/#templates" },
+  { label: "Sponsor", href: "/#sponsor" },
+  { label: "Play", href: "https://deadrot.com" },
 ];
 const WATCH = "https://youtube.com/@shipshitshow";
 

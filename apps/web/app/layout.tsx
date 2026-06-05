@@ -6,18 +6,18 @@ import { SiteFooter } from "@/components/site/site-footer";
 import { Grain } from "@/components/site/atmosphere";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://games.shipshit.dev"),
+  metadataBase: new URL("https://shipshitgames.com"),
   title: {
-    default: "Ship Shit Games — DOOM × Blizzard, forged live",
+    default: "Ship Shit Games — building games with AI, in public",
     template: "%s — Ship Shit Games",
   },
   description:
-    "Open-source AI game studio. One brutal, blood-soaked IP universe — DOOM's gore with Blizzard's cohesion — built live on the shipshitshow.",
+    "The studio building the DEADROT universe live with AI. We ship games in public and sell the playbook — newsletter, course, templates, and the tools we built to do it.",
   openGraph: {
     title: "Ship Shit Games",
     description:
-      "One blood-soaked universe. Six browser games. The Scourge eats worlds — you make it pay.",
-    url: "https://games.shipshit.dev",
+      "Building games with AI, in public. Steal the playbook — newsletter, course, templates, and tooling.",
+    url: "https://shipshitgames.com",
     siteName: "Ship Shit Games",
     type: "website",
   },

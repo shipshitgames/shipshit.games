@@ -1,68 +1,67 @@
-import Link from "next/link";
+import type { CSSProperties } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/site/eyebrow";
 import { Backdrop } from "@/components/site/atmosphere";
-import { GameCard } from "@/components/game/game-card";
-import { FactionCrest } from "@/components/faction/faction-crest";
-import {
-  accentVars,
-  factions,
-  games,
-  universe,
-  type GameStatus,
-} from "@/lib/content";
+import { Signup } from "@/components/site/signup";
 
 const WATCH = "https://youtube.com/@shipshitshow";
-const STATUS_RANK: Record<GameStatus, number> = {
-  PLAYABLE: 0,
-  "IN DEV": 1,
-  CONCEPT: 2,
-};
+const PLAY = "https://deadrot.com";
+
+const accent = (hex: string): CSSProperties =>
+  ({ "--page-accent": hex } as CSSProperties);
+const HELLFIRE = "#ff6a00";
+const BLOOD = "#c1121f";
+const TOXIC = "#8bdc1f";
+const RUST = "#a35a33";
+
+const TEMPLATES = [
+  {
+    name: "@shipshitdev/v0",
+    desc: "The scaffolder we ship every product with — Bun + Turbo monorepo, Next 16, Tailwind, shadcn, agent files. One command, a working repo.",
+    href: "https://github.com/shipshitdev/v0",
+    cta: "npx @shipshitdev/v0",
+  },
+  {
+    name: "Agent skills",
+    desc: "The skill library that drives the studio — scaffolding, deploys, reviews, lore craft. The same ones we use daily.",
+    href: "https://github.com/shipshitgames/skills",
+    cta: "Browse the skills",
+  },
+  {
+    name: "Game boilerplates",
+    desc: "Vite + React + Three.js starters and the shared engine the games are built on. Clone, reskin, ship.",
+    href: "https://github.com/shipshitgames",
+    cta: "See the repos",
+  },
+];
 
 export default function Home() {
-  const gallery = [...games].sort(
-    (a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status]
-  );
-  const premiseLead = universe.premise.split("\n\n")[0];
-
   return (
     <main>
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section
-        style={accentVars("hellfire")}
+        style={accent(HELLFIRE)}
         className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center"
       >
         <Backdrop />
-        {/* Pixel hero banner (locked house style #62) */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/hero.webp"
-          alt=""
-          aria-hidden
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
-          style={{ imageRendering: "pixelated" }}
-        />
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-void via-void/70 to-void/40" />
-
         <div className="relative z-10 flex flex-col items-center">
-          <Eyebrow>Open-source AI game studio</Eyebrow>
-          <h1 className="text-glow mt-5 font-display text-6xl font-bold uppercase leading-[0.82] tracking-tight text-bone sm:text-8xl md:text-[8.5rem]">
-            Ship <span className="text-blood">Shit</span>
-            <br className="hidden sm:block" /> Games
+          <Eyebrow>Building games with AI, in public</Eyebrow>
+          <h1 className="text-glow mt-5 max-w-4xl font-display text-5xl font-bold uppercase leading-[0.9] tracking-tight text-bone sm:text-7xl md:text-8xl">
+            We ship games in public.
+            <br className="hidden sm:block" />{" "}
+            <span className="text-blood">Steal the playbook.</span>
           </h1>
-          <p className="mt-7 max-w-xl text-lg leading-relaxed text-ash">
-            One brutal, blood-soaked universe —{" "}
-            <span className="text-bone">DOOM's gore with Blizzard's cohesion.</span>{" "}
-            Every map, monster, and sprite forged live on stream.
+          <p className="mt-7 max-w-2xl text-lg leading-relaxed text-ash">
+            Ship Shit Games builds the{" "}
+            <a href={PLAY} className="text-bone underline decoration-gunmetal underline-offset-2 hover:decoration-blood">DEADROT</a>{" "}
+            universe live with AI — a whole IP, many browser games, one bloody canon. Here&apos;s
+            everything we learned doing it: the newsletter, the course, the templates, and the
+            tools we built to move this fast.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-            <Button
-              asChild
-              size="xl"
-              className="font-display uppercase tracking-widest shadow-ember"
-            >
-              <a href="#games">Enter the War</a>
+            <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
+              <a href="#newsletter">Get the playbook</a>
             </Button>
             <Button
               asChild
@@ -76,148 +75,120 @@ export default function Home() {
             </Button>
           </div>
         </div>
-
         <a
-          href="#games"
+          href="#newsletter"
           className="animate-bob absolute bottom-8 z-10 text-xs font-bold uppercase tracking-[0.3em] text-ash transition-colors hover:text-bone"
         >
           ▼ scroll
         </a>
       </section>
 
-      {/* ── GAMES ────────────────────────────────────────────────────────── */}
+      {/* ── NEWSLETTER ───────────────────────────────────────────────────── */}
       <section
-        id="games"
-        style={accentVars("blood")}
+        id="newsletter"
+        style={accent(HELLFIRE)}
         className="relative scroll-mt-16 border-t border-gunmetal/40 px-6 py-24"
       >
         <div className="mx-auto max-w-7xl">
-          <Eyebrow>The Arsenal</Eyebrow>
-          <h2 className="mt-3 font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
-            Games in the Universe
+          <Eyebrow>Build in public</Eyebrow>
+          <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
+            The devlog newsletter
           </h2>
-          <p className="mt-3 max-w-2xl text-ash">
-            Each one a standalone game and a chapter of the same war. All
-            open-source. All playable in your browser.
+          <p className="mt-4 max-w-2xl leading-relaxed text-ash">
+            Every shipped game, every dead end, every prompt that actually worked — written up the
+            week it happened. No theory. The real log of building an IP with AI, paired with the{" "}
+            <a href={WATCH} target="_blank" rel="noreferrer" className="text-hellfire hover:text-blood">shipshitshow</a>.
           </p>
-          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {gallery.map((g) => (
-              <GameCard key={g.slug} game={g} />
-            ))}
+          <div className="mt-9">
+            <Signup cta="Subscribe" topic="newsletter" successText="You're in. First devlog incoming." />
           </div>
         </div>
       </section>
 
-      {/* ── WARLINE ──────────────────────────────────────────────────────── */}
+      {/* ── COURSE ───────────────────────────────────────────────────────── */}
       <section
-        id="warline"
-        style={accentVars("blood")}
+        id="course"
+        style={accent(BLOOD)}
         className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
       >
         <Backdrop />
         <div className="relative z-10 mx-auto max-w-7xl">
-          <Eyebrow>The Persistent War</Eyebrow>
+          <Eyebrow>Go deeper</Eyebrow>
           <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
-            War for the Lanes
+            Ship a game with AI — the course
           </h2>
           <p className="mt-5 max-w-2xl leading-relaxed text-ash">
-            One shared planet front. The Pyre and the Wardens hold the line under the Pact while
-            the <span className="text-toxic">Scourge</span> pours from the breaches. Every game is
-            an <span className="text-hellfire">operation</span> — purge a breach, hold a lane, run
-            the convoy — that credits the living war. Build holdouts, raise the Pact Army, push the
-            front.
+            The end-to-end system we use to take a game from idea to shipped: scaffolding,
+            agent workflows, art and asset generation, the engine, and the deploy. Cohort-based,
+            built from real shipped games. Curriculum and pricing land soon — join the waitlist for
+            first access and founding-cohort pricing.
           </p>
-          <div className="mt-10">
-            <Button
-              asChild
-              size="xl"
-              className="font-display uppercase tracking-widest shadow-ember"
-            >
-              <a href="/warline/">Enter Warline →</a>
-            </Button>
+          <div className="mt-9">
+            <Signup cta="Join the waitlist" topic="course" successText="On the list. You'll get founding-cohort access first." />
           </div>
         </div>
       </section>
 
-      {/* ── UNIVERSE ─────────────────────────────────────────────────────── */}
+      {/* ── TEMPLATES / TOOLING ──────────────────────────────────────────── */}
       <section
-        style={accentVars("toxic")}
-        className="relative overflow-hidden border-t border-gunmetal/40 px-6 py-24"
-      >
-        <Backdrop />
-        <div className="relative z-10 mx-auto max-w-7xl">
-          <Eyebrow>One Canon</Eyebrow>
-          <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
-            The Scourge eats worlds. We just make it pay.
-          </h2>
-          <p className="mt-5 max-w-2xl leading-relaxed text-ash">{premiseLead}</p>
-
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {universe.pillars.map((p) => (
-              <div
-                key={p.title}
-                className="rounded-md border border-gunmetal bg-coal/60 p-5"
-              >
-                <h3 className="font-display text-lg font-bold uppercase tracking-tight text-[var(--page-accent)]">
-                  {p.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-ash">{p.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-10">
-            <Button
-              asChild
-              variant="outline"
-              className="border-toxic/50 font-display uppercase tracking-widest text-toxic hover:bg-toxic/10 hover:text-toxic"
-            >
-              <Link href="/universe">Enter the Universe →</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── FACTIONS ─────────────────────────────────────────────────────── */}
-      <section
-        id="factions"
+        id="templates"
+        style={accent(TOXIC)}
         className="relative scroll-mt-16 border-t border-gunmetal/40 px-6 py-24"
       >
         <div className="mx-auto max-w-7xl">
-          <Eyebrow className="text-blood">Choose a Side</Eyebrow>
+          <Eyebrow>Steal our tools</Eyebrow>
           <h2 className="mt-3 font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
-            The Factions
+            Templates &amp; tooling
           </h2>
           <p className="mt-3 max-w-2xl text-ash">
-            Bound by the Pact, divided by doctrine. Burn the source, hold the line,
-            or listen to the dark.
+            The actual stack behind the studio. Open where it can be, battle-tested on real
+            shipped games.
           </p>
           <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-3">
-            {factions.map((f) => (
-              <Link
-                key={f.slug}
-                href={`/factions/${f.slug}`}
-                style={accentVars(f.accent)}
-                className="group relative overflow-hidden rounded-md border border-gunmetal bg-coal p-8 transition-all duration-300 hover:border-[var(--page-accent)] hover:shadow-[0_0_40px_-16px_var(--page-accent)]"
+            {TEMPLATES.map((t) => (
+              <a
+                key={t.name}
+                href={t.href}
+                target="_blank"
+                rel="noreferrer"
+                className="group flex flex-col rounded-md border border-gunmetal bg-coal p-7 transition-all duration-300 hover:border-hellfire hover:shadow-[0_0_40px_-16px_var(--page-accent)]"
               >
-                <FactionCrest
-                  accent={f.accent}
-                  className="absolute -right-6 -top-6 h-40 w-40 opacity-10 transition-opacity duration-300 group-hover:opacity-20"
-                />
-                <div className="relative z-10">
-                  <FactionCrest accent={f.accent} className="h-12 w-12" />
-                  <h3 className="mt-4 font-display text-2xl font-bold uppercase tracking-tight text-bone">
-                    {f.name}
-                  </h3>
-                  <p className="mt-1 text-xs uppercase tracking-widest text-[var(--page-accent)]">
-                    {f.doctrine}
-                  </p>
-                  <p className="mt-4 text-sm leading-relaxed text-ash">
-                    {f.tagline}
-                  </p>
-                </div>
-              </Link>
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-bone">
+                  {t.name}
+                </h3>
+                <p className="mt-3 flex-1 text-sm leading-relaxed text-ash">{t.desc}</p>
+                <span className="mt-5 font-display text-xs font-bold uppercase tracking-widest text-hellfire transition-colors group-hover:text-blood">
+                  {t.cta} →
+                </span>
+              </a>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── SPONSOR / CONSULTING ─────────────────────────────────────────── */}
+      <section
+        id="sponsor"
+        style={accent(RUST)}
+        className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
+      >
+        <Backdrop />
+        <div className="relative z-10 mx-auto flex max-w-7xl flex-col items-start">
+          <Eyebrow>Work with us</Eyebrow>
+          <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
+            Sponsor the show · hire the studio
+          </h2>
+          <p className="mt-5 max-w-2xl leading-relaxed text-ash">
+            Put your tool in front of builders who actually ship, or bring us in to stand up an
+            AI-native game or product pipeline. Tell us what you&apos;re after and we&apos;ll send
+            the deck.
+          </p>
+          <div className="mt-9">
+            <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
+              <a href="mailto:vincent@genfeed.ai?subject=Sponsorship%20%2F%20consulting%20%E2%80%94%20Ship%20Shit%20Games">
+                Get in touch
+              </a>
+            </Button>
           </div>
         </div>
       </section>
