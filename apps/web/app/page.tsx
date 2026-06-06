@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { ArrowRight, Mail, Play } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/site/eyebrow";
@@ -21,31 +22,54 @@ const RUST = "#a35a33";
 
 const PROBLEMS = [
   {
-    title: "Ideas are cheap",
-    body: "AI can hand you a hundred concepts before lunch. The hard part is choosing the one you can actually ship.",
+    title: "Idea flood",
+    body: "AI can hand you a hundred concepts before lunch. The hard part is choosing the one with enough teeth to ship.",
   },
   {
-    title: "Assets rot fast",
-    body: "Prompts, renders, lore, UI, and code drift apart unless the pipeline has rules and a real source of truth.",
+    title: "Canon drift",
+    body: "Prompts, renders, lore, UI, and code drift unless the build has rules and a real source of truth.",
   },
   {
-    title: "Agents need taste",
-    body: "Automation without review just makes louder slop. You need loops for scope, build, QA, and polish.",
+    title: "Taste check",
+    body: "Automation without review makes louder slop. The system has to scope, build, inspect, and cut.",
   },
 ] as const;
 
 const SOLUTION_STEPS = [
   {
-    title: "Scope the slice",
-    body: "Start with one playable promise, one aesthetic lane, and one measurable shipping target.",
+    title: "Scope",
+    body: "Start with one promise, one aesthetic lane, and one public build target.",
   },
   {
-    title: "Generate with canon",
+    title: "Canon",
     body: "Keep assets, lore, prompts, and implementation tied to studio rules instead of one-off experiments.",
   },
   {
-    title: "Ship the loop",
+    title: "Ship",
     body: "Use agents for scaffolding, code, review, deployment, and session capture until the build is public.",
+  },
+] as const;
+
+const STUDIO_SIGNALS = [
+  {
+    value: "6",
+    label: "Game covers",
+    body: "Public DEADROT slices with generated key art and production notes.",
+  },
+  {
+    value: "16",
+    label: "Faction portraits",
+    body: "Warden, Pyre, Scourge, and neutral characters in one visual canon.",
+  },
+  {
+    value: "3",
+    label: "Tool surfaces",
+    body: "Skills Pro, assetgen docs, and open scaffolding workflows.",
+  },
+  {
+    value: "1",
+    label: "Live war IP",
+    body: "A single universe used to prove every pipeline decision in public.",
   },
 ] as const;
 
@@ -97,6 +121,31 @@ const TOOL_ACCESS = [
   },
 ] as const;
 
+const DEADROT_KEY_ART = "/images/hero.webp";
+
+function SectionIllustration({
+  src,
+  objectPosition = "center",
+  opacity = 0.22,
+}: {
+  src: string;
+  objectPosition?: string;
+  opacity?: number;
+}) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <img
+        src={src}
+        alt=""
+        className="h-full w-full object-cover contrast-110 saturate-125 [image-rendering:pixelated]"
+        style={{ objectPosition, opacity }}
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(6,6,5,0.98),rgba(6,6,5,0.82)_46%,rgba(6,6,5,0.96))]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_42%,transparent,rgba(6,6,5,0.82)_64%)]" />
+    </div>
+  );
+}
+
 export default function Home() {
   return (
     <main>
@@ -105,6 +154,7 @@ export default function Home() {
         style={accent(HELLFIRE)}
         className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pb-16 pt-24 text-center"
       >
+        <SectionIllustration src="/images/hero.webp" opacity={0.28} />
         <Backdrop />
         <EmberParticles />
         <div className="relative z-10 flex flex-col items-center">
@@ -124,7 +174,10 @@ export default function Home() {
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-              <a href="/pricing">Buy Skills Pro</a>
+              <a href="/pricing">
+                Buy Skills Pro
+                <ArrowRight aria-hidden="true" />
+              </a>
             </Button>
             <Button
               asChild
@@ -132,28 +185,54 @@ export default function Home() {
               variant="outline"
               className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
             >
-              <a href={PLAY}>Play Deadrot</a>
+              <a href={PLAY}>
+                <Play aria-hidden="true" />
+                Play Deadrot
+              </a>
             </Button>
           </div>
         </div>
         <a
-          href="#problem"
+          href="#studio"
           className="animate-bob absolute bottom-8 z-10 text-xs font-bold uppercase tracking-[0.3em] text-ash transition-colors hover:text-bone"
         >
           ▼ scroll
         </a>
       </section>
 
-      {/* ── PROBLEM ──────────────────────────────────────────────────────── */}
+      {/* -- PUBLIC PROOF --------------------------------------------------- */}
       <section
-        id="problem"
-        style={accent(BLOOD)}
-        className="relative scroll-mt-16 border-t border-gunmetal/40 px-6 py-24"
+        style={accent(RUST)}
+        className="relative overflow-hidden border-t border-gunmetal/40 bg-void px-6 py-10"
       >
-        <div className="mx-auto max-w-7xl">
-          <Eyebrow>The problem</Eyebrow>
+        <div className="mx-auto grid max-w-7xl gap-px overflow-hidden rounded-md border border-gunmetal bg-gunmetal md:grid-cols-4">
+          {STUDIO_SIGNALS.map((signal) => (
+            <div key={signal.label} className="bg-coal px-5 py-6">
+              <div className="flex items-end gap-3">
+                <span className="font-display text-5xl font-bold leading-none text-bone">
+                  {signal.value}
+                </span>
+                <span className="pb-1 font-display text-xs font-bold uppercase tracking-widest text-hellfire">
+                  {signal.label}
+                </span>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-ash">{signal.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── STUDIO REALITY ───────────────────────────────────────────────── */}
+      <section
+        id="studio"
+        style={accent(BLOOD)}
+        className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
+      >
+        <SectionIllustration src="/images/games/deadlane.webp" objectPosition="center 42%" />
+        <div className="relative z-10 mx-auto max-w-7xl">
+          <Eyebrow>Studio reality</Eyebrow>
           <h2 className="mt-3 max-w-4xl font-display text-4xl font-bold uppercase leading-tight text-bone sm:text-5xl">
-            AI makes the mess faster. Shipping still takes a system.
+            AI floods. We ship.
           </h2>
           <p className="mt-5 max-w-2xl leading-relaxed text-ash">
             The new bottleneck is not generation. It is taste, continuity, QA,
@@ -176,17 +255,18 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── SOLUTION ─────────────────────────────────────────────────────── */}
+      {/* ── BUILD LOOP ───────────────────────────────────────────────────── */}
       <section
-        id="solution"
+        id="loop"
         style={accent(HELLFIRE)}
         className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
       >
+        <SectionIllustration src="/images/games/pactfall.webp" objectPosition="center 48%" opacity={0.2} />
         <Backdrop />
         <div className="relative z-10 mx-auto max-w-7xl">
-          <Eyebrow>The solution</Eyebrow>
+          <Eyebrow>The build loop</Eyebrow>
           <h2 className="mt-3 max-w-4xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
-            Treat AI like a studio pipeline, not a magic button.
+            Scope. Canon. Ship.
           </h2>
           <p className="mt-5 max-w-2xl leading-relaxed text-ash">
             Ship Shit Games is the operating system we use to build DEADROT in
@@ -223,7 +303,7 @@ export default function Home() {
           <div>
             <Eyebrow>DEADROT</Eyebrow>
             <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
-              The war universe where the system proves itself.
+              War IP. Live build.
             </h2>
             <p className="mt-5 max-w-2xl leading-relaxed text-ash">
               DEADROT is the browser-game IP we are building in public: war fronts,
@@ -231,8 +311,11 @@ export default function Home() {
               host-takeover organisms, not generic monsters.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
-              <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-                <a href={PLAY}>Play Deadrot</a>
+            <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
+                <a href={PLAY}>
+                  <Play aria-hidden="true" />
+                  Play Deadrot
+                </a>
               </Button>
               <Button
                 asChild
@@ -245,27 +328,28 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative min-h-[22rem] overflow-hidden border-y border-gunmetal/70 bg-void/35">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_85%,rgba(193,18,31,0.24),transparent_32%),radial-gradient(circle_at_78%_55%,rgba(255,106,0,0.18),transparent_28%),linear-gradient(115deg,rgba(14,12,10,0.35),rgba(6,6,5,0.94)_62%)]" />
-            <EmberParticles intensity="firefront" />
-            <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-blood/30 via-hellfire/10 to-transparent" />
-            <div className="absolute inset-x-10 bottom-12 h-px bg-hellfire/45 shadow-[0_0_34px_rgba(255,106,0,0.65)]" />
-            <div className="absolute bottom-10 left-[18%] h-16 w-px -rotate-12 bg-gradient-to-t from-hellfire/70 to-transparent shadow-[0_0_22px_rgba(255,106,0,0.72)]" />
-            <div className="absolute bottom-8 right-[24%] h-20 w-px rotate-[18deg] bg-gradient-to-t from-blood/70 to-transparent shadow-[0_0_26px_rgba(193,18,31,0.7)]" />
+          <div className="relative aspect-[1600/759] w-full overflow-hidden border border-gunmetal/70 bg-coal shadow-[0_28px_70px_rgba(0,0,0,0.72)]">
+            <img
+              src={DEADROT_KEY_ART}
+              alt="Landscape pixel art Deadrot key art"
+              className="h-full w-full object-cover [image-rendering:pixelated]"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,6,5,0.12),transparent_42%,rgba(6,6,5,0.28))]" />
           </div>
         </div>
       </section>
 
-      {/* ── PRODUCTS ─────────────────────────────────────────────────────── */}
+      {/* ── STUDIO OUTPUT ───────────────────────────────────────────────── */}
       <section
-        id="products"
+        id="output"
         style={accent(RUST)}
-        className="relative scroll-mt-16 border-t border-gunmetal/40 px-6 py-24"
+        className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
       >
-        <div className="mx-auto max-w-7xl">
-          <Eyebrow>Products</Eyebrow>
+        <SectionIllustration src="/images/games/starblight.webp" objectPosition="center 45%" opacity={0.2} />
+        <div className="relative z-10 mx-auto max-w-7xl">
+          <Eyebrow>Studio output</Eyebrow>
           <h2 className="mt-3 max-w-4xl font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
-            The game, the skills, the tools, and the receipts.
+            Games. Tools. Receipts.
           </h2>
           <p className="mt-5 max-w-2xl leading-relaxed text-ash">
             This is not a content funnel pretending to be a studio. Each product
@@ -302,11 +386,12 @@ export default function Home() {
         className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
       >
         <Backdrop />
+        <SectionIllustration src="/images/games/redline.webp" objectPosition="center 46%" opacity={0.18} />
         <div className="relative z-10 mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
           <div>
-            <Eyebrow>Buy skills + tool access</Eyebrow>
+            <Eyebrow>Skills Pro</Eyebrow>
             <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
-              One payment for the pro workflow. Open tools beside it.
+              Skills Pro. Tools included.
             </h2>
             <p className="mt-5 max-w-2xl leading-relaxed text-ash">
               Skills Pro is the paid operating manual: production prompts,
@@ -360,19 +445,51 @@ export default function Home() {
       <section
         id="newsletter"
         style={accent(HELLFIRE)}
-        className="relative scroll-mt-16 border-t border-gunmetal/40 px-6 py-24"
+        className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
       >
-        <div className="mx-auto max-w-7xl">
-          <Eyebrow>Last call</Eyebrow>
-          <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
-            The devlog newsletter
-          </h2>
-          <p className="mt-4 max-w-2xl leading-relaxed text-ash">
-            Not ready to buy? Get the weekly build log: shipped games, broken
-            loops, useful prompts, and what changed in the studio system.
-          </p>
-          <div className="mt-9">
-            <Signup cta="Subscribe" topic="newsletter" successText="You're in. First devlog incoming." />
+        <SectionIllustration src="/images/games/rothulk.webp" objectPosition="center 42%" opacity={0.2} />
+        <div className="relative z-10 mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] lg:items-start">
+          <div>
+            <Eyebrow>Build log</Eyebrow>
+            <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
+              The devlog should have an archive.
+            </h2>
+            <p className="mt-4 max-w-2xl leading-relaxed text-ash">
+              Substack is the right default for the newsletter because every
+              issue can be email, public post, and receipt at the same time.
+              The site stays the landing page; the archive carries the build
+              history.
+            </p>
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              <div className="border-l border-hellfire/60 bg-void/40 p-5">
+                <Mail className="size-5 text-hellfire" aria-hidden="true" />
+                <h3 className="mt-4 font-display text-lg font-bold uppercase tracking-tight text-bone">
+                  Email first
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-ash">
+                  Short, useful dispatches from real builds: shipped slices,
+                  broken loops, prompts, and cuts.
+                </p>
+              </div>
+              <div className="border-l border-blood/70 bg-void/40 p-5">
+                <ArrowRight className="size-5 text-blood" aria-hidden="true" />
+                <h3 className="mt-4 font-display text-lg font-bold uppercase tracking-tight text-bone">
+                  Public record
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-ash">
+                  Readers can link to posts instead of screenshots, and buyers
+                  can see the system getting sharper over time.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="lg:pt-2">
+            <Signup
+              cta="Subscribe"
+              publicationName="Ship Shit Games build log"
+              topic="newsletter"
+              successText="You're in. First devlog incoming."
+            />
           </div>
         </div>
       </section>
