@@ -1,20 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-// Wired in the DNS/Vercel pass: set NEXT_PUBLIC_FORMSPREE_ID to the form id.
+const SUBSTACK_URL = process.env.NEXT_PUBLIC_SUBSTACK_URL?.replace(/\/+$/, "") ?? "";
 const FORMSPREE_ID = process.env.NEXT_PUBLIC_FORMSPREE_ID ?? "";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
 export function Signup({
   cta = "Subscribe",
+  publicationName = "Ship Shit Games newsletter",
   topic,
   successText = "You're in. Check your inbox.",
 }: {
   cta?: string;
+  publicationName?: string;
   topic?: string;
   successText?: string;
 }) {
@@ -40,6 +43,44 @@ export function Signup({
     } catch {
       setStatus("error");
     }
+  }
+
+  if (SUBSTACK_URL) {
+    return (
+      <div className="w-full max-w-xl">
+        <div className="overflow-hidden rounded-md border border-hellfire/40 bg-bone shadow-ember">
+          <iframe
+            title={`${publicationName} signup`}
+            src={`${SUBSTACK_URL}/embed`}
+            className="h-80 w-full border-0 bg-bone"
+            loading="lazy"
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
+          >
+            <a href={SUBSTACK_URL} target="_blank" rel="noreferrer">
+              Read archive
+              <ExternalLink aria-hidden="true" />
+            </a>
+          </Button>
+          <Button
+            asChild
+            size="lg"
+            className="font-display uppercase tracking-widest shadow-ember"
+          >
+            <a href={`${SUBSTACK_URL}/subscribe`} target="_blank" rel="noreferrer">
+              {cta}
+              <ExternalLink aria-hidden="true" />
+            </a>
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   if (status === "success") {

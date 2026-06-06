@@ -7,11 +7,11 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { label: "Problem", href: "/#problem" },
-  { label: "Solution", href: "/#solution" },
   { label: "Deadrot", href: "/#deadrot" },
-  { label: "Products", href: "/#products" },
-  { label: "Skills", href: "/#skills" },
+  { label: "Skills Pro", href: "/pricing" },
+  { label: "Assets", href: "/assets" },
+  { label: "Videos", href: "/youtube" },
+  { label: "Newsletter", href: "/#newsletter" },
   { label: "Docs", href: "https://docs.shipshit.games" },
   { label: "Play", href: "https://deadrot.com" },
 ];
@@ -43,14 +43,14 @@ export function SiteHeader() {
           aria-label="Ship Shit Games home"
         >
           <img
-            src="/brand/avatar.png"
+            src="/brand/shipshit-games-logo-transparent.png"
             alt=""
             aria-hidden="true"
-            className="h-10 w-10 object-cover"
+            className="h-11 w-11 object-contain drop-shadow-[0_0_12px_rgba(193,18,31,0.28)]"
           />
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-6 md:flex">
           {NAV.map((i) => (
             <Link
               key={i.href}
