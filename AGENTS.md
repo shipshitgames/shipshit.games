@@ -35,6 +35,11 @@ Scope: this entire `shipshitgames` repository.
 - Do not commit secrets, `.env` files, generated `dist`, `node_modules`, or local editor state.
 - Inspect `git status` before edits and commit only the requested scope.
 
+## GitHub Workflow
+
+- When picking up a GitHub issue or project board item, move it to `In Progress`
+  before starting implementation.
+
 ## Useful Commands
 
 - `bun install`
