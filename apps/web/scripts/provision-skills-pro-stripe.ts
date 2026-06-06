@@ -78,7 +78,7 @@ async function getOrCreateCoupon() {
 
   return stripe.coupons.create({
     id: SKILLS_PRO.defaultCouponId,
-    name: "Ship Shit Games Skills Pro early buyer $20 off",
+    name: "EARLYFOUNDER20",
     amount_off: EARLY_BUYER_AMOUNT_OFF_CENTS,
     currency: "usd",
     duration: "once",

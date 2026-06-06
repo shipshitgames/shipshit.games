@@ -1,0 +1,27 @@
+{
+  "name": "@shipshitgames/cli",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Ship Shit Games command-line entrypoint.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shipshitgames/shipshit.games.git",
+    "directory": "apps/cli"
+  },
+  "type": "module",
+  "bin": {
+    "shipshitgames": "./src/cli.js",
+    "ssg": "./src/cli.js"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "node ./src/cli.js --version",
+    "pack:check": "npm pack --dry-run",
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
+  }
+}

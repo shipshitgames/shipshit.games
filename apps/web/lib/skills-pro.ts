@@ -3,7 +3,7 @@ export const SKILLS_PRO = {
   tagline: "Build games with the same agent skills we use.",
   listPriceUsd: 49,
   earlyBuyerDiscountUsd: 20,
-  defaultCouponId: "shipshit-skills-pro-early-20-off",
+  defaultCouponId: "EARLYFOUNDER20",
   priceEnvKey: "STRIPE_SKILLS_PRO_PRICE_ID",
   couponEnvKey: "STRIPE_SKILLS_PRO_EARLY_COUPON_ID",
 } as const;
