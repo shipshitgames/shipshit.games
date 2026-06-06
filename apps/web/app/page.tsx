@@ -212,6 +212,50 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── DEADROT ─────────────────────────────────────────────────────── */}
+      <section
+        id="deadrot"
+        style={accent(BLOOD)}
+        className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
+      >
+        <Backdrop />
+        <div className="relative z-10 mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
+          <div>
+            <Eyebrow>DEADROT</Eyebrow>
+            <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
+              The war universe where the system proves itself.
+            </h2>
+            <p className="mt-5 max-w-2xl leading-relaxed text-ash">
+              DEADROT is the browser-game IP we are building in public: war fronts,
+              invasion pressure, hard factions, and the Scourge as parasitic
+              host-takeover organisms, not generic monsters.
+            </p>
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
+                <a href={PLAY}>Play Deadrot</a>
+              </Button>
+              <Button
+                asChild
+                size="xl"
+                variant="outline"
+                className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
+              >
+                <a href="/assets">See the war assets</a>
+              </Button>
+            </div>
+          </div>
+
+          <div className="relative min-h-[22rem] overflow-hidden border-y border-gunmetal/70 bg-void/35">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_85%,rgba(193,18,31,0.24),transparent_32%),radial-gradient(circle_at_78%_55%,rgba(255,106,0,0.18),transparent_28%),linear-gradient(115deg,rgba(14,12,10,0.35),rgba(6,6,5,0.94)_62%)]" />
+            <EmberParticles intensity="firefront" />
+            <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-blood/30 via-hellfire/10 to-transparent" />
+            <div className="absolute inset-x-10 bottom-12 h-px bg-hellfire/45 shadow-[0_0_34px_rgba(255,106,0,0.65)]" />
+            <div className="absolute bottom-10 left-[18%] h-16 w-px -rotate-12 bg-gradient-to-t from-hellfire/70 to-transparent shadow-[0_0_22px_rgba(255,106,0,0.72)]" />
+            <div className="absolute bottom-8 right-[24%] h-20 w-px rotate-[18deg] bg-gradient-to-t from-blood/70 to-transparent shadow-[0_0_26px_rgba(193,18,31,0.7)]" />
+          </div>
+        </div>
+      </section>
+
       {/* ── PRODUCTS ─────────────────────────────────────────────────────── */}
       <section
         id="products"
