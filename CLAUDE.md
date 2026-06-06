@@ -2,4 +2,7 @@
 
 Read `AGENTS.md` first. This file exists so Claude Code uses the same project rules as Codex, Cursor, and other agents.
 
-Keep durable project instructions in `AGENTS.md`. Update this file only when Claude-specific bootstrapping changes.
+Durable project memory lives in `.agents/memory/`. Keep repo-boundary facts
+there, especially `.agents/memory/repo-boundary.md`.
+
+Update this file only when Claude-specific bootstrapping changes.

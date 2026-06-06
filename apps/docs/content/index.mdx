@@ -1,0 +1,75 @@
+---
+title: Welcome
+description: Public docs for Ship Shit Games tools, games, and workflows.
+---
+
+# Welcome
+
+Ship Shit Games builds open studio tooling for making games faster without losing the weird, sharp edges that make the universe feel alive.
+
+These docs explain how to use the packages, apps, and workflows in the studio repo: asset generation, research distillation, Warline, shared UI, shared engine code, desktop surfaces, game state, canon rules, and deployment.
+
+## Choose your path
+
+| Path | Use it for | Start |
+| --- | --- | --- |
+| Studio tooling | Generate assets, distill research, build UI shells, wire shared packages | [Products](/tools) |
+| Game state | Understand what lives in this repo vs. DEADROT and what each game is becoming | [Games](/games) |
+| Canon | Keep Scourge, Pyre, Warden, and Deadrot lore consistent across tools and prompts | [Lore](/lore) |
+| Deployment | Route `shipshit.games`, `docs.shipshit.games`, and `deadrot.com` cleanly | [Reference](/deployment) |
+
+## Quick start
+
+```bash
+bun install
+cd apps/docs
+bun run dev
+```
+
+Open `http://localhost:3001`.
+
+For the main studio site:
+
+```bash
+cd apps/web
+bun run dev
+```
+
+## Documentation
+
+### Products
+
+- [Assetgen](/tools/assetgen) - generate and matrix-fill game art into the Deadrot asset package.
+- [Research](/tools/research) - turn videos and references into durable build rules.
+- [Warline](/tools/warline) - connect games to the persistent war-front model.
+- [Engine](/tools/engine) - keep gameplay loops imperative and Three.js-centered.
+- [UI](/tools/ui) - reuse menus, overlays, panels, and game-shell components.
+- [Desktop](/tools/desktop) - understand the local studio surfaces.
+
+### Learn
+
+- [Getting Started](/getting-started) - repo layout, package roles, and common commands.
+- [Games](/games) - current game state and where shipped games live.
+- [Lore](/lore) - universe rules that tooling must preserve.
+
+### Reference
+
+- [Deployment](/deployment) - domains, app targets, and hosting notes.
+
+## Domains
+
+| Domain | Purpose | App |
+| --- | --- | --- |
+| `shipshit.games` | Studio site, course, templates, sponsors, newsletter | `apps/web` |
+| `docs.shipshit.games` | Public docs and tool manuals | `apps/docs` |
+| `deadrot.com` | Player-facing game hub and universe gallery | `../deadrotcom` |
+
+## Need help?
+
+- Studio site: [shipshit.games](https://shipshit.games)
+- Player hub: [deadrot.com](https://deadrot.com)
+- Source: [github.com/shipshitgames](https://github.com/shipshitgames)
+
+Use Bun. Prefer shared packages over local duplication. Keep gameplay loops
+imperative, use React for shells and overlays, and keep canon consistent with the
+sibling `../lore` repo.

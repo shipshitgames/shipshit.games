@@ -3,9 +3,9 @@
 // truth; this emits:
 //   - packages/assetgen/src/style.generated.ts  (asset-gen: suffix, framing,
 //     negatives, grade, provider settings, buildPrompt — consumed by style.ts)
-//   - packages/assets/tokens/tokens.ts           (COLORS 0xRRGGBB + FONTS, Three.js)
-//   - packages/assets/tokens/theme.css           (Tailwind v4 @theme)
-//   - packages/assets/tokens/tokens.css          (:root vars)
+//   - deadrotcom/packages/assets/tokens/tokens.ts (COLORS 0xRRGGBB + FONTS, Three.js)
+//   - deadrotcom/packages/assets/tokens/theme.css (Tailwind v4 @theme)
+//   - deadrotcom/packages/assets/tokens/tokens.css (:root vars)
 // `--check` regenerates in memory and diffs the committed files (drift gate).
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -56,11 +56,22 @@ export interface TokensResult {
   files: string[];
 }
 
+export function resolveAssetsDir(override?: string): string {
+  const candidates = [
+    override,
+    join(ROOT, "..", "deadrotcom", "packages", "assets"),
+    join(ROOT, "packages", "assets"),
+  ].filter(Boolean) as string[];
+  for (const c of candidates) if (existsSync(join(c, "assets-catalog.json"))) return c;
+  throw new Error(`assets package not found (tried: ${candidates.join(", ")}). Pass --assets-dir <path>.`);
+}
+
 export async function runTokens(
-  opts: { check?: boolean; design?: string; log?: (m: string) => void } = {},
+  opts: { check?: boolean; design?: string; assetsDir?: string; log?: (m: string) => void } = {},
 ): Promise<TokensResult> {
   const log = opts.log ?? (() => {});
   const designPath = resolveDesignPath(opts.design);
+  const assetsDir = resolveAssetsDir(opts.assetsDir);
   const design = frontmatter(await readFile(designPath, "utf8"));
   const colors: Record<string, string> = design.colors ?? {};
   const version: string = String(design.version ?? "0.0.0");
@@ -135,9 +146,9 @@ export async function runTokens(
 
   const outputs: Record<string, string> = {
     [join(here, "style.generated.ts")]: styleGen,
-    [join(ROOT, "packages/assets/tokens/tokens.ts")]: tokensTs,
-    [join(ROOT, "packages/assets/tokens/theme.css")]: themeCss,
-    [join(ROOT, "packages/assets/tokens/tokens.css")]: tokensCss,
+    [join(assetsDir, "tokens/tokens.ts")]: tokensTs,
+    [join(assetsDir, "tokens/theme.css")]: themeCss,
+    [join(assetsDir, "tokens/tokens.css")]: tokensCss,
   };
 
   let drift = false;

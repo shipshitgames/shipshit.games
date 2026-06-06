@@ -1,0 +1,58 @@
+:root {
+  --ssg-void: #0a0a0a;
+  --ssg-coal: #121214;
+  --ssg-gunmetal: #34343c;
+  --ssg-bone: #e9e3d6;
+  --ssg-ash: #9b958a;
+  --ssg-blood: #c1121f;
+  --ssg-hellfire: #ff6a00;
+  --ssg-toxic: #8bdc1f;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(193, 18, 31, 0.16), transparent 28rem),
+    radial-gradient(circle at bottom right, rgba(255, 106, 0, 0.12), transparent 28rem),
+    var(--ssg-void);
+}
+
+.ssg-logo {
+  color: var(--ssg-bone);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.ssg-logo span {
+  color: var(--ssg-blood);
+}
+
+.ssg-hero {
+  border: 1px solid color-mix(in srgb, var(--ssg-gunmetal) 80%, transparent);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(193, 18, 31, 0.22), transparent 42%),
+    linear-gradient(180deg, rgba(18, 18, 20, 0.92), rgba(10, 10, 10, 0.88));
+  padding: 2rem;
+}
+
+.ssg-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.ssg-card {
+  border: 1px solid color-mix(in srgb, var(--ssg-gunmetal) 80%, transparent);
+  border-radius: 8px;
+  background: rgba(18, 18, 20, 0.78);
+  padding: 1rem;
+}
+
+.ssg-kicker {
+  color: var(--ssg-hellfire);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}

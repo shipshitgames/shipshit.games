@@ -4,8 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/site/eyebrow";
 import { Backdrop } from "@/components/site/atmosphere";
 import { Signup } from "@/components/site/signup";
+import {
+  formatUsd,
+  SKILLS_PRO,
+  SKILLS_PRO_EARLY_PRICE_USD,
+} from "@/lib/skills-pro";
 
-const WATCH = "https://youtube.com/@shipshitshow";
+const WATCH = "/youtube";
 const PLAY = "https://deadrot.com";
 
 const accent = (hex: string): CSSProperties =>
@@ -56,12 +61,12 @@ export default function Home() {
             Ship Shit Games builds the{" "}
             <a href={PLAY} className="text-bone underline decoration-gunmetal underline-offset-2 hover:decoration-blood">DEADROT</a>{" "}
             universe live with AI — a whole IP, many browser games, one bloody canon. Here&apos;s
-            everything we learned doing it: the newsletter, the course, the templates, and the
+            everything we learned doing it: the newsletter, Skills Pro, the templates, and the
             tools we built to move this fast.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-              <a href="#newsletter">Get the playbook</a>
+              <a href="/pricing">Buy Skills Pro</a>
             </Button>
             <Button
               asChild
@@ -69,9 +74,15 @@ export default function Home() {
               variant="outline"
               className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
             >
-              <a href={WATCH} target="_blank" rel="noreferrer">
-                Watch the show
-              </a>
+              <a href={WATCH}>Watch Opus 4.8</a>
+            </Button>
+            <Button
+              asChild
+              size="xl"
+              variant="outline"
+              className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
+            >
+              <a href="/assets">See the assets</a>
             </Button>
           </div>
         </div>
@@ -97,7 +108,7 @@ export default function Home() {
           <p className="mt-4 max-w-2xl leading-relaxed text-ash">
             Every shipped game, every dead end, every prompt that actually worked — written up the
             week it happened. No theory. The real log of building an IP with AI, paired with the{" "}
-            <a href={WATCH} target="_blank" rel="noreferrer" className="text-hellfire hover:text-blood">shipshitshow</a>.
+            <a href={WATCH} className="text-hellfire hover:text-blood">shipshitshow</a>.
           </p>
           <div className="mt-9">
             <Signup cta="Subscribe" topic="newsletter" successText="You're in. First devlog incoming." />
@@ -113,18 +124,28 @@ export default function Home() {
       >
         <Backdrop />
         <div className="relative z-10 mx-auto max-w-7xl">
-          <Eyebrow>Go deeper</Eyebrow>
+          <Eyebrow>Skills Pro</Eyebrow>
           <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
-            Ship a game with AI — the course
+            One payment. The game-building skills pack.
           </h2>
           <p className="mt-5 max-w-2xl leading-relaxed text-ash">
             The end-to-end system we use to take a game from idea to shipped: scaffolding,
-            agent workflows, art and asset generation, the engine, and the deploy. Cohort-based,
-            built from real shipped games. Curriculum and pricing land soon — join the waitlist for
-            first access and founding-cohort pricing.
+            agent workflows, art and asset generation, the engine, and the deploy. Early buyers get
+            the default {formatUsd(SKILLS_PRO.earlyBuyerDiscountUsd)} Stripe coupon, bringing Skills Pro to{" "}
+            <span className="font-bold text-bone">{formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}</span>.
           </p>
-          <div className="mt-9">
-            <Signup cta="Join the waitlist" topic="course" successText="On the list. You'll get founding-cohort access first." />
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
+              <a href="/pricing">See pricing</a>
+            </Button>
+            <Button
+              asChild
+              size="xl"
+              variant="outline"
+              className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
+            >
+              <a href="/youtube">Watch the build</a>
+            </Button>
           </div>
         </div>
       </section>

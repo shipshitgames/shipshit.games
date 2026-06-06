@@ -4,20 +4,23 @@ Scope: this entire `shipshitgames` repository.
 
 ## Agent Entry Point
 
+- Read `.agents/memory/MEMORY.md` first.
+- Read `.agents/memory/repo-boundary.md` before moving apps, packages, or assets.
 - Claude Code: read `CLAUDE.md`, then follow this file.
 - Codex and other coding agents: follow this `AGENTS.md`.
 - Cursor: `.cursorignore` keeps generated files, lockfiles, and secrets out of indexed context.
 
 ## Project Role
 
-- This is the studio platform monorepo: `apps/web`, `apps/warline`, desktop tooling, and shared packages.
+- This is the studio/tooling monorepo: `apps/web`, `apps/app`, `apps/desktop`, tooling packages, and studio-only shared packages.
 - `packages/ui` is the published React UI package: `@shipshitgames/ui`.
-- `packages/engine` is the shared Three.js game engine package: `@shipshitgames/engine`.
-- `packages/assetgen` and `packages/assets` support the asset and sprite workflow.
+- `packages/assetgen` is the reusable asset generation core and CLI entrypoint.
+  It stays here so the studio can ship and dogfood the CLI.
+- Deadrot shipped games, assets, and runtime packages belong in sibling repo `../deadrotcom`.
 
 ## Canon And Design
 
-- The sibling `../lore` repo is the source of truth for universe canon.
+- Deadrot canon lives in `../deadrotcom/apps/lore/content`, the Obsidian vault root.
 - The Scourge are parasites and host-takeover organisms, not generic monsters.
 - Scourge art can include many conquered species and soldier forms, but every form must read as parasitic takeover.
 - Toxic green belongs to the Scourge. Pyre/Warden UI and environments should stay in black, bone, blood red, hellfire orange, and gunmetal.
@@ -25,7 +28,9 @@ Scope: this entire `shipshitgames` repository.
 ## Engineering Rules
 
 - Use Bun for package management unless a subproject explicitly requires npm.
-- Prefer shared packages over local duplication: `@shipshitgames/ui` for React UI and `@shipshitgames/engine` for shared game systems.
+- Do not add shipped Deadrot assets here; write them to `../deadrotcom/packages/assets`.
+- Do not move `packages/assetgen` into Deadrot; keep it as the studio CLI product.
+- Do not treat runtime package copies in this repo as the Deadrot shipping source of truth unless the user explicitly says otherwise.
 - Keep React in UI overlays and app shells; keep gameplay loops imperative and Three.js-centered.
 - Do not commit secrets, `.env` files, generated `dist`, `node_modules`, or local editor state.
 - Inspect `git status` before edits and commit only the requested scope.

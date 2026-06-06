@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "slug": "ai-oriented-dev",
+  "kind": "youtube-channel",
+  "title": "AI Oriented Dev",
+  "url": "https://www.youtube.com/@AIOriented",
+  "priority": "primary",
+  "status": "active",
+  "handle": "@AIOriented",
+  "channelId": "UCE4PyAWiZ5gdPVFxDe4lLPQ",
+  "owner": "AI Oriented Dev",
+  "topics": [
+    "ai-assisted-development",
+    "game-production",
+    "automation",
+    "tooling",
+    "agent-workflows"
+  ],
+  "rights": {
+    "transcriptPolicy": "user-provided",
+    "storeRawTranscript": true,
+    "notes": "Store raw transcripts only when user-provided, permissioned, or otherwise cleared for this repo. Prefer distilled rules and original implementation notes for reusable knowledge."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "app",
+    "tool"
+  ],
+  "notes": [
+    "Primary reference channel for near-term best practices.",
+    "Use this source to extract repeatable game-building workflows, not generic AI hype.",
+    "Promote durable patterns into .agents skills, desktop app workflows, or CLI tools after review."
+  ]
+}

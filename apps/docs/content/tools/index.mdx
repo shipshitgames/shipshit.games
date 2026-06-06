@@ -1,0 +1,27 @@
+---
+title: Tools Overview
+description: The Ship Shit Games tool stack.
+---
+
+# Tools Overview
+
+The studio tools are built as small reusable packages first, then wrapped by app
+surfaces.
+
+## Tool stack
+
+| Tool | Package or app | Use it for |
+| --- | --- | --- |
+| Assetgen | `packages/assetgen` | Generate sprites, covers, matrix variants, and game asset manifests |
+| Research | `packages/research` | Convert tutorials into build rules |
+| Warline | `packages/warline`, `apps/warline` | Run the shared war model and report game operations |
+| Engine | `packages/engine` | Share Three.js world primitives and camera/input seams |
+| UI | `packages/ui` | Share menu, HUD, and game shell components |
+| Desktop Studio | `apps/desktop` | Wrap generation, research, and local agent workflows in one cockpit |
+
+## Pattern
+
+1. Build the reusable package.
+2. Keep the CLI or pure core testable.
+3. Wrap it in the desktop studio or web app later.
+4. Document the actual command and expected output here.

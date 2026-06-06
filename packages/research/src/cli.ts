@@ -2,7 +2,7 @@
 // research — turn a YouTube tutorial into a reusable game-build ruleset.
 //
 //   bun src/cli.ts --url <youtube-url> [--out rules.md] [--provider codex|mock]
-//                  [--transcript-file path] [--title "..."]
+//                  [--out-transcript transcript.md] [--transcript-file path] [--title "..."]
 //
 // Streams progress as `[tag] ...` lines; on success prints `[wrote] <path>` so the
 // desktop Studio pane (and CI) can pick the output path out of the log.
@@ -20,13 +20,14 @@ const flag = (name: string, def?: string): string | undefined => {
 const url = flag("url");
 const transcriptFile = flag("transcript-file");
 const out = resolve(flag("out", "rules.generated.md")!);
+const outTranscript = flag("out-transcript");
 const provider = flag("provider", "codex")!;
 let title = flag("title");
 
 if (!url && !transcriptFile) {
   console.error(
     "usage: research --url <youtube-url> [--out rules.md] [--provider codex|mock]\n" +
-      "                [--transcript-file <path>] [--title <title>]",
+      "                [--out-transcript transcript.md] [--transcript-file <path>] [--title <title>]",
   );
   process.exit(1);
 }
@@ -42,6 +43,13 @@ if (transcriptFile) {
   const r = await fetchTranscript(url!, log);
   transcript = r.transcript;
   title ??= r.title;
+}
+
+if (outTranscript) {
+  const transcriptOut = resolve(outTranscript);
+  await mkdir(dirname(transcriptOut), { recursive: true });
+  await writeFile(transcriptOut, transcript, "utf8");
+  log(`[transcript-wrote] ${transcriptOut} (${(transcript.length / 1024).toFixed(1)} kb)`);
 }
 
 log(`[distill] provider=${provider}`);

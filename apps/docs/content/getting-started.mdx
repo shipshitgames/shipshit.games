@@ -1,0 +1,65 @@
+---
+title: Getting Started
+description: Install, build, and run the Ship Shit Games docs and tools.
+---
+
+# Getting Started
+
+## Prerequisites
+
+- Bun
+- Node-compatible shell
+- optional: `yt-dlp` for the research transcript path
+- optional: provider credentials in the macOS keychain for real image generation
+
+## Install
+
+From the repo root:
+
+```bash
+bun install
+```
+
+## Run the docs app
+
+```bash
+cd apps/docs
+bun run dev
+```
+
+Local docs run on:
+
+```txt
+http://localhost:3001
+```
+
+## Build
+
+```bash
+cd apps/docs
+bun run build
+```
+
+## Useful repo checks
+
+```bash
+bun run build
+bun run typecheck
+cd packages/warline && bun run test
+```
+
+## Where work lives
+
+| Path | Purpose |
+| --- | --- |
+| `apps/docs` | Nextra docs app for `docs.shipshit.games` |
+| `apps/web` | Studio site for `shipshit.games` |
+| `apps/desktop` | Electron studio cockpit |
+| `apps/warline` | Warline hub app |
+| `packages/assetgen` | Asset generation CLI/core |
+| `packages/research` | Tutorial-to-rules CLI/core |
+| `packages/warline` | Pure world model and client contract |
+| `packages/engine` | Shared Three.js game engine primitives |
+| `packages/ui` | Shared UI package |
+| `../deadrotcom` | Player-facing hub and shipped game repos |
+| `../lore` | Canon source of truth |

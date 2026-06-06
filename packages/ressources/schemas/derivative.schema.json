@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shipshit.games/schemas/ressources/derivative.schema.json",
+  "title": "Ressources Derivative Manifest",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "slug",
+    "kind",
+    "title",
+    "status",
+    "sourceTranscripts",
+    "outputPath",
+    "summary",
+    "tags"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "kind": { "enum": ["rule", "skill", "app", "tool"] },
+    "title": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["candidate", "active", "rejected"] },
+    "sourceTranscripts": { "type": "array", "items": { "type": "string" } },
+    "outputPath": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

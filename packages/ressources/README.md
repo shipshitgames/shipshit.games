@@ -1,0 +1,99 @@
+# @shipshitgames/ressources
+
+Studio learning library for transcripts, articles, channel notes, and the
+derived skills/apps/tools we build from them.
+
+The path is intentionally `packages/ressources` because that is the requested
+workspace package. Treat it as the human learning and agent-knowledge layer that
+sits above `packages/research`.
+
+```txt
+source/channel -> transcript/resource -> distilled rule -> skill/app/tool candidate
+```
+
+## What Belongs Here
+
+- source manifests for YouTube channels, articles, courses, docs, and books
+- transcript metadata plus authorized transcript drops
+- derived build rules, skill candidates, app specs, and tool specs
+- review notes that explain why a source matters to game production
+
+Do not put shipped Deadrot assets here. If a resource becomes a generated game
+asset, it still ships from `../deadrotcom/packages/assets`.
+
+## AI Oriented Dev
+
+`sources/ai-oriented-dev/source.json` is the first priority channel:
+
+- handle: `@AIOriented`
+- channel id: `UCE4PyAWiZ5gdPVFxDe4lLPQ`
+- url: `https://www.youtube.com/@AIOriented`
+
+The package stores metadata and authorized transcript drops. Avoid committing
+raw copyrighted captions unless they are user-provided, permissioned, or clearly
+allowed for this repo. Prefer distilled rules and original implementation notes
+for reusable skills/apps/tools.
+
+## Commands
+
+```bash
+# list known sources
+bun packages/ressources/src/cli.ts sources
+
+# validate source manifests, transcript sidecars, and derivative manifests
+bun packages/ressources/src/cli.ts validate
+
+# create a transcript placeholder and sidecar metadata
+bun packages/ressources/src/cli.ts new-transcript \
+  --source ai-oriented-dev \
+  --url "https://www.youtube.com/watch?v=VIDEO_ID" \
+  --title "Video title"
+
+# create a skill/app/tool candidate from one or more transcript resources
+bun packages/ressources/src/cli.ts new-derivative \
+  --kind skill \
+  --slug ai-oriented-level-design-loop \
+  --title "AI Oriented Level Design Loop" \
+  --source-transcript transcripts/ai-oriented-dev/video-slug.resource.json
+
+# optional: sync video metadata when yt-dlp is installed
+bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50
+```
+
+## Transcript Flow
+
+1. Create a transcript stub with `new-transcript`.
+2. Drop the transcript text into the generated `.transcript.md` file, or capture
+   it with `packages/research` and `--out-transcript`.
+3. Run `validate`.
+4. Distill the transcript with `packages/research` into a rules markdown file.
+5. Promote the rules into a derivative skill/app/tool candidate here.
+
+Example:
+
+```bash
+bun packages/research/src/cli.ts \
+  --url "https://www.youtube.com/watch?v=VIDEO_ID" \
+  --out packages/ressources/derivatives/rules/video-slug.md \
+  --out-transcript packages/ressources/transcripts/ai-oriented-dev/video-slug.transcript.md
+```
+
+## Directory Map
+
+```txt
+sources/
+  ai-oriented-dev/
+    source.json
+    videos.json          # optional generated metadata sync
+transcripts/
+  <source-slug>/
+    <video-slug>.resource.json
+    <video-slug>.transcript.md
+derivatives/
+  rules/
+  skills/
+  apps/
+  tools/
+templates/
+schemas/
+```

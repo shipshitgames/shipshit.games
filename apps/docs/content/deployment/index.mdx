@@ -1,0 +1,41 @@
+---
+title: Deployment
+description: Deploy the docs app to docs.shipshit.games.
+---
+
+# Deployment
+
+Deploy `apps/docs` as its own Vercel project or app target.
+
+## Domain
+
+```txt
+docs.shipshit.games
+```
+
+## Vercel settings
+
+| Setting | Value |
+| --- | --- |
+| Root directory | `apps/docs` |
+| Install command | `bun install` |
+| Build command | `bun run build` |
+| Output | Next.js default |
+
+## Local development
+
+```bash
+cd apps/docs
+bun run dev
+```
+
+Open:
+
+```txt
+http://localhost:3001
+```
+
+## DNS
+
+Point `docs.shipshit.games` at the deployed docs project. Keep
+`shipshit.games` on the studio site.

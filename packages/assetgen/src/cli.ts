@@ -10,7 +10,7 @@ import { register } from "./manifest.ts";
 import { runMatrix } from "./matrix.ts";
 import { runTokens } from "./tokens.ts";
 import { pixelize } from "./pixelize.ts";
-import type { GameSlug } from "../../assets/src/index.ts";
+import type { GameSlug } from "./matrix.ts";
 
 const argv = process.argv.slice(2);
 // Verb dispatcher: argv[0] is a subcommand if known; otherwise single-asset mode.
@@ -36,7 +36,7 @@ const here = dirname(fileURLToPath(import.meta.url)); // packages/assetgen/src
 // `assetgen matrix` — generate the per-game variant matrix from the canon roster.
 // ─────────────────────────────────────────────────────────────────────────────
 if (sub === "matrix") {
-  const assetsDir = flag("assets-dir") || join(here, "..", "..", "assets");
+  const assetsDir = flag("assets-dir") || defaultAssetsDir();
   if (!existsSync(join(assetsDir, "assets-catalog.json"))) {
     console.error(`[matrix] no assets-catalog.json under ${assetsDir} — pass --assets-dir <@shipshitgames/assets path>`);
     process.exit(1);
@@ -66,6 +66,7 @@ if (sub === "tokens") {
   const res = await runTokens({
     check: has("check"),
     design: flag("design"),
+    assetsDir: flag("assets-dir"),
     log: (m) => console.log(m),
   });
   if (res.drift) {
@@ -111,6 +112,16 @@ const size = intFlag("size", 1024);
 const repo = flag("repo") || defaultRepo(game);
 const dryRun = has("dry-run");
 
+function defaultAssetsDir(): string {
+  const cwd = process.cwd();
+  const candidates = [
+    join(cwd, "..", "deadrotcom", "packages", "assets"),
+    join(here, "..", "..", "..", "..", "deadrotcom", "packages", "assets"),
+    join(here, "..", "..", "assets"),
+  ];
+  return candidates.find((candidate) => existsSync(join(candidate, "assets-catalog.json"))) ?? candidates[0];
+}
+
 function defaultGamesRoot(): string {
   const cwd = process.cwd();
   for (const c of [join(cwd, "games"), join(cwd, "..", "games")]) {
@@ -144,6 +155,7 @@ if (!id || !prompt) {
       "           [--size 1024] [--repo <game-repo-path>] [--dry-run]\n" +
       "  assetgen matrix [--game <slug>] [--id <entity>] [--provider mock|openai|fal|codex]\n" +
       "           [--size 1024] [--only-missing] [--dry-run] [--sync-games] [--assets-dir <path>]\n" +
+      "  assetgen tokens [--check] [--design <path>] [--assets-dir <path>]\n" +
       `\n  games: ${views}\n` +
       "  Default game repo lookup prefers ./games/<game> or ../games/<game>.",
   );

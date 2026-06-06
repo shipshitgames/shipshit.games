@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "slug": "ditch-unity-vibe-code-3d-games-ai",
+  "sourceSlug": "ai-oriented-dev",
+  "sourceKind": "youtube-video",
+  "title": "Ditch Unity: How I Vibe Code 3D Games With AI - Full Tutorial (Codex CLI, Claude Code, Cursor)",
+  "url": "https://www.youtube.com/watch?v=fu7NZ3t3sLM",
+  "capturedAt": "2026-06-05T14:42:16.845Z",
+  "transcriptPath": "transcripts/ai-oriented-dev/ditch-unity-vibe-code-3d-games-ai.transcript.md",
+  "transcriptFormat": "markdown",
+  "rights": {
+    "status": "user-provided",
+    "notes": "Transcript placeholder created by @shipshitgames/ressources. Confirm rights before committing raw text."
+  },
+  "tags": [
+    "ai-assisted-development",
+    "game-production",
+    "automation",
+    "tooling",
+    "agent-workflows"
+  ],
+  "derivatives": {
+    "rulesPath": "derivatives/rules/ai-oriented-game-dev-workflows.md",
+    "skillCandidates": [],
+    "appCandidates": [],
+    "toolCandidates": []
+  }
+}

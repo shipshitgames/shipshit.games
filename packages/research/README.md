@@ -15,6 +15,9 @@ bun packages/research/src/cli.ts --url "https://www.youtube.com/watch?v=…" --o
 # offline transcript test (no model) — proves extraction
 bun packages/research/src/cli.ts --url "<url>" --provider mock --out /tmp/rules.md
 
+# save the fetched transcript while distilling
+bun packages/research/src/cli.ts --url "<url>" --out rules.md --out-transcript transcript.md
+
 # already have the transcript? skip the network
 bun packages/research/src/cli.ts --transcript-file transcript.txt --title "…" --out rules.md
 ```
@@ -25,6 +28,7 @@ bun packages/research/src/cli.ts --transcript-file transcript.txt --title "…" 
 |---|---|---|
 | `--url` | — | YouTube URL, `youtu.be/…`, `/shorts/…`, or a bare 11-char id |
 | `--transcript-file` | — | use a local transcript instead of fetching (offline / re-distill) |
+| `--out-transcript` | — | write the captured transcript to a file before distillation |
 | `--out` | `rules.generated.md` | where to write the ruleset |
 | `--provider` | `codex` | `codex` (local CLI, your subscription, no key) or `mock` (offline stub) |
 | `--title` | (auto) | override the video title |

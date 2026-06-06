@@ -1,0 +1,35 @@
+---
+title: Desktop Studio
+description: How the desktop studio should wrap the tools.
+---
+
+# Desktop Studio
+
+`apps/desktop` is the local studio cockpit.
+
+The desktop app should wrap the same package and CLI surfaces documented here,
+not fork their logic.
+
+## Current role
+
+- generator hub for maps, sprites, 3D, music, and SFX
+- local Codex-driven production workflows
+- future UI wrapper around `assetgen` and `research`
+
+## Integration rule
+
+When adding a desktop feature:
+
+1. Put reusable logic in a package.
+2. Keep the package callable from a CLI.
+3. Let Electron call the package or CLI.
+4. Stream logs back to the desktop UI.
+5. Document the command here.
+
+## Dev commands
+
+```bash
+cd apps/desktop
+bun run dev
+bun run typecheck
+```

@@ -1,0 +1,53 @@
+---
+title: Engine
+description: Use the shared Three.js engine package.
+---
+
+# Engine
+
+`@shipshitgames/engine` is the shared Three.js game spine.
+
+Use it for gameplay primitives that should not be rewritten in every game:
+
+- world bounds
+- camera rigs
+- input seams
+- steering and agents
+- spawn helpers
+
+## Boundary rule
+
+Gameplay is imperative and Three.js-centered. React is for shells, menus, HUD,
+and overlays.
+
+## Import examples
+
+```ts
+import { RectBounds, makeBounds } from "@shipshitgames/engine";
+import { firstPersonPointerLock } from "@shipshitgames/engine";
+```
+
+## World bounds
+
+Use bounds for clamp, cull, and spawn decisions instead of scattering global
+numbers through a game loop.
+
+```ts
+const bounds = RectBounds.square(40);
+bounds.clampXZ(position, 1.5);
+```
+
+## Camera seam
+
+Player systems read body and facing from the rig. The camera is render-only.
+
+```ts
+const rig = firstPersonPointerLock(camera, body);
+```
+
+## Check
+
+```bash
+cd packages/engine
+bun run typecheck
+```

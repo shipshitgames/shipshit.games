@@ -10,6 +10,8 @@ The player-facing **game hub** ([DEADROT](https://deadrot.com)) now lives in the
 - **`apps/web`** — **shipshitgames.com**: the lessons / build-in-public site — newsletter,
   course, templates &amp; tooling, sponsorships. (The universe gallery moved to the deadrotcom
   hub.)
+- **`apps/docs`** — **docs.shipshit.games**: Nextra public docs for using the studio tools,
+  asset generation, research, Warline, shared packages, canon rules, and deployment notes.
 - **`apps/warline`** — **Warline**, the persistent *War for the Lanes* strategy hub (EPIC #34): a
   Vite/React front map over a PartyKit Durable Object. Every game is an **operation** that credits
   one shared front. Runs standalone (local sim) or live (shared server). Hosted at
@@ -21,14 +23,16 @@ The player-facing **game hub** ([DEADROT](https://deadrot.com)) now lives in the
 ## Packages
 - **`packages/ui`** — shared React + Tailwind + shadcn components
 - **`packages/shared`** — shared types / utilities
+- **`packages/assetgen`** — reusable asset generation core and CLI entrypoint. It reads/writes
+  `../deadrotcom/packages/assets` by default.
 - **`packages/warline`** — `@shipshitgames/warline`: the pure world-state model + reducers + per-game
   operation contract + client SDK shared by the Warline server, hub, and (eventually) each game
-- consumes **`@shipshitgames/engine`** (separate repo) for game code
+- Deadrot runtime packages consumed by shipped games belong in
+  `../deadrotcom/packages/*`.
 
 ## Games &amp; hub
 The games and the player-facing **hub** live in the **deadrotcom** repo (→ deadrot.com).
-Local game repos currently sit under `../games/<slug>`; they move into `deadrotcom/apps/*`
-as they are consolidated.
+Games ship from `../deadrotcom/apps/games/<slug>`.
 
 `scourge-survivors` (FPS) · `deadlane` (TD) · `pactfall` (MOBA, concept) · `starblight` (arcade shooter, concept)
 

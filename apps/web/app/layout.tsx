@@ -6,7 +6,7 @@ import { SiteFooter } from "@/components/site/site-footer";
 import { Grain } from "@/components/site/atmosphere";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://shipshitgames.com"),
+  metadataBase: new URL("https://shipshit.games"),
   title: {
     default: "Ship Shit Games — building games with AI, in public",
     template: "%s — Ship Shit Games",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     title: "Ship Shit Games",
     description:
       "Building games with AI, in public. Steal the playbook — newsletter, course, templates, and tooling.",
-    url: "https://shipshitgames.com",
+    url: "https://shipshit.games",
     siteName: "Ship Shit Games",
     type: "website",
   },

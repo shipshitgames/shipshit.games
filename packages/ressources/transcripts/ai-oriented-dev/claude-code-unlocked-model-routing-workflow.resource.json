@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "slug": "claude-code-unlocked-model-routing-workflow",
+  "sourceSlug": "ai-oriented-dev",
+  "sourceKind": "youtube-video",
+  "title": "Claude Code UNLOCKED: The secret workflow Anthropic does not want you to know (Inc. Kimi K2 + Groq)",
+  "url": "https://www.youtube.com/watch?v=EkNfythQNRg",
+  "capturedAt": "2026-06-05T14:42:16.935Z",
+  "transcriptPath": "transcripts/ai-oriented-dev/claude-code-unlocked-model-routing-workflow.transcript.md",
+  "transcriptFormat": "markdown",
+  "rights": {
+    "status": "user-provided",
+    "notes": "Transcript placeholder created by @shipshitgames/ressources. Confirm rights before committing raw text."
+  },
+  "tags": [
+    "ai-assisted-development",
+    "game-production",
+    "automation",
+    "tooling",
+    "agent-workflows"
+  ],
+  "derivatives": {
+    "rulesPath": "derivatives/rules/ai-oriented-game-dev-workflows.md",
+    "skillCandidates": [],
+    "appCandidates": [],
+    "toolCandidates": []
+  }
+}

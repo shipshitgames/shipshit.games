@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "slug": "ai-oriented-game-dev-workflows",
+  "kind": "rule",
+  "title": "AI Oriented Game Dev Workflows",
+  "status": "candidate",
+  "sourceTranscripts": [
+    "transcripts/ai-oriented-dev/vibe-coding-2d-games-claude-code-agent-skills.resource.json",
+    "transcripts/ai-oriented-dev/ditch-unity-vibe-code-3d-games-ai.resource.json",
+    "transcripts/ai-oriented-dev/claude-code-unlocked-model-routing-workflow.resource.json"
+  ],
+  "outputPath": "derivatives/rules/ai-oriented-game-dev-workflows.md",
+  "summary": "Distilled process notes from three AI Oriented Dev videos covering 2D Phaser workflows, 3D Three.js asset workflows, and Claude Code model-routing workflows.",
+  "tags": [
+    "ai-assisted-development",
+    "game-production",
+    "agent-skills",
+    "playwright-testing",
+    "asset-indexing",
+    "model-routing"
+  ]
+}

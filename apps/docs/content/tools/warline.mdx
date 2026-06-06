@@ -1,0 +1,62 @@
+---
+title: Warline
+description: Use the shared War for the Lanes model.
+---
+
+# Warline
+
+`@shipshitgames/warline` is the pure world-state model behind the persistent
+War for the Lanes.
+
+## Model
+
+Warline tracks:
+
+- regions and ownership
+- Scourge pressure
+- defenses
+- breaches
+- lane flow
+- four resources
+- operations from games
+- player commands
+
+Everything is pure and immutable. Callers pass time into reducers instead of
+letting reducers read the clock.
+
+## Install inside a game or app
+
+Inside this workspace, consume the package through Bun workspaces.
+
+```ts
+import { applyOperation, createInitialWorld, tick } from "@shipshitgames/warline";
+```
+
+Client code uses the client subpath:
+
+```ts
+import { connectWarline } from "@shipshitgames/warline/client";
+```
+
+## Report a game operation
+
+Each game maps to one operation kind:
+
+| Game | Operation |
+| --- | --- |
+| `scourge-survivors` | `purge-breach` |
+| `deadlane` | `hold-lane` |
+| `pactfall` | `contest-territory` |
+| `starblight` | `orbital-intercept` |
+| `redline` | `run-logistics` |
+| `rothulk` | `sabotage` |
+
+Victories have stronger effects. Defeats should still trickle small intel or
+minor pressure changes so a loss never wrecks the shared front.
+
+## Test the core
+
+```bash
+cd packages/warline
+bun run test
+```

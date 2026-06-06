@@ -3,8 +3,17 @@
 DOOM-grade asset generation for Ship Shit Games. One pipeline:
 **prompt + `DESIGN.md` DOOM-suffix → provider → trim/optimize `.webp` → `assets.json`.**
 
-This is the engine behind the desktop studio's generators (board #1 + #5). It runs from the
-CLI today; the Electron studio will wrap it with a UI later.
+This is the engine behind the studio generator surfaces. It runs from the CLI
+today; the desktop/app surfaces can wrap the same core later.
+
+The Deadrot asset package lives in the sibling game repo:
+
+```txt
+../deadrotcom/packages/assets
+```
+
+`assetgen` reads/writes that package by default. Pass `--assets-dir <path>` to
+target a different asset package.
 
 ## Use
 
@@ -13,7 +22,7 @@ CLI today; the Electron studio will wrap it with a UI later.
 OPENAI_API_KEY=sk-... bun packages/assetgen/src/cli.ts \
   --id swarm-husk --game scourge-survivors --kind sprite \
   --prompt "a rotting bio-husk of the Scourge, lunging" \
-  --repo ../games/scourge-survivors
+  --repo ../deadrotcom/apps/games/scourge-survivors
 
 # Or use your authed Codex CLI as the generator:
 bun packages/assetgen/src/cli.ts --provider codex --id ... --prompt "..." --repo ...
@@ -25,7 +34,7 @@ bun packages/assetgen/src/cli.ts --provider mock --dry-run --id test --prompt "x
 ## The variant matrix (issue #6)
 
 `assetgen matrix` generates the **per-game sprite variant matrix** from the canon
-roster in [`@shipshitgames/assets`](../assets). It expands every `(entity × intended
+roster in Deadrot's `@shipshitgames/assets` package. It expands every `(entity × intended
 game)` cell, builds a per-game prompt (`promptBase` + game framing + DOOM suffix),
 generates, writes the render into the assets package at
 `entities/<id>/<game>.webp`, and records the path back into the catalog's
@@ -42,7 +51,8 @@ bun packages/assetgen/src/cli.ts matrix --provider codex
 bun packages/assetgen/src/cli.ts matrix --id scourge-swarm
 bun packages/assetgen/src/cli.ts matrix --game pactfall --only-missing
 
-# Optionally fan a reference into each game's src/assets/assets.json too:
+# Legacy only: optionally fan a reference into local game manifests too.
+# Deadrot games should prefer the shared package asset manifest.
 bun packages/assetgen/src/cli.ts matrix --provider mock --sync-games
 ```
 
@@ -72,9 +82,10 @@ Every prompt is suffixed with the DOOM canon from `lore/DESIGN.md` and framed pe
 All six games are covered: scourge-survivors (FPS billboard) / deadlane (TD top-down) /
 pactfall (MOBA iso) / starblight (arcade) / redline (runner side-on) / rothulk
 (platformer side-on), plus `shared`. Output is trimmed, optionally sized, encoded to
-`.webp`. Single-asset mode upserts into the target game's `src/assets/assets.json`
-(`--repo` defaults to `./games/<game>` or `../games/<game>`); matrix mode writes into
-`@shipshitgames/assets`.
+`.webp`. Single-asset mode can upsert into a target game's local
+`src/assets/assets.json` when `--repo` is provided; Deadrot games should prefer
+the shared package manifest. Matrix mode writes into the Deadrot
+`@shipshitgames/assets` package.
 
 > TODO (board): background-removal step (rembg) for non-transparent providers; wire the
 > matrix mode into the Electron studio UI.

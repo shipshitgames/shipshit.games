@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "slug": "vibe-coding-2d-games-claude-code-agent-skills",
+  "sourceSlug": "ai-oriented-dev",
+  "sourceKind": "youtube-video",
+  "title": "Vibe Coding 2D Games with Claude Code & Agent Skills (Full Tutorial)",
+  "url": "https://www.youtube.com/watch?v=QPZCMd5REP8",
+  "capturedAt": "2026-06-05T14:42:16.828Z",
+  "transcriptPath": "transcripts/ai-oriented-dev/vibe-coding-2d-games-claude-code-agent-skills.transcript.md",
+  "transcriptFormat": "markdown",
+  "rights": {
+    "status": "user-provided",
+    "notes": "Transcript placeholder created by @shipshitgames/ressources. Confirm rights before committing raw text."
+  },
+  "tags": [
+    "ai-assisted-development",
+    "game-production",
+    "automation",
+    "tooling",
+    "agent-workflows"
+  ],
+  "derivatives": {
+    "rulesPath": "derivatives/rules/ai-oriented-game-dev-workflows.md",
+    "skillCandidates": [],
+    "appCandidates": [],
+    "toolCandidates": []
+  }
+}

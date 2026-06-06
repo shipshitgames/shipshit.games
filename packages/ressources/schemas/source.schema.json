@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shipshit.games/schemas/ressources/source.schema.json",
+  "title": "Ressources Source Manifest",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "slug",
+    "kind",
+    "title",
+    "url",
+    "priority",
+    "status",
+    "topics",
+    "rights",
+    "desiredOutputs",
+    "notes"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "kind": {
+      "enum": ["youtube-channel", "youtube-video", "article", "course", "book", "docs", "other"]
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "url": { "type": "string", "minLength": 1 },
+    "priority": { "enum": ["primary", "reference", "inbox"] },
+    "status": { "enum": ["active", "paused", "archived"] },
+    "handle": { "type": "string" },
+    "channelId": { "type": "string" },
+    "owner": { "type": "string" },
+    "topics": { "type": "array", "items": { "type": "string" } },
+    "rights": {
+      "type": "object",
+      "required": ["transcriptPolicy", "storeRawTranscript", "notes"],
+      "properties": {
+        "transcriptPolicy": {
+          "enum": ["user-provided", "public-captions", "official-api", "permissioned", "unknown"]
+        },
+        "storeRawTranscript": { "type": "boolean" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "desiredOutputs": {
+      "type": "array",
+      "items": { "enum": ["rule", "skill", "app", "tool"] }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

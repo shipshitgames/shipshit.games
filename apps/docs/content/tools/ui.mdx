@@ -1,0 +1,50 @@
+---
+title: UI
+description: Use the shared UI package.
+---
+
+# UI
+
+`@shipshitgames/ui` is the shared UI system for game shells and menus.
+
+## CSS-first contract
+
+Import styles in each game:
+
+```ts
+import "@shipshitgames/ui/styles.css";
+```
+
+Then use the shared class names:
+
+```html
+<div class="ssg-menu-screen">
+  <div class="ssg-menu-panel">
+    <h1 class="ssg-menu-title">Deadlane</h1>
+    <button class="ssg-button ssg-button--primary">Play</button>
+  </div>
+</div>
+```
+
+## React wrappers
+
+React games can import components:
+
+```tsx
+import { Button, Card, UpgradeCard } from "@shipshitgames/ui";
+```
+
+## Style rules
+
+- black, coal, iron, gunmetal, bone, ash
+- blood red for primary actions
+- hellfire for focus and hover
+- toxic green only for Scourge infection, breach cores, or parasite nodes
+- hard edges, no soft default SaaS chrome
+
+## Check
+
+```bash
+cd packages/ui
+bun run typecheck
+```

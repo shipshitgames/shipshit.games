@@ -1,0 +1,90 @@
+---
+title: Assetgen
+description: Generate and matrix-fill game assets.
+---
+
+# Assetgen
+
+`packages/assetgen` is the DOOM-grade asset generation pipeline.
+
+It turns:
+
+```txt
+prompt + design canon + provider -> image -> trim/optimize .webp -> manifest
+```
+
+## Dry run
+
+Use `mock` first. It proves the pipeline without model spend.
+
+```bash
+bun packages/assetgen/src/cli.ts --provider mock --dry-run --id test --prompt "x"
+```
+
+## Generate one asset
+
+```bash
+OPENAI_API_KEY=sk-... bun packages/assetgen/src/cli.ts \
+  --id swarm-husk \
+  --game scourge-survivors \
+  --kind sprite \
+  --prompt "a rotting bio-husk of the Scourge, lunging" \
+  --repo ../deadrotcom/apps/games/scourge-survivors
+```
+
+## Use Codex as provider
+
+```bash
+bun packages/assetgen/src/cli.ts \
+  --provider codex \
+  --id swarm-husk \
+  --game scourge-survivors \
+  --kind sprite \
+  --prompt "a rotting bio-husk of the Scourge, lunging"
+```
+
+The `codex` provider rides the local authenticated Codex CLI. No extra provider
+key is needed for that path.
+
+## Fill the matrix
+
+Matrix mode expands every intended `(entity x game)` render cell and writes it
+to the Deadrot asset package by default.
+
+```bash
+# placeholder fills
+bun packages/assetgen/src/cli.ts matrix --provider mock
+
+# real generation through Codex
+bun packages/assetgen/src/cli.ts matrix --provider codex
+
+# one row or column
+bun packages/assetgen/src/cli.ts matrix --id scourge-swarm
+bun packages/assetgen/src/cli.ts matrix --game pactfall --only-missing
+```
+
+## Target a different asset package
+
+```bash
+bun packages/assetgen/src/cli.ts matrix \
+  --provider mock \
+  --assets-dir ../deadrotcom/packages/assets
+```
+
+## Providers
+
+| Provider | Use |
+| --- | --- |
+| `mock` | Offline placeholder generation |
+| `codex` | Local Codex CLI delegation |
+| `openai` | Image model generation |
+| `fal` | FLUX generation |
+
+## Keychain storage
+
+```bash
+security add-generic-password -a shipshit -s shipshit-openai -w <OPENAI_KEY>
+security add-generic-password -a shipshit -s shipshit-fal -w <FAL_KEY>
+```
+
+Keep raw `.env` files out of commits.

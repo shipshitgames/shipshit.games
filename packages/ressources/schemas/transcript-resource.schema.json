@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shipshit.games/schemas/ressources/transcript-resource.schema.json",
+  "title": "Ressources Transcript Resource",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "slug",
+    "sourceSlug",
+    "sourceKind",
+    "title",
+    "url",
+    "capturedAt",
+    "transcriptPath",
+    "transcriptFormat",
+    "rights",
+    "tags",
+    "derivatives"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "sourceSlug": { "type": "string" },
+    "sourceKind": {
+      "enum": ["youtube-channel", "youtube-video", "article", "course", "book", "docs", "other"]
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "url": { "type": "string", "minLength": 1 },
+    "capturedAt": { "type": "string" },
+    "transcriptPath": { "type": "string", "minLength": 1 },
+    "transcriptFormat": { "enum": ["markdown", "plain-text", "youtube-timedtext"] },
+    "rights": {
+      "type": "object",
+      "required": ["status", "notes"],
+      "properties": {
+        "status": {
+          "enum": ["user-provided", "public-captions", "official-api", "permissioned", "unknown"]
+        },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "derivatives": {
+      "type": "object",
+      "required": ["skillCandidates", "appCandidates", "toolCandidates"],
+      "properties": {
+        "rulesPath": { "type": "string" },
+        "skillCandidates": { "type": "array", "items": { "type": "string" } },
+        "appCandidates": { "type": "array", "items": { "type": "string" } },
+        "toolCandidates": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

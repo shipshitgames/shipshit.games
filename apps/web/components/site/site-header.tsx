@@ -8,12 +8,14 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { label: "Newsletter", href: "/#newsletter" },
-  { label: "Course", href: "/#course" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "Assets", href: "/assets" },
   { label: "Templates", href: "/#templates" },
   { label: "Sponsor", href: "/#sponsor" },
+  { label: "Docs", href: "https://docs.shipshit.games" },
   { label: "Play", href: "https://deadrot.com" },
 ];
-const WATCH = "https://youtube.com/@shipshitshow";
+const WATCH = "/youtube";
 
 export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
@@ -55,11 +57,9 @@ export function SiteHeader() {
           ))}
           <a
             href={WATCH}
-            target="_blank"
-            rel="noreferrer"
             className="font-display text-sm font-bold uppercase tracking-widest text-hellfire transition-colors hover:text-blood"
           >
-            Watch ↗
+            Watch
           </a>
         </nav>
 
@@ -86,11 +86,9 @@ export function SiteHeader() {
           ))}
           <a
             href={WATCH}
-            target="_blank"
-            rel="noreferrer"
             className="py-2 font-display text-sm font-bold uppercase tracking-widest text-hellfire"
           >
-            Watch ↗
+            Watch
           </a>
         </nav>
       ) : null}

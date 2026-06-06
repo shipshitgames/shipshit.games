@@ -16,9 +16,47 @@ import { buildPrompt } from "./style.ts";
 import { providers } from "./providers.ts";
 import { toWebp } from "./postprocess.ts";
 import { register } from "./manifest.ts";
-import type { AssetCatalog, EntityAsset, GameSlug } from "../../assets/src/index.ts";
 
 const CATALOG_FILE = "assets-catalog.json";
+
+export type GameSlug =
+  | "scourge-survivors"
+  | "deadlane"
+  | "pactfall"
+  | "starblight"
+  | "redline"
+  | "rothulk";
+
+type Faction = "scourge" | "pyre" | "wardens" | "neutral";
+type HostFamily =
+  | "rot-flesh"
+  | "chitin"
+  | "mycelial"
+  | "machine-graft"
+  | "bone-titan"
+  | "voidship";
+
+type AssetVariants = Record<GameSlug, string | null>;
+
+export interface EntityAsset {
+  id: string;
+  kind: "entity" | "boss";
+  name: string;
+  faction: Faction;
+  hostFamily: HostFamily | null;
+  canon: string;
+  promptBase: string;
+  games: GameSlug[];
+  variants: AssetVariants;
+}
+
+export interface AssetCatalog {
+  $schema?: string;
+  version: string;
+  note?: string;
+  entities: EntityAsset[];
+  shared: unknown[];
+}
 
 export interface MatrixOptions {
   /** Path to the `@shipshitgames/assets` package (holds the catalog + renders). */
