@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/site/eyebrow";
-import { Backdrop } from "@/components/site/atmosphere";
+import { Backdrop, EmberParticles } from "@/components/site/atmosphere";
 import { Signup } from "@/components/site/signup";
 import {
   formatUsd,
@@ -17,10 +17,66 @@ const accent = (hex: string): CSSProperties =>
   ({ "--page-accent": hex } as CSSProperties);
 const HELLFIRE = "#ff6a00";
 const BLOOD = "#c1121f";
-const TOXIC = "#8bdc1f";
 const RUST = "#a35a33";
 
-const TEMPLATES = [
+const PROBLEMS = [
+  {
+    title: "Ideas are cheap",
+    body: "AI can hand you a hundred concepts before lunch. The hard part is choosing the one you can actually ship.",
+  },
+  {
+    title: "Assets rot fast",
+    body: "Prompts, renders, lore, UI, and code drift apart unless the pipeline has rules and a real source of truth.",
+  },
+  {
+    title: "Agents need taste",
+    body: "Automation without review just makes louder slop. You need loops for scope, build, QA, and polish.",
+  },
+] as const;
+
+const SOLUTION_STEPS = [
+  {
+    title: "Scope the slice",
+    body: "Start with one playable promise, one aesthetic lane, and one measurable shipping target.",
+  },
+  {
+    title: "Generate with canon",
+    body: "Keep assets, lore, prompts, and implementation tied to studio rules instead of one-off experiments.",
+  },
+  {
+    title: "Ship the loop",
+    body: "Use agents for scaffolding, code, review, deployment, and session capture until the build is public.",
+  },
+] as const;
+
+const PRODUCTS = [
+  {
+    name: "DEADROT",
+    desc: "The browser-game universe we are building live: brutal canon, shipped experiments, and playable public proof.",
+    href: PLAY,
+    cta: "Play Deadrot",
+  },
+  {
+    name: "Skills Pro",
+    desc: "The agent skills, prompts, checklists, and game-shipping workflows behind the studio.",
+    href: "/pricing",
+    cta: "Buy the pack",
+  },
+  {
+    name: "Asset pipeline",
+    desc: "The generated game-art workflow, catalog rules, and assetgen tooling we dogfood on DEADROT.",
+    href: "/assets",
+    cta: "See the assets",
+  },
+  {
+    name: "Build log",
+    desc: "The public record of what worked, what broke, and how the system changed after real shipping pressure.",
+    href: WATCH,
+    cta: "Watch the build",
+  },
+] as const;
+
+const TOOL_ACCESS = [
   {
     name: "@shipshitdev/v0",
     desc: "The scaffolder we ship every product with — Bun + Turbo monorepo, Next 16, Tailwind, shadcn, agent files. One command, a working repo.",
@@ -39,7 +95,7 @@ const TEMPLATES = [
     href: "https://github.com/shipshitgames",
     cta: "See the repos",
   },
-];
+] as const;
 
 export default function Home() {
   return (
@@ -50,6 +106,7 @@ export default function Home() {
         className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pb-16 pt-24 text-center"
       >
         <Backdrop />
+        <EmberParticles />
         <div className="relative z-10 flex flex-col items-center">
           <Eyebrow>Building games with AI, in public</Eyebrow>
           <h1 className="sr-only">Ship Shit Games</h1>
@@ -57,21 +114,15 @@ export default function Home() {
             src="/brand/shipshit-games-wordmark.png"
             alt=""
             aria-hidden="true"
-            className="mt-5 h-auto w-full max-w-2xl drop-shadow-[0_0_34px_rgba(193,18,31,0.36)]"
+            className="mt-5 h-auto w-full max-w-2xl drop-shadow-[0_0_42px_rgba(193,18,31,0.46)]"
           />
-          <p className="text-glow mt-5 max-w-4xl font-display text-4xl font-bold uppercase leading-none text-bone sm:text-5xl">
-            We ship games in public.
-            <br className="hidden sm:block" />{" "}
-            <span className="text-blood">Steal the playbook.</span>
-          </p>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ash">
+          <p className="mt-8 max-w-2xl text-lg leading-relaxed text-ash">
             Ship Shit Games builds the{" "}
             <a href={PLAY} className="text-bone underline decoration-gunmetal underline-offset-2 hover:decoration-blood">DEADROT</a>{" "}
-            universe live with AI — a whole IP, many browser games, one bloody canon. Here&apos;s
-            everything we learned doing it: the newsletter, Skills Pro, the templates, and the
-            tools we built to move this fast.
+            universe live with AI — a whole IP, many browser games, one bloody canon. Skills Pro
+            and the studio tools are the system we use to move this fast.
           </p>
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
               <a href="/pricing">Buy Skills Pro</a>
             </Button>
@@ -81,24 +132,184 @@ export default function Home() {
               variant="outline"
               className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
             >
-              <a href={WATCH}>Watch Opus 4.8</a>
-            </Button>
-            <Button
-              asChild
-              size="xl"
-              variant="outline"
-              className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
-            >
-              <a href="/assets">See the assets</a>
+              <a href={PLAY}>Play Deadrot</a>
             </Button>
           </div>
         </div>
         <a
-          href="#newsletter"
+          href="#problem"
           className="animate-bob absolute bottom-8 z-10 text-xs font-bold uppercase tracking-[0.3em] text-ash transition-colors hover:text-bone"
         >
           ▼ scroll
         </a>
+      </section>
+
+      {/* ── PROBLEM ──────────────────────────────────────────────────────── */}
+      <section
+        id="problem"
+        style={accent(BLOOD)}
+        className="relative scroll-mt-16 border-t border-gunmetal/40 px-6 py-24"
+      >
+        <div className="mx-auto max-w-7xl">
+          <Eyebrow>The problem</Eyebrow>
+          <h2 className="mt-3 max-w-4xl font-display text-4xl font-bold uppercase leading-tight text-bone sm:text-5xl">
+            AI makes the mess faster. Shipping still takes a system.
+          </h2>
+          <p className="mt-5 max-w-2xl leading-relaxed text-ash">
+            The new bottleneck is not generation. It is taste, continuity, QA,
+            deployment, and knowing what to cut before the build collapses under
+            its own cleverness.
+          </p>
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {PROBLEMS.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-md border border-gunmetal bg-coal/80 p-6"
+              >
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-bone">
+                  {item.title}
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-ash">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── SOLUTION ─────────────────────────────────────────────────────── */}
+      <section
+        id="solution"
+        style={accent(HELLFIRE)}
+        className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
+      >
+        <Backdrop />
+        <div className="relative z-10 mx-auto max-w-7xl">
+          <Eyebrow>The solution</Eyebrow>
+          <h2 className="mt-3 max-w-4xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
+            Treat AI like a studio pipeline, not a magic button.
+          </h2>
+          <p className="mt-5 max-w-2xl leading-relaxed text-ash">
+            Ship Shit Games is the operating system we use to build DEADROT in
+            public: scoped slices, canon-aware asset generation, agent workflows,
+            and ruthless review loops.
+          </p>
+          <div className="mt-12 grid gap-4 lg:grid-cols-3">
+            {SOLUTION_STEPS.map((step, index) => (
+              <div
+                key={step.title}
+                className="border-l border-hellfire/60 bg-void/30 p-6"
+              >
+                <span className="font-display text-sm font-bold uppercase tracking-widest text-hellfire">
+                  0{index + 1}
+                </span>
+                <h3 className="mt-4 font-display text-2xl font-bold uppercase tracking-tight text-bone">
+                  {step.title}
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-ash">{step.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── PRODUCTS ─────────────────────────────────────────────────────── */}
+      <section
+        id="products"
+        style={accent(RUST)}
+        className="relative scroll-mt-16 border-t border-gunmetal/40 px-6 py-24"
+      >
+        <div className="mx-auto max-w-7xl">
+          <Eyebrow>Products</Eyebrow>
+          <h2 className="mt-3 max-w-4xl font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
+            The game, the skills, the tools, and the receipts.
+          </h2>
+          <p className="mt-5 max-w-2xl leading-relaxed text-ash">
+            This is not a content funnel pretending to be a studio. Each product
+            is tied to what we are actually building, using, and publishing.
+          </p>
+          <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2">
+            {PRODUCTS.map((product) => (
+              <a
+                key={product.name}
+                href={product.href}
+                target={product.href.startsWith("http") ? "_blank" : undefined}
+                rel={product.href.startsWith("http") ? "noreferrer" : undefined}
+                className="group flex flex-col rounded-md border border-gunmetal bg-coal p-7 transition-all duration-300 hover:border-hellfire hover:shadow-[0_0_40px_-16px_var(--page-accent)]"
+              >
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-bone">
+                  {product.name}
+                </h3>
+                <p className="mt-3 flex-1 text-sm leading-relaxed text-ash">
+                  {product.desc}
+                </p>
+                <span className="mt-5 font-display text-xs font-bold uppercase tracking-widest text-hellfire transition-colors group-hover:text-blood">
+                  {product.cta} →
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── BUY / TOOL ACCESS ────────────────────────────────────────────── */}
+      <section
+        id="skills"
+        style={accent(BLOOD)}
+        className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
+      >
+        <Backdrop />
+        <div className="relative z-10 mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
+          <div>
+            <Eyebrow>Buy skills + tool access</Eyebrow>
+            <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
+              One payment for the pro workflow. Open tools beside it.
+            </h2>
+            <p className="mt-5 max-w-2xl leading-relaxed text-ash">
+              Skills Pro is the paid operating manual: production prompts,
+              agent workflows, review loops, and updates from the live build.
+              Early buyers get the default {formatUsd(SKILLS_PRO.earlyBuyerDiscountUsd)} coupon,
+              bringing access to{" "}
+              <span className="font-bold text-bone">{formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}</span>.
+            </p>
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
+                <a href="/pricing">Buy Skills Pro</a>
+              </Button>
+              <Button
+                asChild
+                size="xl"
+                variant="outline"
+                className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
+              >
+                <a href="https://docs.shipshit.games">Read the docs</a>
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            {TOOL_ACCESS.map((tool) => (
+              <a
+                key={tool.name}
+                href={tool.href}
+                target="_blank"
+                rel="noreferrer"
+                className="group flex items-start justify-between gap-5 rounded-md border border-gunmetal bg-coal/90 p-5 transition-colors hover:border-hellfire"
+              >
+                <span>
+                  <span className="block font-display text-lg font-bold uppercase tracking-tight text-bone">
+                    {tool.name}
+                  </span>
+                  <span className="mt-2 block text-sm leading-relaxed text-ash">
+                    {tool.desc}
+                  </span>
+                </span>
+                <span className="shrink-0 pt-1 font-display text-xs font-bold uppercase tracking-widest text-hellfire group-hover:text-blood">
+                  {tool.cta} →
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ── NEWSLETTER ───────────────────────────────────────────────────── */}
@@ -108,115 +319,16 @@ export default function Home() {
         className="relative scroll-mt-16 border-t border-gunmetal/40 px-6 py-24"
       >
         <div className="mx-auto max-w-7xl">
-          <Eyebrow>Build in public</Eyebrow>
+          <Eyebrow>Last call</Eyebrow>
           <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
             The devlog newsletter
           </h2>
           <p className="mt-4 max-w-2xl leading-relaxed text-ash">
-            Every shipped game, every dead end, every prompt that actually worked — written up the
-            week it happened. No theory. The real log of building an IP with AI, paired with the{" "}
-            <a href={WATCH} className="text-hellfire hover:text-blood">shipshitshow</a>.
+            Not ready to buy? Get the weekly build log: shipped games, broken
+            loops, useful prompts, and what changed in the studio system.
           </p>
           <div className="mt-9">
             <Signup cta="Subscribe" topic="newsletter" successText="You're in. First devlog incoming." />
-          </div>
-        </div>
-      </section>
-
-      {/* ── COURSE ───────────────────────────────────────────────────────── */}
-      <section
-        id="course"
-        style={accent(BLOOD)}
-        className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
-      >
-        <Backdrop />
-        <div className="relative z-10 mx-auto max-w-7xl">
-          <Eyebrow>Skills Pro</Eyebrow>
-          <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
-            One payment. The game-building skills pack.
-          </h2>
-          <p className="mt-5 max-w-2xl leading-relaxed text-ash">
-            The end-to-end system we use to take a game from idea to shipped: scaffolding,
-            agent workflows, art and asset generation, the engine, and the deploy. Early buyers get
-            the default {formatUsd(SKILLS_PRO.earlyBuyerDiscountUsd)} Stripe coupon, bringing Skills Pro to{" "}
-            <span className="font-bold text-bone">{formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}</span>.
-          </p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-              <a href="/pricing">See pricing</a>
-            </Button>
-            <Button
-              asChild
-              size="xl"
-              variant="outline"
-              className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
-            >
-              <a href="/youtube">Watch the build</a>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── TEMPLATES / TOOLING ──────────────────────────────────────────── */}
-      <section
-        id="templates"
-        style={accent(TOXIC)}
-        className="relative scroll-mt-16 border-t border-gunmetal/40 px-6 py-24"
-      >
-        <div className="mx-auto max-w-7xl">
-          <Eyebrow>Steal our tools</Eyebrow>
-          <h2 className="mt-3 font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
-            Templates &amp; tooling
-          </h2>
-          <p className="mt-3 max-w-2xl text-ash">
-            The actual stack behind the studio. Open where it can be, battle-tested on real
-            shipped games.
-          </p>
-          <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-3">
-            {TEMPLATES.map((t) => (
-              <a
-                key={t.name}
-                href={t.href}
-                target="_blank"
-                rel="noreferrer"
-                className="group flex flex-col rounded-md border border-gunmetal bg-coal p-7 transition-all duration-300 hover:border-hellfire hover:shadow-[0_0_40px_-16px_var(--page-accent)]"
-              >
-                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-bone">
-                  {t.name}
-                </h3>
-                <p className="mt-3 flex-1 text-sm leading-relaxed text-ash">{t.desc}</p>
-                <span className="mt-5 font-display text-xs font-bold uppercase tracking-widest text-hellfire transition-colors group-hover:text-blood">
-                  {t.cta} →
-                </span>
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── SPONSOR / CONSULTING ─────────────────────────────────────────── */}
-      <section
-        id="sponsor"
-        style={accent(RUST)}
-        className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
-      >
-        <Backdrop />
-        <div className="relative z-10 mx-auto flex max-w-7xl flex-col items-start">
-          <Eyebrow>Work with us</Eyebrow>
-          <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
-            Sponsor the show · hire the studio
-          </h2>
-          <p className="mt-5 max-w-2xl leading-relaxed text-ash">
-            Put your tool in front of builders who actually ship, or bring us in to stand up an
-            AI-native game or product pipeline. Tell us what you&apos;re after and we&apos;ll send
-            the deck.
-          </p>
-          <div className="mt-9">
-            <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-              <a href="mailto:vincent@genfeed.ai?subject=Sponsorship%20%2F%20consulting%20%E2%80%94%20Ship%20Shit%20Games">
-                Get in touch
-              </a>
-            </Button>
           </div>
         </div>
       </section>

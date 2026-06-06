@@ -3,7 +3,7 @@
  * release.mjs — publish-and-deploy orchestrator for Ship Shit Games.
  *
  * Pipeline (in order):
- *   1. Discover publishable packages (packages/*, private !== true), topo-sorted by intra-scope deps.
+ *   1. Discover publishable packages (apps/* + packages/*, private !== true), topo-sorted by intra-scope deps.
  *   2. (optional) bump versions: --bump=patch|minor|major.
  *   3. Publish each to npm — IDEMPOTENT: skips any name@version already on the registry.
  *   4. Cutover: rewrite every consumer's "workspace:*" / "*" / "file:..." spec for a *published*
@@ -70,8 +70,10 @@ const hasPkg = (dir) => existsSync(pkgFileOf(dir))
 
 // ── 1. discover packages ───────────────────────────────────────────────────
 step('Discover publishable packages')
+const appDirs = listDirs(join(MONO, 'apps')).filter(hasPkg)
 const pkgDirs = listDirs(join(MONO, 'packages')).filter(hasPkg)
-let publishable = pkgDirs
+const releaseDirs = [...appDirs, ...pkgDirs]
+let publishable = releaseDirs
   .map((dir) => ({ dir, json: readJson(pkgFileOf(dir)) }))
   .filter((p) => p.json.private !== true && p.json.name?.startsWith(SCOPE))
 if (ONLY) publishable = publishable.filter((p) => ONLY.includes(p.json.name.slice(SCOPE.length)))
@@ -110,6 +112,7 @@ if (DO_PUBLISH) {
     const { name, version } = p.json
     const onNpm = run(`npm view ${name}@${version} version`, { capture: true })
     if (onNpm === version) { skip(`${name}@${version} already published`); continue }
+    if (p.json.scripts?.build) run('bun run build', { cwd: p.dir, mutating: true })
     run('bun publish --access public', { cwd: p.dir, mutating: true })
     done(`published ${name}@${version}`)
   }

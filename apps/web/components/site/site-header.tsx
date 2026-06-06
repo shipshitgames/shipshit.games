@@ -7,15 +7,14 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
+  { label: "Problem", href: "/#problem" },
+  { label: "Solution", href: "/#solution" },
+  { label: "Products", href: "/#products" },
+  { label: "Skills", href: "/#skills" },
   { label: "Newsletter", href: "/#newsletter" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "Assets", href: "/assets" },
-  { label: "Templates", href: "/#templates" },
-  { label: "Sponsor", href: "/#sponsor" },
   { label: "Docs", href: "https://docs.shipshit.games" },
   { label: "Play", href: "https://deadrot.com" },
 ];
-const WATCH = "/youtube";
 
 export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
@@ -64,12 +63,6 @@ export function SiteHeader() {
               {i.label}
             </Link>
           ))}
-          <a
-            href={WATCH}
-            className="font-display text-sm font-bold uppercase tracking-widest text-hellfire transition-colors hover:text-blood"
-          >
-            Watch
-          </a>
         </nav>
 
         <button
@@ -93,12 +86,6 @@ export function SiteHeader() {
               {i.label}
             </Link>
           ))}
-          <a
-            href={WATCH}
-            className="py-2 font-display text-sm font-bold uppercase tracking-widest text-hellfire"
-          >
-            Watch
-          </a>
         </nav>
       ) : null}
     </header>
