@@ -53,7 +53,7 @@ const SOLUTION_STEPS = [
 const STUDIO_SIGNALS = [
   {
     value: "6",
-    label: "Game covers",
+    label: "Game thumbnails",
     body: "Public DEADROT slices with generated key art and production notes.",
   },
   {
@@ -121,7 +121,7 @@ const TOOL_ACCESS = [
   },
 ] as const;
 
-const DEADROT_KEY_ART = "/images/hero.webp";
+const DEADROT_KEY_ART = "/images/games/scourge-survivors.webp";
 
 function SectionIllustration({
   src,
