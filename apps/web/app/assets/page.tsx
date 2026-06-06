@@ -9,12 +9,28 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = {
   title: "Asset Gallery",
   description:
-    "A gallery of Ship Shit Games generated covers, portraits, and production-ready game assets.",
+    "A gallery of Ship Shit Games generated thumbnails, portraits, and production-ready game assets.",
   openGraph: {
     title: "Ship Shit Games Asset Gallery",
     description:
-      "Generated game covers, faction portraits, and production assets from the Ship Shit Games pipeline.",
+      "Generated game thumbnails, faction portraits, and production assets from the Ship Shit Games pipeline.",
     url: "https://shipshit.games/assets",
+    images: [
+      {
+        url: "/images/og/assets.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Ship Shit Games asset gallery",
+        type: "image/jpeg",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ship Shit Games Asset Gallery",
+    description:
+      "Generated game thumbnails, faction portraits, and production assets from the Ship Shit Games pipeline.",
+    images: ["/images/og/assets.jpg"],
   },
 };
 
@@ -27,27 +43,27 @@ const GAME_ASSETS = [
   {
     title: "Pactfall",
     path: "/images/games/pactfall.webp",
-    note: "siege strategy cover",
+    note: "siege strategy thumbnail",
   },
   {
     title: "Deadlane",
     path: "/images/games/deadlane.webp",
-    note: "lane shooter cover",
+    note: "lane shooter thumbnail",
   },
   {
     title: "Starblight",
     path: "/images/games/starblight.webp",
-    note: "orbital breach cover",
+    note: "orbital breach thumbnail",
   },
   {
     title: "Redline",
     path: "/images/games/redline.webp",
-    note: "courier runner cover",
+    note: "courier runner thumbnail",
   },
   {
     title: "Rothulk",
     path: "/images/games/rothulk.webp",
-    note: "platform combat cover",
+    note: "platform combat thumbnail",
   },
 ] as const;
 
@@ -79,7 +95,7 @@ const PROCESS = [
   {
     icon: Boxes,
     title: "Batched into sets",
-    text: "The pipeline can expand one roster into covers, portraits, sprites, pickups, weapons, and UI-ready variants.",
+    text: "The pipeline can expand one roster into thumbnails, portraits, sprites, pickups, weapons, and UI-ready variants.",
   },
   {
     icon: BadgeCheck,
@@ -101,7 +117,7 @@ export default function AssetsPage() {
                 Game art, generated for shipping.
               </h1>
               <p className="mt-7 max-w-2xl text-lg leading-relaxed text-ash">
-                Covers, portraits, sprites, and production assets from the same
+                Thumbnails, portraits, sprites, and production assets from the same
                 pipeline we use to build Deadrot games in public. The point is
                 not pretty one-offs. The point is coherent sets a game can use.
               </p>
@@ -125,17 +141,17 @@ export default function AssetsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {GAME_ASSETS.slice(0, 6).map((asset) => (
                 <div
                   key={asset.path}
-                  className="group relative aspect-[4/5] overflow-hidden rounded-md border border-gunmetal bg-coal"
+                  className="group relative aspect-[1200/630] overflow-hidden rounded-md border border-gunmetal bg-coal"
                 >
                   <Image
                     src={asset.path}
-                    alt={`${asset.title} generated cover art`}
+                    alt={`${asset.title} generated thumbnail art`}
                     fill
-                    sizes="(min-width: 1024px) 180px, 33vw"
+                    sizes="(min-width: 1024px) 280px, 50vw"
                     className="object-cover transition duration-500 group-hover:scale-105"
                     priority={asset.path === "/images/games/scourge-survivors.webp"}
                   />

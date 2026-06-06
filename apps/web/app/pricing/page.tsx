@@ -20,6 +20,22 @@ export const metadata: Metadata = {
     description:
       "Get the agent skills and game-building workflows Ship Shit Games uses in public.",
     url: "https://shipshit.games/pricing",
+    images: [
+      {
+        url: "/images/og/skills-pro.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Ship Shit Games Skills Pro",
+        type: "image/jpeg",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Skills Pro Pricing",
+    description:
+      "Get the agent skills and game-building workflows Ship Shit Games uses in public.",
+    images: ["/images/og/skills-pro.jpg"],
   },
 };
 
