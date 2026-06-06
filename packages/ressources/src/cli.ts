@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import {
   createDerivative,
   createTranscriptResource,
@@ -6,6 +8,8 @@ import {
   syncChannelVideos,
   validateLibrary,
 } from "./library";
+import { distill } from "./distill";
+import { fetchTranscript } from "./transcript";
 import type { DerivativeKind, TranscriptRightsStatus } from "./types";
 
 const argv = process.argv.slice(2);
@@ -32,12 +36,54 @@ function boolFlag(name: string): boolean {
   return argv.includes(`--${name}`);
 }
 
+async function runDistill(): Promise<void> {
+  const url = flag("url");
+  const transcriptFile = flag("transcript-file");
+  const out = resolve(flag("out") ?? "rules.generated.md");
+  const outTranscript = flag("out-transcript");
+  const provider = flag("provider") ?? "codex";
+  let title = flag("title");
+
+  if (!url && !transcriptFile) {
+    throw new Error(
+      "distill requires --url <youtube-url> or --transcript-file <path>; " +
+        "optional flags: --out, --out-transcript, --provider codex|mock, --title",
+    );
+  }
+
+  const log = (message: string) => console.log(message);
+  let transcript: string;
+  if (transcriptFile) {
+    log(`[transcript] reading ${transcriptFile}`);
+    transcript = await readFile(resolve(transcriptFile), "utf8");
+    title ??= transcriptFile;
+  } else {
+    const result = await fetchTranscript(url!, log);
+    transcript = result.transcript;
+    title ??= result.title;
+  }
+
+  if (outTranscript) {
+    const transcriptOut = resolve(outTranscript);
+    await mkdir(dirname(transcriptOut), { recursive: true });
+    await writeFile(transcriptOut, transcript, "utf8");
+    log(`[transcript-wrote] ${transcriptOut} (${(transcript.length / 1024).toFixed(1)} kb)`);
+  }
+
+  log(`[distill] provider=${provider}`);
+  const rules = await distill({ transcript, title: title ?? "Untitled", url: url ?? "", provider, log });
+  await mkdir(dirname(out), { recursive: true });
+  await writeFile(out, rules, "utf8");
+  log(`[wrote] ${out} (${(rules.length / 1024).toFixed(1)} kb)`);
+}
+
 function help(): void {
   console.log(`usage: ressources <command> [flags]
 
 commands:
   sources           list source manifests
   validate          validate sources, transcripts, and derivatives
+  distill           fetch/read a transcript and distill reusable build rules
   new-transcript    create transcript markdown plus sidecar metadata
   new-derivative    create a skill/app/tool/rule candidate
   sync-channel      sync YouTube channel video metadata with yt-dlp
@@ -45,6 +91,8 @@ commands:
 examples:
   bun packages/ressources/src/cli.ts sources
   bun packages/ressources/src/cli.ts validate
+  bun packages/ressources/src/cli.ts distill --url <youtube-url> --out rules.md
+  bun packages/ressources/src/cli.ts distill --transcript-file transcript.txt --title "Title" --out rules.md
   bun packages/ressources/src/cli.ts new-transcript --source ai-oriented-dev --url <youtube-url> --title "Title"
   bun packages/ressources/src/cli.ts new-derivative --kind skill --slug my-skill --title "My Skill" --source-transcript transcripts/source/video.resource.json
   bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50`);
@@ -57,6 +105,12 @@ async function run(): Promise<void> {
     case "-h":
       help();
       return;
+
+    case "distill":
+    case "rules": {
+      await runDistill();
+      return;
+    }
 
     case "sources": {
       const sources = await loadSources();
@@ -129,6 +183,10 @@ async function run(): Promise<void> {
     }
 
     default:
+      if (command.startsWith("--")) {
+        await runDistill();
+        return;
+      }
       help();
       throw new Error(`unknown command: ${command}`);
   }

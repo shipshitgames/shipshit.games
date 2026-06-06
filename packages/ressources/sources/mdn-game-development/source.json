@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "slug": "mdn-game-development",
+  "kind": "docs",
+  "title": "MDN Game Development",
+  "url": "https://developer.mozilla.org/en-US/docs/Games",
+  "priority": "reference",
+  "status": "active",
+  "owner": "MDN Web Docs",
+  "topics": [
+    "web-games",
+    "canvas",
+    "webgl",
+    "web-audio",
+    "game-loop",
+    "publishing"
+  ],
+  "rights": {
+    "transcriptPolicy": "permissioned",
+    "storeRawTranscript": false,
+    "notes": "Use as linked documentation and distill original implementation notes. Do not copy full MDN articles."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "Good baseline for web-native game APIs and publishing constraints.",
+    "Use for browser platform fundamentals that apply across Phaser, Three.js, and custom engine work."
+  ]
+}

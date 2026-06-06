@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "slug": "phaser-learn",
+  "kind": "docs",
+  "title": "Phaser Learn",
+  "url": "https://phaser.io/learn",
+  "priority": "reference",
+  "status": "active",
+  "owner": "Phaser",
+  "topics": [
+    "2d-games",
+    "phaser",
+    "sprites",
+    "tilemaps",
+    "physics",
+    "examples"
+  ],
+  "rights": {
+    "transcriptPolicy": "permissioned",
+    "storeRawTranscript": false,
+    "notes": "Use as linked documentation and distill original rules/examples. Do not vendor docs pages."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "Useful if we adopt a Phaser path for fast 2D prototypes.",
+    "Track docs and examples for sprite sheets, animation states, tilemaps, camera, and arcade physics."
+  ]
+}

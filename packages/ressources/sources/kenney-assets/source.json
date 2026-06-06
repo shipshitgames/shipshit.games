@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "slug": "kenney-assets",
+  "kind": "other",
+  "title": "Kenney Assets",
+  "url": "https://www.kenney.nl/assets",
+  "priority": "reference",
+  "status": "active",
+  "owner": "Kenney",
+  "topics": [
+    "assets",
+    "2d-sprites",
+    "3d-models",
+    "ui",
+    "audio",
+    "prototyping"
+  ],
+  "rights": {
+    "transcriptPolicy": "permissioned",
+    "storeRawTranscript": false,
+    "notes": "Track source links, license notes, and asset-pack metadata. Do not import shipped game assets into this repo."
+  },
+  "desiredOutputs": [
+    "rule",
+    "tool"
+  ],
+  "notes": [
+    "Useful for placeholder/prototype packs and asset-indexer test fixtures.",
+    "Any final shipped assets still belong in the correct game/runtime asset repo."
+  ]
+}

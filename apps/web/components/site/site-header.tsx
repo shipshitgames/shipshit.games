@@ -40,9 +40,18 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link
           href="/"
-          className="font-display text-lg font-bold uppercase tracking-tight text-bone"
+          className="flex items-center gap-3 font-display text-lg font-bold uppercase text-bone"
+          aria-label="Ship Shit Games home"
         >
-          Ship <span className="text-blood">Shit</span> Games
+          <img
+            src="/brand/avatar.png"
+            alt=""
+            aria-hidden="true"
+            className="h-9 w-9 border border-gunmetal bg-void object-cover"
+          />
+          <span className="hidden sm:inline">
+            Ship <span className="text-blood">Shit</span> Games
+          </span>
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">

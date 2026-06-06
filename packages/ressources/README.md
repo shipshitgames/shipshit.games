@@ -5,7 +5,8 @@ derived skills/apps/tools we build from them.
 
 The path is intentionally `packages/ressources` because that is the requested
 workspace package. Treat it as the human learning and agent-knowledge layer that
-sits above `packages/research`.
+owns transcript capture, distillation, source manifests, and derived
+skills/apps/tools.
 
 ```txt
 source/channel -> transcript/resource -> distilled rule -> skill/app/tool candidate
@@ -43,6 +44,17 @@ bun packages/ressources/src/cli.ts sources
 # validate source manifests, transcript sidecars, and derivative manifests
 bun packages/ressources/src/cli.ts validate
 
+# fetch a YouTube transcript and distill it into reusable build rules
+bun packages/ressources/src/cli.ts distill \
+  --url "https://www.youtube.com/watch?v=VIDEO_ID" \
+  --out packages/ressources/derivatives/rules/video-slug.md
+
+# already have a transcript? distill it without network
+bun packages/ressources/src/cli.ts distill \
+  --transcript-file transcript.txt \
+  --title "Video title" \
+  --out packages/ressources/derivatives/rules/video-slug.md
+
 # create a transcript placeholder and sidecar metadata
 bun packages/ressources/src/cli.ts new-transcript \
   --source ai-oriented-dev \
@@ -64,15 +76,15 @@ bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit
 
 1. Create a transcript stub with `new-transcript`.
 2. Drop the transcript text into the generated `.transcript.md` file, or capture
-   it with `packages/research` and `--out-transcript`.
+   it with `distill --out-transcript`.
 3. Run `validate`.
-4. Distill the transcript with `packages/research` into a rules markdown file.
+4. Distill the transcript with `packages/ressources` into a rules markdown file.
 5. Promote the rules into a derivative skill/app/tool candidate here.
 
 Example:
 
 ```bash
-bun packages/research/src/cli.ts \
+bun packages/ressources/src/cli.ts distill \
   --url "https://www.youtube.com/watch?v=VIDEO_ID" \
   --out packages/ressources/derivatives/rules/video-slug.md \
   --out-transcript packages/ressources/transcripts/ai-oriented-dev/video-slug.transcript.md

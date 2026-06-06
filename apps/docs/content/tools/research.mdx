@@ -5,16 +5,17 @@ description: Turn tutorials into reusable build rulesets.
 
 # Research
 
-`packages/research` turns a tutorial into a reusable rules markdown file.
+`packages/ressources` turns tutorials, transcripts, and reference material into
+reusable rules, skills, app candidates, and tool candidates.
 
 ```txt
-URL -> transcript -> LLM distill -> rules markdown
+source -> transcript/resource -> distilled rule -> skill/app/tool candidate
 ```
 
 ## Basic run
 
 ```bash
-bun packages/research/src/cli.ts \
+bun packages/ressources/src/cli.ts distill \
   --url "https://www.youtube.com/watch?v=..." \
   --out rules.md
 ```
@@ -24,7 +25,7 @@ bun packages/research/src/cli.ts \
 Use `mock` to prove extraction and output shape with no model.
 
 ```bash
-bun packages/research/src/cli.ts \
+bun packages/ressources/src/cli.ts distill \
   --url "<url>" \
   --provider mock \
   --out /tmp/rules.md
@@ -33,7 +34,7 @@ bun packages/research/src/cli.ts \
 ## Already have a transcript
 
 ```bash
-bun packages/research/src/cli.ts \
+bun packages/ressources/src/cli.ts distill \
   --transcript-file transcript.txt \
   --title "Tutorial title" \
   --out rules.md
@@ -51,7 +52,7 @@ brew install yt-dlp
 Optionally point to a specific binary:
 
 ```bash
-RESEARCH_YT_DLP=/path/to/yt-dlp bun packages/research/src/cli.ts --url "<url>"
+RESSOURCES_YT_DLP=/path/to/yt-dlp bun packages/ressources/src/cli.ts distill --url "<url>"
 ```
 
 ## Output rule

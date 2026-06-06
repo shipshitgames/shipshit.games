@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "slug": "freya-holmer",
+  "kind": "youtube-channel",
+  "title": "Freya Holmér",
+  "url": "https://www.youtube.com/@acegikmo",
+  "priority": "reference",
+  "status": "active",
+  "handle": "@acegikmo",
+  "channelId": "UC7M-Wz4zK8oikt6ATcoTwBA",
+  "owner": "Freya Holmér",
+  "topics": [
+    "game-math",
+    "splines",
+    "shaders",
+    "vectors",
+    "visual-debugging",
+    "tooling"
+  ],
+  "rights": {
+    "transcriptPolicy": "user-provided",
+    "storeRawTranscript": true,
+    "notes": "Store raw transcripts only when user-provided, permissioned, or otherwise cleared. Prefer original distilled math/tooling notes."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "Excellent source for game math, visualization, debug overlays, and shader/tool thinking.",
+    "Good candidate source for visual-debug and math-helper skills."
+  ]
+}

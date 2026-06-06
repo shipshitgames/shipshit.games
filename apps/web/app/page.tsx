@@ -47,24 +47,31 @@ export default function Home() {
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section
         style={accent(HELLFIRE)}
-        className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center"
+        className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pb-16 pt-24 text-center"
       >
         <Backdrop />
         <div className="relative z-10 flex flex-col items-center">
           <Eyebrow>Building games with AI, in public</Eyebrow>
-          <h1 className="text-glow mt-5 max-w-4xl font-display text-5xl font-bold uppercase leading-[0.9] tracking-tight text-bone sm:text-7xl md:text-8xl">
+          <h1 className="sr-only">Ship Shit Games</h1>
+          <img
+            src="/brand/shipshit-games-wordmark.png"
+            alt=""
+            aria-hidden="true"
+            className="mt-5 h-auto w-full max-w-2xl drop-shadow-[0_0_34px_rgba(193,18,31,0.36)]"
+          />
+          <p className="text-glow mt-5 max-w-4xl font-display text-4xl font-bold uppercase leading-none text-bone sm:text-5xl">
             We ship games in public.
             <br className="hidden sm:block" />{" "}
             <span className="text-blood">Steal the playbook.</span>
-          </h1>
-          <p className="mt-7 max-w-2xl text-lg leading-relaxed text-ash">
+          </p>
+          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ash">
             Ship Shit Games builds the{" "}
             <a href={PLAY} className="text-bone underline decoration-gunmetal underline-offset-2 hover:decoration-blood">DEADROT</a>{" "}
             universe live with AI — a whole IP, many browser games, one bloody canon. Here&apos;s
             everything we learned doing it: the newsletter, Skills Pro, the templates, and the
             tools we built to move this fast.
           </p>
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
               <a href="/pricing">Buy Skills Pro</a>
             </Button>

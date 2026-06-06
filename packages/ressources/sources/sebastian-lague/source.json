@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "slug": "sebastian-lague",
+  "kind": "youtube-channel",
+  "title": "Sebastian Lague",
+  "url": "https://www.youtube.com/@SebastianLague",
+  "priority": "reference",
+  "status": "active",
+  "handle": "@SebastianLague",
+  "channelId": "UCmtyQOKKmrMVaKuRXz02jbQ",
+  "owner": "Sebastian Lague",
+  "topics": [
+    "procedural-generation",
+    "simulation",
+    "math-visualization",
+    "game-prototypes",
+    "systems"
+  ],
+  "rights": {
+    "transcriptPolicy": "user-provided",
+    "storeRawTranscript": true,
+    "notes": "Store raw transcripts only when user-provided, permissioned, or otherwise cleared. Prefer original summaries and implementation notes."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "Useful for procedural generation and readable simulation architecture.",
+    "Translate concepts into Three.js/engine-native tools rather than Unity-specific code."
+  ]
+}

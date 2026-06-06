@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "slug": "ai-and-games",
+  "kind": "youtube-channel",
+  "title": "AI and Games",
+  "url": "https://www.youtube.com/@AIandGames",
+  "priority": "reference",
+  "status": "active",
+  "handle": "@AIandGames",
+  "channelId": "UCov_51F0betb6hJ6Gumxg3Q",
+  "owner": "AI and Games",
+  "topics": [
+    "game-ai",
+    "behavior-trees",
+    "utility-ai",
+    "npc-behavior",
+    "pathfinding",
+    "ai-postmortems"
+  ],
+  "rights": {
+    "transcriptPolicy": "user-provided",
+    "storeRawTranscript": true,
+    "notes": "Store raw transcripts only when user-provided, permissioned, or otherwise cleared. Prefer original design and implementation notes."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "Use for enemy behavior, tactical AI, directors, utility scoring, and postmortem lessons.",
+    "Especially relevant to Scourge/Warden combat behaviors and wave-director design."
+  ]
+}

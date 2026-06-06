@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "slug": "red-blob-games",
+  "kind": "docs",
+  "title": "Red Blob Games",
+  "url": "https://www.redblobgames.com/",
+  "priority": "reference",
+  "status": "active",
+  "owner": "Amit Patel",
+  "topics": [
+    "pathfinding",
+    "grids",
+    "hex-grids",
+    "procedural-generation",
+    "interactive-explainers"
+  ],
+  "rights": {
+    "transcriptPolicy": "permissioned",
+    "storeRawTranscript": false,
+    "notes": "Use links and original distilled notes. Do not copy full essays or interactive page text into the repo."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "High-signal reference for A*, Dijkstra maps, flow fields, grids, hexes, and map generation.",
+    "Use this as the math/source-of-truth layer for pathfinding and tactical map tooling."
+  ]
+}

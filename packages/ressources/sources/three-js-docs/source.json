@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "slug": "three-js-docs",
+  "kind": "docs",
+  "title": "three.js Docs",
+  "url": "https://threejs.org/docs/index.html",
+  "priority": "reference",
+  "status": "active",
+  "owner": "three.js",
+  "topics": [
+    "three-js",
+    "webgl",
+    "3d-games",
+    "gltf",
+    "animation",
+    "materials"
+  ],
+  "rights": {
+    "transcriptPolicy": "permissioned",
+    "storeRawTranscript": false,
+    "notes": "Use as linked documentation and distill original repo-specific notes. Do not mirror docs pages."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "Primary API reference for the shared Three.js engine work.",
+    "Use it when building model import, animation mixers, camera rigs, lighting, materials, and scene lifecycle rules."
+  ]
+}
