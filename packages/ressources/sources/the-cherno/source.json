@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "slug": "the-cherno",
+  "kind": "youtube-channel",
+  "title": "The Cherno",
+  "url": "https://www.youtube.com/@TheCherno",
+  "priority": "reference",
+  "status": "active",
+  "handle": "@TheCherno",
+  "channelId": "UCQ-W1KE9EYfdxhL6S4twUNw",
+  "owner": "The Cherno",
+  "topics": [
+    "game-engine",
+    "architecture",
+    "rendering",
+    "debugging",
+    "tooling",
+    "c-plus-plus"
+  ],
+  "rights": {
+    "transcriptPolicy": "user-provided",
+    "storeRawTranscript": true,
+    "notes": "Store raw transcripts only when user-provided, permissioned, or otherwise cleared. Prefer original architecture notes."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "Useful for engine architecture and debugging mindset, even when code examples are not TypeScript.",
+    "Translate patterns into package boundaries and tools, not direct C++ copies."
+  ]
+}

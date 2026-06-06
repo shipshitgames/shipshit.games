@@ -13,9 +13,12 @@
     }
   },
   "bin": {
-    "ressources": "./src/cli.ts"
+    "ressources": "./src/cli.ts",
+    "research": "./src/cli.ts"
   },
   "scripts": {
+    "rules": "bun src/cli.ts distill",
+    "distill": "bun src/cli.ts distill",
     "list": "bun src/cli.ts sources",
     "validate": "bun src/cli.ts validate",
     "typecheck": "tsc --noEmit",

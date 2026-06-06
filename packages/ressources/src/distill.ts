@@ -1,5 +1,5 @@
-// Turn a raw transcript into a reusable game-build RULESET. Default provider is the
-// local Codex CLI (your subscription, no API key) — same bet as @shipshitgames/assetgen.
+// Turn a raw transcript into a reusable game-build RULESET. Default provider is
+// the local Codex CLI (your subscription, no API key), same bet as assetgen.
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -12,7 +12,7 @@ export interface DistillInput {
   transcript: string;
   title: string;
   url: string;
-  provider: string; // "codex" | "mock"
+  provider: string;
   log?: (m: string) => void;
 }
 
@@ -33,23 +33,23 @@ function rulesPrompt(title: string, url: string, inPath: string, outPath: string
   return [
     `Read the transcript file at ${inPath}.`,
     `It is the auto-caption transcript of the game-dev tutorial video "${title}" (${url}).`,
-    `Distill it into a concise, REUSABLE ruleset for AI-assisted game asset, animation, and level production.`,
-    `Write GitHub-flavored markdown with a top "# " title and these "## " sections, in order:`,
-    SECTIONS.map((s, i) => `${i + 1}. ${s}`).join("; ") + ".",
-    `Under each section give 3-8 imperative, specific rules as bullets (e.g. "Keep animation clips <=1s to avoid drift").`,
-    `Name concrete tools the author uses and, where relevant, note our stack equivalents.`,
-    `Be terse and battle-ready — no preamble, no marketing, no sponsor mentions.`,
+    "Distill it into a concise, reusable ruleset for AI-assisted game asset, animation, and level production.",
+    "Write GitHub-flavored markdown with a top \"# \" title and these \"## \" sections, in order:",
+    `${SECTIONS.map((section, index) => `${index + 1}. ${section}`).join("; ")}.`,
+    "Under each section give 3-8 imperative, specific rules as bullets.",
+    "Name concrete tools the author uses and, where relevant, note our stack equivalents.",
+    "Be terse and practical. No preamble, no marketing, no sponsor mentions.",
     `Write ONLY the markdown to ${outPath}. Do not print it to stdout.`,
   ].join(" ");
 }
 
 async function distillViaCodex(input: DistillInput): Promise<string> {
   const { transcript, title, url, log = () => {} } = input;
-  const dir = await mkdtemp(join(tmpdir(), "research-distill-"));
+  const dir = await mkdtemp(join(tmpdir(), "ressources-distill-"));
   const inPath = join(dir, "transcript.txt");
   const outPath = join(dir, "rules.md");
   await writeFile(inPath, transcript, "utf8");
-  log(`[distill] codex exec — distilling ${transcript.split(/\s+/).length} words…`);
+  log(`[distill] codex exec — distilling ${transcript.split(/\s+/).length} words...`);
   await pexec(
     "codex",
     [
@@ -65,18 +65,17 @@ async function distillViaCodex(input: DistillInput): Promise<string> {
   return readFile(outPath, "utf8");
 }
 
-/** Offline placeholder so the pipeline (and the desktop pane) runs with no model. */
 function distillMock(input: DistillInput): string {
   const { title, url, transcript } = input;
   const words = transcript.split(/\s+/).length;
   return [
-    `# Rules — ${title}`,
-    ``,
+    `# Rules - ${title}`,
+    "",
     `> Source: ${url}`,
     `> Mock distillation (no model). Transcript captured: ${words} words.`,
-    `> Re-run with \`--provider codex\` to generate the real ruleset.`,
-    ``,
-    ...SECTIONS.map((s) => `## ${s}\n\n- _(pending — run with a real provider)_\n`),
+    "> Re-run with `--provider codex` to generate the real ruleset.",
+    "",
+    ...SECTIONS.map((section) => `## ${section}\n\n- _(pending - run with a real provider)_\n`),
   ].join("\n");
 }
 

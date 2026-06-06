@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "slug": "acerola",
+  "kind": "youtube-channel",
+  "title": "Acerola",
+  "url": "https://www.youtube.com/@Acerola_t",
+  "priority": "reference",
+  "status": "active",
+  "handle": "@Acerola_t",
+  "channelId": "UCQG40havu4kNpB4pxUDQhYQ",
+  "owner": "Acerola",
+  "topics": [
+    "graphics-programming",
+    "shaders",
+    "rendering",
+    "post-processing",
+    "visual-effects",
+    "stylization"
+  ],
+  "rights": {
+    "transcriptPolicy": "user-provided",
+    "storeRawTranscript": true,
+    "notes": "Store raw transcripts only when user-provided, permissioned, or otherwise cleared. Prefer original shader and rendering notes."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "Useful source for shader techniques, stylized rendering, and visual effects.",
+    "Translate concepts into Three.js/WebGL-safe rendering rules and examples."
+  ]
+}

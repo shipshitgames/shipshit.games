@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "slug": "playwright-docs",
+  "kind": "docs",
+  "title": "Playwright Docs",
+  "url": "https://playwright.dev/",
+  "priority": "reference",
+  "status": "active",
+  "owner": "Microsoft Playwright",
+  "topics": [
+    "browser-testing",
+    "visual-regression",
+    "screenshots",
+    "e2e",
+    "game-qa",
+    "automation"
+  ],
+  "rights": {
+    "transcriptPolicy": "permissioned",
+    "storeRawTranscript": false,
+    "notes": "Use as linked documentation and distill original game-testing rules. Do not mirror docs pages."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "Reference for giving agents browser eyes: screenshots, traces, input automation, and cross-browser checks.",
+    "Use this to build the playtest harness for canvas/WebGL games."
+  ]
+}

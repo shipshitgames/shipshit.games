@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "slug": "gdc-youtube",
+  "kind": "youtube-channel",
+  "title": "GDC YouTube",
+  "url": "https://www.youtube.com/channel/UC0JB7TSe49lg56u6qH8y_MQ",
+  "priority": "reference",
+  "status": "active",
+  "channelId": "UC0JB7TSe49lg56u6qH8y_MQ",
+  "owner": "Game Developers Conference",
+  "topics": [
+    "game-design",
+    "production",
+    "postmortems",
+    "technical-talks",
+    "industry-process"
+  ],
+  "rights": {
+    "transcriptPolicy": "user-provided",
+    "storeRawTranscript": true,
+    "notes": "Store raw transcripts only when user-provided, permissioned, or otherwise cleared. Prefer original summaries and process notes."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "app",
+    "tool"
+  ],
+  "notes": [
+    "Reference channel for production talks, postmortems, design breakdowns, and studio process.",
+    "Prioritize talks with concrete tooling, debugging, design, and postmortem lessons."
+  ]
+}

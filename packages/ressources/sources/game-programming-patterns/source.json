@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "slug": "game-programming-patterns",
+  "kind": "book",
+  "title": "Game Programming Patterns",
+  "url": "https://gameprogrammingpatterns.com/contents.html",
+  "priority": "reference",
+  "status": "active",
+  "owner": "Robert Nystrom",
+  "topics": [
+    "game-architecture",
+    "game-loop",
+    "state-machines",
+    "components",
+    "performance"
+  ],
+  "rights": {
+    "transcriptPolicy": "permissioned",
+    "storeRawTranscript": false,
+    "notes": "Use as a linked reference and distill original implementation notes. Do not mirror full chapters into the repo."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill",
+    "tool"
+  ],
+  "notes": [
+    "Best baseline reference for game loops, state, components, event queues, object pools, and spatial partitioning.",
+    "Use it to keep generated game code from turning into framework-shaped spaghetti."
+  ]
+}

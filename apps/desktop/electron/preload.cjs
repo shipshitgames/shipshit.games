@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld("studio", {
     ipcRenderer.on("studio:gen-log", h);
     return () => ipcRenderer.removeListener("studio:gen-log", h);
   },
-  // Research → rules (runs @shipshitgames/research in the main process).
+  // Research → rules (runs @shipshitgames/ressources in the main process).
   research: (opts) => ipcRenderer.invoke("studio:research", opts),
   onResearchLog: (cb) => {
     const h = (_e, chunk) => cb(chunk);

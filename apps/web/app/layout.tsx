@@ -21,6 +21,10 @@ export const metadata: Metadata = {
     siteName: "Ship Shit Games",
     type: "website",
   },
+  icons: {
+    icon: [{ url: "/icon.png", sizes: "420x420", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png", sizes: "420x420", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
