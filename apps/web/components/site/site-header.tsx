@@ -9,9 +9,9 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { label: "Problem", href: "/#problem" },
   { label: "Solution", href: "/#solution" },
+  { label: "Deadrot", href: "/#deadrot" },
   { label: "Products", href: "/#products" },
   { label: "Skills", href: "/#skills" },
-  { label: "Newsletter", href: "/#newsletter" },
   { label: "Docs", href: "https://docs.shipshit.games" },
   { label: "Play", href: "https://deadrot.com" },
 ];
@@ -39,18 +39,15 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link
           href="/"
-          className="flex items-center gap-3 font-display text-lg font-bold uppercase text-bone"
+          className="flex items-center"
           aria-label="Ship Shit Games home"
         >
           <img
             src="/brand/avatar.png"
             alt=""
             aria-hidden="true"
-            className="h-9 w-9 border border-gunmetal bg-void object-cover"
+            className="h-10 w-10 object-cover"
           />
-          <span className="hidden sm:inline">
-            Ship <span className="text-blood">Shit</span> Games
-          </span>
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">

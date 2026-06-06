@@ -33,10 +33,11 @@ export function Backdrop({ className }: { className?: string }) {
 
 type Ember = {
   alpha: number;
+  heat: number;
   life: number;
   maxLife: number;
   radius: number;
-  tint: "blood" | "hellfire" | "bone";
+  tint: "blood" | "coal" | "hellfire" | "whiteHot";
   vx: number;
   vy: number;
   x: number;
@@ -45,28 +46,49 @@ type Ember = {
 
 const COLORS = {
   blood: [193, 18, 31],
+  coal: [92, 18, 11],
   hellfire: [255, 106, 0],
-  bone: [233, 227, 214],
+  whiteHot: [255, 188, 96],
 } as const;
 
-const makeEmber = (width: number, height: number): Ember => {
-  const fromBottom = Math.random() > 0.08;
+type EmberIntensity = "hero" | "firefront";
+
+const makeEmber = (width: number, height: number, intensity: EmberIntensity): Ember => {
+  const strong = intensity === "firefront";
+  const fromBottom = Math.random() > (strong ? 0.04 : 0.12);
   const tintRoll = Math.random();
+  const heat = strong ? 0.7 + Math.random() * 0.55 : 0.45 + Math.random() * 0.4;
 
   return {
     alpha: 0,
+    heat,
     life: 0,
-    maxLife: 220 + Math.random() * 280,
-    radius: 0.6 + Math.random() * 1.6,
-    tint: tintRoll > 0.94 ? "bone" : tintRoll > 0.38 ? "hellfire" : "blood",
-    vx: (Math.random() - 0.5) * 0.24,
-    vy: fromBottom ? -0.14 - Math.random() * 0.46 : -0.03 - Math.random() * 0.14,
+    maxLife: (strong ? 150 : 210) + Math.random() * (strong ? 190 : 260),
+    radius: (strong ? 0.95 : 0.65) + Math.random() * (strong ? 2.6 : 1.7),
+    tint:
+      tintRoll > 0.96
+        ? "whiteHot"
+        : tintRoll > 0.58
+          ? "hellfire"
+          : tintRoll > 0.18
+            ? "blood"
+            : "coal",
+    vx: (Math.random() - 0.5) * (strong ? 0.52 : 0.3),
+    vy: fromBottom
+      ? -0.32 - Math.random() * (strong ? 1.05 : 0.62)
+      : -0.08 - Math.random() * 0.2,
     x: Math.random() * width,
-    y: fromBottom ? height * (0.68 + Math.random() * 0.34) : Math.random() * height * 0.72,
+    y: fromBottom ? height * (0.74 + Math.random() * 0.3) : Math.random() * height * 0.8,
   };
 };
 
-export function EmberParticles({ className }: { className?: string }) {
+export function EmberParticles({
+  className,
+  intensity = "hero",
+}: {
+  className?: string;
+  intensity?: EmberIntensity;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -92,9 +114,11 @@ export function EmberParticles({ className }: { className?: string }) {
       canvas.height = Math.floor(height * dpr);
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const density = width < 640 ? 20 : 38;
-      const count = Math.min(64, Math.max(18, Math.round((width * height) / 26000)));
-      embers = Array.from({ length: Math.min(density, count) }, () => makeEmber(width, height));
+      const strong = intensity === "firefront";
+      const density = width < 640 ? (strong ? 58 : 34) : strong ? 110 : 64;
+      const areaFactor = strong ? 9000 : 17000;
+      const count = Math.min(density, Math.max(strong ? 42 : 26, Math.round((width * height) / areaFactor)));
+      embers = Array.from({ length: count }, () => makeEmber(width, height, intensity));
     };
 
     const drawEmber = (ember: Ember, reducedMotion: boolean) => {
@@ -102,45 +126,56 @@ export function EmberParticles({ className }: { className?: string }) {
       const progress = ember.life / ember.maxLife;
       const fadeIn = Math.min(1, progress * 6);
       const fadeOut = Math.max(0, 1 - progress);
-      const alpha = ember.alpha || fadeIn * fadeOut * 0.48;
+      const alpha = ember.alpha || fadeIn * fadeOut * 0.58 * ember.heat;
       const radius = reducedMotion ? ember.radius * 0.86 : ember.radius;
+      const tail = Math.max(8, radius * 12 + Math.abs(ember.vy) * 26);
 
-      const glow = context.createRadialGradient(ember.x, ember.y, 0, ember.x, ember.y, radius * 6);
+      const glow = context.createRadialGradient(ember.x, ember.y, 0, ember.x, ember.y, radius * 8);
       glow.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
-      glow.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, ${alpha * 0.22})`);
+      glow.addColorStop(0.32, `rgba(${r}, ${g}, ${b}, ${alpha * 0.26})`);
       glow.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
 
       context.fillStyle = glow;
       context.beginPath();
-      context.arc(ember.x, ember.y, radius * 6, 0, Math.PI * 2);
+      context.arc(ember.x, ember.y, radius * 8, 0, Math.PI * 2);
       context.fill();
 
-      context.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(0.82, alpha * 1.1)})`;
+      context.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.42})`;
+      context.lineWidth = Math.max(0.8, radius * 0.5);
+      context.beginPath();
+      context.moveTo(ember.x, ember.y);
+      context.lineTo(ember.x - ember.vx * 28, ember.y + tail);
+      context.stroke();
+
+      context.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(0.9, alpha * 1.22)})`;
       context.beginPath();
       context.arc(ember.x, ember.y, radius, 0, Math.PI * 2);
       context.fill();
 
-      if (!reducedMotion && ember.radius > 1.7) {
-        context.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.24})`;
-        context.lineWidth = 1;
-        context.beginPath();
-        context.moveTo(ember.x, ember.y);
-        context.lineTo(ember.x - ember.vx * 18, ember.y - ember.vy * 18);
-        context.stroke();
-      }
+    };
+
+    const drawFireWash = () => {
+      const strong = intensity === "firefront";
+      const wash = context.createLinearGradient(0, height * 0.62, 0, height);
+      wash.addColorStop(0, "rgba(255, 106, 0, 0)");
+      wash.addColorStop(0.58, strong ? "rgba(193, 18, 31, 0.12)" : "rgba(193, 18, 31, 0.045)");
+      wash.addColorStop(1, strong ? "rgba(255, 106, 0, 0.24)" : "rgba(255, 106, 0, 0.09)");
+      context.fillStyle = wash;
+      context.fillRect(0, 0, width, height);
     };
 
     const draw = () => {
       const reducedMotion = mediaQuery.matches;
       context.clearRect(0, 0, width, height);
       context.globalCompositeOperation = "lighter";
+      drawFireWash();
 
       for (const ember of embers) {
         drawEmber(ember, reducedMotion);
 
         if (!reducedMotion) {
           ember.life += 1;
-          ember.x += ember.vx + Math.sin(ember.life * 0.014) * 0.07;
+          ember.x += ember.vx + Math.sin(ember.life * 0.026 + ember.heat * 8) * 0.13;
           ember.y += ember.vy;
           ember.alpha = 0;
 
@@ -150,10 +185,10 @@ export function EmberParticles({ className }: { className?: string }) {
             ember.x > width + 40 ||
             ember.y < -24
           ) {
-            Object.assign(ember, makeEmber(width, height));
+            Object.assign(ember, makeEmber(width, height, intensity));
           }
         } else {
-          ember.alpha = 0.1;
+          ember.alpha = intensity === "firefront" ? 0.18 : 0.1;
         }
       }
 
@@ -169,7 +204,7 @@ export function EmberParticles({ className }: { className?: string }) {
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", resize);
     };
-  }, []);
+  }, [intensity]);
 
   return (
     <canvas
