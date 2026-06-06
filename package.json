@@ -2,6 +2,9 @@
   "name": "shipshitgames",
   "version": "0.0.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "packageManager": "bun@1.3.14",
   "workspaces": [
     "apps/*",
