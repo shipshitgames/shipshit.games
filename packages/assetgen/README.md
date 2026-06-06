@@ -20,15 +20,18 @@ target a different asset package.
 ```bash
 # Real generation (bring your own key):
 OPENAI_API_KEY=sk-... bun packages/assetgen/src/cli.ts \
-  --id swarm-husk --game scourge-survivors --kind sprite \
+  generate --id swarm-husk --game scourge-survivors --kind sprite \
   --prompt "a rotting bio-husk of the Scourge, lunging" \
   --repo ../deadrotcom/apps/games/scourge-survivors
 
+# Back-compat default: omitting `generate` still runs single-asset generation.
+bun packages/assetgen/src/cli.ts --provider mock --dry-run --id test --prompt "x"
+
 # Or use your authed Codex CLI as the generator:
-bun packages/assetgen/src/cli.ts --provider codex --id ... --prompt "..." --repo ...
+bun packages/assetgen/src/cli.ts generate --provider codex --id ... --prompt "..." --repo ...
 
 # Pipeline dry-run (no key, placeholder image):
-bun packages/assetgen/src/cli.ts --provider mock --dry-run --id test --prompt "x"
+bun packages/assetgen/src/cli.ts generate --provider mock --dry-run --id test --prompt "x"
 ```
 
 ## The variant matrix (issue #6)

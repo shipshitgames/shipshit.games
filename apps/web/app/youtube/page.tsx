@@ -39,6 +39,22 @@ export const metadata: Metadata = {
     description:
       "Latest Opus 4.8 game-building videos and livestreams from Ship Shit Games.",
     url: "https://shipshit.games/youtube",
+    images: [
+      {
+        url: "/images/og/ship-shit-show.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Ship Shit Show",
+        type: "image/jpeg",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ship Shit Show",
+    description:
+      "Latest game-building videos and livestreams from Ship Shit Games.",
+    images: ["/images/og/ship-shit-show.jpg"],
   },
 };
 

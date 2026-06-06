@@ -20,6 +20,21 @@ export const metadata: Metadata = {
     url: "https://shipshit.games",
     siteName: "Ship Shit Games",
     type: "website",
+    images: [
+      {
+        url: "/images/og/shipshit-games.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Ship Shit Games",
+        type: "image/jpeg",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ship Shit Games",
+    description: "Building games with AI, in public.",
+    images: ["/images/og/shipshit-games.jpg"],
   },
   icons: {
     icon: [{ url: "/icon.png", sizes: "420x420", type: "image/png" }],
