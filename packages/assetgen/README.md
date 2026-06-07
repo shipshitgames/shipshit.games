@@ -53,6 +53,10 @@ generates, writes the render into the assets package at
 # Whole matrix, placeholder fills (no keys) — proves the pipeline + populates paths:
 bun packages/assetgen/src/cli.ts matrix --provider mock
 
+# Bootstrap the external @shipshitgames/assets package if the Deadrot sibling
+# checkout does not have its catalog yet:
+bun packages/assetgen/src/cli.ts matrix --init-catalog --provider mock --id scourge-swarm
+
 # Real art (codex rides your subscription; no key wiring):
 bun packages/assetgen/src/cli.ts matrix --provider codex
 
@@ -67,7 +71,7 @@ bun packages/assetgen/src/cli.ts matrix --provider mock --sync-games
 
 Flags: `--provider` (default `mock` — safe to batch), `--game`, `--id`,
 `--only-missing` (skip cells already rendered on disk), `--size`, `--dry-run`
-(force mock), `--sync-games`, `--assets-dir`.
+(force mock), `--sync-games`, `--assets-dir`, `--init-catalog`.
 
 ## Providers
 - `codex` — delegates to the local authed `codex` CLI via node-pty (no key wiring needed)

@@ -12,52 +12,13 @@
 import { existsSync } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { CATALOG_FILE, normalizeCatalog } from "./assets-package.ts";
+import type { AssetCatalog, EntityAsset, GameSlug } from "./assets-package.ts";
 import { buildPrompt } from "./style.ts";
 import { generateAsset } from "./providers.ts";
 import { toWebp } from "./postprocess.ts";
 import { register } from "./manifest.ts";
 import { appendUsageLog } from "./usage.ts";
-
-const CATALOG_FILE = "assets-catalog.json";
-
-export type GameSlug =
-  | "scourge-survivors"
-  | "deadlane"
-  | "pactfall"
-  | "starblight"
-  | "redline"
-  | "rothulk";
-
-type Faction = "scourge" | "pyre" | "wardens" | "neutral";
-type HostFamily =
-  | "rot-flesh"
-  | "chitin"
-  | "mycelial"
-  | "machine-graft"
-  | "bone-titan"
-  | "voidship";
-
-type AssetVariants = Record<GameSlug, string | null>;
-
-export interface EntityAsset {
-  id: string;
-  kind: "entity" | "boss";
-  name: string;
-  faction: Faction;
-  hostFamily: HostFamily | null;
-  canon: string;
-  promptBase: string;
-  games: GameSlug[];
-  variants: AssetVariants;
-}
-
-export interface AssetCatalog {
-  $schema?: string;
-  version: string;
-  note?: string;
-  entities: EntityAsset[];
-  shared: unknown[];
-}
 
 export interface MatrixOptions {
   /** Path to the `@shipshitgames/assets` package (holds the catalog + renders). */
@@ -102,7 +63,7 @@ export function catalogPath(assetsDir: string): string {
 }
 
 export async function loadCatalog(assetsDir: string): Promise<AssetCatalog> {
-  return JSON.parse(await readFile(catalogPath(assetsDir), "utf8")) as AssetCatalog;
+  return normalizeCatalog(JSON.parse(await readFile(catalogPath(assetsDir), "utf8")) as AssetCatalog);
 }
 
 /** The relative render path for one entity's per-game variant. */
