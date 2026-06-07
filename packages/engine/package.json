@@ -14,6 +14,7 @@
     }
   },
   "files": [
+    "ENGINE-EXTRACTION-BOUNDARY.md",
     "src"
   ],
   "sideEffects": false,
@@ -22,6 +23,7 @@
   },
   "scripts": {
     "lint": "tsc --noEmit",
+    "test": "bun test ENGINE-EXTRACTION-BOUNDARY.test.ts",
     "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },

@@ -20,6 +20,11 @@ Use it for gameplay primitives that should not be rewritten in every game:
 Gameplay is imperative and Three.js-centered. React is for shells, menus, HUD,
 and overlays.
 
+The engine extraction boundary is tracked in
+`packages/engine/ENGINE-EXTRACTION-BOUNDARY.md`. That spec separates reusable
+engine core from game-owned Scourge Survivors content before runtime systems move
+into the package.
+
 ## Import examples
 
 ```ts
