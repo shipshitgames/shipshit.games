@@ -24,8 +24,8 @@ export default function PricingSuccessPage() {
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ash">
             Stripe recorded the subscription. Finish claiming access in the
-            app portal so Skills Pro, Skool, and member assets stay tied to
-            your account.
+            app portal so Skills Pro and member assets stay tied to your
+            account.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
             <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">

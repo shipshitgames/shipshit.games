@@ -62,15 +62,15 @@ export default async function AccessPage() {
               Skool community
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-ash">
-              Skool invites are triggered by the fulfillment webhook after
-              payment, and members can retrigger the invite while their pass is active.
+              P3 deferred. The webhook route is stubbed for later, but buyers
+              will not be promised or sent Skool access in the first release.
             </p>
             <form action="/api/fulfillment/skool" method="post" className="mt-6">
               <button
-                disabled={!active}
+                disabled
                 className="rounded-md border border-gunmetal px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:pointer-events-none disabled:opacity-50"
               >
-                Send Skool invite
+                P3 deferred
               </button>
             </form>
           </div>

@@ -33,9 +33,9 @@ export default async function DashboardPage() {
               {STUDIO_PASS.name}
             </h2>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ash">
-              This account is the control plane for Skills Pro, Skool access,
-              member-only assets, and billing. Stripe webhooks update this
-              entitlement automatically.
+              This account is the control plane for Skills Pro, member-only
+              assets, and billing. Stripe webhooks update this entitlement
+              automatically. Skool automation is tracked as P3 deferred.
             </p>
             <dl className="mt-6 grid gap-4 sm:grid-cols-3">
               <div>
@@ -75,7 +75,7 @@ export default async function DashboardPage() {
               Fulfillment
             </h2>
             <ul className="mt-4 space-y-3 text-sm leading-relaxed text-ash">
-              <li>Skool invite: {pass?.skoolInviteSentAt ? "sent" : "pending/configured webhook"}</li>
+              <li>Skool invite: P3 deferred</li>
               <li>Access email: {pass?.accessEmailSentAt ? "sent" : "pending/configured sender"}</li>
               <li>Signed Skills link: generated on demand</li>
             </ul>
@@ -87,7 +87,7 @@ export default async function DashboardPage() {
             href="/access"
             icon={KeyRound}
             title="Access"
-            body="Generate a short-lived signed Skills Pro link and trigger Skool fulfillment."
+            body="Generate a short-lived signed Skills Pro link and view deferred community access."
             cta="Open access"
           />
           <ActionCard

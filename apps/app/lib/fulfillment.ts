@@ -59,6 +59,8 @@ async function postJson(url: string, body: unknown, token?: string) {
 }
 
 export async function sendSkoolInvite(input: FulfillmentInput) {
+  if (process.env.SKOOL_FULFILLMENT_ENABLED !== "true") return false;
+
   const webhookUrl = process.env.SKOOL_INVITE_WEBHOOK_URL;
   if (!webhookUrl) return false;
 
