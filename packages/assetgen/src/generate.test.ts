@@ -9,6 +9,7 @@ import { runGenerate } from "./commands/generate";
 
 test("generate --provider mock writes a webp and upserts assets.json", async () => {
   const repo = await mkdtemp(join(tmpdir(), "assetgen-generate-test-"));
+  const usageLog = join(repo, "usage.jsonl");
 
   await runGenerate([
     "--provider",
@@ -26,6 +27,8 @@ test("generate --provider mock writes a webp and upserts assets.json", async () 
     "128",
     "--repo",
     repo,
+    "--usage-log",
+    usageLog,
   ]);
 
   const assetPath = join(repo, "src/assets/sprites/swarm-husk.webp");
@@ -43,4 +46,13 @@ test("generate --provider mock writes a webp and upserts assets.json", async () 
       provider: "mock",
     },
   ]);
+
+  const usage = JSON.parse(await readFile(usageLog, "utf8"));
+  assert.equal(usage.command, "generate");
+  assert.equal(usage.provider, "mock");
+  assert.equal(usage.kind, "sprite");
+  assert.equal(usage.id, "swarm-husk");
+  assert.equal(usage.success, true);
+  assert.equal(typeof usage.promptHash, "string");
+  assert.equal(usage.prompt, undefined);
 });

@@ -22,6 +22,7 @@ export async function runMatrixCommand(argv: string[]): Promise<void> {
     dryRun: has(argv, "dry-run"),
     syncGames: has(argv, "sync-games"),
     gamesRoot: flag(argv, "games-root") || defaultGamesRoot(),
+    usageLogPath: flag(argv, "usage-log"),
     log: (m) => console.log(m),
   });
   console.log(`[matrix] done: ${res.generated} generated, ${res.skipped} skipped of ${res.jobs} cell(s)`);
