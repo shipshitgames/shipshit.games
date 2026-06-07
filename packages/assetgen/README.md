@@ -34,11 +34,24 @@ bun packages/assetgen/src/cli.ts generate --provider codex --id ... --prompt "..
 
 # Pipeline dry-run (no key, placeholder image):
 bun packages/assetgen/src/cli.ts generate --provider mock --dry-run --id test --prompt "x"
+
+# Multi-view or animation sprite sheets:
+bun packages/assetgen/src/cli.ts generate --provider mock --dry-run \
+  --id swarm-husk-run --game scourge-survivors --kind sprite \
+  --prompt "a parasite-taken Scourge host sprint cycle" \
+  --views front,side,back --frames 4 --fps 12 --scale 1.5 \
+  --license "internal prototype; review before shipping"
 ```
 
 Omitting `--provider` uses the per-kind default: sprites/maps use `codex`,
 textures/icons use `openai`, audio kinds use `suno`, and model/3D assets use
 `replicate`. Pass `--provider` to override a single run.
+
+Sprite generation post-processes the provider image into a power-of-two
+transparent `.webp`, pads uneven view/frame counts into stable sheet cells,
+auto-fills `dimensions`, `frameSize`, `frames`, `fps`, `anchor`, `scale`,
+`views`, `sheet`, and `license` fields in `assets.json`, and writes a
+`previews/<id>-billboard.html` file for the desktop billboard preview.
 
 ## The variant matrix (issue #6)
 

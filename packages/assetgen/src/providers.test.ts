@@ -5,6 +5,7 @@ import { defaultProviderForKind, generateAsset, resolveProvider } from "./provid
 
 test("provider defaults are selected by asset kind", () => {
   assert.equal(defaultProviderForKind("sprite"), "codex");
+  assert.equal(defaultProviderForKind("sprite-anim"), "codex");
   assert.equal(defaultProviderForKind("music"), "suno");
   assert.equal(defaultProviderForKind("model"), "replicate");
   assert.equal(defaultProviderForKind("unknown-kind"), "codex");

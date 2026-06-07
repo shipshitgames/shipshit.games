@@ -8,6 +8,29 @@ export interface AssetEntry {
   path: string; // relative to the assets root
   prompt?: string;
   provider?: string;
+  model?: string;
+  dimensions?: [number, number];
+  frameSize?: [number, number];
+  frames?: number;
+  fps?: number;
+  anchor?: [number, number];
+  scale?: number;
+  views?: string[];
+  sheet?: {
+    columns: number;
+    rows: number;
+    usedColumns: number;
+    usedRows: number;
+  };
+  license?: {
+    type: string;
+    provider?: string;
+    model?: string;
+    generatedAt?: string;
+    terms?: string;
+    url?: string;
+  };
+  preview?: string;
 }
 
 /** Upsert an asset entry into a game's assets.json (single source of truth). */

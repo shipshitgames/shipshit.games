@@ -166,6 +166,13 @@ ipcMain.handle("studio:generate", async (e, opts) => {
   const provider = providerForKind(settings, kind, opts?.provider);
   const repo = gameDir(game);
   const args = [ASSETGEN, "--provider", provider, "--game", game, "--kind", kind, "--id", opts?.id || "asset", "--prompt", opts?.prompt || "", "--repo", repo];
+  if (opts?.views) args.push("--views", String(opts.views));
+  if (opts?.frames) args.push("--frames", String(opts.frames));
+  if (opts?.fps) args.push("--fps", String(opts.fps));
+  if (opts?.anchor) args.push("--anchor", String(opts.anchor));
+  if (opts?.scale) args.push("--scale", String(opts.scale));
+  if (opts?.license) args.push("--license", String(opts.license));
+  if (opts?.licenseUrl) args.push("--license-url", String(opts.licenseUrl));
   const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:gen-log", chunk); };
   send(`$ assetgen --provider ${provider} --game ${game} --kind ${kind} --id ${opts?.id}\n`);
   send(`[repo] ${repo}\n`);
@@ -182,10 +189,12 @@ ipcMain.handle("studio:generate", async (e, opts) => {
     child.on("close", async (code) => {
       clearTimeout(killer);
       const m = buf.match(/\[wrote\] (.+?\.webp)/);
-      let dataUrl = null, outPath = null;
+      const p = buf.match(/\[preview\] (.+?\.html)/);
+      let dataUrl = null, outPath = null, previewPath = null;
       if (m) { outPath = m[1].trim(); try { dataUrl = `data:image/webp;base64,${(await fs.promises.readFile(outPath)).toString("base64")}`; } catch {} }
+      if (p) previewPath = p[1].trim();
       send(`\n[exit ${code}]\n`);
-      resolve({ ok: code === 0 && !!m, log: buf, path: outPath, dataUrl });
+      resolve({ ok: code === 0 && !!m, log: buf, path: outPath, dataUrl, previewPath });
     });
   });
 });

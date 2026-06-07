@@ -135,6 +135,22 @@ body {
   width: 100%; max-width: 420px; aspect-ratio: 1; object-fit: contain; border: 1px solid var(--line);
   border-radius: 2px; background: repeating-conic-gradient(#15151a 0% 25%, #0c0c0e 0% 50%) 50% / 22px 22px;
 }
+.billboard-stage {
+  position: relative; width: 100%; max-width: 520px; aspect-ratio: 16 / 10; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 2px; background: linear-gradient(#101014 0 48%, #08080a 48%);
+}
+.billboard-floor {
+  position: absolute; inset: 48% -12% -18%; transform: perspective(520px) rotateX(62deg);
+  transform-origin: top; opacity: 0.5;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 46px 46px;
+}
+.gen-preview .billboard-sprite {
+  position: absolute; left: 50%; bottom: 16%; transform: translateX(-50%);
+  width: min(46%, 260px); height: 62%; object-fit: contain; border: 0; background: transparent;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  filter: drop-shadow(0 0 20px var(--blood-glow));
+}
 .gen-preview-empty {
   display: flex; align-items: center; justify-content: center; width: 100%; max-width: 420px; aspect-ratio: 1;
   border: 1px dashed var(--line-bright); border-radius: 2px; color: var(--text-faint);
