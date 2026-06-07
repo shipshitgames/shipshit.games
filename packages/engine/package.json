@@ -21,6 +21,7 @@
     "access": "public"
   },
   "scripts": {
+    "build": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
