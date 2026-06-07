@@ -1,7 +1,7 @@
 # @shipshitgames/assetgen
 
 DOOM-grade asset generation for Ship Shit Games. One pipeline:
-**prompt + `DESIGN.md` DOOM-suffix → provider → trim/optimize `.webp` → `assets.json`.**
+**prompt + `lore/DESIGN.md` DOOM-suffix → provider → trim/optimize `.webp` → `assets.json`.**
 
 This is the engine behind the studio generator surfaces. It runs from the CLI
 today; the desktop/app surfaces can wrap the same core later.

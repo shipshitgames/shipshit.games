@@ -1,6 +1,6 @@
 // pixelize — turn a raw AI "pixel-flavored" image into a clean, game-ready pixel
 // sprite on a TRUE grid. The AI only approximates pixels; THIS enforces the grid +
-// the fixed DOOM palette (see DESIGN.md assetgen.gradeParams). One shared engine:
+// the fixed DOOM palette (see lore/DESIGN.md assetgen.gradeParams). One shared engine:
 // the `assetgen pixelize` CLI and the apps/desktop Sprites pane both call this.
 //
 // Pipeline: near-black cutout -> trim -> box-downscale to target height ->
