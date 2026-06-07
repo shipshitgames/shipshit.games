@@ -13,8 +13,9 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "lint": "bun run check:design && turbo run lint",
     "typecheck": "turbo run typecheck",
+    "check:design": "bun packages/assetgen/src/cli.ts check-design",
     "release": "bun scripts/release.mjs",
     "release:run": "bun scripts/release.mjs --execute",
     "deps:update": "bunx npm-check-updates -u --deep --cooldown 3h --removeRange && bun install"

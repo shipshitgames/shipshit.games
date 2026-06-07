@@ -70,6 +70,7 @@ function printGenerateUsage(): void {
       "  assetgen matrix [--game <slug>] [--id <entity>] [--provider mock|openai|fal|codex]\n" +
       "           [--size 1024] [--only-missing] [--dry-run] [--sync-games] [--assets-dir <path>]\n" +
       "  assetgen tokens [--check] [--design <path>] [--assets-dir <path>]\n" +
+      "  assetgen check-design [--root <repo>]\n" +
       "  assetgen pixelize --in <raw.png> --out <sprite.webp> [--height 110] [--bg 42]\n" +
       `\n  games: ${views}\n` +
       "  Default game repo lookup prefers ./games/<game> or ../games/<game>.",
