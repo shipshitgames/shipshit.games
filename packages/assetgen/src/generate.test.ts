@@ -36,16 +36,22 @@ test("generate --provider mock writes a webp and upserts assets.json", async () 
   assert.equal(existsSync(assetPath), true);
 
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  assert.deepEqual(manifest.assets, [
-    {
-      id: "swarm-husk",
+  assert.equal(manifest.assets.length, 1);
+  assert.deepEqual(manifest.assets[0], {
+    id: "swarm-husk",
+    kind: "sprite",
+    game: "scourge-survivors",
+    path: "sprites/swarm-husk.webp",
+    prompt: "a parasite-taken Scourge host",
+    provider: "mock",
+    license: {
+      tool: "mock",
+      plan: "mock",
+      date: manifest.assets[0].license.date,
       kind: "sprite",
-      game: "scourge-survivors",
-      path: "sprites/swarm-husk.webp",
-      prompt: "a parasite-taken Scourge host",
-      provider: "mock",
     },
-  ]);
+  });
+  assert.match(manifest.assets[0].license.date, /^\d{4}-\d{2}-\d{2}$/);
 
   const usage = JSON.parse(await readFile(usageLog, "utf8"));
   assert.equal(usage.command, "generate");

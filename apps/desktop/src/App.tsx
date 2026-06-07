@@ -340,7 +340,7 @@ function MusicPane() {
         <button className="gen-btn" disabled={busy || !files.length} onClick={transcode}>
           {busy ? "Transcoding…" : "Transcode → WebM/Opus"}
         </button>
-        <p className="gen-note">ffmpeg → opus into the game's audio folder · strips cover art · then register each in assets.json with a license record. Generate new SFX with ElevenLabs SFX / OptimizerAI; music with Soundraw / Beatoven (avoid Udio/Suno for shipped in-game loops).</p>
+        <p className="gen-note">ffmpeg → opus into the game's audio folder · strips cover art · registers each output in assets.json with a license record. Generate new SFX with ElevenLabs SFX / OptimizerAI; music with Soundraw / Beatoven (avoid Udio/Suno for shipped in-game loops).</p>
       </div>
       <div className="gen-preview">
         {result?.outputs?.length
