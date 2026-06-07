@@ -45,7 +45,6 @@ export const GAME_FRAMING: Record<string, string> = {
   "starblight": "side-on / top-down arcade space-shooter sprite, crisp readable silhouette",
   "redline": "side-on Sonic-like runner sprite, profile silhouette readable at courier-lane speed",
   "rothulk": "side-on Mario-like platformer sprite, profile silhouette, clear readable pose",
-  "warline": "map-first strategy icon, faction marker, readable at small scale",
   "shared": "game asset"
 };
 

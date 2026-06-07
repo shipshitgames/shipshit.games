@@ -160,9 +160,6 @@ gameArtDirection:
   rothulk:
     camera: "side-on platformer sprites"
     read: "chunky poses, traversal hazards, and Scourge bio-ship silhouettes"
-  warline:
-    camera: "map-first SVG/strategy interface with compact faction icons"
-    read: "regions, lanes, breaches, pressure, and faction control visible at a glance"
 ---
 
 ## Overview

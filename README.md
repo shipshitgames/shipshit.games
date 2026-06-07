@@ -22,12 +22,10 @@ packages now live in
 - `apps/web` - live Next 16 studio site for Skills Pro, DEADROT proof, the asset
   pipeline, pricing, and public calls to action.
 - `apps/docs` - Nextra docs for studio tools, asset generation, research,
-  Warline, shared packages, canon rules, and deployment notes.
+  shared packages, canon rules, and deployment notes.
 - `apps/cli` - `shipshitgames` / `ssg` command-line entrypoint.
 - `apps/desktop` - Electron + Vite + React studio cockpit for maps, sprites, 3D,
   music/SFX, local Codex CLI flows, and provider integrations.
-- `apps/warline` - Vite/React War for the Lanes strategy hub over the shared
-  `@shipshitgames/warline` model and optional PartyKit Durable Object.
 
 ## Packages
 
@@ -41,8 +39,6 @@ packages now live in
   types.
 - `packages/ui` / `@shipshitgames/ui` - shared React UI primitives, Tailwind
   styles, and game-flavored component shells.
-- `packages/warline` / `@shipshitgames/warline` - pure world-state model,
-  reducers, game operation contract, and client SDK for Warline.
 
 ## Repo Map
 
@@ -52,14 +48,12 @@ apps/
   docs/      # docs.shipshit.games
   cli/       # shipshitgames / ssg binary
   desktop/   # Electron studio
-  warline/   # persistent strategy hub
 packages/
   assetgen/
   engine/
   ressources/
   shared/
   ui/
-  warline/
 scripts/
 ```
 
@@ -78,14 +72,14 @@ Common focused commands:
 bun --filter web dev
 bun --filter docs dev
 bun --filter @shipshitgames/desktop dev
-bun --filter warline dev:all
-bun --filter @shipshitgames/warline test
 ```
 
 ## Operating Notes
 
 - Default branch: `master`.
 - Runtime DEADROT games ship from `../deadrotcom/apps/games/<slug>`.
+- Warline ships from `../deadrotcom/apps/games/warline` with its runtime package
+  in `../deadrotcom/packages/warline`.
 - Generated game assets belong in `../deadrotcom/packages/assets`.
 - Studio learning material and distilled rules belong in `packages/ressources`.
 - Release automation starts at `bun run release`; use `bun run release:run` to
