@@ -1,101 +1,126 @@
-// `assetgen tokens` — compile lore/DESIGN.md into generated, banner-stamped
-// artifacts. The DESIGN.md `assetgen:` block + palette are the SINGLE source of
-// truth; this emits:
-//   - packages/assetgen/src/style.generated.ts  (asset-gen: suffix, framing,
-//     negatives, grade, provider settings, buildPrompt — consumed by style.ts)
-//   - deadrotcom/packages/assets/tokens/tokens.ts (COLORS 0xRRGGBB + FONTS, Three.js)
-//   - deadrotcom/packages/assets/tokens/theme.css (Tailwind v4 @theme)
-//   - deadrotcom/packages/assets/tokens/tokens.css (:root vars)
-// `--check` regenerates in memory and diffs the committed files (drift gate).
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+// `assetgen tokens` compiles DESIGN.md frontmatter into generated,
+// banner-stamped artifacts. The design frontmatter is the single source of
+// truth for studio colors, fonts, Tailwind theme values, imperative TS tokens,
+// and the asset-generation style bridge consumed by style.ts.
 import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url)); // packages/assetgen/src
-const ROOT = join(here, "..", "..", ".."); // monorepo root (shipshitgames/)
+const ROOT = join(here, "..", "..", ".."); // monorepo root
+const GENERATED_SOURCE_LABEL = "lore/DESIGN.md";
 
-/** Resolve the CANONICAL DESIGN.md — the lore one, never the stale monorepo copy. */
-export function resolveDesignPath(override?: string): string {
-  const candidates = [
-    override,
-    join(ROOT, ".agents/lore/DESIGN.md"), // submodule (preferred once wired)
-    join(ROOT, "..", "lore", "DESIGN.md"), // sibling repo (current workspace layout)
-  ].filter(Boolean) as string[];
-  for (const c of candidates) if (existsSync(c)) return c;
-  throw new Error(`DESIGN.md not found (tried: ${candidates.join(", ")}). Pass --design <path>.`);
+type JsonObject = Record<string, unknown>;
+
+interface AssetgenConfig {
+  styleSuffix: string;
+  paletteLine: string;
+  negativePrompts: string[];
+  perGameFraming: Record<string, string>;
+  kindMap: Record<string, string>;
+  scourgeRule: {
+    trigger: string;
+    flags: string;
+    clause: string;
+  };
+  gradeParams: JsonObject;
+  referenceImages: Record<string, string>;
+  providers: JsonObject;
 }
-
-function frontmatter(text: string): any {
-  const m = text.match(/^---\n([\s\S]*?)\n---/);
-  if (!m) throw new Error("DESIGN.md has no YAML frontmatter");
-  return (Bun as any).YAML.parse(m[1]);
-}
-
-/** Resolve {tokens.X} / {colors.X} placeholders against the palette, recursively. */
-function deepResolve(v: any, colors: Record<string, string>): any {
-  if (typeof v === "string")
-    return v.replace(/\{(?:tokens|colors)\.([A-Za-z0-9]+)\}/g, (_, k) => colors[k] ?? `{${k}?}`);
-  if (Array.isArray(v)) return v.map((x) => deepResolve(x, colors));
-  if (v && typeof v === "object") {
-    const o: Record<string, any> = {};
-    for (const [k, val] of Object.entries(v)) o[k] = deepResolve(val, colors);
-    return o;
-  }
-  return v;
-}
-
-const kebab = (s: string) => s.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase());
-const fold = (s: string) => s.replace(/\s+/g, " ").trim(); // collapse folded-scalar whitespace
-const banner = (v: string, h: string, open = "/*", close = "*/") =>
-  `${open} GENERATED FROM lore/DESIGN.md v${v} hash:${h} — DO NOT EDIT. Run: bun assetgen tokens ${close}\n`;
 
 export interface TokensResult {
   drift: boolean;
   files: string[];
 }
 
-export function resolveAssetsDir(override?: string): string {
-  const candidates = [
-    override,
-    join(ROOT, "..", "deadrotcom", "packages", "assets"),
-    join(ROOT, "packages", "assets"),
-  ].filter(Boolean) as string[];
-  for (const c of candidates) if (existsSync(join(c, "assets-catalog.json"))) return c;
-  throw new Error(`assets package not found (tried: ${candidates.join(", ")}). Pass --assets-dir <path>.`);
+interface RunTokensOptions {
+  check?: boolean;
+  design?: string;
+  assetsDir?: string;
+  styleGeneratedPath?: string;
+  log?: (message: string) => void;
 }
 
-export async function runTokens(
-  opts: { check?: boolean; design?: string; assetsDir?: string; log?: (m: string) => void } = {},
-): Promise<TokensResult> {
-  const log = opts.log ?? (() => {});
-  const designPath = resolveDesignPath(opts.design);
-  const assetsDir = resolveAssetsDir(opts.assetsDir);
-  const design = frontmatter(await readFile(designPath, "utf8"));
-  const colors: Record<string, string> = design.colors ?? {};
-  const version: string = String(design.version ?? "0.0.0");
-  const ag = deepResolve(design.assetgen ?? {}, colors);
-  const hash = (Bun as any)
-    .hash(JSON.stringify({ version, colors, typography: design.typography, assetgen: ag }))
+interface TokenArtifacts {
+  files: Record<string, string>;
+  hash: string;
+  source: string;
+  version: string;
+}
+
+/** Resolve the canonical DESIGN.md. Root DESIGN.md remains valid until lore is wired. */
+export function resolveDesignPath(override?: string): string {
+  const candidates = [
+    override,
+    join(ROOT, ".agents/lore/DESIGN.md"),
+    join(ROOT, "..", "lore", "DESIGN.md"),
+    join(ROOT, "DESIGN.md"),
+  ].filter(Boolean) as string[];
+  for (const candidate of candidates) if (existsSync(candidate)) return candidate;
+  throw new Error(`DESIGN.md not found (tried: ${candidates.join(", ")}). Pass --design <path>.`);
+}
+
+export function resolveTokenAssetsDir(override?: string): string {
+  return override ?? join(ROOT, "packages", "assets");
+}
+
+function frontmatter(text: string): JsonObject {
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match?.[1]) throw new Error("DESIGN.md has no YAML frontmatter");
+  return (Bun as unknown as { YAML: { parse(input: string): unknown } }).YAML.parse(match[1]) as JsonObject;
+}
+
+function buildTokenArtifacts(opts: {
+  assetsDir: string;
+  design: JsonObject;
+  designPath: string;
+  styleGeneratedPath?: string;
+}): TokenArtifacts {
+  const colors = stringMap(opts.design.colors, {});
+  const typography = objectMap(opts.design.typography);
+  const version = String(opts.design.version ?? "0.0.0");
+  const assetgen = buildAssetgenConfig(opts.design, colors);
+  const components = deepResolve(opts.design.components ?? {}, colors);
+
+  const hashInput = {
+    version,
+    colors,
+    typography,
+    rounded: objectMap(opts.design.rounded),
+    spacing: objectMap(opts.design.spacing),
+    elevation: objectMap(opts.design.elevation),
+    components,
+    pixelArt: objectMap(opts.design.pixelArt),
+    gameArtDirection: objectMap(opts.design.gameArtDirection),
+    assetgen,
+  };
+  const hash = (Bun as unknown as { hash(input: string): number | bigint })
+    .hash(JSON.stringify(hashInput))
     .toString(16)
     .slice(0, 8);
 
-  log(`[tokens] source: ${relative(ROOT, designPath)} (v${version} hash:${hash})`);
+  const styleGeneratedPath = opts.styleGeneratedPath ?? join(here, "style.generated.ts");
+  const tokensDir = join(opts.assetsDir, "tokens");
+  const source = repoRelative(opts.designPath);
+  const generatedNotice = `GENERATED FROM ${GENERATED_SOURCE_LABEL} v${version} hash:${hash} - DO NOT EDIT. Run: bun assetgen tokens`;
+  const cssBanner = banner(version, hash);
+  const fonts = buildFonts(typography);
 
-  // ── style.generated.ts (the asset-gen half — the Style-Bible bridge) ──────────
   const styleGen =
-    banner(version, hash) +
-    `// Asset-generation style, compiled from the DESIGN.md \`assetgen:\` block + the\n` +
-    `// lore Style-Bible. style.ts re-exports these; edit the bible, not this file.\n\n` +
-    `export const STYLE_SUFFIX = ${JSON.stringify(fold(ag.styleSuffix ?? ""))};\n\n` +
-    `export const NEGATIVE_PROMPTS: string[] = ${JSON.stringify(ag.negativePrompts ?? [], null, 2)};\n\n` +
-    `export const GAME_FRAMING: Record<string, string> = ${JSON.stringify(ag.perGameFraming ?? {}, null, 2)};\n\n` +
-    `export const KIND_MAP: Record<string, string> = ${JSON.stringify(ag.kindMap ?? {}, null, 2)};\n\n` +
-    `export const SCOURGE_RULE = { pattern: /${ag.scourgeRule?.trigger ?? "\\bscourge\\b"}/${ag.scourgeRule?.flags ?? "i"}, clause: ${JSON.stringify(fold(ag.scourgeRule?.clause ?? ""))} };\n\n` +
-    `export const GRADE_PARAMS = ${JSON.stringify(ag.gradeParams ?? {}, null, 2)} as const;\n\n` +
-    `export const STYLE_REF: Record<string, string> = ${JSON.stringify(ag.referenceImages ?? {}, null, 2)};\n\n` +
-    `export const PROVIDER_SETTINGS = ${JSON.stringify(ag.providers ?? {}, null, 2)} as const;\n\n` +
-    `/** Compose a generation prompt — mirrors DESIGN.md assetgen.promptTemplate. */\n` +
+    cssBanner +
+    `// Asset-generation style, compiled from DESIGN.md frontmatter.\n` +
+    `// style.ts re-exports these; edit the design source, not this file.\n\n` +
+    `export const STYLE_SUFFIX = ${JSON.stringify(fold(assetgen.styleSuffix))};\n\n` +
+    `export const PALETTE_LINE = ${JSON.stringify(fold(assetgen.paletteLine))};\n\n` +
+    `export const NEGATIVE_PROMPTS: string[] = ${JSON.stringify(assetgen.negativePrompts, null, 2)};\n\n` +
+    `export const GAME_FRAMING: Record<string, string> = ${JSON.stringify(assetgen.perGameFraming, null, 2)};\n\n` +
+    `export const KIND_MAP: Record<string, string> = ${JSON.stringify(assetgen.kindMap, null, 2)};\n\n` +
+    `export const SCOURGE_RULE = { pattern: /${assetgen.scourgeRule.trigger}/${assetgen.scourgeRule.flags}, clause: ${JSON.stringify(fold(assetgen.scourgeRule.clause))} };\n\n` +
+    `export const GRADE_PARAMS = ${JSON.stringify(assetgen.gradeParams, null, 2)} as const;\n\n` +
+    `export const STYLE_REF: Record<string, string> = ${JSON.stringify(assetgen.referenceImages, null, 2)};\n\n` +
+    `export const PROVIDER_SETTINGS = ${JSON.stringify(assetgen.providers, null, 2)} as const;\n\n` +
+    `/** Compose a generation prompt from the subject, asset kind, game framing, and design suffix. */\n` +
     `export function buildPrompt(opts: { prompt: string; game: string; kind: string }): string {\n` +
     `  const framing = GAME_FRAMING[opts.game] ?? GAME_FRAMING.shared;\n` +
     `  const kind = KIND_MAP[opts.kind] ?? opts.kind;\n` +
@@ -105,54 +130,93 @@ export async function runTokens(
     `  return parts.join(". ") + ".";\n` +
     `}\n`;
 
-  // ── token artifacts (palette → Three.js / Tailwind / CSS) ─────────────────────
-  const typ = design.typography ?? {};
   const tokensTs =
-    banner(version, hash) +
-    `// Design tokens for imperative Three.js + TS. Hex ints for THREE.Color.\n\n` +
+    cssBanner +
+    `// Design tokens for imperative Three.js + TypeScript. Hex ints for THREE.Color.\n\n` +
     `export const COLORS = {\n` +
     Object.entries(colors)
-      .map(([k, hex]) => `  ${k}: 0x${String(hex).replace(/^#/, "")},`)
+      .map(([key, hex]) => `  ${key}: 0x${hex.replace(/^#/, "")},`)
       .join("\n") +
     `\n} as const;\n\n` +
-    `export const FONTS = {\n` +
-    `  display: ${JSON.stringify(typ.display?.fontFamily ?? "")},\n` +
-    `  body: ${JSON.stringify(typ.body?.fontFamily ?? "")},\n` +
-    `  mono: ${JSON.stringify(typ.mono?.fontFamily ?? "")},\n` +
-    `} as const;\n`;
+    `export const FONTS = ${JSON.stringify(fonts, null, 2)} as const;\n`;
 
   const themeCss =
-    banner(version, hash) +
+    cssBanner +
     `@theme {\n` +
     Object.entries(colors)
-      .map(([k, hex]) => `  --color-${kebab(k)}: ${hex};`)
+      .map(([key, hex]) => `  --color-${kebab(key)}: ${hex};`)
       .join("\n") +
-    `\n  --font-display: ${typ.display?.fontFamily ?? ""};` +
-    `\n  --font-body: ${typ.body?.fontFamily ?? ""};` +
-    `\n  --font-mono: ${typ.mono?.fontFamily ?? ""};` +
+    `\n` +
+    Object.entries(fonts)
+      .map(([key, family]) => `  --font-${kebab(key)}: ${family};`)
+      .join("\n") +
     `\n}\n`;
 
   const tokensCss =
-    banner(version, hash) +
+    cssBanner +
     `:root {\n` +
     Object.entries(colors)
-      .map(([k, hex]) => `  --${kebab(k)}: ${hex};`)
+      .map(([key, hex]) => `  --${kebab(key)}: ${hex};`)
       .join("\n") +
-    `\n  --font-display: ${typ.display?.fontFamily ?? ""};` +
-    `\n  --font-body: ${typ.body?.fontFamily ?? ""};` +
-    `\n  --font-mono: ${typ.mono?.fontFamily ?? ""};` +
+    `\n` +
+    Object.entries(fonts)
+      .map(([key, family]) => `  --font-${kebab(key)}: ${family};`)
+      .join("\n") +
     `\n}\n`;
 
-  const outputs: Record<string, string> = {
-    [join(here, "style.generated.ts")]: styleGen,
-    [join(assetsDir, "tokens/tokens.ts")]: tokensTs,
-    [join(assetsDir, "tokens/theme.css")]: themeCss,
-    [join(assetsDir, "tokens/tokens.css")]: tokensCss,
+  const tokensJson =
+    JSON.stringify(
+      {
+        notice: generatedNotice,
+        version,
+        hash,
+        source,
+        colors,
+        typography,
+        fonts,
+        rounded: objectMap(opts.design.rounded),
+        spacing: objectMap(opts.design.spacing),
+        elevation: objectMap(opts.design.elevation),
+        components,
+        pixelArt: objectMap(opts.design.pixelArt),
+        gameArtDirection: objectMap(opts.design.gameArtDirection),
+        assetgen,
+      },
+      null,
+      2,
+    ) + "\n";
+
+  return {
+    files: {
+      [styleGeneratedPath]: styleGen,
+      [join(tokensDir, "tokens.ts")]: tokensTs,
+      [join(tokensDir, "theme.css")]: themeCss,
+      [join(tokensDir, "tokens.css")]: tokensCss,
+      [join(tokensDir, "tokens.json")]: tokensJson,
+    },
+    hash,
+    source,
+    version,
   };
+}
+
+export async function runTokens(opts: RunTokensOptions = {}): Promise<TokensResult> {
+  const log = opts.log ?? (() => {});
+  const designPath = resolveDesignPath(opts.design);
+  const assetsDir = resolveTokenAssetsDir(opts.assetsDir);
+  const design = frontmatter(await readFile(designPath, "utf8"));
+  const artifacts = buildTokenArtifacts({
+    assetsDir,
+    design,
+    designPath,
+    styleGeneratedPath: opts.styleGeneratedPath,
+  });
+
+  log(`[tokens] source: ${artifacts.source} (v${artifacts.version} hash:${artifacts.hash})`);
 
   let drift = false;
-  for (const [path, content] of Object.entries(outputs)) {
-    const rel = relative(ROOT, path);
+  for (const [path, content] of Object.entries(artifacts.files)) {
+    const rel = repoRelative(path);
     const current = existsSync(path) ? await readFile(path, "utf8") : "";
     if (current === content) {
       log(`[tokens] ok   ${rel}`);
@@ -160,13 +224,259 @@ export async function runTokens(
     }
     if (opts.check) {
       drift = true;
-      log(`[tokens] DRIFT ${rel} — run 'bun assetgen tokens'`);
+      log(`[tokens] DRIFT ${rel} - run 'bun assetgen tokens'`);
     } else {
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, content);
       log(`[tokens] wrote ${rel}`);
     }
   }
-  if (opts.check && !drift) log(`[tokens] all artifacts current ✓`);
-  return { drift, files: Object.keys(outputs) };
+  if (opts.check && !drift) log("[tokens] all artifacts current");
+  return { drift, files: Object.keys(artifacts.files) };
+}
+
+function buildAssetgenConfig(design: JsonObject, colors: Record<string, string>): AssetgenConfig {
+  const derived = derivedAssetgenConfig(design, colors);
+  const authored = deepResolve(design.assetgen ?? {}, colors);
+  const authoredObject = isRecord(authored) ? authored : {};
+  const authoredRule = objectMap(authoredObject.scourgeRule);
+
+  return {
+    styleSuffix: stringValue(authoredObject.styleSuffix, derived.styleSuffix),
+    paletteLine: stringValue(authoredObject.paletteLine, derived.paletteLine),
+    negativePrompts: stringArray(authoredObject.negativePrompts, derived.negativePrompts),
+    perGameFraming: stringMap(authoredObject.perGameFraming, derived.perGameFraming),
+    kindMap: stringMap(authoredObject.kindMap, derived.kindMap),
+    scourgeRule: {
+      trigger: stringValue(authoredRule.trigger, derived.scourgeRule.trigger),
+      flags: stringValue(authoredRule.flags, derived.scourgeRule.flags),
+      clause: stringValue(authoredRule.clause, derived.scourgeRule.clause),
+    },
+    gradeParams: objectMap(authoredObject.gradeParams, derived.gradeParams),
+    referenceImages: stringMap(authoredObject.referenceImages, derived.referenceImages),
+    providers: objectMap(authoredObject.providers, derived.providers),
+  };
+}
+
+function derivedAssetgenConfig(design: JsonObject, colors: Record<string, string>): AssetgenConfig {
+  const pixelArt = objectMap(design.pixelArt);
+  const gameArtDirection = objectMap(design.gameArtDirection);
+  const gridHeight = stringValue(pixelArt.gridHeight, "110px");
+  const pixelGrid = Number.parseInt(gridHeight, 10) || 110;
+  const paletteLine = stringValue(
+    pixelArt.palette,
+    "void, coal, gunmetal, blood, rust, bone, hellfire; toxic only for Scourge assets",
+  );
+
+  return {
+    styleSuffix: [
+      stringValue(pixelArt.medium, "high-detail medium-chunky pixel art"),
+      `game sprite on a visible chunky pixel grid, roughly ${gridHeight} tall`,
+      stringValue(pixelArt.rendering, "visible square pixels, hard edges, no anti-aliasing"),
+      stringValue(pixelArt.shading, "ordered dithering, subtle dark outline, hellfire rim light"),
+      `fixed limited DOOM palette of ${paletteLine}`,
+      stringValue(pixelArt.references, "Blasphemous, Dead Cells, remastered 1990s DOOM sprites"),
+      "detailed but not noisy",
+      "NO neon, no text, no watermark, no UI, single subject only, near-black background",
+      "must read as chunky pixel art made of visible square pixels",
+      "NOT a smooth 3D render, NOT photorealistic, NOT anti-aliased, NOT painted concept art",
+    ]
+      .filter(Boolean)
+      .join(", "),
+    paletteLine,
+    negativePrompts: [
+      "smooth 3D render",
+      "rendered 3D model",
+      "photorealistic",
+      "photographic",
+      "anti-aliased smooth edges",
+      "airbrushed",
+      "painted concept art",
+      "blurry",
+      "hi-fi render",
+      "cel-shaded cartoon",
+      "anime",
+      "cute",
+      "chibi",
+      "slender elegant graceful proportions",
+      "symmetrical pretty anatomy",
+      "clean plate-armor fantasy knight",
+      "medieval robes capes or swords",
+      "clean minimal sci-fi",
+      "superhero proportions",
+      "soft diffuse even lighting",
+      "bright daylight",
+      "pastel colors",
+      "rainbow saturation",
+      "cool blue or teal grade",
+      "magenta cyan or any neon glow",
+      "clean white background",
+      "background scenery or landscape",
+      "multiple characters",
+      "text watermark or logo",
+      "UI frames or HUD",
+      "cropped or close-up framing that hides the silhouette",
+    ],
+    perGameFraming: buildGameFraming(gameArtDirection),
+    kindMap: {
+      texture: "seamless tileable texture",
+    },
+    scourgeRule: {
+      trigger: "\\bscourge\\b",
+      flags: "i",
+      clause:
+        `Scourge subjects must read as host-dependent parasite takeover: overwritten host material, ruptures, tendrils, embedded toxic-green (${colors.toxic ?? "#8bdc1f"}) breach cores, black chitin over stolen bone or metal, and invasive growth; vary host family among flesh, chitin, mycelial, machine-graft, bone-titan, or voidship; never a standalone generic demon or alien`,
+    },
+    gradeParams: {
+      pixelGrid,
+      downscale: "box",
+      nearestFilter: true,
+      dither: "ordered",
+      antialias: false,
+      hardRemap: true,
+      targetPalette: "doom",
+      palettePath: "lore/Art/grade/doom.gpl",
+      outline: "subtle-dark",
+      preserveEmissive: true,
+      blackPoint: colors.void ?? "#0a0a0a",
+      encode: "webp-lossless",
+      cutout: {
+        tool: "rembg",
+        order: "after-generate-before-downscale",
+      },
+    },
+    referenceImages: {
+      "scourge-survivors": "lore/Art/style-refs/scourge-survivors.webp",
+      deadlane: "lore/Art/style-refs/deadlane.webp",
+      pactfall: "lore/Art/style-refs/pactfall.webp",
+      starblight: "lore/Art/style-refs/starblight.webp",
+      redline: "lore/Art/style-refs/redline.webp",
+      rothulk: "lore/Art/style-refs/rothulk.webp",
+      shared: "lore/Art/style-refs/scourge-survivors.webp",
+    },
+    providers: {
+      default: "openai",
+      size: "1024x1536",
+      candidates: 4,
+      openai: {
+        model: "gpt-image-2",
+        quality: "high",
+        output_format: "png",
+        background: "opaque",
+        seed: null,
+        negativeMode: "fold",
+        styleRef: "image_refs",
+        styleRefNote:
+          "match the rendering style, lighting and palette of the reference image; new creature described in the prompt",
+      },
+      fal: {
+        model: "fal-ai/flux/dev",
+        image_size: "square_hd",
+        guidance_scale: 3.5,
+        num_inference_steps: 28,
+        seed: 42,
+        negativeMode: "param",
+        styleRef: "redux",
+        image_prompt_strength: 0.18,
+        styleRefNote:
+          "ref controls STYLE not SHAPE; seed reproducibility breaks once an image ref is attached (non-deterministic vision embedding)",
+      },
+      codex: {
+        model: "gpt-image-2",
+        negativeMode: "fold",
+        seed: null,
+        background: "opaque",
+        note: "conversational/no-seed path; good for the noob loop, not batch determinism",
+      },
+    },
+  };
+}
+
+function buildGameFraming(gameArtDirection: JsonObject): Record<string, string> {
+  const defaults: Record<string, string> = {
+    "scourge-survivors": "first-person game billboard sprite, front-facing, full body",
+    deadlane: "top-down / high-angle game sprite, silhouette readable from above",
+    pactfall: "isometric 3/4-view game sprite, champion scale",
+    starblight: "side-on / top-down arcade space-shooter sprite, crisp readable silhouette",
+    redline: "side-on runner sprite, profile silhouette readable at courier-lane speed",
+    rothulk: "side-on platformer sprite, profile silhouette, clear readable pose",
+    shared: "game asset",
+  };
+
+  const frames = { ...defaults };
+  for (const [game, value] of Object.entries(gameArtDirection)) {
+    const direction = objectMap(value);
+    const parts =
+      game === "shared"
+        ? [direction.medium, direction.renderRules, direction.paletteRules]
+        : [direction.camera, direction.read];
+    const framing = parts.filter((part): part is string => typeof part === "string" && part.length > 0).join("; ");
+    if (framing) frames[game] = framing;
+  }
+  return frames;
+}
+
+function buildFonts(typography: JsonObject): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(typography)) {
+    const token = objectMap(value);
+    const family = stringValue(token.fontFamily, "");
+    if (family) result[key] = family;
+  }
+  return result;
+}
+
+function deepResolve(value: unknown, colors: Record<string, string>): unknown {
+  if (typeof value === "string") {
+    return value.replace(/\{(?:tokens|colors)\.([A-Za-z0-9]+)\}/g, (_, key: string) => colors[key] ?? `{${key}?}`);
+  }
+  if (Array.isArray(value)) return value.map((item) => deepResolve(item, colors));
+  if (isRecord(value)) {
+    const resolved: JsonObject = {};
+    for (const [key, child] of Object.entries(value)) resolved[key] = deepResolve(child, colors);
+    return resolved;
+  }
+  return value;
+}
+
+function objectMap(value: unknown, fallback: JsonObject = {}): JsonObject {
+  return isRecord(value) ? value : fallback;
+}
+
+function stringMap(value: unknown, fallback: Record<string, string>): Record<string, string> {
+  if (!isRecord(value)) return fallback;
+  const result: Record<string, string> = { ...fallback };
+  for (const [key, child] of Object.entries(value)) {
+    if (typeof child === "string") result[key] = child;
+  }
+  return result;
+}
+
+function stringArray(value: unknown, fallback: string[]): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : fallback;
+}
+
+function stringValue(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function isRecord(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function kebab(value: string): string {
+  return value.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+}
+
+function fold(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function banner(version: string, hash: string): string {
+  return `/* GENERATED FROM ${GENERATED_SOURCE_LABEL} v${version} hash:${hash} - DO NOT EDIT. Run: bun assetgen tokens */\n`;
+}
+
+function repoRelative(path: string): string {
+  const rel = relative(ROOT, path);
+  return rel.startsWith("..") ? path : rel;
 }

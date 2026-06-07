@@ -1,0 +1,105 @@
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { runTokens } from "./tokens";
+
+const DESIGN = `---
+version: "9.9.9"
+colors:
+  primary: "#c1121f"
+  onPrimary: "#f4efe6"
+  void: "#0a0a0a"
+  coal: "#121214"
+  gunmetal: "#34343c"
+  blood: "#c1121f"
+  rust: "#a35a33"
+  bone: "#e9e3d6"
+  hellfire: "#ff6a00"
+  toxic: "#8bdc1f"
+typography:
+  display:
+    fontFamily: "Oswald, sans-serif"
+  body:
+    fontFamily: "Inter, system-ui, sans-serif"
+  label:
+    fontFamily: "Oswald, sans-serif"
+components:
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.onPrimary}"
+pixelArt:
+  medium: "medium-chunky pixel art"
+  gridHeight: "110px"
+  rendering: "visible square pixels"
+  shading: "ordered dithering"
+  palette: "void, blood, bone, hellfire; toxic only for Scourge assets"
+  references: "DOOM sprites"
+gameArtDirection:
+  shared:
+    medium: "medium-chunky high-detail pixel art"
+    renderRules: "nearest-neighbor scaling"
+    paletteRules: "void and blood"
+  scourge-survivors:
+    camera: "first-person billboard sprites"
+    read: "readable at FPS combat distance"
+---
+
+# Test design
+`;
+
+test("runTokens writes all generated token artifacts without an assets catalog", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assetgen-tokens-test-"));
+  const designPath = join(dir, "DESIGN.md");
+  const assetsDir = join(dir, "packages", "assets");
+  const styleGeneratedPath = join(dir, "style.generated.ts");
+  await writeFile(designPath, DESIGN);
+
+  const result = await runTokens({ design: designPath, assetsDir, styleGeneratedPath });
+
+  assert.equal(result.drift, false);
+  assert.equal(existsSync(styleGeneratedPath), true);
+  assert.equal(existsSync(join(assetsDir, "tokens", "tokens.ts")), true);
+  assert.equal(existsSync(join(assetsDir, "tokens", "theme.css")), true);
+  assert.equal(existsSync(join(assetsDir, "tokens", "tokens.css")), true);
+  assert.equal(existsSync(join(assetsDir, "tokens", "tokens.json")), true);
+
+  const style = await readFile(styleGeneratedPath, "utf8");
+  assert.match(style, /PALETTE_LINE/);
+  assert.match(style, /gpt-image-2/);
+  assert.match(style, /Scourge subjects must read as host-dependent parasite takeover/);
+
+  const tokensTs = await readFile(join(assetsDir, "tokens", "tokens.ts"), "utf8");
+  assert.match(tokensTs, /primary: 0xc1121f/);
+  assert.match(tokensTs, /"label": "Oswald, sans-serif"/);
+
+  const themeCss = await readFile(join(assetsDir, "tokens", "theme.css"), "utf8");
+  assert.match(themeCss, /--color-primary: #c1121f/);
+  assert.match(themeCss, /--font-display: Oswald, sans-serif/);
+
+  const tokensJson = JSON.parse(await readFile(join(assetsDir, "tokens", "tokens.json"), "utf8"));
+  assert.equal(tokensJson.version, "9.9.9");
+  assert.equal(tokensJson.notice.includes("DO NOT EDIT"), true);
+  assert.equal(tokensJson.components["button-primary"].backgroundColor, "#c1121f");
+  assert.equal(tokensJson.assetgen.gradeParams.pixelGrid, 110);
+});
+
+test("runTokens check reports drift without rewriting artifacts", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assetgen-tokens-check-test-"));
+  const designPath = join(dir, "DESIGN.md");
+  const assetsDir = join(dir, "packages", "assets");
+  const styleGeneratedPath = join(dir, "style.generated.ts");
+  const tokensJsonPath = join(assetsDir, "tokens", "tokens.json");
+  await writeFile(designPath, DESIGN);
+
+  await runTokens({ design: designPath, assetsDir, styleGeneratedPath });
+  await writeFile(tokensJsonPath, "{\"stale\":true}\n");
+
+  const result = await runTokens({ check: true, design: designPath, assetsDir, styleGeneratedPath });
+
+  assert.equal(result.drift, true);
+  assert.equal(await readFile(tokensJsonPath, "utf8"), "{\"stale\":true}\n");
+});

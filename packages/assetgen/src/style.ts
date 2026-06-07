@@ -4,6 +4,7 @@
 // canon (+ a couple of CLI-only human labels) so existing imports keep working.
 export {
   STYLE_SUFFIX,
+  PALETTE_LINE,
   NEGATIVE_PROMPTS,
   GAME_FRAMING,
   KIND_MAP,

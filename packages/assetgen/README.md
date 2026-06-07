@@ -69,6 +69,28 @@ Flags: `--provider` (default `mock` — safe to batch), `--game`, `--id`,
 `--only-missing` (skip cells already rendered on disk), `--size`, `--dry-run`
 (force mock), `--sync-games`, `--assets-dir`.
 
+## Design tokens
+
+`assetgen tokens` compiles the reviewed `DESIGN.md` frontmatter into generated
+artifacts for app CSS, imperative game code, and asset-generation prompts:
+
+```bash
+bun packages/assetgen/src/cli.ts tokens
+bun packages/assetgen/src/cli.ts tokens --check
+```
+
+Outputs are bannered with the source version and content hash:
+
+- `packages/assetgen/src/style.generated.ts`
+- `packages/assets/tokens/theme.css`
+- `packages/assets/tokens/tokens.css`
+- `packages/assets/tokens/tokens.ts`
+- `packages/assets/tokens/tokens.json`
+
+Pass `--design <path>` to test another design source, or `--assets-dir <path>`
+to emit the token package somewhere else. The command does not require a
+Deadrot `assets-catalog.json`; it only writes design token artifacts.
+
 ## Providers
 - `codex` — delegates to the local authed `codex` CLI via node-pty (no key wiring needed)
 - `openai` — **gpt-image-2** (`--model` to override), transparent PNG
