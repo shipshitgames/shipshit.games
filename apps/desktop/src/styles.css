@@ -74,7 +74,7 @@ body {
 .sidebar-foot { padding: 12px 18px; border-top: 1px solid var(--line); font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); }
 
 /* ---- Workspace ---- */
-.workspace { display: grid; grid-template-rows: auto 1fr var(--terminal-h); min-width: 0; height: 100vh; }
+.workspace { display: grid; grid-template-rows: auto 1fr var(--terminal-h); min-width: 0; height: 100vh; overflow: hidden; }
 
 /* ---- Topbar (settings gear, shipcode-style) ---- */
 .topbar { display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--bg-panel); }
@@ -151,16 +151,18 @@ body {
 }
 .gen-path { font-family: var(--font-mono); font-size: 11px; color: var(--hellfire); word-break: break-all; }
 
-/* ---- Terminal placeholder ---- */
+/* ---- Terminal ---- */
 .terminal { display: flex; flex-direction: column; border-top: 1px solid var(--line-bright); background: #07070b; min-height: 0; }
 .terminal-bar { display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-bottom: 1px solid var(--line); background: var(--bg-panel); }
 .terminal-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--blood); box-shadow: 0 0 10px var(--blood-glow); }
 .terminal-title { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; color: var(--text-dim); }
 .terminal-hint { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); }
-.terminal-body { flex: 1; display: flex; align-items: flex-start; gap: 4px; padding: 14px 16px; font-family: var(--font-mono); font-size: 13px; color: #d9cfc2; overflow: auto; }
-.terminal-prompt { color: var(--hellfire); }
-.terminal-caret { color: var(--blood); animation: blink 1.05s step-end infinite; }
-@keyframes blink { 50% { opacity: 0; } }
+.terminal-body { flex: 1; min-height: 0; padding: 0; overflow: hidden; background: #07070b; }
+.terminal-mount { width: 100%; height: 100%; padding: 8px 10px; }
+.terminal .xterm { height: 100%; padding: 0; }
+.terminal .xterm-viewport,
+.terminal .xterm-screen { background: #07070b !important; }
+.terminal .xterm-viewport { scrollbar-color: var(--line-bright) #07070b; }
 
 /* ---- generator active-provider hint ---- */
 .gen-active { font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); }

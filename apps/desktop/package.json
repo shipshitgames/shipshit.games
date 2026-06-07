@@ -20,10 +20,14 @@
     "package:mac": "bun run build && electron-builder --mac dmg --publish never",
     "preview": "vite preview",
     "start": "electron .",
+    "test": "bun test electron/terminal-manager.test.cjs",
     "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "node-pty": "^1.1.0",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
