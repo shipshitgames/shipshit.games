@@ -28,6 +28,9 @@ export function defaultRepo(game: string): string {
   const cwd = process.cwd();
   if (basename(cwd) === game) return cwd;
 
+  const deadrotGamesPath = join(cwd, "..", "deadrotcom", "apps", "games", game);
+  if (existsSync(deadrotGamesPath)) return deadrotGamesPath;
+
   const workspaceGamesPath = join(cwd, "games", game);
   if (existsSync(workspaceGamesPath)) return workspaceGamesPath;
 

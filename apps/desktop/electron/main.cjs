@@ -11,7 +11,9 @@ const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
 
 const STUDIO_REPO = path.join(__dirname, "..", "..", "..");
 const WORKSPACE = path.join(STUDIO_REPO, "..");
-const GAMES_ROOT = path.join(WORKSPACE, "games");
+const DEADROT_GAMES_ROOT = path.join(WORKSPACE, "deadrotcom", "apps", "games");
+const LEGACY_GAMES_ROOT = path.join(WORKSPACE, "games");
+const GAMES_ROOT = fs.existsSync(DEADROT_GAMES_ROOT) ? DEADROT_GAMES_ROOT : LEGACY_GAMES_ROOT;
 const ASSETGEN = path.join(STUDIO_REPO, "packages", "assetgen", "src", "cli.ts");
 const RESSOURCES = path.join(STUDIO_REPO, "packages", "ressources", "src", "cli.ts");
 const DEFAULT_GAME = "scourge-survivors";
@@ -20,19 +22,62 @@ const gameDir = (g) => path.join(GAMES_ROOT, g === "shared" ? DEFAULT_GAME : g);
 
 // ---- settings (non-secret) ----
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
-const DEFAULTS = { defaultProvider: "codex", defaultGame: DEFAULT_GAME };
+const PROVIDERS = new Set(["codex", "openai", "fal", "replicate", "suno", "mock"]);
+const DEFAULT_PROVIDER_BY_KIND = {
+  sprite: "codex",
+  texture: "openai",
+  icon: "openai",
+  map: "codex",
+  music: "suno",
+  sfx: "suno",
+  voice: "suno",
+  model: "replicate",
+  "3d": "replicate",
+};
+const DEFAULTS = {
+  defaultProvider: "codex",
+  defaultGame: DEFAULT_GAME,
+  providerDefaults: DEFAULT_PROVIDER_BY_KIND,
+};
 function readSettings() {
-  try { return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsPath(), "utf8")) }; }
+  try { return normalizeSettings({ ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsPath(), "utf8")) }); }
   catch { return { ...DEFAULTS }; }
 }
 function writeSettings(s) {
+  s = normalizeSettings(s);
   fs.mkdirSync(path.dirname(settingsPath()), { recursive: true });
   fs.writeFileSync(settingsPath(), JSON.stringify(s, null, 2));
   return s;
 }
+function normalizeSettings(raw) {
+  const providerDefaults = { ...DEFAULT_PROVIDER_BY_KIND, ...(raw?.providerDefaults || {}) };
+  for (const [kind, provider] of Object.entries(providerDefaults)) {
+    providerDefaults[kind] = PROVIDERS.has(provider) ? provider : (DEFAULT_PROVIDER_BY_KIND[kind] || "codex");
+  }
+  return {
+    defaultProvider: PROVIDERS.has(raw?.defaultProvider) ? raw.defaultProvider : "codex",
+    defaultGame: typeof raw?.defaultGame === "string" ? raw.defaultGame : DEFAULT_GAME,
+    providerDefaults,
+  };
+}
+function mergeSettings(partial) {
+  const current = readSettings();
+  return writeSettings({
+    ...current,
+    ...(partial || {}),
+    providerDefaults: {
+      ...current.providerDefaults,
+      ...(partial?.providerDefaults || {}),
+    },
+  });
+}
+function providerForKind(settings, kind, explicit) {
+  if (explicit && PROVIDERS.has(explicit)) return explicit;
+  return settings.providerDefaults?.[kind] || settings.defaultProvider || DEFAULT_PROVIDER_BY_KIND[kind] || "codex";
+}
 
 // ---- keys (macOS keychain, shipcode-style) ----
-const KEY_SERVICES = { openai: "shipshit-openai", fal: "shipshit-fal", replicate: "shipshit-replicate" };
+const KEY_SERVICES = { openai: "shipshit-openai", fal: "shipshit-fal", replicate: "shipshit-replicate", suno: "shipshit-suno" };
 function hasKey(service) {
   try {
     const v = execFileSync("security", ["find-generic-password", "-a", "shipshit", "-s", service, "-w"], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
@@ -50,7 +95,7 @@ function keyStatus() {
 }
 
 ipcMain.handle("settings:get", () => readSettings());
-ipcMain.handle("settings:set", (_e, partial) => writeSettings({ ...readSettings(), ...(partial || {}) }));
+ipcMain.handle("settings:set", (_e, partial) => mergeSettings(partial));
 ipcMain.handle("keys:status", () => keyStatus());
 ipcMain.handle("keys:set", (_e, { provider, key }) => { const s = KEY_SERVICES[provider]; if (s && key) setKey(s, key); return keyStatus(); });
 ipcMain.handle("studio:listGames", () => ALL_GAMES.filter((g) => fs.existsSync(gameDir(g))));
@@ -117,11 +162,13 @@ ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
 ipcMain.handle("studio:generate", async (e, opts) => {
   const settings = readSettings();
   const game = opts?.game || settings.defaultGame;
-  const provider = opts?.provider || settings.defaultProvider;
+  const kind = opts?.kind || "sprite";
+  const provider = providerForKind(settings, kind, opts?.provider);
   const repo = gameDir(game);
-  const args = [ASSETGEN, "--provider", provider, "--game", game, "--kind", opts?.kind || "sprite", "--id", opts?.id || "asset", "--prompt", opts?.prompt || "", "--repo", repo];
+  const args = [ASSETGEN, "--provider", provider, "--game", game, "--kind", kind, "--id", opts?.id || "asset", "--prompt", opts?.prompt || "", "--repo", repo];
   const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:gen-log", chunk); };
-  send(`$ assetgen --provider ${provider} --game ${game} --kind ${opts?.kind || "sprite"} --id ${opts?.id}\n`);
+  send(`$ assetgen --provider ${provider} --game ${game} --kind ${kind} --id ${opts?.id}\n`);
+  send(`[repo] ${repo}\n`);
   return await new Promise((resolve) => {
     let child;
     try { child = spawn("bun", args, { cwd: STUDIO_REPO }); }

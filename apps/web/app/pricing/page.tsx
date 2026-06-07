@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowRight, CheckCircle2, Gamepad2, ShieldCheck, Workflow, Zap } from "lucide-react";
+import { ArrowRight, CheckCircle2, Gamepad2, Users, Workflow, Zap } from "lucide-react";
 
 import { Backdrop } from "@/components/site/atmosphere";
 import { Eyebrow } from "@/components/site/eyebrow";
@@ -14,7 +14,7 @@ import {
 export const metadata: Metadata = {
   title: "Skills Pro Pricing",
   description:
-    "One-time access to Ship Shit Games Skills Pro: the agent skills and workflows we use to build games with AI.",
+    "Monthly access to Ship Shit Games Skills Pro: agent skills, community access, and member assets.",
   openGraph: {
     title: "Skills Pro Pricing",
     description:
@@ -57,9 +57,9 @@ const MODULES = [
     body: "Use skills for planning, implementation, review, QA, deployment, and postmortem capture.",
   },
   {
-    icon: ShieldCheck,
-    title: "Studio standards",
-    body: "Prompts, checklists, and guardrails from real browser-game production runs.",
+    icon: Users,
+    title: "Community access",
+    body: "Join the buyer community for drops, feedback loops, and build-in-public accountability.",
   },
 ] as const;
 
@@ -78,9 +78,9 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
               Build games with the skills we use.
             </h1>
             <p className="mt-7 max-w-2xl text-lg leading-relaxed text-ash">
-              One-time access to the Ship Shit Games pro skill pack: the agent
-              workflows, production prompts, review loops, and game-shipping
-              process we use on live builds.
+              Monthly access to the Ship Shit Games pro package: Skills Pro,
+              community access, member assets, production prompts, review
+              loops, and the game-shipping process we use on live builds.
             </p>
 
             <div className="mt-10 grid gap-4 sm:grid-cols-3">
@@ -108,7 +108,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
             <div className="flex items-center justify-between gap-4 border-b border-gunmetal pb-5">
               <div>
                 <p className="font-display text-sm font-bold uppercase tracking-widest text-hellfire">
-                  Early buyer default
+                  Early buyer package
                 </p>
                 <h2 className="mt-2 font-display text-3xl font-bold uppercase tracking-tight text-bone">
                   {SKILLS_PRO.name}
@@ -118,18 +118,32 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
             </div>
 
             <div className="mt-7">
-              <div className="flex items-end gap-3">
-                <span className="font-display text-6xl font-bold uppercase leading-none text-bone">
+              <div
+                className="flex flex-wrap items-end gap-x-4 gap-y-2"
+                aria-label={`${formatUsd(SKILLS_PRO.listPriceUsd)} list price, ${formatUsd(
+                  SKILLS_PRO_EARLY_PRICE_USD
+                )} early buyer price`}
+              >
+                <span
+                  className="pb-1 font-display text-3xl font-bold uppercase leading-none text-ash line-through decoration-2 decoration-hellfire"
+                  aria-hidden="true"
+                >
+                  {formatUsd(SKILLS_PRO.listPriceUsd)}
+                </span>
+                <span
+                  className="font-display text-6xl font-bold uppercase leading-none text-bone"
+                  aria-hidden="true"
+                >
                   {formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}
                 </span>
                 <span className="pb-2 text-sm uppercase tracking-widest text-ash">
-                  one time
+                  per month
                 </span>
               </div>
               <p className="mt-2 text-sm text-ash">
-                List price {formatUsd(SKILLS_PRO.listPriceUsd)}. The{" "}
-                {formatUsd(SKILLS_PRO.earlyBuyerDiscountUsd)} early-buyer coupon
-                is applied automatically in Stripe Checkout.
+                Launch list price is {formatUsd(SKILLS_PRO.listPriceUsd)}/mo.
+                Founder seats get {formatUsd(SKILLS_PRO.earlyBuyerDiscountUsd)}
+                /mo off automatically in Stripe Checkout.
               </p>
             </div>
 
@@ -155,13 +169,13 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
                 size="xl"
                 className="w-full font-display uppercase tracking-widest shadow-ember"
               >
-                Buy Skills Pro
+                Get the {formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}/mo pass
                 <ArrowRight aria-hidden="true" />
               </Button>
             </form>
 
             <p className="mt-4 text-xs uppercase tracking-widest text-gunmetal">
-              Secure checkout by Stripe. Access fulfillment follows the purchase email.
+              Secure subscription checkout by Stripe. Access is managed in app.shipshit.games.
             </p>
           </aside>
         </div>

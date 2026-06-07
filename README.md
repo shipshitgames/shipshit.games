@@ -1,41 +1,95 @@
-# Ship Shit Games (`shipshitgames/shipshitgames`)
+# Ship Shit Games
 
-The **studio** side: the build-in-public site that sells the playbook (newsletter, course,
-templates, sponsorships), the members portal, and the desktop studio. **Turborepo + Bun.**
-The player-facing **game hub** ([DEADROT](https://deadrot.com)) now lives in the
-[shipshitgames/deadrotcom](https://github.com/shipshitgames/deadrotcom) repo; canon in
-[shipshitgames/lore](https://github.com/shipshitgames/lore).
+![Ship Shit Games wordmark](apps/web/public/brand/shipshit-games-wordmark.png)
+
+**The studio monorepo for building games with AI in public.**
+
+[shipshit.games](https://shipshit.games) |
+[deadrot.com](https://deadrot.com)
+
+## Current Stage
+
+This repo is the studio side of Ship Shit Games: the public site, docs, CLI,
+desktop studio, asset-generation tooling, research library, and shared packages
+used to build and explain the DEADROT pipeline.
+
+The player-facing DEADROT hub, lore app, games, runtime assets, and shipped game
+packages now live in
+[`shipshitgames/deadrotcom`](https://github.com/shipshitgames/deadrotcom).
 
 ## Apps
-- **`apps/web`** — **shipshitgames.com**: the lessons / build-in-public site — newsletter,
-  course, templates &amp; tooling, sponsorships. (The universe gallery moved to the deadrotcom
-  hub.)
-- **`apps/docs`** — **docs.shipshit.games**: Nextra public docs for using the studio tools,
-  asset generation, research, Warline, shared packages, canon rules, and deployment notes.
-- **`apps/warline`** — **Warline**, the persistent *War for the Lanes* strategy hub (EPIC #34): a
-  Vite/React front map over a PartyKit Durable Object. Every game is an **operation** that credits
-  one shared front. Runs standalone (local sim) or live (shared server). Hosted at
-  games.shipshit.dev/warline/
-- **`apps/app`** — members **portal** (one-time **lifetime** All Access + gated content)
-- **`apps/desktop`** — the **Studio**: an Electron generator hub (maps / sprites / 3D / music + SFX)
-  that drives the **Codex CLI locally** plus **fal.ai / Replicate / Suno** integrations, and the
-  codegen orchestrator (shipcode-style Plan → Review → Execute → Verify → Ship)
+
+- `apps/web` - live Next 16 studio site for Skills Pro, DEADROT proof, the asset
+  pipeline, pricing, and public calls to action.
+- `apps/docs` - Nextra docs for studio tools, asset generation, research,
+  shared packages, canon rules, and deployment notes.
+- `apps/cli` - `shipshitgames` / `ssg` command-line entrypoint.
+- `apps/desktop` - Electron + Vite + React studio cockpit for maps, sprites, 3D,
+  music/SFX, local Codex CLI flows, and provider integrations.
+
 ## Packages
-- **`packages/ui`** — shared React + Tailwind + shadcn components
-- **`packages/shared`** — shared types / utilities
-- **`packages/assetgen`** — reusable asset generation core and CLI entrypoint. It reads/writes
-  `../deadrotcom/packages/assets` by default.
-- **`packages/warline`** — `@shipshitgames/warline`: the pure world-state model + reducers + per-game
-  operation contract + client SDK shared by the Warline server, hub, and (eventually) each game
-- Deadrot runtime packages consumed by shipped games belong in
-  `../deadrotcom/packages/*`.
 
-## Games &amp; hub
-The games and the player-facing **hub** live in the **deadrotcom** repo (→ deadrot.com).
-Games ship from `../deadrotcom/apps/games/<slug>`.
+- `packages/assetgen` / `@shipshitgames/assetgen` - reusable asset-generation
+  core and CLI. Reads/writes `../deadrotcom/packages/assets` by default.
+- `packages/engine` / `@shipshitgames/engine` - open-source embodied Three.js
+  game engine primitives shared by studio titles.
+- `packages/ressources` / `@shipshitgames/ressources` - research/transcript
+  library, distillation CLI, and derivative skill/app/tool candidates.
+- `packages/shared` / `@shipshitgames/shared` - shared TypeScript utilities and
+  types.
+- `packages/ui` / `@shipshitgames/ui` - shared React UI primitives, Tailwind
+  styles, and game-flavored component shells.
 
-`scourge-survivors` (FPS) · `deadlane` (TD) · `pactfall` (MOBA, concept) · `starblight` (arcade shooter, concept)
+## Repo Map
 
-## Status
-Default branch `master`. Open-core. `apps/web` repositioned to the studio/lessons site; the
-universe gallery + game loader moved to [deadrotcom](https://github.com/shipshitgames/deadrotcom).
+```txt
+apps/
+  web/       # shipshit.games
+  docs/      # docs.shipshit.games
+  cli/       # shipshitgames / ssg binary
+  desktop/   # Electron studio
+packages/
+  assetgen/
+  engine/
+  ressources/
+  shared/
+  ui/
+scripts/
+```
+
+## Develop
+
+```bash
+bun install
+bun run dev
+bun run build
+bun run typecheck
+```
+
+Common focused commands:
+
+```bash
+bun --filter web dev
+bun --filter docs dev
+bun --filter @shipshitgames/desktop dev
+```
+
+## Operating Notes
+
+- Default branch: `master`.
+- Runtime DEADROT games ship from `../deadrotcom/apps/games/<slug>`.
+- Warline ships from `../deadrotcom/apps/games/warline` with its runtime package
+  in `../deadrotcom/packages/warline`.
+- Generated game assets belong in `../deadrotcom/packages/assets`.
+- Studio learning material and distilled rules belong in `packages/ressources`.
+- Release automation starts at `bun run release`; use `bun run release:run` to
+  execute the planned release.
+
+## Related Repos
+
+- [`shipshitgames/deadrotcom`](https://github.com/shipshitgames/deadrotcom) -
+  DEADROT hub, lore, games, assets, and runtime packages.
+- [`shipshitgames/skills`](https://github.com/shipshitgames/skills) - agent
+  skills used by the studio.
+- [`shipshitdev/v0`](https://github.com/shipshitdev/v0) - product scaffolder
+  used for new Bun/Turbo/Next workspaces.

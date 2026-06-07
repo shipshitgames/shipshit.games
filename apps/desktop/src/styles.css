@@ -173,6 +173,9 @@ body {
 .set-field { display: flex; flex-direction: column; gap: 6px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-faint); }
 .set-field select { font: inherit; letter-spacing: normal; text-transform: none; color: var(--text); background: var(--bg-panel); border: 1px solid var(--line); border-radius: 2px; padding: 10px 12px; }
 .set-field select:focus { outline: none; border-color: var(--blood); box-shadow: 0 0 0 1px var(--blood); }
+.set-provider-row { display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: center; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+.set-provider-row select { font: inherit; letter-spacing: normal; text-transform: none; color: var(--text); background: var(--bg-panel); border: 1px solid var(--line); border-radius: 2px; padding: 8px 10px; }
+.set-provider-row select:focus { outline: none; border-color: var(--blood); box-shadow: 0 0 0 1px var(--blood); }
 .set-key-row { display: grid; grid-template-columns: 92px 1fr auto auto; gap: 10px; align-items: center; }
 .set-key-row .label { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
 .set-key-row input { font: inherit; color: var(--text); background: var(--bg-panel); border: 1px solid var(--line); border-radius: 2px; padding: 8px 10px; }
