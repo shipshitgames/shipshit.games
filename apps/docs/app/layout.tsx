@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Ship Shit Games Docs",
     description:
-      "How to use the Ship Shit Games tooling: asset generation, research, Warline, engine, UI, and studio workflows.",
+      "How to use the Ship Shit Games tooling: asset generation, research, engine, UI, and studio workflows.",
     url: "https://docs.shipshit.games",
     siteName: "Ship Shit Games Docs",
     type: "website",

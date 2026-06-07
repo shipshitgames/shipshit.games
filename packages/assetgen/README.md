@@ -1,7 +1,7 @@
 # @shipshitgames/assetgen
 
 DOOM-grade asset generation for Ship Shit Games. One pipeline:
-**prompt + `DESIGN.md` DOOM-suffix → provider → trim/optimize `.webp` → `assets.json`.**
+**prompt + `lore/DESIGN.md` DOOM-suffix → provider → trim/optimize `.webp` → `assets.json`.**
 
 This is the engine behind the studio generator surfaces. It runs from the CLI
 today; the desktop/app surfaces can wrap the same core later.
@@ -27,12 +27,18 @@ OPENAI_API_KEY=sk-... bun packages/assetgen/src/cli.ts \
 # Back-compat default: omitting `generate` still runs single-asset generation.
 bun packages/assetgen/src/cli.ts --provider mock --dry-run --id test --prompt "x"
 
-# Or use your authed Codex CLI as the generator:
+# Or use your authed Codex CLI as the generator. This path spawns Codex through
+# node-pty, streams its output, then verifies that Codex wrote the requested PNG
+# before the normal webp + assets.json post-process runs:
 bun packages/assetgen/src/cli.ts generate --provider codex --id ... --prompt "..." --repo ...
 
 # Pipeline dry-run (no key, placeholder image):
 bun packages/assetgen/src/cli.ts generate --provider mock --dry-run --id test --prompt "x"
 ```
+
+Omitting `--provider` uses the per-kind default: sprites/maps use `codex`,
+textures/icons use `openai`, audio kinds use `suno`, and model/3D assets use
+`replicate`. Pass `--provider` to override a single run.
 
 ## The variant matrix (issue #6)
 
@@ -64,9 +70,11 @@ Flags: `--provider` (default `mock` — safe to batch), `--game`, `--id`,
 (force mock), `--sync-games`, `--assets-dir`.
 
 ## Providers
-- `openai` — **gpt-image-2** (default; `--model` to override), transparent PNG
+- `codex` — delegates to the local authed `codex` CLI via node-pty (no key wiring needed)
+- `openai` — **gpt-image-2** (`--model` to override), transparent PNG
 - `fal` — FLUX
-- `codex` — delegates to the local authed `codex` CLI (no key wiring needed)
+- `replicate` — model runner for image/model providers (`--model owner/model`)
+- `suno` — audio provider adapter; requires `SUNO_API_BASE_URL` for the licensed endpoint
 - `mock` — offline placeholder for testing the pipeline
 
 ## Keys (shipcode-style)
@@ -76,9 +84,23 @@ fallback). Store one with:
 ```bash
 security add-generic-password -a shipshit -s shipshit-openai -w <OPENAI_KEY>
 security add-generic-password -a shipshit -s shipshit-fal    -w <FAL_KEY>
+security add-generic-password -a shipshit -s shipshit-replicate -w <REPLICATE_API_TOKEN>
+security add-generic-password -a shipshit -s shipshit-suno -w <SUNO_API_KEY>
 ```
 
 The `codex` provider rides codex's own keychain auth — nothing to store.
+
+## Usage log
+
+Every provider call appends a local JSONL event to:
+
+```txt
+~/.shipshitgames/assetgen/usage.jsonl
+```
+
+The log stores provider, kind, model, id, output path, duration, and success/failure.
+It stores a prompt hash and character count, not raw prompt text. Override the path
+with `--usage-log <path>` or disable with `--usage-log off`.
 
 ## Style
 Every prompt is suffixed with the DOOM canon from `lore/DESIGN.md` and framed per game.

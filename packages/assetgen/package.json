@@ -7,9 +7,18 @@
   "scripts": {
     "gen": "bun src/cli.ts",
     "matrix": "bun src/cli.ts matrix",
+    "lint": "bun src/cli.ts check-design --root ../..",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
+    "node-pty": "1.1.0",
     "sharp": "0.34.5"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "@types/node": "25.9.1",
+    "typescript": "6.0.3"
   }
 }

@@ -1,4 +1,4 @@
-/* GENERATED FROM lore/DESIGN.md v0.1.0 hash:492c60dc — DO NOT EDIT. Run: bun assetgen tokens */
+/* GENERATED FROM lore/DESIGN.md v0.1.0 hash:f810af73 — DO NOT EDIT. Run: bun assetgen tokens */
 // Asset-generation style, compiled from the DESIGN.md `assetgen:` block + the
 // lore Style-Bible. style.ts re-exports these; edit the bible, not this file.
 

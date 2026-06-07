@@ -1,6 +1,0 @@
-{
-  "$schema": "https://www.partykit.io/schema.json",
-  "name": "warline",
-  "main": "party/warline.ts",
-  "compatibilityDate": "2024-09-01"
-}

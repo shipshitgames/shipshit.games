@@ -21,7 +21,6 @@ export function resolveDesignPath(override?: string): string {
     override,
     join(ROOT, ".agents/lore/DESIGN.md"), // submodule (preferred once wired)
     join(ROOT, "..", "lore", "DESIGN.md"), // sibling repo (current workspace layout)
-    join(ROOT, "DESIGN.md"), // stale local copy — last resort
   ].filter(Boolean) as string[];
   for (const c of candidates) if (existsSync(c)) return c;
   throw new Error(`DESIGN.md not found (tried: ${candidates.join(", ")}). Pass --design <path>.`);

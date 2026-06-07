@@ -13,9 +13,10 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { buildPrompt } from "./style.ts";
-import { providers } from "./providers.ts";
+import { generateAsset } from "./providers.ts";
 import { toWebp } from "./postprocess.ts";
 import { register } from "./manifest.ts";
+import { appendUsageLog } from "./usage.ts";
 
 const CATALOG_FILE = "assets-catalog.json";
 
@@ -77,6 +78,7 @@ export interface MatrixOptions {
   syncGames: boolean;
   /** Where `games/<slug>` live, for `syncGames`. */
   gamesRoot?: string;
+  usageLogPath?: string | null;
   log?: (msg: string) => void;
 }
 
@@ -134,8 +136,6 @@ export function expandJobs(
 export async function runMatrix(opts: MatrixOptions): Promise<MatrixResult> {
   const log = opts.log ?? (() => {});
   const which = opts.dryRun ? "mock" : opts.provider;
-  const gen = providers[which];
-  if (!gen) throw new Error(`unknown provider: ${opts.provider}`);
 
   const catalog = await loadCatalog(opts.assetsDir);
   const jobs = expandJobs(catalog, opts.assetsDir, { game: opts.game, id: opts.id });
@@ -153,23 +153,61 @@ export async function runMatrix(opts: MatrixOptions): Promise<MatrixResult> {
 
     const full = buildPrompt({ prompt: job.entity.promptBase, game: job.game, kind: "sprite" });
     log(`[gen] ${job.entity.id} → ${job.game}`);
-    const raw = await gen(full, { size: `${opts.size}x${opts.size}`, model: opts.model });
-    const webp = await toWebp(raw, { size: opts.size });
-    await mkdir(dirname(job.outAbs), { recursive: true });
-    await writeFile(job.outAbs, webp);
-    job.entity.variants[job.game] = job.outRel; // record into the in-memory catalog
-    generated++;
-
-    if (opts.syncGames && opts.gamesRoot) {
-      const manifest = join(opts.gamesRoot, job.game, "src/assets/assets.json");
-      await register(manifest, {
-        id: job.entity.id,
-        kind: "sprite",
-        game: job.game,
-        path: `@shipshitgames/assets/${job.outRel}`,
-        prompt: job.entity.promptBase,
+    const started = Date.now();
+    let ok = false;
+    let usedModel = opts.model;
+    let usageError: unknown;
+    try {
+      const raw = await generateAsset("sprite", full, {
         provider: which,
+        size: `${opts.size}x${opts.size}`,
+        model: opts.model,
+        log: (chunk) => log(chunk),
       });
+      usedModel = raw.model;
+      const webp = await toWebp(raw.data, { size: opts.size });
+      await mkdir(dirname(job.outAbs), { recursive: true });
+      await writeFile(job.outAbs, webp);
+      job.entity.variants[job.game] = job.outRel; // record into the in-memory catalog
+      generated++;
+
+      if (opts.syncGames && opts.gamesRoot) {
+        const manifest = join(opts.gamesRoot, job.game, "src/assets/assets.json");
+        await register(manifest, {
+          id: job.entity.id,
+          kind: "sprite",
+          game: job.game,
+          path: `@shipshitgames/assets/${job.outRel}`,
+          prompt: job.entity.promptBase,
+          provider: raw.provider,
+        });
+      }
+      ok = true;
+    } catch (error) {
+      usageError = error;
+      throw error;
+    } finally {
+      try {
+        await appendUsageLog(
+          {
+            command: "matrix",
+            provider: which,
+            kind: "sprite",
+            game: job.game,
+            id: job.entity.id,
+            model: usedModel,
+            size: opts.size,
+            outputPath: job.outAbs,
+            prompt: job.entity.promptBase,
+            success: ok,
+            durationMs: Date.now() - started,
+            error: usageError,
+          },
+          opts.usageLogPath,
+        );
+      } catch (error) {
+        log(`[usage] failed to write usage log: ${String((error as Error)?.message ?? error)}`);
+      }
     }
   }
 
