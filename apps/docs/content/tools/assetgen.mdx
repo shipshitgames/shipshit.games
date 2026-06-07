@@ -77,6 +77,18 @@ bun packages/assetgen/src/cli.ts matrix \
   --assets-dir ../deadrotcom/packages/assets
 ```
 
+## Discover game token targets
+
+`games` writes `games.json` into the Deadrot asset package. It discovers each
+game's token targets from the game folders, including both supported constants
+layouts (`src/game/constants.ts` and `src/constants.ts`).
+
+```bash
+bun packages/assetgen/src/cli.ts games \
+  --games-root ../deadrotcom/apps/games \
+  --assets-dir ../deadrotcom/packages/assets
+```
+
 ## Providers
 
 | Provider | Use |
