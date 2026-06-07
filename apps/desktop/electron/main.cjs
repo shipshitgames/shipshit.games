@@ -11,7 +11,9 @@ const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
 
 const STUDIO_REPO = path.join(__dirname, "..", "..", "..");
 const WORKSPACE = path.join(STUDIO_REPO, "..");
-const GAMES_ROOT = path.join(WORKSPACE, "games");
+const DEADROT_GAMES_ROOT = path.join(WORKSPACE, "deadrotcom", "apps", "games");
+const LEGACY_GAMES_ROOT = path.join(WORKSPACE, "games");
+const GAMES_ROOT = fs.existsSync(DEADROT_GAMES_ROOT) ? DEADROT_GAMES_ROOT : LEGACY_GAMES_ROOT;
 const ASSETGEN = path.join(STUDIO_REPO, "packages", "assetgen", "src", "cli.ts");
 const RESSOURCES = path.join(STUDIO_REPO, "packages", "ressources", "src", "cli.ts");
 const DEFAULT_GAME = "scourge-survivors";
@@ -122,6 +124,7 @@ ipcMain.handle("studio:generate", async (e, opts) => {
   const args = [ASSETGEN, "--provider", provider, "--game", game, "--kind", opts?.kind || "sprite", "--id", opts?.id || "asset", "--prompt", opts?.prompt || "", "--repo", repo];
   const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:gen-log", chunk); };
   send(`$ assetgen --provider ${provider} --game ${game} --kind ${opts?.kind || "sprite"} --id ${opts?.id}\n`);
+  send(`[repo] ${repo}\n`);
   return await new Promise((resolve) => {
     let child;
     try { child = spawn("bun", args, { cwd: STUDIO_REPO }); }

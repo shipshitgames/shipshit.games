@@ -153,7 +153,11 @@ export async function runMatrix(opts: MatrixOptions): Promise<MatrixResult> {
 
     const full = buildPrompt({ prompt: job.entity.promptBase, game: job.game, kind: "sprite" });
     log(`[gen] ${job.entity.id} → ${job.game}`);
-    const raw = await gen(full, { size: `${opts.size}x${opts.size}`, model: opts.model });
+    const raw = await gen(full, {
+      size: `${opts.size}x${opts.size}`,
+      model: opts.model,
+      log: (chunk) => log(chunk),
+    });
     const webp = await toWebp(raw, { size: opts.size });
     await mkdir(dirname(job.outAbs), { recursive: true });
     await writeFile(job.outAbs, webp);

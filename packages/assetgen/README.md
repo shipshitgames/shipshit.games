@@ -27,7 +27,9 @@ OPENAI_API_KEY=sk-... bun packages/assetgen/src/cli.ts \
 # Back-compat default: omitting `generate` still runs single-asset generation.
 bun packages/assetgen/src/cli.ts --provider mock --dry-run --id test --prompt "x"
 
-# Or use your authed Codex CLI as the generator:
+# Or use your authed Codex CLI as the generator. This path spawns Codex through
+# node-pty, streams its output, then verifies that Codex wrote the requested PNG
+# before the normal webp + assets.json post-process runs:
 bun packages/assetgen/src/cli.ts generate --provider codex --id ... --prompt "..." --repo ...
 
 # Pipeline dry-run (no key, placeholder image):
@@ -66,7 +68,7 @@ Flags: `--provider` (default `mock` — safe to batch), `--game`, `--id`,
 ## Providers
 - `openai` — **gpt-image-2** (default; `--model` to override), transparent PNG
 - `fal` — FLUX
-- `codex` — delegates to the local authed `codex` CLI (no key wiring needed)
+- `codex` — delegates to the local authed `codex` CLI via node-pty (no key wiring needed)
 - `mock` — offline placeholder for testing the pipeline
 
 ## Keys (shipcode-style)

@@ -1,14 +1,17 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { readFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
+import { runCodexCli } from "./codex.ts";
 import { getKey } from "./keys.ts";
 
-const pexec = promisify(execFile);
+export interface ProviderOptions {
+  size: string;
+  model?: string;
+  log?: (chunk: string) => void;
+}
 
-export type Provider = (prompt: string, opts: { size: string; model?: string }) => Promise<Buffer>;
+export type Provider = (prompt: string, opts: ProviderOptions) => Promise<Buffer>;
 
 /** OpenAI Images (gpt-image-2 by default) — transparent PNG. Key via env or keychain. */
 export const openai: Provider = async (prompt, opts) => {
@@ -54,20 +57,10 @@ export const fal: Provider = async (prompt) => {
 };
 
 /** Local Codex CLI — drives the authed `codex` agent on YOUR subscription (no API key). */
-export const codex: Provider = async (prompt) => {
+export const codex: Provider = async (prompt, opts) => {
   const dir = await mkdtemp(join(tmpdir(), "assetgen-"));
   const out = join(dir, "out.png");
-  await pexec(
-    "codex",
-    [
-      "exec",
-      "--dangerously-bypass-approvals-and-sandbox",
-      "--skip-git-repo-check",
-      "-C", dir,
-      `Generate a single PNG image with a transparent background and save it to ${out}. Use any image-generation capability you have. The image: ${prompt}`,
-    ],
-    { timeout: 280_000, maxBuffer: 1024 * 1024 * 32 },
-  );
+  await runCodexCli({ prompt, outPath: out, cwd: dir, log: opts.log });
   return readFile(out);
 };
 

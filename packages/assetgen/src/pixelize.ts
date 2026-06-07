@@ -35,7 +35,9 @@ function paletteRGB(palette: string[]): RGB[] {
 }
 
 function nearest(r: number, g: number, b: number, pal: RGB[]): RGB {
-  let best = pal[0];
+  const first = pal[0];
+  if (!first) throw new Error("palette must contain at least one color");
+  let best = first;
   let bd = Infinity;
   for (const p of pal) {
     // weighted euclidean (luma-ish) — keeps value steps clean
@@ -72,7 +74,10 @@ export async function pixelize(input: Buffer, opts: PixelizeOpts = {}): Promise<
   const cut = Buffer.from(data);
   const isBg = (i: number): boolean => {
     const o = i * ch;
-    return 0.2126 * cut[o] + 0.7152 * cut[o + 1] + 0.0722 * cut[o + 2] <= bgT;
+    const r = cut[o] ?? 0;
+    const g = cut[o + 1] ?? 0;
+    const b = cut[o + 2] ?? 0;
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b <= bgT;
   };
   const visited = new Uint8Array(W * H);
   const stack: number[] = [];
@@ -100,8 +105,8 @@ export async function pixelize(input: Buffer, opts: PixelizeOpts = {}): Promise<
   const sch = small.info.channels;
   for (let i = 0, n = small.info.width * small.info.height; i < n; i++) {
     const o = i * sch;
-    if (sch === 4 && sd[o + 3] < 128) { sd[o + 3] = 0; continue; } // stay transparent
-    const [r, g, b] = nearest(sd[o], sd[o + 1], sd[o + 2], pal);
+    if (sch === 4 && (sd[o + 3] ?? 0) < 128) { sd[o + 3] = 0; continue; } // stay transparent
+    const [r, g, b] = nearest(sd[o] ?? 0, sd[o + 1] ?? 0, sd[o + 2] ?? 0, pal);
     sd[o] = r; sd[o + 1] = g; sd[o + 2] = b;
     if (sch === 4) sd[o + 3] = 255; // hard edge
   }

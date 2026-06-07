@@ -34,7 +34,7 @@ export async function runGenerate(argv: string[]): Promise<void> {
   console.log(`[assetgen] provider=${which}${which === "openai" ? ` model=${model}` : ""} game=${game} kind=${kind} id=${id}`);
   console.log(`[prompt] ${full}`);
 
-  const raw = await gen(full, { size: `${size}x${size}`, model });
+  const raw = await gen(full, { size: `${size}x${size}`, model, log: (chunk) => process.stdout.write(chunk) });
   const webp = await toWebp(raw, { size });
 
   const subdir = kind === "sprite" ? "sprites" : kind === "texture" ? "textures" : kind;

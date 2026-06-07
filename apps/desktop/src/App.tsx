@@ -358,7 +358,7 @@ export default function App() {
           <div className="terminal-bar">
             <span className="terminal-dot" />
             <span className="terminal-title">terminal</span>
-            <span className="terminal-hint">xterm / node-pty wiring pending</span>
+            <span className="terminal-hint">assetgen streams Codex through node-pty</span>
           </div>
           <div className="terminal-body">
             <span className="terminal-prompt">shipshit&nbsp;~&nbsp;studio&nbsp;$</span>
