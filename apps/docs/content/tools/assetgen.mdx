@@ -43,8 +43,10 @@ bun packages/assetgen/src/cli.ts \
   --prompt "a rotting bio-husk of the Scourge, lunging"
 ```
 
-The `codex` provider rides the local authenticated Codex CLI. No extra provider
-key is needed for that path.
+The `codex` provider rides the local authenticated Codex CLI through `node-pty`.
+No extra provider key is needed for that path. The CLI streams Codex output,
+verifies that the requested PNG was written, then runs the normal `.webp` and
+`assets.json` post-process.
 
 ## Fill the matrix
 
