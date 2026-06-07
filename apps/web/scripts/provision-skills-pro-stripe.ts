@@ -1,9 +1,9 @@
 import Stripe from "stripe";
+import { STUDIO_PASS } from "@shipshitgames/shared";
 
 import { SKILLS_PRO } from "../lib/skills-pro";
 
-const PRICE_LOOKUP_KEY = "shipshit-skills-pro-49-usd";
-const EARLY_BUYER_AMOUNT_OFF_CENTS = SKILLS_PRO.earlyBuyerDiscountUsd * 100;
+const FOUNDER_AMOUNT_OFF_CENTS = SKILLS_PRO.earlyBuyerDiscountUsd * 100;
 
 const key = process.env.STRIPE_SECRET_KEY;
 if (!key) {
@@ -19,16 +19,16 @@ async function getOrCreateProduct() {
   });
 
   const existing = products.data.find(
-    (product) => product.metadata.product === "skills-pro"
+    (product) => product.metadata.product === STUDIO_PASS.productKey
   );
   if (existing) return existing;
 
   return stripe.products.create({
-    name: "Ship Shit Games Skills Pro",
+    name: `Ship Shit Games ${STUDIO_PASS.name}`,
     description: SKILLS_PRO.tagline,
     url: "https://shipshit.games/pricing",
     metadata: {
-      product: "skills-pro",
+      product: STUDIO_PASS.productKey,
       site: "shipshit.games",
     },
   });
@@ -37,7 +37,7 @@ async function getOrCreateProduct() {
 async function getOrCreatePrice(productId: string) {
   const prices = await stripe.prices.list({
     active: true,
-    lookup_keys: [PRICE_LOOKUP_KEY],
+    lookup_keys: [STUDIO_PASS.priceLookupKey],
     limit: 1,
   });
 
@@ -48,9 +48,12 @@ async function getOrCreatePrice(productId: string) {
     product: productId,
     currency: "usd",
     unit_amount: SKILLS_PRO.listPriceUsd * 100,
-    lookup_key: PRICE_LOOKUP_KEY,
+    recurring: {
+      interval: STUDIO_PASS.interval,
+    },
+    lookup_key: STUDIO_PASS.priceLookupKey,
     metadata: {
-      product: "skills-pro",
+      product: STUDIO_PASS.productKey,
       site: "shipshit.games",
     },
   });
@@ -61,7 +64,7 @@ async function getOrCreateCoupon() {
     const coupon = await stripe.coupons.retrieve(SKILLS_PRO.defaultCouponId);
     if (
       "deleted" in coupon ||
-      coupon.amount_off !== EARLY_BUYER_AMOUNT_OFF_CENTS ||
+      coupon.amount_off !== FOUNDER_AMOUNT_OFF_CENTS ||
       coupon.currency !== "usd"
     ) {
       throw new Error(
@@ -78,12 +81,12 @@ async function getOrCreateCoupon() {
 
   return stripe.coupons.create({
     id: SKILLS_PRO.defaultCouponId,
-    name: "EARLYFOUNDER20",
-    amount_off: EARLY_BUYER_AMOUNT_OFF_CENTS,
+    name: "STUDIOFOUNDER20",
+    amount_off: FOUNDER_AMOUNT_OFF_CENTS,
     currency: "usd",
-    duration: "once",
+    duration: "forever",
     metadata: {
-      product: "skills-pro",
+      product: STUDIO_PASS.productKey,
       site: "shipshit.games",
     },
   });
@@ -93,7 +96,7 @@ const product = await getOrCreateProduct();
 const price = await getOrCreatePrice(product.id);
 const coupon = await getOrCreateCoupon();
 
-console.log("Stripe Skills Pro pricing is ready.");
+console.log("Stripe Studio Pass subscription pricing is ready.");
 console.log(`Product: ${product.id}`);
-console.log(`STRIPE_SKILLS_PRO_PRICE_ID=${price.id}`);
-console.log(`STRIPE_SKILLS_PRO_EARLY_COUPON_ID=${coupon.id}`);
+console.log(`STRIPE_STUDIO_PASS_PRICE_ID=${price.id}`);
+console.log(`STRIPE_STUDIO_PASS_FOUNDER_COUPON_ID=${coupon.id}`);

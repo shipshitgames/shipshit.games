@@ -4,6 +4,28 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": [
+        "ACCESS_SIGNING_SECRET",
+        "ACCESS_EMAIL_FROM",
+        "CLERK_SECRET_KEY",
+        "FULFILLMENT_WEBHOOK_URL",
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL",
+        "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL",
+        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+        "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
+        "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
+        "NEXT_PUBLIC_SITE_URL",
+        "RESEND_API_KEY",
+        "SKILLS_PRO_PRIVATE_URL",
+        "SKOOL_INVITE_WEBHOOK_URL",
+        "STRIPE_SKILLS_PRO_EARLY_COUPON_ID",
+        "STRIPE_SKILLS_PRO_PRICE_ID",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_STUDIO_PASS_FOUNDER_COUPON_ID",
+        "STRIPE_STUDIO_PASS_PRICE_ID",
+        "STRIPE_WEBHOOK_SECRET"
+      ],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", "out/**"]
     },
     "dev": {

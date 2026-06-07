@@ -1,26 +1,22 @@
 {
-  "name": "web",
+  "name": "app",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3002",
     "build": "next build",
-    "start": "next start",
-    "stripe:provision": "bun scripts/provision-skills-pro-stripe.ts",
+    "start": "next start -p 3002",
+    "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
-    "@radix-ui/react-slot": "^1.2.4",
+    "@clerk/nextjs": "^7.4.3",
     "@shipshitgames/shared": "workspace:*",
-    "@shipshitgames/ui": "^0.1.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
     "lucide-react": "1.17.0",
     "next": "16",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "stripe": "^22.2.0",
-    "tailwind-merge": "3.6.0"
+    "stripe": "^22.2.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.0",
