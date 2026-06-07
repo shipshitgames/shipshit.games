@@ -10,7 +10,7 @@ type Section = { id: SectionId; label: string; group: Group; glyph: string; blur
 
 interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null }
 interface ResearchResult { ok: boolean; log: string; path: string | null; rules: string | null }
-interface Settings { defaultProvider: string; defaultGame: string }
+interface Settings { defaultProvider: string; defaultGame: string; providerDefaults: Record<string, string> }
 
 declare global {
   interface Window {
@@ -46,27 +46,61 @@ const PROVIDERS = [
   { id: "openai", label: "OpenAI API (gpt-image-2)" },
   { id: "fal", label: "fal.ai (FLUX)" },
   { id: "replicate", label: "Replicate" },
+  { id: "suno", label: "Suno" },
   { id: "mock", label: "Mock (offline test)" },
 ];
 const KEYED = [
   { id: "openai", label: "OpenAI" },
   { id: "fal", label: "fal.ai" },
   { id: "replicate", label: "Replicate" },
+  { id: "suno", label: "Suno" },
+];
+const DEFAULT_PROVIDER_BY_KIND: Record<string, string> = {
+  sprite: "codex",
+  texture: "openai",
+  icon: "openai",
+  map: "codex",
+  music: "suno",
+  sfx: "suno",
+  voice: "suno",
+  model: "replicate",
+  "3d": "replicate",
+};
+const ASSET_DEFAULTS = [
+  { kind: "sprite", label: "Sprites" },
+  { kind: "texture", label: "Textures" },
+  { kind: "icon", label: "Icons" },
+  { kind: "map", label: "Maps" },
+  { kind: "music", label: "Music" },
+  { kind: "sfx", label: "SFX" },
+  { kind: "voice", label: "Voice" },
+  { kind: "model", label: "Models" },
 ];
 
+function withSettingsDefaults(settings: Partial<Settings>): Settings {
+  return {
+    defaultProvider: settings.defaultProvider || "codex",
+    defaultGame: settings.defaultGame || "scourge-survivors",
+    providerDefaults: { ...DEFAULT_PROVIDER_BY_KIND, ...(settings.providerDefaults || {}) },
+  };
+}
+
 function SettingsPane() {
-  const [settings, setSettings] = useState<Settings>({ defaultProvider: "codex", defaultGame: "scourge-survivors" });
+  const [settings, setSettings] = useState<Settings>(withSettingsDefaults({}));
   const [games, setGames] = useState<string[]>(["scourge-survivors"]);
   const [status, setStatus] = useState<Record<string, boolean>>({});
   const [inputs, setInputs] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    window.studio?.settings.get().then(setSettings).catch(() => {});
+    window.studio?.settings.get().then((s) => setSettings(withSettingsDefaults(s))).catch(() => {});
     window.studio?.keys.status().then(setStatus).catch(() => {});
     window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
   }, []);
 
-  const update = (p: Partial<Settings>) => window.studio?.settings.set(p).then(setSettings).catch(() => {});
+  const update = (p: Partial<Settings>) => window.studio?.settings.set(p).then((s) => setSettings(withSettingsDefaults(s))).catch(() => {});
+  const updateKindProvider = (kind: string, provider: string) => update({
+    providerDefaults: { ...settings.providerDefaults, [kind]: provider },
+  });
   const saveKey = (provider: string) => {
     const key = inputs[provider];
     if (!key) return;
@@ -77,7 +111,7 @@ function SettingsPane() {
     <div className="settings">
       <div className="set-group">
         <div className="set-group-title">Defaults</div>
-        <label className="set-field"><span>Default provider — used by every generator</span>
+        <label className="set-field"><span>Fallback provider</span>
           <select value={settings.defaultProvider} onChange={(e) => update({ defaultProvider: e.target.value })}>
             {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
@@ -89,8 +123,19 @@ function SettingsPane() {
         </label>
       </div>
       <div className="set-group">
+        <div className="set-group-title">Provider by asset type</div>
+        {ASSET_DEFAULTS.map((item) => (
+          <label className="set-provider-row" key={item.kind}>
+            <span>{item.label}</span>
+            <select value={settings.providerDefaults[item.kind] || settings.defaultProvider} onChange={(e) => updateKindProvider(item.kind, e.target.value)}>
+              {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
+      <div className="set-group">
         <div className="set-group-title">API keys — only for key-based providers</div>
-        <p className="gen-note">Codex uses your ChatGPT/Codex subscription — no key needed. Only fal / Replicate / OpenAI-API need a key. Stored in your macOS keychain.</p>
+        <p className="gen-note">Codex uses your ChatGPT/Codex subscription — no key needed. Key-based providers are stored in your macOS keychain.</p>
         {KEYED.map((k) => (
           <div className="set-key-row" key={k.id}>
             <span className="label">{k.label}</span>
@@ -115,7 +160,11 @@ function SpritesPane() {
   const [result, setResult] = useState<GenResult | null>(null);
 
   useEffect(() => {
-    window.studio?.settings.get().then((s) => { setProvider(s.defaultProvider); setGame(s.defaultGame); }).catch(() => {});
+    window.studio?.settings.get().then((s) => {
+      const next = withSettingsDefaults(s);
+      setProvider(next.providerDefaults.sprite || next.defaultProvider);
+      setGame(next.defaultGame);
+    }).catch(() => {});
     window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
     const off = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
     return () => { off?.(); };
@@ -149,7 +198,7 @@ function SpritesPane() {
             {games.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </label>
-        <div className="gen-active">provider <b>{provider}</b> · change in Settings (topbar ⚙)</div>
+        <div className="gen-active">sprite provider <b>{provider}</b> · change in Settings (topbar ⚙)</div>
         <button className="gen-btn" disabled={busy || !id || !prompt} onClick={generate}>
           {busy ? "Forging…" : "Generate"}
         </button>

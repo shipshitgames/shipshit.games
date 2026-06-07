@@ -48,6 +48,10 @@ No extra provider key is needed for that path. The CLI streams Codex output,
 verifies that the requested PNG was written, then runs the normal `.webp` and
 `assets.json` post-process.
 
+If `--provider` is omitted, assetgen uses the per-kind default: sprites/maps use
+`codex`, textures/icons use `openai`, audio kinds use `suno`, and model/3D assets
+use `replicate`.
+
 ## Fill the matrix
 
 Matrix mode expands every intended `(entity x game)` render cell and writes it
@@ -81,12 +85,28 @@ bun packages/assetgen/src/cli.ts matrix \
 | `codex` | Local Codex CLI delegation |
 | `openai` | Image model generation |
 | `fal` | FLUX generation |
+| `replicate` | Image/model provider runner |
+| `suno` | Audio provider adapter; requires `SUNO_API_BASE_URL` |
 
 ## Keychain storage
 
 ```bash
 security add-generic-password -a shipshit -s shipshit-openai -w <OPENAI_KEY>
 security add-generic-password -a shipshit -s shipshit-fal -w <FAL_KEY>
+security add-generic-password -a shipshit -s shipshit-replicate -w <REPLICATE_API_TOKEN>
+security add-generic-password -a shipshit -s shipshit-suno -w <SUNO_API_KEY>
 ```
 
 Keep raw `.env` files out of commits.
+
+## Usage log
+
+Provider calls append local JSONL events to:
+
+```txt
+~/.shipshitgames/assetgen/usage.jsonl
+```
+
+The log stores provider, kind, model, id, output path, duration, and success/failure.
+It stores prompt hash and length instead of raw prompt text. Use
+`--usage-log <path>` to override or `--usage-log off` to disable.
