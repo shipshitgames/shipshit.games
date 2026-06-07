@@ -1,6 +1,7 @@
 /**
  * Shared types and utilities for the Ship Shit Games platform.
  */
+import gamesCatalog from "./games.json";
 
 /** Lifecycle status of a game in the gallery. */
 export type GameStatus = "playable" | "in-dev" | "concept";
@@ -28,38 +29,13 @@ export const STATUS_LABELS: Record<GameStatus, string> = {
   concept: "Concept",
 };
 
+const catalog = gamesCatalog as { gameSlugs: string[]; games: Game[] };
+
+/** Canonical game slugs used by studio tools, in gallery order. */
+export const GAME_SLUGS = catalog.gameSlugs;
+
 /** The Ship Shit Games catalogue, in gallery order. */
-export const GAMES: Game[] = [
-  {
-    slug: "scourge-survivors",
-    title: "Scourge Survivors",
-    blurb: "First-person horde-survivors — Vampire Survivors x DOOM.",
-    status: "playable",
-    demoUrl: "https://scourge-survivors.vercel.app",
-    repoUrl: "https://github.com/shipshitgames/scourge-survivors",
-  },
-  {
-    slug: "deadlane",
-    title: "Deadlane",
-    blurb: "3D tower defense — hold the line for the Wardens.",
-    status: "in-dev",
-    repoUrl: "https://github.com/shipshitgames/deadlane",
-  },
-  {
-    slug: "pactfall",
-    title: "Pactfall",
-    blurb: "Pyre-vs-Wardens MOBA built around the Pact.",
-    status: "concept",
-    repoUrl: "https://github.com/shipshitgames/pactfall",
-  },
-  {
-    slug: "starblight",
-    title: "Starblight",
-    blurb: "Arcade pilot shooter against the orbital infection.",
-    status: "concept",
-    repoUrl: "https://github.com/shipshitgames/starblight",
-  },
-];
+export const GAMES: Game[] = catalog.games;
 
 /** Studio subscription sold through Stripe and managed in app.shipshit.games. */
 export const STUDIO_PASS = {

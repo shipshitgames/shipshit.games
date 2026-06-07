@@ -5,6 +5,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { spawn, execFileSync } = require("node:child_process");
+const { readSharedGameSlugs } = require("./game-slugs.cjs");
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
 const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
@@ -17,7 +18,7 @@ const GAMES_ROOT = fs.existsSync(DEADROT_GAMES_ROOT) ? DEADROT_GAMES_ROOT : LEGA
 const ASSETGEN = path.join(STUDIO_REPO, "packages", "assetgen", "src", "cli.ts");
 const RESSOURCES = path.join(STUDIO_REPO, "packages", "ressources", "src", "cli.ts");
 const DEFAULT_GAME = "scourge-survivors";
-const ALL_GAMES = ["scourge-survivors", "deadlane", "pactfall", "starblight"];
+const GAME_SLUGS = readSharedGameSlugs(STUDIO_REPO);
 const gameDir = (g) => path.join(GAMES_ROOT, g === "shared" ? DEFAULT_GAME : g);
 
 // ---- settings (non-secret) ----
@@ -98,7 +99,7 @@ ipcMain.handle("settings:get", () => readSettings());
 ipcMain.handle("settings:set", (_e, partial) => mergeSettings(partial));
 ipcMain.handle("keys:status", () => keyStatus());
 ipcMain.handle("keys:set", (_e, { provider, key }) => { const s = KEY_SERVICES[provider]; if (s && key) setKey(s, key); return keyStatus(); });
-ipcMain.handle("studio:listGames", () => ALL_GAMES.filter((g) => fs.existsSync(gameDir(g))));
+ipcMain.handle("studio:listGames", () => GAME_SLUGS.filter((g) => fs.existsSync(gameDir(g))));
 
 // ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
 // GUI apps inherit a minimal PATH, so resolve ffmpeg from common install locations.

@@ -1,0 +1,55 @@
+{
+  "gameSlugs": [
+    "scourge-survivors",
+    "deadlane",
+    "pactfall",
+    "starblight",
+    "redline",
+    "rothulk"
+  ],
+  "games": [
+    {
+      "slug": "scourge-survivors",
+      "title": "Scourge Survivors",
+      "blurb": "First-person horde-survivors - Vampire Survivors x DOOM.",
+      "status": "playable",
+      "demoUrl": "https://scourge-survivors.vercel.app",
+      "repoUrl": "https://github.com/shipshitgames/scourge-survivors"
+    },
+    {
+      "slug": "deadlane",
+      "title": "Deadlane",
+      "blurb": "3D tower defense - hold the line for the Wardens.",
+      "status": "in-dev",
+      "repoUrl": "https://github.com/shipshitgames/deadlane"
+    },
+    {
+      "slug": "pactfall",
+      "title": "Pactfall",
+      "blurb": "Pyre-vs-Wardens MOBA built around the Pact.",
+      "status": "concept",
+      "repoUrl": "https://github.com/shipshitgames/pactfall"
+    },
+    {
+      "slug": "starblight",
+      "title": "Starblight",
+      "blurb": "Arcade pilot shooter against the orbital infection.",
+      "status": "concept",
+      "repoUrl": "https://github.com/shipshitgames/starblight"
+    },
+    {
+      "slug": "redline",
+      "title": "Redline",
+      "blurb": "Courier platformer through infected logistics lanes.",
+      "status": "concept",
+      "repoUrl": "https://github.com/shipshitgames/redline"
+    },
+    {
+      "slug": "rothulk",
+      "title": "Rothulk",
+      "blurb": "Infiltration platformer inside a Scourge bio-ship.",
+      "status": "concept",
+      "repoUrl": "https://github.com/shipshitgames/rothulk"
+    }
+  ]
+}
