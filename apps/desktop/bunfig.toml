@@ -1,0 +1,5 @@
+# Coverage runs only with --coverage (bun run test:coverage). Threshold is the
+# global total across covered files; raise as coverage grows.
+[test]
+coverageThreshold = { line = 0.7, function = 0.7 }
+coverageSkipTestFiles = true

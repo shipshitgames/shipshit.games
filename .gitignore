@@ -5,6 +5,7 @@ next-env.d.ts
 .next/
 dist/
 out/
+coverage/
 .vercel/
 *.log
 .DS_Store

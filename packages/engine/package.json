@@ -25,6 +25,7 @@
     "build": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "bun test src",
+    "test:coverage": "bun test src --coverage",
     "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
