@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "lint": "bun run check:design && turbo run lint",
+    "lint": "bun run check:design && bun run check:tokens && turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
@@ -22,6 +22,7 @@
     "ci:engine": "bun run --cwd packages/engine build && bun run --cwd packages/engine typecheck",
     "ci:scaffold": "bun scripts/scaffold-smoke.mjs",
     "check:design": "bun packages/assetgen/src/cli.ts check-design",
+    "check:tokens": "turbo run check:tokens",
     "release": "bun scripts/release.mjs",
     "release:run": "bun scripts/release.mjs --execute",
     "deps:update": "bunx npm-check-updates -u --deep --cooldown 3h --removeRange && bun install"

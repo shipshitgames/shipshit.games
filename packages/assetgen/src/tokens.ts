@@ -39,6 +39,8 @@ interface RunTokensOptions {
   design?: string;
   assetsDir?: string;
   styleGeneratedPath?: string;
+  /** Restrict to in-repo artifacts (style.generated.ts), skipping the external assets package — used by CI. */
+  repoOnly?: boolean;
   log?: (message: string) => void;
 }
 
@@ -214,8 +216,15 @@ export async function runTokens(opts: RunTokensOptions = {}): Promise<TokensResu
 
   log(`[tokens] source: ${artifacts.source} (v${artifacts.version} hash:${artifacts.hash})`);
 
+  // --repo-only checks only the in-repo style.generated.ts, skipping the external
+  // assets package (which is absent in CI / a fresh clone of this repo).
+  const tokensDir = join(assetsDir, "tokens");
+  const files = opts.repoOnly
+    ? Object.entries(artifacts.files).filter(([path]) => !path.startsWith(tokensDir))
+    : Object.entries(artifacts.files);
+
   let drift = false;
-  for (const [path, content] of Object.entries(artifacts.files)) {
+  for (const [path, content] of files) {
     const rel = repoRelative(path);
     const current = existsSync(path) ? await readFile(path, "utf8") : "";
     if (current === content) {
@@ -232,7 +241,7 @@ export async function runTokens(opts: RunTokensOptions = {}): Promise<TokensResu
     }
   }
   if (opts.check && !drift) log("[tokens] all artifacts current");
-  return { drift, files: Object.keys(artifacts.files) };
+  return { drift, files: files.map(([path]) => path) };
 }
 
 function buildAssetgenConfig(design: JsonObject, colors: Record<string, string>): AssetgenConfig {

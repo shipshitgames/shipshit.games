@@ -87,6 +87,34 @@ test("runTokens writes all generated token artifacts without an assets catalog",
   assert.equal(tokensJson.assetgen.gradeParams.pixelGrid, 110);
 });
 
+test("runTokens --repo-only writes only the in-repo artifact, skipping the assets package", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assetgen-tokens-repoonly-test-"));
+  const designPath = join(dir, "DESIGN.md");
+  const assetsDir = join(dir, "packages", "assets");
+  const styleGeneratedPath = join(dir, "style.generated.ts");
+  await writeFile(designPath, DESIGN);
+
+  const result = await runTokens({ design: designPath, assetsDir, styleGeneratedPath, repoOnly: true });
+
+  assert.equal(result.drift, false);
+  assert.deepEqual(result.files, [styleGeneratedPath]);
+  assert.equal(existsSync(styleGeneratedPath), true);
+  assert.equal(existsSync(join(assetsDir, "tokens", "tokens.ts")), false);
+
+  // A clean --check --repo-only against the just-written artifact reports no drift.
+  const logs: string[] = [];
+  const check = await runTokens({
+    check: true,
+    design: designPath,
+    assetsDir,
+    styleGeneratedPath,
+    repoOnly: true,
+    log: (m) => logs.push(m),
+  });
+  assert.equal(check.drift, false);
+  assert.match(logs.join("\n"), /all artifacts current/);
+});
+
 test("runTokens check reports drift without rewriting artifacts", async () => {
   const dir = await mkdtemp(join(tmpdir(), "assetgen-tokens-check-test-"));
   const designPath = join(dir, "DESIGN.md");
