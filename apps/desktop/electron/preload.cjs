@@ -38,6 +38,12 @@ contextBridge.exposeInMainWorld("studio", {
     get: () => ipcRenderer.invoke("settings:get"),
     set: (partial) => ipcRenderer.invoke("settings:set", partial),
   },
+  projects: {
+    list: () => ipcRenderer.invoke("projects:list"),
+    add: () => ipcRenderer.invoke("projects:add"),
+    remove: (id) => ipcRenderer.invoke("projects:remove", id),
+    setActive: (id) => ipcRenderer.invoke("projects:setActive", id),
+  },
   keys: {
     status: () => ipcRenderer.invoke("keys:status"),
     set: (provider, key) => ipcRenderer.invoke("keys:set", { provider, key }),
