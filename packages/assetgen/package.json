@@ -7,6 +7,7 @@
   "scripts": {
     "gen": "bun src/cli.ts",
     "matrix": "bun src/cli.ts matrix",
+    "tokens": "bun src/cli.ts tokens",
     "lint": "bun src/cli.ts check-design --root ../..",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
