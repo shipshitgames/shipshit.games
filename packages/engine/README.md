@@ -6,6 +6,14 @@ Imperative [Three.js](https://threejs.org) for the game, React only for the HUD 
 
 > **Status: 0.1.x, early.** Extracted seam-by-seam out of the `scourge-survivors` reference game. Shipping now: world bounds, data-driven arena maps, render lifecycle, swappable camera rig, DOM input binding, agent/spawn seams, HUD snapshots, and generic FX/projectile/pickup lifecycles.
 
+## Extraction Boundary
+
+The core-vs-game-specific extraction spec lives in
+[`ENGINE-EXTRACTION-BOUNDARY.md`](./ENGINE-EXTRACTION-BOUNDARY.md). It classifies
+which reference-game modules belong in `@shipshitgames/engine`, which stay in
+Scourge Survivors, and which seams games use to register their own content, HUD,
+maps, projectiles, pickups, FX, and network payloads.
+
 ## Install
 
 ```sh

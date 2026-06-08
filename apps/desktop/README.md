@@ -67,6 +67,12 @@ Expected on success:
 Exit `0` = working, `1` = broken (e.g. the `posix_spawnp` failure above if the
 rebuild has not run), `2` = the Electron binary is not downloaded yet.
 
+CI runs this automatically: the `Desktop Terminal (node-pty)` job in
+`.github/workflows/ci.yml` rebuilds the addon and runs `verify:terminal` on a
+macOS runner, so an Electron/node-pty/lockfile bump that re-breaks the terminal
+fails CI instead of shipping silently (the unit tests use a mock pty and cannot
+catch a native regression). Exit `2` there is treated as a skip.
+
 Other local checks:
 
 ```bash
@@ -95,7 +101,10 @@ brew install --cask shipshitgames-studio
 ```
 
 Build the macOS release artifact (`asarUnpack` keeps `node-pty` unpacked so the
-native addon and `spawn-helper` remain on disk inside the app bundle):
+native addon and `spawn-helper` remain on disk inside the app bundle). The
+`afterPack` hook (`electron/after-pack.cjs`) then asserts the unpacked
+`spawn-helper` is present and still executable, failing the build before a broken
+`.dmg` can ship:
 
 ```bash
 bun install

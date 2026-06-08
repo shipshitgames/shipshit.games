@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"],
+
+    "allowJs": true,
+    "checkJs": false,
+
+    // Lenient by design: main.ts is a converted-from-JS Electron entry. The point of
+    // typechecking it is to resolve the assetgen register() import and validate that
+    // call — not to enforce strict typing on legacy handler code.
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "useUnknownInCatchVariables": false,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["electron/main.ts", "electron/preload.cjs", "electron/projects.cjs", "electron/game-slugs.cjs", "electron/terminal-manager.cjs", "electron/moodboards.cjs"]
+}
