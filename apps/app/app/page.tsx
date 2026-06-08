@@ -16,8 +16,8 @@ export default function HomePage() {
           </h1>
           <p className="mt-7 max-w-2xl text-lg leading-relaxed text-ash">
             app.shipshit.games manages the monthly Studio Pass: Skills Pro,
-            signed access links, member assets, and billing. Skool setup is
-            tracked as P3 deferred.
+            signed access links, member assets, billing, and future member
+            community access when the private community opens.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
             <Link
@@ -56,7 +56,7 @@ export default function HomePage() {
             </p>
             <p className="flex gap-3">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-hellfire" aria-hidden="true" />
-              Email fulfillment is triggered from the entitlement event; Skool automation is P3 deferred.
+              Email fulfillment is triggered from the entitlement event; community invites are sent separately when available.
             </p>
           </div>
         </aside>
