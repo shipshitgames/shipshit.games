@@ -151,6 +151,60 @@ body {
 }
 .gen-path { font-family: var(--font-mono); font-size: 11px; color: var(--hellfire); word-break: break-all; }
 
+/* ---- Moodboard ---- */
+.moodboard { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 22px; width: 100%; height: min(760px, 100%); min-height: 520px; align-items: stretch; }
+.moodboard-tools { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.moodboard-tools .gen-log { max-height: 120px; }
+.moodboard-actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.moodboard-actions .set-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.moodboard-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 4px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.moodboard-stats span { border: 1px solid var(--line); background: var(--bg-panel); border-radius: 2px; padding: 8px; text-align: center; }
+.moodboard-stage { min-width: 0; min-height: 0; overflow: auto; border: 1px solid var(--line); border-radius: 2px; background: #07070b; }
+.moodboard-canvas {
+  position: relative; width: 2200px; height: 1500px; overflow: hidden;
+  background:
+    linear-gradient(rgba(52, 52, 60, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(52, 52, 60, 0.22) 1px, transparent 1px),
+    radial-gradient(900px 540px at 72% 18%, rgba(255, 106, 0, 0.05), transparent 62%),
+    #09090d;
+  background-size: 32px 32px, 32px 32px, auto, auto;
+}
+.moodboard-empty {
+  position: absolute; left: 80px; top: 80px; display: flex; flex-direction: column; gap: 4px;
+  min-width: 220px; padding: 18px; color: var(--text-faint); background: rgba(18, 18, 20, 0.86);
+  border: 1px dashed var(--line-bright); border-radius: 2px; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.moodboard-empty b { color: var(--hellfire); font-family: var(--font-mono); font-size: 12px; letter-spacing: 0; text-transform: none; }
+.moodboard-item {
+  position: absolute; left: 0; top: 0; display: grid; grid-template-rows: 34px 1fr; min-width: 160px; min-height: 120px;
+  background: var(--bg-panel); border: 1px solid var(--line-bright); border-radius: 2px; box-shadow: 0 18px 46px -36px #000;
+  cursor: grab; user-select: none; touch-action: none;
+}
+.moodboard-item:active { cursor: grabbing; }
+.moodboard-item.is-target { border-color: var(--hellfire); box-shadow: 0 0 0 1px rgba(255, 106, 0, 0.38), 0 0 28px -12px var(--ember-glow); }
+.moodboard-item-head {
+  display: grid; grid-template-columns: minmax(0, 1fr) 28px 28px; align-items: center; gap: 4px;
+  padding: 5px 6px 5px 10px; border-bottom: 1px solid var(--line); background: var(--bg-elev);
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+}
+.moodboard-item-head span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.target-btn {
+  width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim); background: transparent; border: 1px solid transparent; border-radius: 2px; cursor: pointer;
+}
+.target-btn:hover { color: var(--hellfire); border-color: var(--line-bright); }
+.moodboard-item.is-target .target-btn:first-of-type { color: var(--hellfire); }
+.moodboard-item img { width: 100%; height: 100%; min-height: 0; object-fit: contain; padding: 8px; image-rendering: pixelated; background: #0c0c0e; }
+.moodboard-item textarea {
+  width: 100%; height: 100%; resize: none; border: 0; padding: 12px; color: var(--text); background: transparent;
+  font: 13px/1.5 var(--font-ui); user-select: text;
+}
+.moodboard-item textarea:focus { outline: 1px solid var(--blood); outline-offset: -1px; }
+.moodboard-missing { display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-family: var(--font-mono); font-size: 11px; }
+
 /* ---- Terminal placeholder ---- */
 .terminal { display: flex; flex-direction: column; border-top: 1px solid var(--line-bright); background: #07070b; min-height: 0; }
 .terminal-bar { display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-bottom: 1px solid var(--line); background: var(--bg-panel); }

@@ -15,6 +15,7 @@
     "dev:renderer": "vite",
     "dev:electron": "wait-on tcp:5273 && electron .",
     "dev": "concurrently -k -n renderer,electron -c magenta,cyan \"bun run dev:renderer\" \"bun run dev:electron\"",
+    "test": "bun test electron/*.test.cjs",
     "build:renderer": "vite build",
     "build": "vite build",
     "package:mac": "bun run build && electron-builder --mac dmg --publish never",
