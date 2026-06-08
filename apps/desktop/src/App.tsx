@@ -8,7 +8,7 @@ type SectionId = "maps" | "sprites" | "music" | "3d" | "research" | "codegen";
 type Group = "Generators" | "Research" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
-interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null }
+interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null; previewPath?: string | null }
 interface ResearchResult { ok: boolean; log: string; path: string | null; rules: string | null }
 interface Settings { defaultProvider: string; defaultGame: string; providerDefaults: Record<string, string> }
 
@@ -17,7 +17,20 @@ declare global {
     studio?: {
       platform: string;
       versions: Record<string, string>;
-      generate: (opts: { id: string; prompt: string; game: string; kind: string; provider?: string }) => Promise<GenResult>;
+      generate: (opts: {
+        id: string;
+        prompt: string;
+        game: string;
+        kind: string;
+        provider?: string;
+        views?: string;
+        frames?: number;
+        fps?: number;
+        anchor?: string;
+        scale?: number;
+        license?: string;
+        licenseUrl?: string;
+      }) => Promise<GenResult>;
       listGames: () => Promise<string[]>;
       onGenLog: (cb: (chunk: string) => void) => () => void;
       research: (opts: { url: string; slug: string; provider?: string }) => Promise<ResearchResult>;
@@ -155,6 +168,11 @@ function SpritesPane() {
   const [game, setGame] = useState("scourge-survivors");
   const [games, setGames] = useState<string[]>(["scourge-survivors"]);
   const [provider, setProvider] = useState("codex");
+  const [views, setViews] = useState("front,side,back");
+  const [frames, setFrames] = useState(1);
+  const [fps, setFps] = useState(8);
+  const [scale, setScale] = useState(1);
+  const [license, setLicense] = useState("ai-generated; review before shipping");
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState("");
   const [result, setResult] = useState<GenResult | null>(null);
@@ -176,7 +194,19 @@ function SpritesPane() {
     setResult(null);
     setLog("");
     try {
-      setResult(await window.studio.generate({ id, prompt, game, kind: "sprite" }));
+      setResult(await window.studio.generate({
+        id,
+        prompt,
+        game,
+        kind: "sprite",
+        provider,
+        views,
+        frames,
+        fps,
+        anchor: "0.5,1",
+        scale,
+        license,
+      }));
     } catch (e) {
       setLog(String((e as Error)?.message ?? e));
     } finally {
@@ -198,6 +228,30 @@ function SpritesPane() {
             {games.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </label>
+        <div className="gen-row">
+          <label className="gen-field"><span>Views</span>
+            <select value={views} onChange={(e) => setViews(e.target.value)}>
+              <option value="front">front</option>
+              <option value="front,side,back">front / side / back</option>
+              <option value="front,three-quarter,side,back">4-way billboard</option>
+              <option value="front,front-right,right,back-right,back,back-left,left,front-left">8-way billboard</option>
+            </select>
+          </label>
+          <label className="gen-field"><span>Frames</span>
+            <input type="number" min={1} max={16} value={frames} onChange={(e) => setFrames(Math.max(1, Math.min(16, Number(e.target.value) || 1)))} />
+          </label>
+        </div>
+        <div className="gen-row">
+          <label className="gen-field"><span>FPS</span>
+            <input type="number" min={1} max={30} value={fps} onChange={(e) => setFps(Math.max(1, Math.min(30, Number(e.target.value) || 8)))} />
+          </label>
+          <label className="gen-field"><span>World scale</span>
+            <input type="number" min={0.1} max={20} step={0.1} value={scale} onChange={(e) => setScale(Math.max(0.1, Number(e.target.value) || 1))} />
+          </label>
+        </div>
+        <label className="gen-field"><span>License record</span>
+          <input value={license} onChange={(e) => setLicense(e.target.value)} />
+        </label>
         <div className="gen-active">sprite provider <b>{provider}</b> · change in Settings (topbar ⚙)</div>
         <button className="gen-btn" disabled={busy || !id || !prompt} onClick={generate}>
           {busy ? "Forging…" : "Generate"}
@@ -205,9 +259,15 @@ function SpritesPane() {
         <p className="gen-note">Auto-styled with the DOOM DESIGN.md suffix · writes the .webp + updates the game's assets.json. Codex runs take a minute — watch the log.</p>
       </div>
       <div className="gen-preview">
-        {result?.dataUrl ? <img src={result.dataUrl} alt={id} /> : <div className="gen-preview-empty">{busy ? "forging…" : "preview"}</div>}
+        {result?.dataUrl ? (
+          <div className="billboard-stage">
+            <div className="billboard-floor" />
+            <img className="billboard-sprite" src={result.dataUrl} alt={id} />
+          </div>
+        ) : <div className="gen-preview-empty">{busy ? "forging…" : "preview"}</div>}
         {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
         {result?.path && <div className="gen-path">{result.path}</div>}
+        {result?.previewPath && <div className="gen-path">{result.previewPath}</div>}
       </div>
     </div>
   );

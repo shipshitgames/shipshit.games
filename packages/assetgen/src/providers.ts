@@ -42,6 +42,7 @@ export interface AssetProvider {
 
 export const DEFAULT_PROVIDER_BY_KIND: Record<string, ProviderId> = {
   sprite: "codex",
+  "sprite-anim": "codex",
   texture: "openai",
   icon: "openai",
   map: "codex",
@@ -52,7 +53,7 @@ export const DEFAULT_PROVIDER_BY_KIND: Record<string, ProviderId> = {
   "3d": "replicate",
 };
 
-const IMAGE_KINDS = ["sprite", "texture", "icon", "map"] as const;
+const IMAGE_KINDS = ["sprite", "sprite-anim", "texture", "icon", "map"] as const;
 const AUDIO_KINDS = ["music", "sfx", "voice"] as const;
 const MODEL_KINDS = ["model", "3d"] as const;
 

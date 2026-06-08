@@ -47,6 +47,14 @@ export interface OptimizedAsset {
   data: Buffer;
   mediaType: string;
   extension: string;
+  /** Manifest kind override (e.g. "sprite" -> "sprite-anim"). */
+  kindOverride?: string;
+  /** Extra manifest fields merged into the registered AssetEntry (e.g. sprite geometry). */
+  entryFields?: Partial<AssetEntry>;
+  /** Extra license-disclosure fields merged into the provenance license. */
+  licenseExtra?: Partial<AssetLicenseRecord>;
+  /** Write any sidecar files (e.g. a sprite billboard preview) next to the asset. */
+  writeSidecars?: (ctx: { outputRoot: string; relPath: string }) => Promise<void>;
 }
 
 export interface AssetPipelineContext {
@@ -68,6 +76,8 @@ export type AssetPostprocessHook = (
 export interface AssetPipelineOptions {
   id: string;
   prompt: string;
+  /** Override the text fed to buildPrompt (e.g. a sprite-sheet directive); the manifest still records `prompt`. */
+  promptForBuild?: string;
   game: string;
   kind: AssetKind;
   provider: string;
@@ -139,7 +149,7 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
 
   try {
     const fullPrompt = await runStep(opts, "prompt", "build prompt", async () =>
-      buildPrompt({ prompt: opts.prompt, game: opts.game, kind: opts.kind }),
+      buildPrompt({ prompt: opts.promptForBuild ?? opts.prompt, game: opts.game, kind: opts.kind }),
     );
 
     const generated = await runStep(opts, "generate", `generate ${opts.kind}`, async () =>
@@ -173,19 +183,26 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
       await mkdir(dirname(outputPath!), { recursive: true });
       await writeFile(outputPath!, optimized.data);
       log(`[wrote] ${outputPath} (${(optimized.data.length / 1024).toFixed(1)} kb, ${optimized.mediaType})\n`);
+      if (optimized.writeSidecars) {
+        await optimized.writeSidecars({ outputRoot, relPath: finalRelPath });
+      }
       const registered: AssetEntry = {
         id: opts.id,
-        kind: opts.kind,
+        kind: optimized.kindOverride ?? opts.kind,
         game: opts.game,
         path: finalRelPath,
         prompt: opts.prompt,
         provider: generated.provider,
-        license: licenseForGeneration({
-          provider: generated.provider,
-          model: generated.model,
-          kind: opts.kind,
-          date: opts.now?.() ?? new Date(),
-        }),
+        ...(optimized.entryFields ?? {}),
+        license: {
+          ...licenseForGeneration({
+            provider: generated.provider,
+            model: generated.model,
+            kind: opts.kind,
+            date: opts.now?.() ?? new Date(),
+          }),
+          ...(optimized.licenseExtra ?? {}),
+        },
       };
       await register(manifestPath, registered);
       log(`[manifest] ${manifestPath} updated\n`);
