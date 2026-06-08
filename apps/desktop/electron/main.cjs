@@ -14,12 +14,19 @@ const {
   uniqueProjects,
 } = require("./projects.cjs");
 const { createMoodboardStore } = require("./moodboards.cjs");
+// Single, shared manifest writer + license validator (issue #17). Reusing the
+// assetgen core keeps the desktop from drifting (it used to ship a weaker copy).
+const { register } = require("../../../packages/assetgen/src/manifest-core.cjs");
 
 let pty = null;
 try {
   pty = require("node-pty");
 } catch (error) {
-  console.warn("node-pty unavailable; terminal IPC will report unavailable", error);
+  console.warn(
+    "node-pty failed to load; terminal IPC will report unavailable. " +
+      "Run `bun run rebuild:native` in apps/desktop to build it against Electron's ABI.",
+    error,
+  );
 }
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
@@ -248,22 +255,6 @@ function resolveFfmpeg() {
 const AUDIO_CATEGORIES = ["sfx", "music", "voice"];
 const audioSlug = (file) => path.basename(file).replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
-async function registerDesktopAsset(manifestPath, entry) {
-  for (const field of ["tool", "plan", "date", "kind"]) {
-    if (!entry.license?.[field]) throw new Error(`asset manifest entry ${entry.id}:${entry.kind} requires license.${field}`);
-  }
-  let data = { assets: [] };
-  try {
-    const parsed = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
-    if (Array.isArray(parsed.assets)) data = parsed;
-  } catch {}
-  const i = data.assets.findIndex((a) => a.id === entry.id && a.kind === entry.kind);
-  if (i >= 0) data.assets[i] = entry;
-  else data.assets.push(entry);
-  await fs.promises.mkdir(path.dirname(manifestPath), { recursive: true });
-  await fs.promises.writeFile(manifestPath, JSON.stringify(data, null, 2) + "\n");
-}
-
 function audioLicense(category, bitrate, normalize) {
   return {
     tool: "ffmpeg",
@@ -318,8 +309,7 @@ ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
     });
     if (code === 0) {
       try {
-        const manifestPath = path.join(gameDir(game), "src", "assets", "assets.json");
-        await registerDesktopAsset(manifestPath, {
+        await register(target.manifestPath, {
           id: audioSlug(input),
           kind: category,
           game,
@@ -329,7 +319,7 @@ ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
         });
         outputs.push(out);
         send(`✓ ${out}\n`);
-        send(`[manifest] ${manifestPath} updated\n`);
+        send(`[manifest] ${target.manifestPath} updated\n`);
       } catch (err) {
         send(`✗ manifest registration failed for ${path.basename(out)}: ${err?.message || err}\n`);
       }
