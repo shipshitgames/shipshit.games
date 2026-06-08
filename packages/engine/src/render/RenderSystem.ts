@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import type { ArenaMap, ColorToken, MapLight } from '../world/map'
+import type { ArenaMap, ColorToken, MapLight, MapTheme } from '../world/map'
 
 export interface RendererLike {
   domElement: HTMLElement
@@ -33,18 +33,26 @@ export class RenderSystem<TCamera extends THREE.Camera = THREE.Camera> {
 
   private renderer?: RendererLike
   private container?: HTMLElement
+  private currentTheme?: MapTheme
   private readonly managedLights: THREE.Object3D[] = []
 
   constructor(private readonly config: RenderSystemConfig<TCamera>) {
     this.scene = config.scene ?? new THREE.Scene()
     this.camera = config.camera
     this.renderer = config.renderer
+    // Apply clear color to an injected renderer too (not just the default one).
+    if (this.renderer) this.applyClearColor()
     if (config.map) this.applyArenaMap(config.map)
     if (config.container) this.mount(config.container)
   }
 
   get domElement(): HTMLElement | undefined {
     return this.renderer?.domElement
+  }
+
+  /** The most recently applied map theme (skyColor, groundColor, fog), for games that own the floor. */
+  get activeTheme(): MapTheme | undefined {
+    return this.currentTheme
   }
 
   mount(container: HTMLElement): void {
@@ -79,6 +87,7 @@ export class RenderSystem<TCamera extends THREE.Camera = THREE.Camera> {
     for (const light of this.managedLights) light.removeFromParent()
     this.managedLights.length = 0
 
+    this.currentTheme = map.theme
     if (map.theme?.skyColor !== undefined) this.scene.background = toColor(map.theme.skyColor)
     if (map.theme?.fog) {
       const fog = map.theme.fog
@@ -113,14 +122,17 @@ export class RenderSystem<TCamera extends THREE.Camera = THREE.Camera> {
     if (this.renderer) return this.renderer
     if (this.config.rendererFactory) {
       this.renderer = this.config.rendererFactory()
-      return this.renderer
-    }
-    if (typeof document === 'undefined') {
+    } else if (typeof document !== 'undefined') {
+      this.renderer = new THREE.WebGLRenderer({ antialias: true })
+    } else {
       throw new Error('RenderSystem requires a renderer or rendererFactory outside the browser')
     }
-    this.renderer = new THREE.WebGLRenderer({ antialias: true })
-    if (this.config.clearColor !== undefined) this.renderer.setClearColor?.(this.config.clearColor)
+    this.applyClearColor()
     return this.renderer
+  }
+
+  private applyClearColor(): void {
+    if (this.config.clearColor !== undefined) this.renderer?.setClearColor?.(this.config.clearColor)
   }
 }
 
