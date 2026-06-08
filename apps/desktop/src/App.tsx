@@ -1,14 +1,14 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import "@xterm/xterm/css/xterm.css";
 
 // Studio cockpit. Sprites is wired to @shipshitgames/assetgen via the studio IPC bridge with a
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
 // Default provider = codex CLI (your subscription — no API key).
 
-type SectionId = "projects" | "maps" | "sprites" | "music" | "3d" | "research" | "codegen";
-type Group = "Generators" | "Ressources" | "Codegen";
+type SectionId = "projects" | "maps" | "sprites" | "music" | "3d" | "moodboard" | "research" | "codegen";
+type Group = "Generators" | "Art Direction" | "Ressources" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
 interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null; previewPath?: string | null }
@@ -43,6 +43,20 @@ type TerminalStartResult =
   | { ok: false; error: string };
 interface TerminalPayload { id: string; data: string }
 interface TerminalExitPayload { id: string; exitCode: number | null; signal: number | null }
+interface MoodboardImage { name: string; path: string; mime: string }
+interface MoodboardItem {
+  id: string;
+  type: "note" | "image";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  visualTarget: boolean;
+  text?: string;
+  image?: MoodboardImage;
+  dataUrl?: string | null;
+}
+interface Moodboard { game: string; items: MoodboardItem[]; updatedAt: string }
 
 declare global {
   interface Window {
@@ -87,6 +101,15 @@ declare global {
         onData: (cb: (payload: TerminalPayload) => void) => () => void;
         onExit: (cb: (payload: TerminalExitPayload) => void) => () => void;
       };
+      moodboard: {
+        listGames: () => Promise<string[]>;
+        get: (game: string) => Promise<Moodboard>;
+        addNote: (game: string, text: string) => Promise<Moodboard>;
+        importImages: (game: string) => Promise<Moodboard>;
+        updateItem: (game: string, item: Partial<MoodboardItem> & { id: string }) => Promise<Moodboard>;
+        setVisualTarget: (game: string, id: string, visualTarget: boolean) => Promise<Moodboard>;
+        removeItem: (game: string, id: string) => Promise<Moodboard>;
+      };
     };
   }
 }
@@ -97,10 +120,11 @@ const SECTIONS: Section[] = [
   { id: "sprites", label: "Sprites", group: "Generators", glyph: "✦", blurb: "Forge DOOM-grade billboards and enemy cutouts — straight into a game's assets." },
   { id: "music", label: "Music + SFX", group: "Generators", glyph: "♪", blurb: "Brutal scores and combat SFX for the shipshitshow." },
   { id: "3d", label: "3D", group: "Generators", glyph: "◈", blurb: "Meshes, props and Warden engineering for the 3D titles." },
+  { id: "moodboard", label: "Moodboard", group: "Art Direction", glyph: "▦", blurb: "Per-game reference boards for notes, images, and locked visual targets." },
   { id: "research", label: "Rules", group: "Ressources", glyph: "📖", blurb: "Distill a YouTube game-dev tutorial into a reusable build ruleset." },
   { id: "codegen", label: "Codegen", group: "Codegen", glyph: "λ", blurb: "Plan → Review → Execute → Verify → Ship over the local CLI." },
 ];
-const GROUPS: Group[] = ["Generators", "Ressources", "Codegen"];
+const GROUPS: Group[] = ["Generators", "Art Direction", "Ressources", "Codegen"];
 
 const PROVIDERS = [
   { id: "codex", label: "Codex CLI — your subscription (no key)" },
@@ -780,6 +804,171 @@ function TerminalPane() {
   );
 }
 
+const emptyMoodboard = (game: string): Moodboard => ({ game, items: [], updatedAt: "" });
+
+function MoodboardPane() {
+  const [game, setGame] = useState("scourge-survivors");
+  const [games, setGames] = useState<string[]>(["scourge-survivors", "deadlane", "pactfall", "starblight"]);
+  const [board, setBoard] = useState<Moodboard>(emptyMoodboard("scourge-survivors"));
+  const [note, setNote] = useState("");
+  const [error, setError] = useState("");
+  const drag = useRef<{
+    id: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    nextX: number;
+    nextY: number;
+  } | null>(null);
+
+  useEffect(() => {
+    window.studio?.settings.get().then((s) => s.defaultGame && setGame(s.defaultGame)).catch(() => {});
+    window.studio?.moodboard.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    setError("");
+    window.studio?.moodboard.get(game)
+      .then((next) => { if (live) setBoard(next); })
+      .catch((e) => { if (live) setError(String((e as Error)?.message ?? e)); });
+    return () => { live = false; };
+  }, [game]);
+
+  async function addNote() {
+    if (!note.trim()) return;
+    if (!window.studio?.moodboard) { setError("studio bridge unavailable"); return; }
+    try {
+      setBoard(await window.studio.moodboard.addNote(game, note));
+      setNote("");
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    }
+  }
+
+  async function importImages() {
+    if (!window.studio?.moodboard) { setError("studio bridge unavailable"); return; }
+    try {
+      setBoard(await window.studio.moodboard.importImages(game));
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    }
+  }
+
+  async function toggleTarget(item: MoodboardItem) {
+    if (!window.studio?.moodboard) return;
+    setBoard(await window.studio.moodboard.setVisualTarget(game, item.id, !item.visualTarget));
+  }
+
+  async function removeItem(item: MoodboardItem) {
+    if (!window.studio?.moodboard) return;
+    setBoard(await window.studio.moodboard.removeItem(game, item.id));
+  }
+
+  function startDrag(e: PointerEvent<HTMLElement>, item: MoodboardItem) {
+    if ((e.target as HTMLElement).closest("button, textarea")) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = {
+      id: item.id,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: item.x,
+      originY: item.y,
+      nextX: item.x,
+      nextY: item.y,
+    };
+  }
+
+  function moveDrag(e: PointerEvent<HTMLElement>) {
+    const activeDrag = drag.current;
+    if (!activeDrag || activeDrag.pointerId !== e.pointerId) return;
+    const nextX = Math.max(0, Math.round(activeDrag.originX + e.clientX - activeDrag.startX));
+    const nextY = Math.max(0, Math.round(activeDrag.originY + e.clientY - activeDrag.startY));
+    activeDrag.nextX = nextX;
+    activeDrag.nextY = nextY;
+    setBoard((current) => ({
+      ...current,
+      items: current.items.map((item) => item.id === activeDrag.id ? { ...item, x: nextX, y: nextY } : item),
+    }));
+  }
+
+  async function endDrag(e: PointerEvent<HTMLElement>) {
+    const activeDrag = drag.current;
+    if (!activeDrag || activeDrag.pointerId !== e.pointerId) return;
+    drag.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    if (!window.studio?.moodboard) return;
+    setBoard(await window.studio.moodboard.updateItem(game, { id: activeDrag.id, x: activeDrag.nextX, y: activeDrag.nextY }));
+  }
+
+  async function updateNote(item: MoodboardItem, text: string) {
+    if (!window.studio?.moodboard || text.trim() === (item.text || "").trim()) return;
+    setBoard(await window.studio.moodboard.updateItem(game, { id: item.id, text }));
+  }
+
+  return (
+    <div className="moodboard">
+      <aside className="moodboard-tools">
+        <label className="gen-field"><span>Game</span>
+          <select value={game} onChange={(e) => setGame(e.target.value)}>
+            {games.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+        <label className="gen-field"><span>Note</span>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} placeholder="silhouette, palette, pose, read" />
+        </label>
+        <div className="moodboard-actions">
+          <button className="set-btn" type="button" onClick={addNote} disabled={!note.trim()}>Add note</button>
+          <button className="set-btn" type="button" onClick={importImages}>Import images</button>
+        </div>
+        <div className="moodboard-stats">
+          <span>{board.items.length} items</span>
+          <span>{board.items.filter((item) => item.visualTarget).length} targets</span>
+        </div>
+        {error && <pre className="gen-log is-err">{error}</pre>}
+      </aside>
+
+      <section className="moodboard-stage" aria-label={`${game} moodboard`}>
+        <div className="moodboard-canvas">
+          {board.items.length === 0 && (
+            <div className="moodboard-empty">
+              <span>empty board</span>
+              <b>{game}</b>
+            </div>
+          )}
+          {board.items.map((item) => (
+            <article
+              key={item.id}
+              className={"moodboard-item" + (item.visualTarget ? " is-target" : "")}
+              style={{ width: item.width, height: item.height, transform: `translate(${item.x}px, ${item.y}px)` }}
+              onPointerDown={(e) => startDrag(e, item)}
+              onPointerMove={moveDrag}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+            >
+              <header className="moodboard-item-head">
+                <span>{item.type === "image" ? item.image?.name || "reference" : "note"}</span>
+                <button type="button" title="Visual target" aria-label="Visual target" className="target-btn" onClick={() => toggleTarget(item)}>
+                  {item.visualTarget ? "★" : "☆"}
+                </button>
+                <button type="button" title="Remove" aria-label="Remove" className="target-btn" onClick={() => removeItem(item)}>×</button>
+              </header>
+              {item.type === "image" ? (
+                item.dataUrl ? <img src={item.dataUrl} alt={item.image?.name || "reference"} /> : <div className="moodboard-missing">missing image</div>
+              ) : (
+                <textarea defaultValue={item.text || ""} onBlur={(e) => updateNote(item, e.target.value)} />
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState<SectionId>("sprites");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -821,7 +1010,7 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "projects" ? <ProjectsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "research" ? <ResearchPane /> : (
+            {active === "projects" ? <ProjectsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "moodboard" ? <MoodboardPane /> : active === "research" ? <ResearchPane /> : (
               <div className="placeholder-card">
                 <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
                 <p><strong>{section.label}</strong> workspace coming online.</p>

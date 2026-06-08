@@ -13,6 +13,7 @@ const {
   summarizeProject,
   uniqueProjects,
 } = require("./projects.cjs");
+const { createMoodboardStore } = require("./moodboards.cjs");
 
 let pty = null;
 try {
@@ -39,6 +40,9 @@ const terminalManager = createTerminalManager({
   cwd: STUDIO_REPO,
   env: process.env,
   shell: terminalShell(process.platform, process.env),
+});
+const moodboards = createMoodboardStore({
+  rootDir: () => path.join(app.getPath("userData"), "moodboards"),
 });
 
 // ---- settings (non-secret) ----
@@ -217,6 +221,21 @@ ipcMain.handle("terminal:start", (e, opts) => {
 ipcMain.handle("terminal:write", (e, { id, data }) => terminalManager.write(e.sender, id, data));
 ipcMain.handle("terminal:resize", (e, { id, cols, rows }) => terminalManager.resize(e.sender, id, { cols, rows }));
 ipcMain.handle("terminal:stop", (e, id) => terminalManager.stop(e.sender, id));
+
+ipcMain.handle("moodboard:listGames", () => ALL_GAMES);
+ipcMain.handle("moodboard:get", (_e, game) => moodboards.readBoard(game || readSettings().defaultGame));
+ipcMain.handle("moodboard:addNote", (_e, payload = {}) => moodboards.addNote(payload.game || readSettings().defaultGame, payload.text));
+ipcMain.handle("moodboard:updateItem", (_e, payload = {}) => moodboards.updateItem(payload.game || readSettings().defaultGame, payload.item));
+ipcMain.handle("moodboard:setVisualTarget", (_e, payload = {}) => moodboards.setVisualTarget(payload.game || readSettings().defaultGame, payload.id, payload.visualTarget));
+ipcMain.handle("moodboard:removeItem", (_e, payload = {}) => moodboards.removeItem(payload.game || readSettings().defaultGame, payload.id));
+ipcMain.handle("moodboard:importImages", async (_e, game) => {
+  const r = await dialog.showOpenDialog({
+    title: "Import moodboard references",
+    properties: ["openFile", "multiSelections"],
+    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
+  });
+  return r.canceled ? moodboards.readBoard(game || readSettings().defaultGame) : moodboards.importImages(game || readSettings().defaultGame, r.filePaths);
+});
 
 // ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
 // GUI apps inherit a minimal PATH, so resolve ffmpeg from common install locations.

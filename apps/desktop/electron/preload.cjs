@@ -65,4 +65,13 @@ contextBridge.exposeInMainWorld("studio", {
       return () => ipcRenderer.removeListener("terminal:exit", h);
     },
   },
+  moodboard: {
+    listGames: () => ipcRenderer.invoke("moodboard:listGames"),
+    get: (game) => ipcRenderer.invoke("moodboard:get", game),
+    addNote: (game, text) => ipcRenderer.invoke("moodboard:addNote", { game, text }),
+    importImages: (game) => ipcRenderer.invoke("moodboard:importImages", game),
+    updateItem: (game, item) => ipcRenderer.invoke("moodboard:updateItem", { game, item }),
+    setVisualTarget: (game, id, visualTarget) => ipcRenderer.invoke("moodboard:setVisualTarget", { game, id, visualTarget }),
+    removeItem: (game, id) => ipcRenderer.invoke("moodboard:removeItem", { game, id }),
+  },
 });
