@@ -9,10 +9,18 @@ import type {
   SyncedChannelVideos,
   SyncedVideo,
   TranscriptResource,
+  TranscriptRightsStatus,
 } from "./types";
 import { derivativesDir, packageRoot, relativeToPackage, sourcesDir, transcriptsDir } from "./paths";
 
 const pexec = promisify(execFile);
+const TRANSCRIPT_RIGHTS_STATUSES = new Set<TranscriptRightsStatus>([
+  "user-provided",
+  "public-captions",
+  "official-api",
+  "permissioned",
+  "unknown",
+]);
 
 export interface ValidationResult {
   ok: boolean;
@@ -105,19 +113,77 @@ function requireStringArray(value: unknown, label: string, errors: string[]): vo
   }
 }
 
+function requireTranscriptRightsStatus(value: unknown, label: string, errors: string[]): void {
+  if (typeof value !== "string" || !TRANSCRIPT_RIGHTS_STATUSES.has(value as TranscriptRightsStatus)) {
+    errors.push(`${label} must be one of ${Array.from(TRANSCRIPT_RIGHTS_STATUSES).join(", ")}`);
+  }
+}
+
+function validateSourceRights(source: SourceManifest, errors: string[]): void {
+  const label = `${source.slug}.rights`;
+  if (!source.rights || typeof source.rights !== "object") {
+    errors.push(`${label} must be an object`);
+    return;
+  }
+
+  requireTranscriptRightsStatus(source.rights.transcriptPolicy, `${label}.transcriptPolicy`, errors);
+  if (typeof source.rights.storeRawTranscript !== "boolean") {
+    errors.push(`${label}.storeRawTranscript must be a boolean`);
+  }
+  requireString(source.rights.notes, `${label}.notes`, errors);
+  if (source.rights.storeRawTranscript && source.rights.transcriptPolicy === "unknown") {
+    errors.push(`${label} cannot allow raw transcript storage with an unknown transcript policy`);
+  }
+}
+
+function validateTranscriptRights(
+  transcript: TranscriptResource,
+  source: SourceManifest | undefined,
+  transcriptExists: boolean,
+  errors: string[],
+  warnings: string[],
+): void {
+  const label = `${transcript.slug}.rights`;
+  if (!transcript.rights || typeof transcript.rights !== "object") {
+    errors.push(`${label} must be an object`);
+    return;
+  }
+
+  requireTranscriptRightsStatus(transcript.rights.status, `${label}.status`, errors);
+  requireString(transcript.rights.notes, `${label}.notes`, errors);
+  if (transcript.rights.status === "unknown") {
+    warnings.push(`${transcript.slug} has unknown transcript rights`);
+  }
+  if (source && transcriptExists && !canStoreRawTranscript(source, transcript)) {
+    errors.push(
+      `${transcript.slug} stores raw transcript text, but ${source.slug}.rights.storeRawTranscript is false or transcript rights are unknown`,
+    );
+  }
+}
+
+export function canStoreRawTranscript(
+  source: Pick<SourceManifest, "rights">,
+  transcript: Pick<TranscriptResource, "rights">,
+): boolean {
+  return source.rights.storeRawTranscript && transcript.rights.status !== "unknown";
+}
+
 export async function validateLibrary(): Promise<ValidationResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
   const sources = await loadSources();
   const sourceSlugs = new Set<string>();
+  const sourcesBySlug = new Map<string, SourceManifest>();
 
   for (const source of sources) {
     requireString(source.slug, "source.slug", errors);
     requireString(source.title, `${source.slug}.title`, errors);
     requireString(source.url, `${source.slug}.url`, errors);
     requireStringArray(source.topics, `${source.slug}.topics`, errors);
+    validateSourceRights(source, errors);
     if (sourceSlugs.has(source.slug)) errors.push(`duplicate source slug: ${source.slug}`);
     sourceSlugs.add(source.slug);
+    sourcesBySlug.set(source.slug, source);
     if (source.kind === "youtube-channel" && !source.channelId) {
       warnings.push(`${source.slug} is a YouTube channel without channelId`);
     }
@@ -134,12 +200,11 @@ export async function validateLibrary(): Promise<ValidationResult> {
       errors.push(`${transcript.slug} references unknown source ${transcript.sourceSlug}`);
     }
     const transcriptPath = resolve(packageRoot, transcript.transcriptPath);
-    if (!(await exists(transcriptPath))) {
+    const transcriptExists = await exists(transcriptPath);
+    if (!transcriptExists) {
       errors.push(`${transcript.slug} transcriptPath does not exist: ${transcript.transcriptPath}`);
     }
-    if (transcript.rights.status === "unknown") {
-      warnings.push(`${transcript.slug} has unknown transcript rights`);
-    }
+    validateTranscriptRights(transcript, sourcesBySlug.get(transcript.sourceSlug), transcriptExists, errors, warnings);
   }
 
   const derivatives = await loadDerivatives();
