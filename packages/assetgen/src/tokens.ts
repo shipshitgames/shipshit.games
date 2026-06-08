@@ -85,6 +85,17 @@ function buildTokenArtifacts(opts: {
   const assetgen = buildAssetgenConfig(opts.design, colors);
   const components = deepResolve(opts.design.components ?? {}, colors);
 
+  // Art bible (#43): material/lighting/silhouette grammar + per-asset-type
+  // direction + reference slots, folded into generation prompts.
+  const artBibleSource = objectMap(opts.design.artBible);
+  const artBible = {
+    materialGrammar: stringArray(artBibleSource.materialGrammar, []),
+    lightingGrammar: stringArray(artBibleSource.lightingGrammar, []),
+    silhouetteGrammar: stringArray(artBibleSource.silhouetteGrammar, []),
+  };
+  const assetTypeDirection = stringMap(deepResolve(artBibleSource.assetTypeDirection ?? {}, colors), {});
+  const referenceSlots = stringMap(deepResolve(artBibleSource.referenceSlots ?? {}, colors), {});
+
   const hashInput = {
     version,
     colors,
@@ -95,6 +106,7 @@ function buildTokenArtifacts(opts: {
     components,
     pixelArt: objectMap(opts.design.pixelArt),
     gameArtDirection: objectMap(opts.design.gameArtDirection),
+    artBible: { ...artBible, assetTypeDirection, referenceSlots },
     assetgen,
   };
   const hash = (Bun as unknown as { hash(input: string): number | bigint })
@@ -116,6 +128,9 @@ function buildTokenArtifacts(opts: {
     `// style.ts re-exports these; edit the design source, not this file.\n\n` +
     `export const STYLE_SUFFIX = ${JSON.stringify(fold(assetgen.styleSuffix))};\n\n` +
     `export const PALETTE_LINE = ${JSON.stringify(fold(assetgen.paletteLine))};\n\n` +
+    `export const ART_BIBLE = ${JSON.stringify(artBible, null, 2)} as const;\n\n` +
+    `export const ASSET_TYPE_DIRECTION: Record<string, string> = ${JSON.stringify(assetTypeDirection, null, 2)};\n\n` +
+    `export const REFERENCE_SLOTS: Record<string, string> = ${JSON.stringify(referenceSlots, null, 2)};\n\n` +
     `export const NEGATIVE_PROMPTS: string[] = ${JSON.stringify(assetgen.negativePrompts, null, 2)};\n\n` +
     `export const GAME_FRAMING: Record<string, string> = ${JSON.stringify(assetgen.perGameFraming, null, 2)};\n\n` +
     `export const KIND_MAP: Record<string, string> = ${JSON.stringify(assetgen.kindMap, null, 2)};\n\n` +
@@ -127,8 +142,9 @@ function buildTokenArtifacts(opts: {
     `export function buildPrompt(opts: { prompt: string; game: string; kind: string }): string {\n` +
     `  const framing = GAME_FRAMING[opts.game] ?? GAME_FRAMING.shared;\n` +
     `  const kind = KIND_MAP[opts.kind] ?? opts.kind;\n` +
+    `  const assetDirection = ASSET_TYPE_DIRECTION[opts.kind] ?? "";\n` +
     `  const scourge = SCOURGE_RULE.pattern.test(opts.prompt) ? SCOURGE_RULE.clause : "";\n` +
-    `  const parts = [opts.prompt, kind, framing, STYLE_SUFFIX];\n` +
+    `  const parts = [opts.prompt, kind, framing, assetDirection, STYLE_SUFFIX].filter(Boolean);\n` +
     `  if (scourge) parts.push(scourge);\n` +
     `  return parts.join(". ") + ".";\n` +
     `}\n`;
