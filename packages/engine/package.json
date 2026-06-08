@@ -15,6 +15,7 @@
     "./assets-manifest.schema.json": "./src/assets/assets-manifest.schema.json"
   },
   "files": [
+    "ENGINE-EXTRACTION-BOUNDARY.md",
     "src"
   ],
   "sideEffects": false,
@@ -24,7 +25,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "bun test src",
+    "test": "bun test src ENGINE-EXTRACTION-BOUNDARY.test.ts",
     "test:coverage": "bun test src --coverage",
     "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
