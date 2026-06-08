@@ -52,6 +52,9 @@ export interface SpriteSheetResult {
 
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 
+/** Max luma (0-255) treated as keyable near-black background in the edge flood-fill. */
+const EDGE_BG_LUMA = 16;
+
 export function parseViews(raw?: string): string[] {
   const views = (raw || "front")
     .split(",")
@@ -105,18 +108,33 @@ export async function toSpriteSheetWebp(input: Buffer, opts: SpriteSheetOptions)
   const size = nextPowerOfTwo(Math.max(16, Math.floor(opts.size ?? 1024)));
   const frameWidth = Math.max(1, Math.floor(size / layout.columns));
   const frameHeight = Math.max(1, Math.floor(size / layout.rows));
-  const activeWidth = frameWidth * layout.usedColumns;
-  const activeHeight = frameHeight * layout.usedRows;
   const sheetWidth = frameWidth * layout.columns;
   const sheetHeight = frameHeight * layout.rows;
 
+  // Treat the provider image as a usedColumns x usedRows grid (the layout the
+  // prompt directive asked for) and slice each source cell into its own sheet
+  // cell, so frames/views are real subimages, not one stretched picture.
   const cutout = await transparentizeEdgeBackground(input);
-  const fitted = await sharp(cutout)
-    .ensureAlpha()
-    .trim()
-    .resize(activeWidth, activeHeight, { fit: "contain", background: TRANSPARENT })
-    .png()
-    .toBuffer();
+  const trimmed = await sharp(cutout).ensureAlpha().trim().png().toBuffer();
+  const trimmedMeta = await sharp(trimmed).metadata();
+  const sourceWidth = Math.max(1, trimmedMeta.width ?? frameWidth);
+  const sourceHeight = Math.max(1, trimmedMeta.height ?? frameHeight);
+  const srcCellWidth = Math.max(1, Math.floor(sourceWidth / layout.usedColumns));
+  const srcCellHeight = Math.max(1, Math.floor(sourceHeight / layout.usedRows));
+
+  const cells: sharp.OverlayOptions[] = [];
+  for (let row = 0; row < layout.usedRows; row++) {
+    for (let col = 0; col < layout.usedColumns; col++) {
+      const left = Math.min(col * srcCellWidth, sourceWidth - srcCellWidth);
+      const top = Math.min(row * srcCellHeight, sourceHeight - srcCellHeight);
+      const cell = await sharp(trimmed)
+        .extract({ left, top, width: srcCellWidth, height: srcCellHeight })
+        .resize(frameWidth, frameHeight, { fit: "contain", background: TRANSPARENT })
+        .png()
+        .toBuffer();
+      cells.push({ input: cell, left: col * frameWidth, top: row * frameHeight });
+    }
+  }
 
   const data = await sharp({
     create: {
@@ -126,7 +144,7 @@ export async function toSpriteSheetWebp(input: Buffer, opts: SpriteSheetOptions)
       background: TRANSPARENT,
     },
   })
-    .composite([{ input: fitted, left: 0, top: 0 }])
+    .composite(cells)
     .webp({ lossless: true, effort: 5 })
     .toBuffer();
 
@@ -209,7 +227,7 @@ function spriteLayout(viewCount: number, frameCount: number): SpriteSheetMetadat
   };
 }
 
-async function transparentizeEdgeBackground(input: Buffer): Promise<Buffer> {
+export async function transparentizeEdgeBackground(input: Buffer): Promise<Buffer> {
   const image = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const data = Buffer.from(image.data);
   const width = image.info.width;
@@ -228,7 +246,9 @@ async function transparentizeEdgeBackground(input: Buffer): Promise<Buffer> {
     const g = data[offset + 1] ?? 0;
     const b = data[offset + 2] ?? 0;
     const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    return luma <= 42;
+    // Only key out true near-black (e.g. the DOOM #0a0a0a backdrop). A higher
+    // threshold floods through dark subject pixels and erases the sprite.
+    return luma <= EDGE_BG_LUMA;
   };
 
   const seed = (index: number) => {
