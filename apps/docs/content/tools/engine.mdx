@@ -10,10 +10,14 @@ description: Use the shared Three.js engine package.
 Use it for gameplay primitives that should not be rewritten in every game:
 
 - world bounds
+- data-driven arena maps
+- render lifecycle and map lighting
 - camera rigs
 - input seams
 - steering and agents
 - spawn helpers
+- HUD snapshots
+- generic FX, projectile, and pickup lifecycles
 
 ## Boundary rule
 
@@ -24,6 +28,7 @@ and overlays.
 
 ```ts
 import { RectBounds, makeBounds } from "@shipshitgames/engine";
+import { ArenaSystem, HudSystem, ProjectilesSystem } from "@shipshitgames/engine";
 import { firstPersonPointerLock } from "@shipshitgames/engine";
 ```
 
@@ -37,6 +42,21 @@ const bounds = RectBounds.square(40);
 bounds.clampXZ(position, 1.5);
 ```
 
+## Arena maps
+
+Use `ArenaSystem` to interpret serializable map bounds, obstacles, themes, and
+lights consistently across games.
+
+```ts
+const arena = new ArenaSystem({
+  id: "demo-arena",
+  bounds: { kind: "square", half: 40 },
+  obstacles: [{ kind: "rect", id: "crate-a", x: 3, z: -2, width: 2, depth: 2 }],
+});
+
+arena.isBlockedXZ(3, -2);
+```
+
 ## Camera seam
 
 Player systems read body and facing from the rig. The camera is render-only.
@@ -45,9 +65,22 @@ Player systems read body and facing from the rig. The camera is render-only.
 const rig = firstPersonPointerLock(camera, body);
 ```
 
+## HUD and transients
+
+Games supply typed state and content tables. The engine owns fan-out and
+lifecycle bookkeeping.
+
+```ts
+const hud = new HudSystem({ health: 100, ammo: 12 });
+const projectiles = new ProjectilesSystem({
+  bullet: { type: "bullet", speed: 20, radius: 0.1, ttl: 1, damage: 4 },
+});
+```
+
 ## Check
 
 ```bash
 cd packages/engine
+bun run test
 bun run typecheck
 ```
