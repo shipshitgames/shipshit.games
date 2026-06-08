@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shipshit.games/schemas/assets-manifest.schema.json",
+  "title": "@shipshitgames/engine assets manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["assets"],
+  "properties": {
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "kind", "path"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 },
+          "path": { "type": "string", "minLength": 1 },
+          "game": { "type": "string" },
+          "prompt": { "type": "string" },
+          "provider": { "type": "string" }
+        }
+      }
+    }
+  }
+}

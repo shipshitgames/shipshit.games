@@ -14,7 +14,7 @@ import {
 export const metadata: Metadata = {
   title: "Skills Pro Pricing",
   description:
-    "Monthly access to Ship Shit Games Skills Pro: agent skills, community access, and member assets.",
+    "Monthly access to Ship Shit Games Skills Pro: agent skills, member assets, build breakdowns, and studio workflows.",
   openGraph: {
     title: "Skills Pro Pricing",
     description:
@@ -58,8 +58,8 @@ const MODULES = [
   },
   {
     icon: Users,
-    title: "Community access",
-    body: "Join the buyer community for drops, feedback loops, and build-in-public accountability.",
+    title: "Member drops",
+    body: "Get subscriber drops now; private community access is included when the member community opens.",
   },
 ] as const;
 
@@ -79,8 +79,8 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
             </h1>
             <p className="mt-7 max-w-2xl text-lg leading-relaxed text-ash">
               Monthly access to the Ship Shit Games pro package: Skills Pro,
-              community access, member assets, production prompts, review
-              loops, and the game-shipping process we use on live builds.
+              member assets, production prompts, review loops, build
+              breakdowns, and the game-shipping process we use on live builds.
             </p>
 
             <div className="mt-10 grid gap-4 sm:grid-cols-3">
@@ -175,7 +175,8 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
             </form>
 
             <p className="mt-4 text-xs uppercase tracking-widest text-gunmetal">
-              Secure subscription checkout by Stripe. Access is managed in app.shipshit.games.
+              Secure monthly subscription checkout by Stripe. Access is managed in app.shipshit.games.
+              Cancel from the billing portal; access follows the active subscription period.
             </p>
           </aside>
         </div>

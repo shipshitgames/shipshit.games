@@ -52,9 +52,9 @@ const SOLUTION_STEPS = [
 
 const STUDIO_SIGNALS = [
   {
-    value: "6",
-    label: "Game thumbnails",
-    body: "Public DEADROT slices with generated key art and production notes.",
+    value: "7",
+    label: "Game tracks",
+    body: "Public DEADROT builds with playable links, source, and readiness gates.",
   },
   {
     value: "16",
@@ -76,9 +76,9 @@ const STUDIO_SIGNALS = [
 const PRODUCTS = [
   {
     name: "DEADROT",
-    desc: "The browser-game universe we are building live: brutal canon, shipped experiments, and playable public proof.",
-    href: PLAY,
-    cta: "Play Deadrot",
+    desc: "The browser-game universe we are building live: brutal canon, playable builds, source links, and finished-product gates.",
+    href: "/games",
+    cta: "See the games",
   },
   {
     name: "Skills Pro",

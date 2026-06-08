@@ -1,7 +1,7 @@
 # @shipshitgames/assetgen
 
-DOOM-grade asset generation for Ship Shit Games. One pipeline:
-**prompt + `lore/DESIGN.md` DOOM-suffix → provider → trim/optimize `.webp` → `assets.json`.**
+DOOM-grade asset generation for Ship Shit Games. One enforced pipeline:
+**prompt + `lore/DESIGN.md` DOOM-suffix → provider → post-process/optimize → `assets.json` with license provenance → hot preview.**
 
 This is the engine behind the studio generator surfaces. It runs from the CLI
 today; the desktop/app surfaces can wrap the same core later.
@@ -34,11 +34,38 @@ bun packages/assetgen/src/cli.ts generate --provider codex --id ... --prompt "..
 
 # Pipeline dry-run (no key, placeholder image):
 bun packages/assetgen/src/cli.ts generate --provider mock --dry-run --id test --prompt "x"
+
+# Multi-view or animation sprite sheets:
+bun packages/assetgen/src/cli.ts generate --provider mock --dry-run \
+  --id swarm-husk-run --game scourge-survivors --kind sprite \
+  --prompt "a parasite-taken Scourge host sprint cycle" \
+  --views front,side,back --frames 4 --fps 12 --scale 1.5 \
+  --license "internal prototype; review before shipping"
 ```
+
+## Shared pipeline contract
+
+All asset generators should call the shared `runAssetPipeline` core instead of
+writing files directly. It enforces the five game-asset-pipeline stages:
+
+```txt
+prompt -> generate -> postprocess -> register -> preview
+```
+
+The `register` stage writes the optimized asset and upserts `src/assets/assets.json`.
+Every new manifest entry must include a `license` record with `tool`, `plan`,
+`date`, and `kind`. This keeps provider/model provenance reviewable for Codex,
+OpenAI, fal, Replicate, Suno-compatible audio, ffmpeg transcodes, and mock runs.
 
 Omitting `--provider` uses the per-kind default: sprites/maps use `codex`,
 textures/icons use `openai`, audio kinds use `suno`, and model/3D assets use
 `replicate`. Pass `--provider` to override a single run.
+
+Sprite generation post-processes the provider image into a power-of-two
+transparent `.webp`, pads uneven view/frame counts into stable sheet cells,
+auto-fills `dimensions`, `frameSize`, `frames`, `fps`, `anchor`, `scale`,
+`views`, `sheet`, and `license` fields in `assets.json`, and writes a
+`previews/<id>-billboard.html` file for the desktop billboard preview.
 
 ## The variant matrix (issue #6)
 
@@ -52,6 +79,10 @@ generates, writes the render into the assets package at
 ```bash
 # Whole matrix, placeholder fills (no keys) — proves the pipeline + populates paths:
 bun packages/assetgen/src/cli.ts matrix --provider mock
+
+# Bootstrap the external @shipshitgames/assets package if the Deadrot sibling
+# checkout does not have its catalog yet:
+bun packages/assetgen/src/cli.ts matrix --init-catalog --provider mock --id scourge-swarm
 
 # Real art (codex rides your subscription; no key wiring):
 bun packages/assetgen/src/cli.ts matrix --provider codex
@@ -67,7 +98,7 @@ bun packages/assetgen/src/cli.ts matrix --provider mock --sync-games
 
 Flags: `--provider` (default `mock` — safe to batch), `--game`, `--id`,
 `--only-missing` (skip cells already rendered on disk), `--size`, `--dry-run`
-(force mock), `--sync-games`, `--assets-dir`.
+(force mock), `--sync-games`, `--assets-dir`, `--init-catalog`.
 
 ## Providers
 - `codex` — delegates to the local authed `codex` CLI via node-pty (no key wiring needed)

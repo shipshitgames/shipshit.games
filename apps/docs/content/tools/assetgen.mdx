@@ -10,7 +10,7 @@ description: Generate and matrix-fill game assets.
 It turns:
 
 ```txt
-prompt + design canon + provider -> image -> trim/optimize .webp -> manifest
+prompt + design canon + provider -> post-process/optimize -> manifest + license -> preview
 ```
 
 ## Dry run
@@ -32,6 +32,26 @@ OPENAI_API_KEY=sk-... bun packages/assetgen/src/cli.ts \
   --repo ../deadrotcom/apps/games/scourge-survivors
 ```
 
+## Generate a sprite sheet
+
+```bash
+bun packages/assetgen/src/cli.ts generate --provider mock --dry-run \
+  --id swarm-husk-run \
+  --game scourge-survivors \
+  --kind sprite \
+  --prompt "a parasite-taken Scourge host sprint cycle" \
+  --views front,side,back \
+  --frames 4 \
+  --fps 12 \
+  --scale 1.5 \
+  --license "internal prototype; review before shipping"
+```
+
+Sprite outputs are padded to power-of-two transparent `.webp` sheets. The
+manifest entry records sheet dimensions, frame size, view names, animation
+timing, anchor, scale, license terms, provider/model provenance, and a
+billboard preview HTML file.
+
 ## Use Codex as provider
 
 ```bash
@@ -52,6 +72,18 @@ If `--provider` is omitted, assetgen uses the per-kind default: sprites/maps use
 `codex`, textures/icons use `openai`, audio kinds use `suno`, and model/3D assets
 use `replicate`.
 
+## Pipeline contract
+
+The shared package owns the full five-step game asset pipeline:
+
+```txt
+prompt -> generate -> postprocess -> register -> preview
+```
+
+Generator surfaces should call `runAssetPipeline` so they cannot write generated
+outputs without also registering them in `assets.json`. New manifest entries
+must include a `license` object with `tool`, `plan`, `date`, and `kind`.
+
 ## Fill the matrix
 
 Matrix mode expands every intended `(entity x game)` render cell and writes it
@@ -60,6 +92,9 @@ to the Deadrot asset package by default.
 ```bash
 # placeholder fills
 bun packages/assetgen/src/cli.ts matrix --provider mock
+
+# initialize the external assets package first, if needed
+bun packages/assetgen/src/cli.ts matrix --init-catalog --provider mock --id scourge-swarm
 
 # real generation through Codex
 bun packages/assetgen/src/cli.ts matrix --provider codex
@@ -74,6 +109,18 @@ bun packages/assetgen/src/cli.ts matrix --game pactfall --only-missing
 ```bash
 bun packages/assetgen/src/cli.ts matrix \
   --provider mock \
+  --assets-dir ../deadrotcom/packages/assets
+```
+
+## Discover game token targets
+
+`games` writes `games.json` into the Deadrot asset package. It discovers each
+game's token targets from the game folders, including both supported constants
+layouts (`src/game/constants.ts` and `src/constants.ts`).
+
+```bash
+bun packages/assetgen/src/cli.ts games \
+  --games-root ../deadrotcom/apps/games \
   --assets-dir ../deadrotcom/packages/assets
 ```
 

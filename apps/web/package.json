@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "e2e": "playwright test",
     "stripe:provision": "bun scripts/provision-skills-pro-stripe.ts",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
@@ -23,6 +24,7 @@
     "tailwind-merge": "3.6.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.50.1",
     "@tailwindcss/postcss": "4.3.0",
     "@types/node": "25.9.1",
     "@types/react": "19.2.16",

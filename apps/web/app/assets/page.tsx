@@ -119,7 +119,8 @@ export default function AssetsPage() {
               <p className="mt-7 max-w-2xl text-lg leading-relaxed text-ash">
                 Thumbnails, portraits, sprites, and production assets from the same
                 pipeline we use to build Deadrot games in public. The point is
-                not pretty one-offs. The point is coherent sets a game can use.
+                not pretty one-offs. The point is coherent sets a game can use,
+                with subscriber packs delivered through the Studio Pass as they ship.
               </p>
               <div className="mt-9 flex flex-wrap gap-3">
                 <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">

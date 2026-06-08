@@ -1,10 +1,16 @@
-import { writeFile, mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { GAME_VIEW, buildPrompt } from "../style.ts";
-import { defaultProviderForKind, generateAsset } from "../providers.ts";
-import { toWebp } from "../postprocess.ts";
-import { register } from "../manifest.ts";
-import { appendUsageLog } from "../usage.ts";
+import { defaultProviderForKind } from "../providers.ts";
+import { runAssetPipeline } from "../pipeline.ts";
+import type { AssetPostprocessHook } from "../pipeline.ts";
+import {
+  manifestKindForSprite,
+  parseAnchor,
+  parseViews,
+  spritePromptDirective,
+  toSpriteSheetWebp,
+  writeBillboardPreview,
+} from "../sprites.ts";
 import { flag, has, intFlag } from "./args.ts";
 import { defaultRepo } from "./paths.ts";
 
@@ -13,90 +19,111 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const prompt = flag(argv, "prompt");
   const game = flag(argv, "game", "shared")!;
   const kind = flag(argv, "kind", "sprite")!;
-  const provider = flag(argv, "provider") || defaultProviderForKind(kind);
+  const spriteMode = kind === "sprite" || kind === "sprite-anim" || has(argv, "views") || has(argv, "frames");
+  const generationKind = spriteMode ? "sprite" : kind;
+  const provider = flag(argv, "provider") || defaultProviderForKind(generationKind);
   const model = flag(argv, "model");
   const size = intFlag(argv, "size", 1024);
   const repo = flag(argv, "repo") || defaultRepo(game);
   const dryRun = has(argv, "dry-run");
   const usageLog = flag(argv, "usage-log");
+  const views = parseViews(flag(argv, "views"));
+  const frameCount = intFlag(argv, "frames", 1);
+  const fps = intFlag(argv, "fps", 8);
+  const anchor = parseAnchor(flag(argv, "anchor"));
+  const scale = numberFlag(argv, "scale", 1);
+  const licenseTerms = flag(argv, "license");
+  const licenseUrl = flag(argv, "license-url");
 
   if (!id || !prompt) {
     printGenerateUsage();
     process.exit(1);
   }
 
-  const full = buildPrompt({ prompt, game, kind });
+  // Sprites augment the prompt with a sheet directive so the provider lays out
+  // views/frames, then go through the shared pipeline like every other asset.
+  const promptInput = spriteMode ? `${prompt}. ${spritePromptDirective(views, frameCount)}` : prompt;
   const which = dryRun ? "mock" : provider;
-  const start = Date.now();
-  let ok = false;
-  let outPath: string | undefined;
-  let usedModel: string | undefined = model;
-  let usageError: unknown;
-
+  const full = buildPrompt({ prompt: promptInput, game, kind: generationKind });
   console.log(`[assetgen] provider=${which}${model ? ` model=${model}` : ""} game=${game} kind=${kind} id=${id}`);
   console.log(`[prompt] ${full}`);
 
-  try {
-    const generated = await generateAsset(kind, full, {
-      provider: which,
-      size: `${size}x${size}`,
-      model,
-      log: (chunk) => process.stdout.write(chunk),
-    });
-    usedModel = generated.model;
+  const spritePostprocess: AssetPostprocessHook | undefined = spriteMode
+    ? async (asset, context) => {
+        // Non-image providers (e.g. audio) fall through untouched.
+        if (!asset.mediaType.startsWith("image/")) {
+          return { data: asset.data, mediaType: asset.mediaType, extension: asset.extension };
+        }
+        const sprite = await toSpriteSheetWebp(asset.data, {
+          id: context.id,
+          game: context.game,
+          prompt: context.prompt,
+          provider: asset.provider,
+          model: asset.model,
+          views,
+          frameCount,
+          fps,
+          anchor,
+          scale,
+          size: context.size,
+          licenseTerms,
+          licenseUrl,
+        });
+        const meta = sprite.metadata;
+        const previewRel = `previews/${context.id}-billboard.html`;
+        return {
+          data: sprite.data,
+          mediaType: "image/webp",
+          extension: "webp",
+          kindOverride: manifestKindForSprite(kind, frameCount),
+          entryFields: {
+            model: asset.model,
+            dimensions: meta.dimensions,
+            frameSize: meta.frameSize,
+            frames: meta.frames,
+            fps: meta.fps,
+            anchor: meta.anchor,
+            scale: meta.scale,
+            views: meta.views,
+            sheet: meta.sheet,
+            preview: previewRel,
+          },
+          licenseExtra: {
+            type: meta.license.type,
+            terms: meta.license.terms,
+            url: meta.license.url,
+            generatedAt: meta.license.generatedAt,
+          },
+          writeSidecars: async ({ outputRoot, relPath }) => {
+            const previewPath = join(outputRoot, previewRel);
+            await writeBillboardPreview({
+              outPath: previewPath,
+              assetHref: `../${relPath}`,
+              id: context.id,
+              game: context.game,
+              metadata: meta,
+            });
+            console.log(`[billboard] ${previewPath}`);
+          },
+        };
+      }
+    : undefined;
 
-    let bytes = generated.data;
-    let extension = generated.extension;
-    let mediaType = generated.mediaType;
-    if (generated.mediaType.startsWith("image/")) {
-      bytes = await toWebp(generated.data, { size });
-      extension = "webp";
-      mediaType = "image/webp";
-    }
-
-    const rel = `${subdirForKind(kind)}/${id}.${extension}`;
-    outPath = join(repo, "src/assets", rel);
-    await mkdir(dirname(outPath), { recursive: true });
-    await writeFile(outPath, bytes);
-    console.log(`[wrote] ${outPath} (${(bytes.length / 1024).toFixed(1)} kb, ${mediaType})`);
-
-    await register(join(repo, "src/assets/assets.json"), {
-      id,
-      kind,
-      game,
-      path: rel,
-      prompt,
-      provider: generated.provider,
-    });
-    console.log(`[manifest] ${join(repo, "src/assets/assets.json")} updated`);
-    ok = true;
-  } catch (error) {
-    usageError = error;
-    throw error;
-  } finally {
-    try {
-      const logPath = await appendUsageLog(
-        {
-          command: "generate",
-          provider: which,
-          kind,
-          game,
-          id,
-          model: usedModel,
-          size,
-          outputPath: outPath,
-          prompt,
-          success: ok,
-          durationMs: Date.now() - start,
-          error: usageError,
-        },
-        usageLog,
-      );
-      if (logPath) console.log(`[usage] ${logPath}`);
-    } catch (error) {
-      console.warn(`[usage] failed to write usage log: ${String((error as Error)?.message ?? error)}`);
-    }
-  }
+  await runAssetPipeline({
+    id,
+    // Manifest records the raw user prompt; generation uses the augmented one.
+    prompt,
+    promptForBuild: promptInput,
+    game,
+    kind: generationKind,
+    provider: which,
+    model,
+    size,
+    repo,
+    usageLogPath: usageLog,
+    postprocess: spritePostprocess,
+    log: (chunk) => process.stdout.write(chunk),
+  });
 }
 
 function printGenerateUsage(): void {
@@ -108,11 +135,14 @@ function printGenerateUsage(): void {
       "  assetgen generate --id <id> --prompt <text> [--game <slug>|shared]\n" +
       "           [--kind sprite|texture|icon|music|sfx|voice|model] [--provider openai|fal|codex|replicate|suno|mock]\n" +
       "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
+      "           [--views front,side,back] [--frames 1] [--fps 8] [--anchor 0.5,1] [--scale 1]\n" +
+      "           [--license <terms>] [--license-url <url>]\n" +
       "  assetgen --id <id> --prompt <text> [--game <slug>|shared]\n" +
       "           [--kind sprite|texture|icon|music|sfx|voice|model] [--provider openai|fal|codex|replicate|suno|mock]\n" +
       "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
       "  assetgen matrix [--game <slug>] [--id <entity>] [--provider mock|openai|fal|codex|replicate]\n" +
       "           [--size 1024] [--only-missing] [--dry-run] [--sync-games] [--assets-dir <path>] [--usage-log <path|off>]\n" +
+      "  assetgen games [--check] [--games-root <path>] [--assets-dir <path>]\n" +
       "  assetgen tokens [--check] [--design <path>] [--assets-dir <path>]\n" +
       "  assetgen check-design [--root <repo>]\n" +
       "  assetgen pixelize --in <raw.png> --out <sprite.webp> [--height 110] [--bg 42]\n" +
@@ -121,11 +151,8 @@ function printGenerateUsage(): void {
   );
 }
 
-function subdirForKind(kind: string): string {
-  if (kind === "sprite") return "sprites";
-  if (kind === "texture") return "textures";
-  if (kind === "icon") return "icons";
-  if (kind === "music" || kind === "sfx" || kind === "voice") return `audio/${kind}`;
-  if (kind === "model" || kind === "3d") return "models";
-  return kind;
+function numberFlag(argv: string[], name: string, def: number): number {
+  const raw = flag(argv, name);
+  const n = raw === undefined ? def : Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : def;
 }
