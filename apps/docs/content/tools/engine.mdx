@@ -29,6 +29,53 @@ The engine extraction boundary is tracked in
 engine core from game-owned Scourge Survivors content before runtime systems move
 into the package.
 
+## Ownership and Deadrot consumption
+
+`packages/engine` in this repo is the canonical source for
+`@shipshitgames/engine`. Deadrot games should depend on the package release for
+CI and release builds:
+
+```json
+{
+  "dependencies": {
+    "@shipshitgames/engine": "^0.1.1",
+    "three": "^0.184.0"
+  }
+}
+```
+
+When testing unpublished engine changes locally, link the package from this repo
+instead of editing a Deadrot-owned copy:
+
+```bash
+cd ../shipshitgames/packages/engine
+bun link
+
+cd ../../../deadrotcom
+bun link @shipshitgames/engine
+bun install
+```
+
+The duplicate `deadrot.com/packages/engine` package is a temporary compatibility
+copy until the Deadrot repo removes it or replaces it with a shim. Do not add
+new engine features there, do not rename the package to `@deadrot/engine`, and
+do not create a separate engine project board for this scope.
+
+The full ownership contract is tracked in
+`packages/engine/CANONICAL-ENGINE.md`.
+
+## Asset manifest schema
+
+The engine package intentionally exports the shared game asset manifest schema:
+
+```ts
+import manifestSchema from "@shipshitgames/engine/assets-manifest.schema.json";
+```
+
+Studio tooling validates each game's `src/assets/assets.json` with this schema.
+The schema belongs with the reusable engine contract; Deadrot-specific asset
+files and generated source history still belong in `../deadrotcom/packages/assets`.
+
 ## Import examples
 
 ```ts

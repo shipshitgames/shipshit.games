@@ -14,6 +14,18 @@ which reference-game modules belong in `@shipshitgames/engine`, which stay in
 Scourge Survivors, and which seams games use to register their own content, HUD,
 maps, projectiles, pickups, FX, and network payloads.
 
+## Canonical Ownership
+
+`packages/engine` in this repository is the canonical source for
+`@shipshitgames/engine`. Deadrot games should consume this package from the
+published npm release in CI/release builds, or through a temporary local
+`bun link` bridge when testing unpublished engine changes.
+
+The ownership and Deadrot consumption contract lives in
+[`CANONICAL-ENGINE.md`](./CANONICAL-ENGINE.md). It also records the temporary
+status of the duplicate `deadrot.com/packages/engine` package and the intentional
+`assets.json` manifest schema export.
+
 ## Install
 
 ```sh
