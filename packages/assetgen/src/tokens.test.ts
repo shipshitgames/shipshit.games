@@ -87,6 +87,29 @@ test("runTokens writes all generated token artifacts without an assets catalog",
   assert.equal(tokensJson.assetgen.gradeParams.pixelGrid, 110);
 });
 
+test("runTokens emits centralized fonts.css with Google Fonts import + delivery metadata", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assetgen-tokens-fonts-test-"));
+  const designPath = join(dir, "DESIGN.md");
+  const assetsDir = join(dir, "packages", "assets");
+  const styleGeneratedPath = join(dir, "style.generated.ts");
+  await writeFile(designPath, DESIGN);
+
+  await runTokens({ design: designPath, assetsDir, styleGeneratedPath });
+
+  const fontsCss = await readFile(join(assetsDir, "tokens", "fonts.css"), "utf8");
+  assert.match(fontsCss, /@import url\("https:\/\/fonts\.googleapis\.com\/css2\?/);
+  assert.match(fontsCss, /family=Inter:wght@400;500;600;700;800/);
+  assert.match(fontsCss, /family=Oswald:wght@700/);
+  assert.match(fontsCss, /--font-display: Oswald, sans-serif/);
+
+  const tokensJson = JSON.parse(await readFile(join(assetsDir, "tokens", "tokens.json"), "utf8"));
+  assert.equal(tokensJson.fontDelivery.strategy, "google-fonts-css2");
+  assert.equal(tokensJson.fontDelivery.cssFile, "fonts.css");
+  assert.deepEqual(tokensJson.fontDelivery.imports, [
+    "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@700&display=swap",
+  ]);
+});
+
 test("runTokens --repo-only writes only the in-repo artifact, skipping the assets package", async () => {
   const dir = await mkdtemp(join(tmpdir(), "assetgen-tokens-repoonly-test-"));
   const designPath = join(dir, "DESIGN.md");

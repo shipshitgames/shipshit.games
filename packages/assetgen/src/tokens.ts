@@ -108,6 +108,7 @@ function buildTokenArtifacts(opts: {
   const generatedNotice = `GENERATED FROM ${GENERATED_SOURCE_LABEL} v${version} hash:${hash} - DO NOT EDIT. Run: bun assetgen tokens`;
   const cssBanner = banner(version, hash);
   const fonts = buildFonts(typography);
+  const fontDelivery = buildFontDelivery(typography, version, hash);
 
   const styleGen =
     cssBanner +
@@ -176,6 +177,8 @@ function buildTokenArtifacts(opts: {
         colors,
         typography,
         fonts,
+        fontDelivery: fontDelivery.delivery,
+        requiredFamilies: fontDelivery.requiredFamilies,
         rounded: objectMap(opts.design.rounded),
         spacing: objectMap(opts.design.spacing),
         elevation: objectMap(opts.design.elevation),
@@ -194,6 +197,7 @@ function buildTokenArtifacts(opts: {
       [join(tokensDir, "tokens.ts")]: tokensTs,
       [join(tokensDir, "theme.css")]: themeCss,
       [join(tokensDir, "tokens.css")]: tokensCss,
+      [join(tokensDir, "fonts.css")]: fontDelivery.css,
       [join(tokensDir, "tokens.json")]: tokensJson,
     },
     hash,
@@ -433,6 +437,59 @@ function buildFonts(typography: JsonObject): Record<string, string> {
     if (family) result[key] = family;
   }
   return result;
+}
+
+// Centralized font delivery (#41): one decision for how display/body/mono load.
+const FONT_DELIVERY_ROLES = ["display", "body", "mono"] as const;
+const GOOGLE_FONT_WEIGHTS: Record<string, number[]> = {
+  Inter: [400, 500, 600, 700, 800],
+  Oswald: [700],
+  "JetBrains Mono": [400, 500, 600, 700],
+};
+
+interface FontFamilyRecord {
+  role: (typeof FONT_DELIVERY_ROLES)[number];
+  family: string;
+  stack: string;
+  source: "google-fonts" | "system";
+  weights: number[];
+}
+
+interface FontDelivery {
+  css: string;
+  delivery: { strategy: string; cssFile: string; imports: string[] };
+  requiredFamilies: FontFamilyRecord[];
+}
+
+function buildFontDelivery(typography: JsonObject, version: string, hash: string): FontDelivery {
+  const requiredFamilies: FontFamilyRecord[] = FONT_DELIVERY_ROLES.map((role) => {
+    const stack = stringValue(objectMap(typography[role]).fontFamily, "");
+    const family = stack.split(",")[0]?.trim().replace(/^["']|["']$/g, "") ?? "";
+    const weights = GOOGLE_FONT_WEIGHTS[family] ?? [];
+    return { role, family, stack, source: weights.length > 0 ? "google-fonts" : "system", weights };
+  });
+  const google = requiredFamilies
+    .filter((record) => record.source === "google-fonts")
+    .sort((a, b) => a.family.localeCompare(b.family));
+  const imports = google.length
+    ? [
+        `https://fonts.googleapis.com/css2?${google
+          .map((record) => `family=${record.family.replace(/\s+/g, "+")}:wght@${record.weights.join(";")}`)
+          .join("&")}&display=swap`,
+      ]
+    : [];
+  const css =
+    banner(version, hash) +
+    imports.map((href) => `@import url("${href}");`).join("\n") +
+    (imports.length ? "\n\n" : "") +
+    `:root {\n` +
+    requiredFamilies.map((record) => `  --font-${record.role}: ${record.stack};`).join("\n") +
+    `\n}\n`;
+  return {
+    css,
+    delivery: { strategy: imports.length ? "google-fonts-css2" : "system", cssFile: "fonts.css", imports },
+    requiredFamilies,
+  };
 }
 
 function deepResolve(value: unknown, colors: Record<string, string>): unknown {

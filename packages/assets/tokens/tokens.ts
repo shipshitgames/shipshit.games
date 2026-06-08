@@ -1,4 +1,4 @@
-/* GENERATED FROM lore/DESIGN.md v0.1.0 hash:54852bb7 - DO NOT EDIT. Run: bun assetgen tokens */
+/* GENERATED FROM lore/DESIGN.md v0.1.0 hash:9ce6616b - DO NOT EDIT. Run: bun assetgen tokens */
 // Design tokens for imperative Three.js + TypeScript. Hex ints for THREE.Color.
 
 export const COLORS = {

@@ -183,5 +183,21 @@ pactfall (MOBA iso) / starblight (arcade) / redline (runner side-on) / rothulk
 the shared package manifest. Matrix mode writes into the Deadrot
 `@shipshitgames/assets` package.
 
+## Tokens
+
+`assetgen tokens` compiles the canonical `DESIGN.md` frontmatter into generated
+token artifacts for the selected assets package:
+
+```bash
+bun packages/assetgen/src/cli.ts tokens --assets-dir ../deadrotcom/packages/assets
+```
+
+The command emits `tokens/theme.css`, `tokens/tokens.css`,
+`tokens/fonts.css`, `tokens/tokens.ts`, and `tokens/tokens.json`.
+Font delivery is decided once by the generator: `fonts.css` imports the required
+Google Fonts families for the design tokens and leaves system stacks as system
+fonts. `tokens.json` records the required display, body, and mono families so
+apps do not make per-surface font decisions.
+
 > TODO (board): background-removal step (rembg) for non-transparent providers; wire the
 > matrix mode into the Electron studio UI.
