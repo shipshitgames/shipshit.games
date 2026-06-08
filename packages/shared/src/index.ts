@@ -1,6 +1,7 @@
 /**
  * Shared types and utilities for the Ship Shit Games platform.
  */
+import gamesCatalog from "./games.json";
 
 /** Lifecycle status of a game in the gallery. */
 export type GameStatus = "finished" | "playable" | "prototype" | "in-dev" | "concept";
@@ -45,6 +46,16 @@ export const STATUS_LABELS: Record<GameStatus, string> = {
   "in-dev": "In Dev",
   concept: "Concept",
 };
+
+const catalog = gamesCatalog as { gameSlugs: string[] };
+
+/**
+ * Canonical asset-generation game slugs used by studio tools (assetgen,
+ * desktop), sourced from games.json so every surface shares one list.
+ * This is the art-target subset; the marketing gallery in GAMES may carry
+ * additional non-art-target products (e.g. the warline strategy hub).
+ */
+export const GAME_SLUGS = catalog.gameSlugs;
 
 /** The Ship Shit Games catalogue, in gallery order. */
 export const GAMES: Game[] = [
