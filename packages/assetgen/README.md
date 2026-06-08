@@ -1,7 +1,7 @@
 # @shipshitgames/assetgen
 
 DOOM-grade asset generation for Ship Shit Games. One pipeline:
-**prompt + `lore/DESIGN.md` DOOM-suffix → provider → trim/optimize `.webp` → `assets.json`.**
+**prompt + `DESIGN.md` art bible → provider → trim/optimize `.webp` → `assets.json`.**
 
 This is the engine behind the studio generator surfaces. It runs from the CLI
 today; the desktop/app surfaces can wrap the same core later.
@@ -103,14 +103,23 @@ It stores a prompt hash and character count, not raw prompt text. Override the p
 with `--usage-log <path>` or disable with `--usage-log off`.
 
 ## Style
-Every prompt is suffixed with the DOOM canon from `lore/DESIGN.md` and framed per game.
-All six games are covered: scourge-survivors (FPS billboard) / deadlane (TD top-down) /
-pactfall (MOBA iso) / starblight (arcade) / redline (runner side-on) / rothulk
-(platformer side-on), plus `shared`. Output is trimmed, optionally sized, encoded to
-`.webp`. Single-asset mode can upsert into a target game's local
-`src/assets/assets.json` when `--repo` is provided; Deadrot games should prefer
-the shared package manifest. Matrix mode writes into the Deadrot
-`@shipshitgames/assets` package.
+Every prompt is composed from the reviewed `DESIGN.md` art bible:
+
+- `assetgen.styleSuffix` supplies the DOOM-grade material, lighting, silhouette,
+  palette, pixel-grid, and negative-rendering constraints.
+- `assetgen.perGameFraming` frames the same asset for each game camera.
+- `assetgen.assetTypeDirection` adds kind-specific rules for sprites, textures,
+  UI, icons, FX, projectiles, pickups, covers, and maps.
+- `assetgen.referenceSlots` records which style, silhouette, palette, and source
+  images are valid inputs for generated or expanded assets.
+
+All six games are covered: scourge-survivors (FPS billboard) / deadlane
+(TD top-down) / pactfall (MOBA iso) / starblight (arcade) / redline
+(runner side-on) / rothulk (platformer side-on), plus `shared`. Output is
+trimmed, optionally sized, encoded to `.webp`. Single-asset mode can upsert into
+a target game's local `src/assets/assets.json` when `--repo` is provided;
+Deadrot games should prefer the shared package manifest. Matrix mode writes into
+the Deadrot `@shipshitgames/assets` package.
 
 > TODO (board): background-removal step (rembg) for non-transparent providers; wire the
 > matrix mode into the Electron studio UI.

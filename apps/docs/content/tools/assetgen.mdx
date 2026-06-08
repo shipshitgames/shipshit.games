@@ -10,7 +10,7 @@ description: Generate and matrix-fill game assets.
 It turns:
 
 ```txt
-prompt + design canon + provider -> image -> trim/optimize .webp -> manifest
+prompt + DESIGN.md art bible + provider -> image -> trim/optimize .webp -> manifest
 ```
 
 ## Dry run
@@ -87,6 +87,18 @@ bun packages/assetgen/src/cli.ts matrix \
 | `fal` | FLUX generation |
 | `replicate` | Image/model provider runner |
 | `suno` | Audio provider adapter; requires `SUNO_API_BASE_URL` |
+
+## Art Bible
+
+`DESIGN.md` is the reviewed source for the generated style contract while lore
+wiring is not present in this repo. `assetgen tokens` compiles its `assetgen`
+front matter into `packages/assetgen/src/style.generated.ts`.
+
+The style contract includes material, lighting, and silhouette grammar; per-game
+framing; kind-specific direction for sprites, textures, UI, icons, FX,
+projectiles, pickups, covers, and maps; negative prompts; Scourge parasite
+canon; and explicit reference slots for style, silhouette, palette, and source
+images.
 
 ## Keychain storage
 

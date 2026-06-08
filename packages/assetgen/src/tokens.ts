@@ -1,4 +1,4 @@
-// `assetgen tokens` — compile lore/DESIGN.md into generated, banner-stamped
+// `assetgen tokens` — compile canonical DESIGN.md into generated, banner-stamped
 // artifacts. The DESIGN.md `assetgen:` block + palette are the SINGLE source of
 // truth; this emits:
 //   - packages/assetgen/src/style.generated.ts  (asset-gen: suffix, framing,
@@ -15,12 +15,13 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url)); // packages/assetgen/src
 const ROOT = join(here, "..", "..", ".."); // monorepo root (shipshitgames/)
 
-/** Resolve the CANONICAL DESIGN.md — the lore one, never the stale monorepo copy. */
+/** Resolve the canonical DESIGN.md; prefer lore once wired, keep root as the reviewed fallback. */
 export function resolveDesignPath(override?: string): string {
   const candidates = [
     override,
     join(ROOT, ".agents/lore/DESIGN.md"), // submodule (preferred once wired)
     join(ROOT, "..", "lore", "DESIGN.md"), // sibling repo (current workspace layout)
+    join(ROOT, "DESIGN.md"), // reviewed studio fallback while lore is unwired
   ].filter(Boolean) as string[];
   for (const c of candidates) if (existsSync(c)) return c;
   throw new Error(`DESIGN.md not found (tried: ${candidates.join(", ")}). Pass --design <path>.`);
@@ -48,7 +49,7 @@ function deepResolve(v: any, colors: Record<string, string>): any {
 const kebab = (s: string) => s.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase());
 const fold = (s: string) => s.replace(/\s+/g, " ").trim(); // collapse folded-scalar whitespace
 const banner = (v: string, h: string, open = "/*", close = "*/") =>
-  `${open} GENERATED FROM lore/DESIGN.md v${v} hash:${h} — DO NOT EDIT. Run: bun assetgen tokens ${close}\n`;
+  `${open} GENERATED FROM DESIGN.md v${v} hash:${h} — DO NOT EDIT. Run: bun assetgen tokens ${close}\n`;
 
 export interface TokensResult {
   drift: boolean;
@@ -74,9 +75,10 @@ export async function runTokens(
   const design = frontmatter(await readFile(designPath, "utf8"));
   const colors: Record<string, string> = design.colors ?? {};
   const version: string = String(design.version ?? "0.0.0");
+  const artBible = deepResolve(design.artBible ?? {}, colors);
   const ag = deepResolve(design.assetgen ?? {}, colors);
   const hash = (Bun as any)
-    .hash(JSON.stringify({ version, colors, typography: design.typography, assetgen: ag }))
+    .hash(JSON.stringify({ version, colors, typography: design.typography, artBible, assetgen: ag }))
     .toString(16)
     .slice(0, 8);
 
@@ -86,11 +88,14 @@ export async function runTokens(
   const styleGen =
     banner(version, hash) +
     `// Asset-generation style, compiled from the DESIGN.md \`assetgen:\` block + the\n` +
-    `// lore Style-Bible. style.ts re-exports these; edit the bible, not this file.\n\n` +
+    `// art bible. style.ts re-exports these; edit the bible, not this file.\n\n` +
+    `export const ART_BIBLE = ${JSON.stringify(artBible, null, 2)} as const;\n\n` +
     `export const STYLE_SUFFIX = ${JSON.stringify(fold(ag.styleSuffix ?? ""))};\n\n` +
     `export const NEGATIVE_PROMPTS: string[] = ${JSON.stringify(ag.negativePrompts ?? [], null, 2)};\n\n` +
     `export const GAME_FRAMING: Record<string, string> = ${JSON.stringify(ag.perGameFraming ?? {}, null, 2)};\n\n` +
+    `export const ASSET_TYPE_DIRECTION: Record<string, string> = ${JSON.stringify(ag.assetTypeDirection ?? {}, null, 2)};\n\n` +
     `export const KIND_MAP: Record<string, string> = ${JSON.stringify(ag.kindMap ?? {}, null, 2)};\n\n` +
+    `export const REFERENCE_SLOTS: Record<string, string> = ${JSON.stringify(ag.referenceSlots ?? {}, null, 2)};\n\n` +
     `export const SCOURGE_RULE = { pattern: /${ag.scourgeRule?.trigger ?? "\\bscourge\\b"}/${ag.scourgeRule?.flags ?? "i"}, clause: ${JSON.stringify(fold(ag.scourgeRule?.clause ?? ""))} };\n\n` +
     `export const GRADE_PARAMS = ${JSON.stringify(ag.gradeParams ?? {}, null, 2)} as const;\n\n` +
     `export const STYLE_REF: Record<string, string> = ${JSON.stringify(ag.referenceImages ?? {}, null, 2)};\n\n` +
@@ -99,8 +104,9 @@ export async function runTokens(
     `export function buildPrompt(opts: { prompt: string; game: string; kind: string }): string {\n` +
     `  const framing = GAME_FRAMING[opts.game] ?? GAME_FRAMING.shared;\n` +
     `  const kind = KIND_MAP[opts.kind] ?? opts.kind;\n` +
+    `  const assetDirection = ASSET_TYPE_DIRECTION[opts.kind] ?? "";\n` +
     `  const scourge = SCOURGE_RULE.pattern.test(opts.prompt) ? SCOURGE_RULE.clause : "";\n` +
-    `  const parts = [opts.prompt, kind, framing, STYLE_SUFFIX];\n` +
+    `  const parts = [opts.prompt, kind, framing, assetDirection, STYLE_SUFFIX].filter(Boolean);\n` +
     `  if (scourge) parts.push(scourge);\n` +
     `  return parts.join(". ") + ".";\n` +
     `}\n`;

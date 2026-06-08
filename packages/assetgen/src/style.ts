@@ -1,12 +1,15 @@
-// Asset-gen style is GENERATED from lore/DESIGN.md (the `assetgen:` block) + the
-// lore Style-Bible. Run `bun assetgen tokens` to regenerate ./style.generated.ts.
+// Asset-gen style is GENERATED from DESIGN.md (the `assetgen:` block) + the
+// art bible. Run `bun assetgen tokens` to regenerate ./style.generated.ts.
 // Edit the bible, not these constants. This module just re-exports the generated
 // canon (+ a couple of CLI-only human labels) so existing imports keep working.
 export {
+  ART_BIBLE,
   STYLE_SUFFIX,
   NEGATIVE_PROMPTS,
   GAME_FRAMING,
+  ASSET_TYPE_DIRECTION,
   KIND_MAP,
+  REFERENCE_SLOTS,
   SCOURGE_RULE,
   GRADE_PARAMS,
   STYLE_REF,
