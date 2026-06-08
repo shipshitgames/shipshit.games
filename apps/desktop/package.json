@@ -43,6 +43,7 @@
     "asarUnpack": [
       "**/node_modules/node-pty/**"
     ],
+    "afterPack": "./electron/after-pack.cjs",
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [
