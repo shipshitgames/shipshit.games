@@ -17,10 +17,17 @@ export function defaultAssetsDir(): string {
 
 export function defaultGamesRoot(): string {
   const cwd = process.cwd();
-  for (const c of [join(cwd, "games"), join(cwd, "..", "games")]) {
+  const candidates = [
+    join(cwd, "games"),
+    join(cwd, "apps", "games"),
+    join(cwd, "..", "deadrotcom", "apps", "games"),
+    join(srcDir, "..", "..", "..", "..", "deadrotcom", "apps", "games"),
+    join(cwd, "..", "games"),
+  ];
+  for (const c of candidates) {
     if (existsSync(c)) return c;
   }
-  return join(cwd, "games");
+  return candidates[0]!;
 }
 
 export function defaultRepo(game: string): string {

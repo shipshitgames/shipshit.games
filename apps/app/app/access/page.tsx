@@ -59,18 +59,19 @@ export default async function AccessPage() {
           <div className="rounded-md border border-gunmetal bg-coal p-6">
             <Users className="size-6 text-hellfire" aria-hidden="true" />
             <h2 className="mt-4 font-display text-2xl font-bold uppercase text-bone">
-              Skool community
+              Member community
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-ash">
-              P3 deferred. The webhook route is stubbed for later, but buyers
-              will not be promised or sent Skool access in the first release.
+              Community access is included with the Studio Pass when the private
+              member space opens. Until then, Skills Pro and member assets are
+              the active subscriber deliverables.
             </p>
             <form action="/api/fulfillment/skool" method="post" className="mt-6">
               <button
                 disabled
                 className="rounded-md border border-gunmetal px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:pointer-events-none disabled:opacity-50"
               >
-                P3 deferred
+                Opens soon
               </button>
             </form>
           </div>

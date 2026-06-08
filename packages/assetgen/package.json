@@ -9,6 +9,7 @@
     "matrix": "bun src/cli.ts matrix",
     "lint": "bun src/cli.ts check-design --root ../..",
     "test": "bun test",
+    "test:coverage": "bun test --coverage",
     "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },

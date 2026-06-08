@@ -5,6 +5,21 @@ const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { spawn, execFileSync } = require("node:child_process");
+const { readSharedGameSlugs } = require("./game-slugs.cjs");
+const { createTerminalManager, terminalShell } = require("./terminal-manager.cjs");
+const {
+  manifestPathForRepo,
+  projectFromRepoPath,
+  summarizeProject,
+  uniqueProjects,
+} = require("./projects.cjs");
+
+let pty = null;
+try {
+  pty = require("node-pty");
+} catch (error) {
+  console.warn("node-pty unavailable; terminal IPC will report unavailable", error);
+}
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
 const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
@@ -17,8 +32,14 @@ const GAMES_ROOT = fs.existsSync(DEADROT_GAMES_ROOT) ? DEADROT_GAMES_ROOT : LEGA
 const ASSETGEN = path.join(STUDIO_REPO, "packages", "assetgen", "src", "cli.ts");
 const RESSOURCES = path.join(STUDIO_REPO, "packages", "ressources", "src", "cli.ts");
 const DEFAULT_GAME = "scourge-survivors";
-const ALL_GAMES = ["scourge-survivors", "deadlane", "pactfall", "starblight"];
+const GAME_SLUGS = readSharedGameSlugs(STUDIO_REPO);
 const gameDir = (g) => path.join(GAMES_ROOT, g === "shared" ? DEFAULT_GAME : g);
+const terminalManager = createTerminalManager({
+  pty,
+  cwd: STUDIO_REPO,
+  env: process.env,
+  shell: terminalShell(process.platform, process.env),
+});
 
 // ---- settings (non-secret) ----
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
@@ -38,6 +59,8 @@ const DEFAULTS = {
   defaultProvider: "codex",
   defaultGame: DEFAULT_GAME,
   providerDefaults: DEFAULT_PROVIDER_BY_KIND,
+  activeProjectId: "",
+  projects: [],
 };
 function readSettings() {
   try { return normalizeSettings({ ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsPath(), "utf8")) }); }
@@ -54,10 +77,14 @@ function normalizeSettings(raw) {
   for (const [kind, provider] of Object.entries(providerDefaults)) {
     providerDefaults[kind] = PROVIDERS.has(provider) ? provider : (DEFAULT_PROVIDER_BY_KIND[kind] || "codex");
   }
+  const projects = uniqueProjects(Array.isArray(raw?.projects) ? raw.projects : []);
+  const activeProjectId = typeof raw?.activeProjectId === "string" ? raw.activeProjectId : "";
   return {
     defaultProvider: PROVIDERS.has(raw?.defaultProvider) ? raw.defaultProvider : "codex",
     defaultGame: typeof raw?.defaultGame === "string" ? raw.defaultGame : DEFAULT_GAME,
     providerDefaults,
+    activeProjectId,
+    projects,
   };
 }
 function mergeSettings(partial) {
@@ -74,6 +101,63 @@ function mergeSettings(partial) {
 function providerForKind(settings, kind, explicit) {
   if (explicit && PROVIDERS.has(explicit)) return explicit;
   return settings.providerDefaults?.[kind] || settings.defaultProvider || DEFAULT_PROVIDER_BY_KIND[kind] || "codex";
+}
+
+// ---- local game projects ----
+function discoveredProjects() {
+  return GAME_SLUGS
+    .map((slug) => ({ slug, repoPath: gameDir(slug) }))
+    .filter((p) => fs.existsSync(p.repoPath))
+    .map((p) => projectFromRepoPath(p.repoPath, { slug: p.slug, name: p.slug, source: "discovered" }));
+}
+
+function allProjects(settings = readSettings()) {
+  return uniqueProjects([...(settings.projects || []), ...discoveredProjects()]);
+}
+
+function listProjectState(settings = readSettings()) {
+  const projects = allProjects(settings);
+  const activeProjectId = settings.activeProjectId && projects.some((p) => p.id === settings.activeProjectId)
+    ? settings.activeProjectId
+    : projects[0]?.id || "";
+  const summaries = projects.map((project) => summarizeProject(project, activeProjectId)).filter(Boolean);
+  const active = summaries.find((project) => project.id === activeProjectId) || summaries[0] || null;
+  return {
+    projects: summaries,
+    activeProjectId: active?.id || "",
+    activeManifestPath: active?.manifestPath || null,
+  };
+}
+
+function persistProjects(projects, activeProjectId) {
+  const registered = uniqueProjects(projects).filter((project) => project.source !== "discovered");
+  const active = allProjects({ ...readSettings(), projects: registered, activeProjectId }).find((p) => p.id === activeProjectId);
+  return mergeSettings({
+    projects: registered,
+    activeProjectId: activeProjectId || "",
+    defaultGame: active?.slug || readSettings().defaultGame,
+  });
+}
+
+function resolveProjectTarget(opts = {}) {
+  const settings = readSettings();
+  const projects = allProjects(settings);
+  const requestedProjectId = typeof opts.projectId === "string" ? opts.projectId : "";
+  const requestedGame = typeof opts.game === "string" ? opts.game : "";
+  let project = projects.find((p) => p.id === requestedProjectId);
+  if (!project && requestedGame) project = projects.find((p) => p.slug === requestedGame);
+  if (!project && settings.activeProjectId) project = projects.find((p) => p.id === settings.activeProjectId);
+  if (!project && requestedGame) {
+    project = projectFromRepoPath(gameDir(requestedGame), { slug: requestedGame, name: requestedGame, source: "discovered" });
+  }
+  if (!project) {
+    const slug = settings.defaultGame || DEFAULT_GAME;
+    project = projectFromRepoPath(gameDir(slug), { slug, name: slug, source: "discovered" });
+  }
+  return {
+    ...project,
+    manifestPath: manifestPathForRepo(project.repoPath),
+  };
 }
 
 // ---- keys (macOS keychain, shipcode-style) ----
@@ -98,7 +182,41 @@ ipcMain.handle("settings:get", () => readSettings());
 ipcMain.handle("settings:set", (_e, partial) => mergeSettings(partial));
 ipcMain.handle("keys:status", () => keyStatus());
 ipcMain.handle("keys:set", (_e, { provider, key }) => { const s = KEY_SERVICES[provider]; if (s && key) setKey(s, key); return keyStatus(); });
-ipcMain.handle("studio:listGames", () => ALL_GAMES.filter((g) => fs.existsSync(gameDir(g))));
+ipcMain.handle("studio:listGames", () => listProjectState().projects.map((project) => project.slug));
+ipcMain.handle("projects:list", () => listProjectState());
+ipcMain.handle("projects:add", async () => {
+  const result = await dialog.showOpenDialog({
+    title: "Add local game repo",
+    properties: ["openDirectory"],
+  });
+  if (result.canceled || !result.filePaths[0]) return listProjectState();
+  const project = projectFromRepoPath(result.filePaths[0], { source: "registered" });
+  const settings = readSettings();
+  persistProjects([...(settings.projects || []), project], project.id);
+  return listProjectState();
+});
+ipcMain.handle("projects:remove", (_e, id) => {
+  const settings = readSettings();
+  const projects = (settings.projects || []).filter((project) => project.id !== id);
+  const nextActive = settings.activeProjectId === id ? "" : settings.activeProjectId;
+  persistProjects(projects, nextActive);
+  return listProjectState();
+});
+ipcMain.handle("projects:setActive", (_e, id) => {
+  const settings = readSettings();
+  const project = allProjects(settings).find((candidate) => candidate.id === id);
+  if (!project) return listProjectState(settings);
+  persistProjects(settings.projects || [], project.id);
+  return listProjectState();
+});
+
+ipcMain.handle("terminal:start", (e, opts) => {
+  e.sender.once("destroyed", () => terminalManager.disposeForWebContents(e.sender.id));
+  return terminalManager.start(e.sender, opts);
+});
+ipcMain.handle("terminal:write", (e, { id, data }) => terminalManager.write(e.sender, id, data));
+ipcMain.handle("terminal:resize", (e, { id, cols, rows }) => terminalManager.resize(e.sender, id, { cols, rows }));
+ipcMain.handle("terminal:stop", (e, id) => terminalManager.stop(e.sender, id));
 
 // ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
 // GUI apps inherit a minimal PATH, so resolve ffmpeg from common install locations.
@@ -110,6 +228,31 @@ function resolveFfmpeg() {
 }
 const AUDIO_CATEGORIES = ["sfx", "music", "voice"];
 const audioSlug = (file) => path.basename(file).replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+async function registerDesktopAsset(manifestPath, entry) {
+  for (const field of ["tool", "plan", "date", "kind"]) {
+    if (!entry.license?.[field]) throw new Error(`asset manifest entry ${entry.id}:${entry.kind} requires license.${field}`);
+  }
+  let data = { assets: [] };
+  try {
+    const parsed = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+    if (Array.isArray(parsed.assets)) data = parsed;
+  } catch {}
+  const i = data.assets.findIndex((a) => a.id === entry.id && a.kind === entry.kind);
+  if (i >= 0) data.assets[i] = entry;
+  else data.assets.push(entry);
+  await fs.promises.mkdir(path.dirname(manifestPath), { recursive: true });
+  await fs.promises.writeFile(manifestPath, JSON.stringify(data, null, 2) + "\n");
+}
+
+function audioLicense(category, bitrate, normalize) {
+  return {
+    tool: "ffmpeg",
+    plan: `libopus-${bitrate}k${normalize ? "-loudnorm" : ""}`,
+    date: new Date().toISOString().slice(0, 10),
+    kind: category,
+  };
+}
 
 ipcMain.handle("studio:pickAudioFiles", async () => {
   const r = await dialog.showOpenDialog({
@@ -125,17 +268,20 @@ ipcMain.handle("studio:pickAudioFiles", async () => {
 // (cover art); optional loudnorm. Streams an ffmpeg log like studio:generate.
 ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
   const files = Array.isArray(opts?.files) ? opts.files : [];
-  const game = opts?.game || readSettings().defaultGame;
+  const target = resolveProjectTarget(opts);
+  const game = target.slug;
   const category = AUDIO_CATEGORIES.includes(opts?.category) ? opts.category : "music";
   const bitrate = Math.max(32, Math.min(320, Number(opts?.bitrate) || 128));
   const normalize = !!opts?.normalize;
-  const outDir = path.join(gameDir(game), "src", "assets", "audio", category);
+  const outDir = path.join(target.repoPath, "src", "assets", "audio", category);
   const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:transcode-log", chunk); };
   if (!files.length) { send("no files selected\n"); return { ok: false, log: "no files", outputs: [] }; }
   const ffmpeg = resolveFfmpeg();
   fs.mkdirSync(outDir, { recursive: true });
   const outputs = [];
   let log = "";
+  send(`[target] ${game}\n`);
+  send(`[manifest] ${target.manifestPath}\n`);
   for (const input of files) {
     const out = path.join(outDir, `${audioSlug(input)}.webm`);
     const args = ["-hide_banner", "-loglevel", "error", "-y", "-i", input, "-map", "0:a", "-c:a", "libopus", "-b:a", `${bitrate}k`];
@@ -151,24 +297,49 @@ ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
       child.on("error", (err) => { send(`\nffmpeg error: ${err} — is ffmpeg installed and on PATH?\n`); });
       child.on("close", resolve);
     });
-    if (code === 0) { outputs.push(out); send(`✓ ${out}\n`); }
-    else send(`✗ ffmpeg exited ${code} for ${path.basename(input)}\n`);
+    if (code === 0) {
+      try {
+        const manifestPath = path.join(gameDir(game), "src", "assets", "assets.json");
+        await registerDesktopAsset(manifestPath, {
+          id: audioSlug(input),
+          kind: category,
+          game,
+          path: path.posix.join("audio", category, path.basename(out)),
+          provider: "ffmpeg",
+          license: audioLicense(category, bitrate, normalize),
+        });
+        outputs.push(out);
+        send(`✓ ${out}\n`);
+        send(`[manifest] ${manifestPath} updated\n`);
+      } catch (err) {
+        send(`✗ manifest registration failed for ${path.basename(out)}: ${err?.message || err}\n`);
+      }
+    } else send(`✗ ffmpeg exited ${code} for ${path.basename(input)}\n`);
   }
   send(`\n[done: ${outputs.length}/${files.length} → ${path.relative(WORKSPACE, outDir)}]\n`);
-  send("Remember to register each track in the game's assets.json with a license record.\n");
+  send("Registered completed outputs in the game's assets.json with a license record.\n");
   return { ok: outputs.length === files.length, log, outputs };
 });
 
 ipcMain.handle("studio:generate", async (e, opts) => {
   const settings = readSettings();
-  const game = opts?.game || settings.defaultGame;
+  const target = resolveProjectTarget(opts);
+  const game = target.slug || opts?.game || settings.defaultGame;
   const kind = opts?.kind || "sprite";
   const provider = providerForKind(settings, kind, opts?.provider);
-  const repo = gameDir(game);
+  const repo = target.repoPath;
   const args = [ASSETGEN, "--provider", provider, "--game", game, "--kind", kind, "--id", opts?.id || "asset", "--prompt", opts?.prompt || "", "--repo", repo];
+  if (opts?.views) args.push("--views", String(opts.views));
+  if (opts?.frames) args.push("--frames", String(opts.frames));
+  if (opts?.fps) args.push("--fps", String(opts.fps));
+  if (opts?.anchor) args.push("--anchor", String(opts.anchor));
+  if (opts?.scale) args.push("--scale", String(opts.scale));
+  if (opts?.license) args.push("--license", String(opts.license));
+  if (opts?.licenseUrl) args.push("--license-url", String(opts.licenseUrl));
   const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:gen-log", chunk); };
   send(`$ assetgen --provider ${provider} --game ${game} --kind ${kind} --id ${opts?.id}\n`);
   send(`[repo] ${repo}\n`);
+  send(`[manifest] ${target.manifestPath}\n`);
   return await new Promise((resolve) => {
     let child;
     try { child = spawn("bun", args, { cwd: STUDIO_REPO }); }
@@ -182,10 +353,12 @@ ipcMain.handle("studio:generate", async (e, opts) => {
     child.on("close", async (code) => {
       clearTimeout(killer);
       const m = buf.match(/\[wrote\] (.+?\.webp)/);
-      let dataUrl = null, outPath = null;
+      const p = buf.match(/\[billboard\] (.+?\.html)/);
+      let dataUrl = null, outPath = null, previewPath = null;
       if (m) { outPath = m[1].trim(); try { dataUrl = `data:image/webp;base64,${(await fs.promises.readFile(outPath)).toString("base64")}`; } catch {} }
+      if (p) previewPath = p[1].trim();
       send(`\n[exit ${code}]\n`);
-      resolve({ ok: code === 0 && !!m, log: buf, path: outPath, dataUrl });
+      resolve({ ok: code === 0 && !!m, log: buf, path: outPath, dataUrl, previewPath });
     });
   });
 });
@@ -233,10 +406,11 @@ function createWindow() {
   });
   if (isDev) { mainWindow.loadURL(DEV_SERVER_URL); mainWindow.webContents.openDevTools({ mode: "detach" }); }
   else { mainWindow.loadFile(path.join(__dirname, "..", "dist", "index.html")); }
-  mainWindow.on("closed", () => { mainWindow = null; });
+  mainWindow.on("closed", () => { terminalManager.disposeAll(); mainWindow = null; });
 }
 app.whenReady().then(() => {
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
+app.on("before-quit", () => terminalManager.disposeAll());
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });

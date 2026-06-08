@@ -1,0 +1,6 @@
+# Coverage runs only with --coverage (bun run test:coverage). Threshold is the
+# global total across covered files; network/keychain IO modules (providers, keys)
+# stay low by nature, so we gate on overall lines/functions, not per file.
+[test]
+coverageThreshold = { line = 0.7, function = 0.7 }
+coverageSkipTestFiles = true

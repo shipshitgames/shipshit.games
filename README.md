@@ -66,6 +66,16 @@ bun run build
 bun run typecheck
 ```
 
+CI runs the same local checks from GitHub Actions:
+
+```bash
+bun run ci:scaffold
+bun run ci:engine
+bun run lint
+bun run typecheck
+bun run build
+```
+
 Common focused commands:
 
 ```bash

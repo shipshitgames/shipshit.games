@@ -38,8 +38,31 @@ contextBridge.exposeInMainWorld("studio", {
     get: () => ipcRenderer.invoke("settings:get"),
     set: (partial) => ipcRenderer.invoke("settings:set", partial),
   },
+  projects: {
+    list: () => ipcRenderer.invoke("projects:list"),
+    add: () => ipcRenderer.invoke("projects:add"),
+    remove: (id) => ipcRenderer.invoke("projects:remove", id),
+    setActive: (id) => ipcRenderer.invoke("projects:setActive", id),
+  },
   keys: {
     status: () => ipcRenderer.invoke("keys:status"),
     set: (provider, key) => ipcRenderer.invoke("keys:set", { provider, key }),
+  },
+  // Interactive terminal (node-pty in the main process, xterm in the renderer).
+  terminal: {
+    start: (opts) => ipcRenderer.invoke("terminal:start", opts),
+    write: (id, data) => ipcRenderer.invoke("terminal:write", { id, data }),
+    resize: (id, size) => ipcRenderer.invoke("terminal:resize", { id, ...size }),
+    stop: (id) => ipcRenderer.invoke("terminal:stop", id),
+    onData: (cb) => {
+      const h = (_e, payload) => cb(payload);
+      ipcRenderer.on("terminal:data", h);
+      return () => ipcRenderer.removeListener("terminal:data", h);
+    },
+    onExit: (cb) => {
+      const h = (_e, payload) => cb(payload);
+      ipcRenderer.on("terminal:exit", h);
+      return () => ipcRenderer.removeListener("terminal:exit", h);
+    },
   },
 });

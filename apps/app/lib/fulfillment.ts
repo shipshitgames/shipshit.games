@@ -115,11 +115,11 @@ async function sendResendEmail(input: FulfillmentInput, accessUrl?: string) {
       from,
       to: input.email,
       subject: "Your Ship Shit Games Studio Pass access",
-      text: `Your Studio Pass is ready. Open ${ctaUrl} to claim Skills Pro, community access, and member assets.`,
+      text: `Your Studio Pass is ready. Open ${ctaUrl} to claim Skills Pro and member assets. Community invites are sent separately when available.`,
       html: `
         <div style="font-family:Inter,Arial,sans-serif;background:#0a0a0a;color:#e9e3d6;padding:32px">
           <h1 style="font-family:Arial,sans-serif;text-transform:uppercase">Studio Pass is ready</h1>
-          <p>Open your Ship Shit Games app portal to claim Skills Pro, community access, and member assets.</p>
+          <p>Open your Ship Shit Games app portal to claim Skills Pro and member assets. Community invites are sent separately when available.</p>
           <p><a href="${ctaUrl}" style="color:#ff6a00">Claim access</a></p>
         </div>
       `,

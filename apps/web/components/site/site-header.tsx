@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { label: "Deadrot", href: "/#deadrot" },
+  { label: "Games", href: "/games" },
   { label: "Skills Pro", href: "/pricing" },
   { label: "Assets", href: "/assets" },
   { label: "Videos", href: "/youtube" },

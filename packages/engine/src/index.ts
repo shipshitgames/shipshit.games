@@ -15,6 +15,69 @@ export {
   type WorldBounds,
   type MapBounds,
 } from './world/bounds'
+export {
+  ArenaSystem,
+  pointInObstacle,
+  validateArenaMap,
+  type ArenaMap,
+  type ArenaSystemOptions,
+  type CircleMapObstacle,
+  type ColorToken,
+  type MapFog,
+  type MapLight,
+  type MapObstacle,
+  type MapTheme,
+  type RectMapObstacle,
+} from './world/map'
+
+// --- engine-core: render seam (scene/renderer lifecycle + map lights/theme) ---
+export { RenderSystem, type RendererLike, type RenderSystemConfig } from './render/RenderSystem'
+
+// --- engine-core: HUD snapshot fan-out (React stays game-side) ---
+export {
+  HudSystem,
+  type StateListener,
+  type StateUpdater,
+  type SubscribeOptions,
+} from './hud/HudSystem'
+
+// --- engine-core: short-lived visual effects (rendering stays game-side) ---
+export {
+  FxSystem,
+  type FxEntity,
+  type FxSpawn,
+  type FxSystemHooks,
+  type Pop,
+  type Tracer,
+  type TransientEntity,
+} from './fx/FxSystem'
+
+// --- engine-core: generic data-driven transient gameplay entities ---
+export {
+  ProjectilesSystem,
+  type Projectile,
+  type ProjectileSpec,
+  type ProjectileTable,
+  type ProjectileUpdateOptions,
+  type SpawnProjectile,
+} from './projectiles/ProjectilesSystem'
+export {
+  PickupsSystem,
+  type Pickup,
+  type PickupCollectOptions,
+  type PickupSpec,
+  type PickupTable,
+  type SpawnPickup,
+} from './pickups/PickupsSystem'
+export {
+  addScaledVec3,
+  copyVec3,
+  distanceXZ,
+  normalizedVec3,
+  vec3,
+  type MutableVec3Like,
+  type Vec3Like,
+} from './spatial'
 
 // --- embodied-base: camera rig (seam: CameraRig — the spine) ---
 export {
