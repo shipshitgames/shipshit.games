@@ -73,6 +73,9 @@ to the Deadrot asset package by default.
 # placeholder fills
 bun packages/assetgen/src/cli.ts matrix --provider mock
 
+# initialize the external assets package first, if needed
+bun packages/assetgen/src/cli.ts matrix --init-catalog --provider mock --id scourge-swarm
+
 # real generation through Codex
 bun packages/assetgen/src/cli.ts matrix --provider codex
 
