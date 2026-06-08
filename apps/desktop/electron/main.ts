@@ -14,6 +14,7 @@ import {
   summarizeProject,
   uniqueProjects,
 } from "./projects.cjs";
+import { createMoodboardStore } from "./moodboards.cjs";
 // Single, shared manifest writer + license validator (issue #17). The Electron
 // main process is bundled from TypeScript (vite-plugin-electron), so it imports
 // assetgen's register() directly — no CommonJS shim, one writer for both runtimes.
@@ -59,12 +60,17 @@ if (!fs.existsSync(ASSETGEN)) {
   );
 }
 const GAME_SLUGS = readSharedGameSlugs(STUDIO_REPO);
+// Full static game catalogue surfaced to the moodboard picker (moodboard:listGames).
+const ALL_GAMES = GAME_SLUGS;
 const gameDir = (g) => path.join(GAMES_ROOT, g === "shared" ? DEFAULT_GAME : g);
 const terminalManager = createTerminalManager({
   pty,
   cwd: STUDIO_REPO,
   env: process.env,
   shell: terminalShell(process.platform, process.env),
+});
+const moodboards = createMoodboardStore({
+  rootDir: () => path.join(app.getPath("userData"), "moodboards"),
 });
 
 // ---- settings (non-secret) ----
@@ -244,6 +250,21 @@ ipcMain.handle("terminal:write", (e, { id, data }) => terminalManager.write(e.se
 ipcMain.handle("terminal:resize", (e, { id, cols, rows }) => terminalManager.resize(e.sender, id, { cols, rows }));
 ipcMain.handle("terminal:stop", (e, id) => terminalManager.stop(e.sender, id));
 
+ipcMain.handle("moodboard:listGames", () => ALL_GAMES);
+ipcMain.handle("moodboard:get", (_e, game) => moodboards.readBoard(game || readSettings().defaultGame));
+ipcMain.handle("moodboard:addNote", (_e, payload = {}) => moodboards.addNote(payload.game || readSettings().defaultGame, payload.text));
+ipcMain.handle("moodboard:updateItem", (_e, payload = {}) => moodboards.updateItem(payload.game || readSettings().defaultGame, payload.item));
+ipcMain.handle("moodboard:setVisualTarget", (_e, payload = {}) => moodboards.setVisualTarget(payload.game || readSettings().defaultGame, payload.id, payload.visualTarget));
+ipcMain.handle("moodboard:removeItem", (_e, payload = {}) => moodboards.removeItem(payload.game || readSettings().defaultGame, payload.id));
+ipcMain.handle("moodboard:importImages", async (_e, game) => {
+  const r = await dialog.showOpenDialog({
+    title: "Import moodboard references",
+    properties: ["openFile", "multiSelections"],
+    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
+  });
+  return r.canceled ? moodboards.readBoard(game || readSettings().defaultGame) : moodboards.importImages(game || readSettings().defaultGame, r.filePaths);
+});
+
 // ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
 // GUI apps inherit a minimal PATH, so resolve ffmpeg from common install locations.
 function resolveFfmpeg() {
@@ -372,10 +393,10 @@ ipcMain.handle("studio:generate", async (e, opts) => {
   });
 });
 
-// Research → rules: drives @shipshitgames/ressources over a streaming log, same shape as
+// Ressources -> rules: drives @shipshitgames/ressources over a streaming log, same shape as
 // studio:generate. Writes the ruleset into the repo under docs/rules/ by default.
 ipcMain.handle("studio:research", async (e, opts) => {
-  // research only distills with codex | mock; ignore the image-gen default provider.
+  // Ressources only distills with codex | mock; ignore the image-gen default provider.
   const provider = opts?.provider === "mock" ? "mock" : "codex";
   const url = (opts?.url || "").trim();
   const slug = (opts?.slug || "ruleset").replace(/[^a-z0-9-]+/gi, "-").toLowerCase();

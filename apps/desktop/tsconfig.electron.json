@@ -23,5 +23,5 @@
     "useUnknownInCatchVariables": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["electron/main.ts", "electron/preload.cjs", "electron/projects.cjs", "electron/game-slugs.cjs", "electron/terminal-manager.cjs"]
+  "include": ["electron/main.ts", "electron/preload.cjs", "electron/projects.cjs", "electron/game-slugs.cjs", "electron/terminal-manager.cjs", "electron/moodboards.cjs"]
 }

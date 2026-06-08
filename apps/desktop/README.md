@@ -83,6 +83,17 @@ cd apps/desktop
 bun run dev
 ```
 
+## Ressources (Rules) pane
+
+The Rules pane shells out to `packages/ressources/src/cli.ts`; it should keep
+using the package CLI rather than duplicating transcript capture or distillation
+logic in Electron.
+
+```bash
+brew tap shipshitgames/tap
+brew install --cask shipshitgames-studio
+```
+
 Build the macOS release artifact (`asarUnpack` keeps `node-pty` unpacked so the
 native addon and `spawn-helper` remain on disk inside the app bundle):
 
@@ -101,3 +112,10 @@ routes sprite/audio generation to the active project's repo path.
 
 The Homebrew cask should point at the signed/notarized `.dmg` uploaded to a
 GitHub release.
+
+## Moodboards
+
+The Moodboard pane keeps one reference board per game in Electron `userData`.
+Imported images are copied into the app's moodboard storage and are not written
+to any game's `src/assets` directory. Notes, item positions, and visual-target
+markers persist across app restarts.

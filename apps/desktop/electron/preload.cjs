@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld("studio", {
     ipcRenderer.on("studio:gen-log", h);
     return () => ipcRenderer.removeListener("studio:gen-log", h);
   },
-  // Research → rules (runs @shipshitgames/ressources in the main process).
+  // Ressources -> rules (runs @shipshitgames/ressources in the main process).
   research: (opts) => ipcRenderer.invoke("studio:research", opts),
   onResearchLog: (cb) => {
     const h = (_e, chunk) => cb(chunk);
@@ -64,5 +64,14 @@ contextBridge.exposeInMainWorld("studio", {
       ipcRenderer.on("terminal:exit", h);
       return () => ipcRenderer.removeListener("terminal:exit", h);
     },
+  },
+  moodboard: {
+    listGames: () => ipcRenderer.invoke("moodboard:listGames"),
+    get: (game) => ipcRenderer.invoke("moodboard:get", game),
+    addNote: (game, text) => ipcRenderer.invoke("moodboard:addNote", { game, text }),
+    importImages: (game) => ipcRenderer.invoke("moodboard:importImages", game),
+    updateItem: (game, item) => ipcRenderer.invoke("moodboard:updateItem", { game, item }),
+    setVisualTarget: (game, id, visualTarget) => ipcRenderer.invoke("moodboard:setVisualTarget", { game, id, visualTarget }),
+    removeItem: (game, id) => ipcRenderer.invoke("moodboard:removeItem", { game, id }),
   },
 });

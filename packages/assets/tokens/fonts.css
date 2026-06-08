@@ -1,0 +1,8 @@
+/* GENERATED FROM lore/DESIGN.md v0.1.0 hash:73277f2a - DO NOT EDIT. Run: bun assetgen tokens */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@700&display=swap");
+
+:root {
+  --font-display: Oswald, 'Arial Narrow', 'Helvetica Neue', sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

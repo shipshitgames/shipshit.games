@@ -124,6 +124,19 @@ bun packages/assetgen/src/cli.ts games \
   --assets-dir ../deadrotcom/packages/assets
 ```
 
+## Generate design tokens
+
+```bash
+bun packages/assetgen/src/cli.ts tokens
+bun packages/assetgen/src/cli.ts tokens --check
+```
+
+The command compiles the reviewed `DESIGN.md` frontmatter into
+`packages/assetgen/src/style.generated.ts` plus
+`packages/assets/tokens/{theme.css,tokens.css,tokens.ts,tokens.json}`. Each
+artifact carries the design version and hash so apps can detect drift without
+maintaining hand-forked palettes.
+
 ## Providers
 
 | Provider | Use |

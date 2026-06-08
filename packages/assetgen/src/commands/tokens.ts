@@ -6,6 +6,7 @@ export async function runTokensCommand(argv: string[]): Promise<void> {
     check: has(argv, "check"),
     design: flag(argv, "design"),
     assetsDir: flag(argv, "assets-dir"),
+    repoOnly: has(argv, "repo-only"),
     log: (m) => console.log(m),
   });
   if (res.drift) {

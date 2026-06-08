@@ -1,0 +1,24 @@
+/* GENERATED FROM DESIGN.md v0.1.0 for app token consumers. DO NOT EDIT BY HAND. */
+:root {
+  --primary: #c1121f;
+  --on-primary: #f4efe6;
+  --secondary: #ff6a00;
+  --on-secondary: #0a0a0a;
+  --tertiary: #8bdc1f;
+  --neutral: #0a0a0a;
+  --void: #0a0a0a;
+  --coal: #121214;
+  --iron: #1e1e22;
+  --gunmetal: #34343c;
+  --blood: #c1121f;
+  --blood-hot: #ff2a18;
+  --hellfire: #ff6a00;
+  --rust: #a35a33;
+  --bone: #e9e3d6;
+  --ash: #9b958a;
+  --toxic: #8bdc1f;
+  --font-display: "Oswald", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-label: "Oswald", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
