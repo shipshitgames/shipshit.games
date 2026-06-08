@@ -10,7 +10,7 @@ description: Generate and matrix-fill game assets.
 It turns:
 
 ```txt
-prompt + design canon + provider -> image -> trim/optimize .webp -> manifest
+prompt + design canon + provider -> post-process/optimize -> manifest + license -> preview
 ```
 
 ## Dry run
@@ -51,6 +51,18 @@ verifies that the requested PNG was written, then runs the normal `.webp` and
 If `--provider` is omitted, assetgen uses the per-kind default: sprites/maps use
 `codex`, textures/icons use `openai`, audio kinds use `suno`, and model/3D assets
 use `replicate`.
+
+## Pipeline contract
+
+The shared package owns the full five-step game asset pipeline:
+
+```txt
+prompt -> generate -> postprocess -> register -> preview
+```
+
+Generator surfaces should call `runAssetPipeline` so they cannot write generated
+outputs without also registering them in `assets.json`. New manifest entries
+must include a `license` object with `tool`, `plan`, `date`, and `kind`.
 
 ## Fill the matrix
 

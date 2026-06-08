@@ -1,7 +1,7 @@
 # @shipshitgames/assetgen
 
-DOOM-grade asset generation for Ship Shit Games. One pipeline:
-**prompt + `lore/DESIGN.md` DOOM-suffix → provider → trim/optimize `.webp` → `assets.json`.**
+DOOM-grade asset generation for Ship Shit Games. One enforced pipeline:
+**prompt + `lore/DESIGN.md` DOOM-suffix → provider → post-process/optimize → `assets.json` with license provenance → hot preview.**
 
 This is the engine behind the studio generator surfaces. It runs from the CLI
 today; the desktop/app surfaces can wrap the same core later.
@@ -35,6 +35,20 @@ bun packages/assetgen/src/cli.ts generate --provider codex --id ... --prompt "..
 # Pipeline dry-run (no key, placeholder image):
 bun packages/assetgen/src/cli.ts generate --provider mock --dry-run --id test --prompt "x"
 ```
+
+## Shared pipeline contract
+
+All asset generators should call the shared `runAssetPipeline` core instead of
+writing files directly. It enforces the five game-asset-pipeline stages:
+
+```txt
+prompt -> generate -> postprocess -> register -> preview
+```
+
+The `register` stage writes the optimized asset and upserts `src/assets/assets.json`.
+Every new manifest entry must include a `license` record with `tool`, `plan`,
+`date`, and `kind`. This keeps provider/model provenance reviewable for Codex,
+OpenAI, fal, Replicate, Suno-compatible audio, ffmpeg transcodes, and mock runs.
 
 Omitting `--provider` uses the per-kind default: sprites/maps use `codex`,
 textures/icons use `openai`, audio kinds use `suno`, and model/3D assets use

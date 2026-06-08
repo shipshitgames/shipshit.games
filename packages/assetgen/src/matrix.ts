@@ -17,6 +17,7 @@ import { generateAsset } from "./providers.ts";
 import { toWebp } from "./postprocess.ts";
 import { register } from "./manifest.ts";
 import { appendUsageLog } from "./usage.ts";
+import { licenseForGeneration } from "./pipeline.ts";
 
 const CATALOG_FILE = "assets-catalog.json";
 
@@ -180,6 +181,12 @@ export async function runMatrix(opts: MatrixOptions): Promise<MatrixResult> {
           path: `@shipshitgames/assets/${job.outRel}`,
           prompt: job.entity.promptBase,
           provider: raw.provider,
+          license: licenseForGeneration({
+            provider: raw.provider,
+            model: raw.model,
+            kind: "sprite",
+            date: new Date(),
+          }),
         });
       }
       ok = true;

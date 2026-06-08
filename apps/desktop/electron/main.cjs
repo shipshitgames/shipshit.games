@@ -112,6 +112,31 @@ function resolveFfmpeg() {
 const AUDIO_CATEGORIES = ["sfx", "music", "voice"];
 const audioSlug = (file) => path.basename(file).replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
+async function registerDesktopAsset(manifestPath, entry) {
+  for (const field of ["tool", "plan", "date", "kind"]) {
+    if (!entry.license?.[field]) throw new Error(`asset manifest entry ${entry.id}:${entry.kind} requires license.${field}`);
+  }
+  let data = { assets: [] };
+  try {
+    const parsed = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
+    if (Array.isArray(parsed.assets)) data = parsed;
+  } catch {}
+  const i = data.assets.findIndex((a) => a.id === entry.id && a.kind === entry.kind);
+  if (i >= 0) data.assets[i] = entry;
+  else data.assets.push(entry);
+  await fs.promises.mkdir(path.dirname(manifestPath), { recursive: true });
+  await fs.promises.writeFile(manifestPath, JSON.stringify(data, null, 2) + "\n");
+}
+
+function audioLicense(category, bitrate, normalize) {
+  return {
+    tool: "ffmpeg",
+    plan: `libopus-${bitrate}k${normalize ? "-loudnorm" : ""}`,
+    date: new Date().toISOString().slice(0, 10),
+    kind: category,
+  };
+}
+
 ipcMain.handle("studio:pickAudioFiles", async () => {
   const r = await dialog.showOpenDialog({
     title: "Pick source audio to transcode",
@@ -152,11 +177,27 @@ ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
       child.on("error", (err) => { send(`\nffmpeg error: ${err} — is ffmpeg installed and on PATH?\n`); });
       child.on("close", resolve);
     });
-    if (code === 0) { outputs.push(out); send(`✓ ${out}\n`); }
-    else send(`✗ ffmpeg exited ${code} for ${path.basename(input)}\n`);
+    if (code === 0) {
+      try {
+        const manifestPath = path.join(gameDir(game), "src", "assets", "assets.json");
+        await registerDesktopAsset(manifestPath, {
+          id: audioSlug(input),
+          kind: category,
+          game,
+          path: path.posix.join("audio", category, path.basename(out)),
+          provider: "ffmpeg",
+          license: audioLicense(category, bitrate, normalize),
+        });
+        outputs.push(out);
+        send(`✓ ${out}\n`);
+        send(`[manifest] ${manifestPath} updated\n`);
+      } catch (err) {
+        send(`✗ manifest registration failed for ${path.basename(out)}: ${err?.message || err}\n`);
+      }
+    } else send(`✗ ffmpeg exited ${code} for ${path.basename(input)}\n`);
   }
   send(`\n[done: ${outputs.length}/${files.length} → ${path.relative(WORKSPACE, outDir)}]\n`);
-  send("Remember to register each track in the game's assets.json with a license record.\n");
+  send("Registered completed outputs in the game's assets.json with a license record.\n");
   return { ok: outputs.length === files.length, log, outputs };
 });
 
