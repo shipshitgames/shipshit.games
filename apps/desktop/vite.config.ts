@@ -23,13 +23,13 @@ export default defineConfig({
     react(),
     electron([
       {
-        entry: "electron/main.ts",
+        entry: "src/main/index.ts",
         vite: {
           build: {
-            outDir: "dist-electron/main",
+            outDir: "dist/main",
             sourcemap: true,
             lib: {
-              entry: "electron/main.ts",
+              entry: "src/main/index.ts",
               formats: ["cjs"],
               fileName: () => "index.cjs",
             },
@@ -42,13 +42,13 @@ export default defineConfig({
         },
       },
       {
-        entry: "electron/preload.cjs",
+        entry: "src/preload/index.ts",
         vite: {
           build: {
-            outDir: "dist-electron/preload",
+            outDir: "dist/preload",
             sourcemap: true,
             lib: {
-              entry: "electron/preload.cjs",
+              entry: "src/preload/index.ts",
               formats: ["cjs"],
               fileName: () => "index.cjs",
             },
@@ -56,6 +56,27 @@ export default defineConfig({
               external: NATIVE_EXTERNALS,
               output: { format: "cjs" },
             },
+          },
+        },
+      },
+      // Terminal ABI verify harness — bundled (terminal-manager inlined) so it can run
+      // under Electron's raw node, which can't load TypeScript. See verify:terminal.
+      {
+        entry: "scripts/verify-terminal.ts",
+        vite: {
+          build: {
+            outDir: "dist/verify",
+            sourcemap: true,
+            lib: {
+              entry: "scripts/verify-terminal.ts",
+              formats: ["cjs"],
+              fileName: () => "index.cjs",
+            },
+            rollupOptions: {
+              external: NATIVE_EXTERNALS,
+              output: { format: "cjs" },
+            },
+            commonjsOptions: { ignoreDynamicRequires: true },
           },
         },
       },

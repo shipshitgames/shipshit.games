@@ -1,11 +1,11 @@
 // Guard: the Electron main process must use assetgen's shared register() — it is
 // bundled from TypeScript (vite-plugin-electron) precisely so it can import the
 // one writer directly instead of shipping a CommonJS copy that drifts (issue #17).
-// main.ts can't be imported here (it needs the Electron runtime), so assert on source.
+// index.ts can't be imported here (it needs the Electron runtime), so assert on source.
 import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 
-const mainSource = await readFile(new URL("./main.ts", import.meta.url), "utf8");
+const mainSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
 
 test("main imports register from assetgen and never reimplements the writer", () => {
   // Imports the shared writer straight from assetgen's TS source (bundled in)...

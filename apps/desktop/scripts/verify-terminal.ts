@@ -1,10 +1,9 @@
-#!/usr/bin/env node
 // Headless end-to-end check of the WORKING terminal path against Electron's ABI.
 //
-// The unit tests (terminal-manager.test.cjs) exercise the manager logic with a mock
-// pty. This harness exercises the real thing: it loads node-pty and spawns an actual
-// shell under Electron's bundled Node — the exact NODE_MODULE_VERSION the Electron
-// main process uses — so it proves the native addon was rebuilt correctly.
+// The unit tests (src/main/terminal-manager.test.ts) exercise the manager logic with
+// a mock pty. This harness exercises the real thing: it loads node-pty and spawns an
+// actual shell under Electron's bundled Node — the exact NODE_MODULE_VERSION the
+// Electron main process uses — so it proves the native addon was rebuilt correctly.
 //
 // When invoked with plain Node it re-execs itself under Electron with
 // ELECTRON_RUN_AS_NODE=1 (no window/display required). Under Electron it:
@@ -14,11 +13,18 @@
 //   4. runs `echo "SSG_VERIFY=$((6*7))"` and asserts the streamed output contains
 //      SSG_VERIFY=42 — proving the shell actually executed, not just echoed input.
 //
+// Bundled by vite-plugin-electron to dist/verify/index.cjs: terminal-manager is
+// inlined, while electron + node-pty stay external and are require()d at runtime.
+// Run it with `bun run build && node dist/verify/index.cjs` (the verify:terminal script).
+//
 // Exit codes: 0 = working, 1 = failure, 2 = Electron not installed/downloaded.
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { createTerminalManager, terminalShell } from "../src/main/terminal-manager";
 
-const path = require("node:path");
-
-const DESKTOP_DIR = path.join(__dirname, "..");
+// The bundle runs from <repo>/apps/desktop/dist/verify, so two levels up is the
+// package root used to resolve the external electron + node-pty packages.
+const DESKTOP_DIR = path.join(__dirname, "..", "..");
 const TIMEOUT_MS = 10_000;
 
 function resolveFrom(spec) {
@@ -27,7 +33,6 @@ function resolveFrom(spec) {
 
 if (!process.versions.electron) {
   // ---- plain Node: re-exec under Electron's Node so we test Electron's ABI ----
-  const { spawnSync } = require("node:child_process");
   let electronBin;
   try {
     electronBin = require(resolveFrom("electron"));
@@ -73,8 +78,6 @@ async function run() {
     console.error("[verify] FAIL: node-pty loaded but pty.spawn is unavailable.");
     return 1;
   }
-
-  const { createTerminalManager, terminalShell } = require("./terminal-manager.cjs");
 
   const received = [];
   const webContents = {

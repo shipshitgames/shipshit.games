@@ -256,6 +256,77 @@ body {
 .project-actions { display: flex; gap: 8px; }
 .project-error { font-family: var(--font-mono); font-size: 11px; color: #ff8a7a; word-break: break-word; }
 
+/* ---- Gallery ---- */
+.gallery { width: 100%; align-self: stretch; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.gallery-toolbar { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+.gallery-game { margin: 0; }
+.gallery-search {
+  font: inherit; color: var(--bone); background: var(--coal); border: 1px solid var(--gunmetal);
+  border-radius: 2px; padding: 10px 12px;
+}
+.gallery-search:focus { outline: none; border-color: var(--blood); box-shadow: 0 0 0 1px var(--blood); }
+.gallery-filter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.gallery-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; font: inherit; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--ash); background: var(--coal);
+  border: 1px solid color-mix(in srgb, var(--gunmetal) 76%, transparent); border-radius: 2px; cursor: pointer;
+}
+.gallery-chip:hover { color: var(--bone); border-color: color-mix(in srgb, var(--gunmetal) 76%, var(--bone)); }
+.gallery-chip.is-active { color: var(--bone); border-color: var(--blood); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blood) 45%, transparent); }
+.gallery-chip b { color: var(--hellfire); font-family: var(--font-mono); font-size: 11px; }
+.gallery-meta { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: color-mix(in srgb, var(--ash) 68%, var(--void)); text-transform: uppercase; letter-spacing: 0.08em; }
+
+.gallery-compare { border: 1px solid color-mix(in srgb, var(--hellfire) 40%, transparent); border-radius: 3px; background: color-mix(in srgb, var(--void) 86%, var(--iron)); padding: 10px 12px; }
+.gallery-compare-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--hellfire); }
+.gallery-compare-row { display: flex; gap: 12px; overflow-x: auto; }
+.gallery-compare-item { position: relative; margin: 0; flex: 0 0 auto; width: 168px; }
+.gallery-compare-item img {
+  width: 168px; height: 168px; object-fit: contain; border: 1px solid var(--gunmetal); border-radius: 2px;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--void) 78%, var(--iron)) 0% 25%, color-mix(in srgb, var(--void) 92%, var(--iron)) 0% 50%) 50% / 18px 18px;
+}
+.gallery-compare-item figcaption { margin-top: 4px; font-family: var(--font-mono); font-size: 10px; color: var(--ash); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gallery-compare-remove { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 2px; border: 1px solid var(--gunmetal); background: rgba(7,7,11,0.82); color: var(--ash); cursor: pointer; }
+.gallery-compare-remove:hover { color: var(--blood); border-color: var(--blood); }
+
+.gallery-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 22px; }
+.gallery-empty { padding: 48px; text-align: center; color: color-mix(in srgb, var(--ash) 68%, var(--void)); text-transform: uppercase; letter-spacing: 0.22em; font-size: 12px; }
+.gallery-group { display: flex; flex-direction: column; gap: 10px; }
+.gallery-group-head { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--bone); border-bottom: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); padding-bottom: 6px; }
+.gallery-group-head span { font-family: var(--font-mono); font-size: 11px; color: var(--hellfire); }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 12px; }
+
+.gallery-card { position: relative; display: flex; flex-direction: column; background: var(--coal); border: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); border-radius: 3px; overflow: hidden; }
+.gallery-card.is-pinned { border-color: var(--hellfire); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hellfire) 45%, transparent); }
+.gallery-thumb {
+  position: relative; display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 0; cursor: zoom-in;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--void) 78%, var(--iron)) 0% 25%, color-mix(in srgb, var(--void) 92%, var(--iron)) 0% 50%) 50% / 18px 18px;
+}
+.gallery-thumb img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+.gallery-tag { position: absolute; left: 5px; bottom: 5px; padding: 1px 6px; font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--bone); background: rgba(7,7,11,0.74); border: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); border-radius: 2px; }
+.gallery-card-meta { display: flex; flex-direction: column; gap: 2px; padding: 7px 9px; border-top: 1px solid color-mix(in srgb, var(--gunmetal) 40%, transparent); }
+.gallery-card-id { font-family: var(--font-mono); font-size: 11px; color: var(--bone); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gallery-card-sub { font-family: var(--font-mono); font-size: 10px; color: color-mix(in srgb, var(--ash) 68%, var(--void)); }
+.gallery-pin { position: absolute; top: 5px; right: 5px; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; color: var(--ash); background: rgba(7,7,11,0.7); border: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); border-radius: 2px; cursor: pointer; opacity: 0; transition: opacity 0.12s ease; }
+.gallery-card:hover .gallery-pin, .gallery-pin.is-pinned { opacity: 1; }
+.gallery-pin:hover { color: var(--hellfire); border-color: var(--hellfire); }
+.gallery-pin.is-pinned { color: var(--hellfire); border-color: var(--hellfire); }
+.gallery-missing { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; min-height: 60px; color: color-mix(in srgb, var(--blood-hot, var(--blood)) 70%, var(--bone)); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+.gallery-lightbox { width: min(960px, 100%); max-height: 86vh; display: flex; flex-direction: column; background: var(--void); border: 1px solid color-mix(in srgb, var(--gunmetal) 76%, var(--bone)); border-radius: 4px; box-shadow: 0 24px 80px -20px #000; overflow: hidden; }
+.gallery-lightbox-nav { display: flex; align-items: center; gap: 8px; }
+.gallery-lightbox-count { font-family: var(--font-mono); font-size: 11px; color: var(--ash); }
+.gallery-lightbox-body { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: 0; min-height: 0; overflow: hidden; }
+.gallery-lightbox-stage {
+  display: flex; align-items: center; justify-content: center; min-height: 0; padding: 20px;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--void) 78%, var(--iron)) 0% 25%, color-mix(in srgb, var(--void) 92%, var(--iron)) 0% 50%) 50% / 24px 24px;
+}
+.gallery-lightbox-stage img { max-width: 100%; max-height: 60vh; object-fit: contain; }
+.gallery-lightbox-meta { margin: 0; padding: 18px; overflow-y: auto; border-left: 1px solid var(--gunmetal); display: grid; grid-template-columns: 76px 1fr; gap: 6px 12px; align-content: start; }
+.gallery-lightbox-meta dt { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in srgb, var(--ash) 68%, var(--void)); }
+.gallery-lightbox-meta dd { margin: 0; font-family: var(--font-mono); font-size: 11px; color: var(--bone); white-space: pre-wrap; word-break: break-word; }
+.gallery-lightbox-path { color: var(--hellfire); }
+.gallery-lightbox-foot { padding: 12px 18px; border-top: 1px solid var(--gunmetal); display: flex; justify-content: flex-end; }
+
 /* ---- Settings ---- */
 .settings { width: min(640px, 100%); display: flex; flex-direction: column; gap: 24px; align-self: start; }
 .set-group { display: flex; flex-direction: column; gap: 12px; }
