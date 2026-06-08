@@ -11,19 +11,19 @@
   --card-foreground: var(--color-bone);
   --popover: var(--color-coal);
   --popover-foreground: var(--color-bone);
-  --primary: var(--color-primary);
-  --primary-foreground: var(--color-on-primary);
-  --secondary: var(--color-iron);
-  --secondary-foreground: var(--color-bone);
-  --muted: var(--color-iron);
-  --muted-foreground: var(--color-ash);
-  --accent: var(--color-hellfire);
-  --accent-foreground: var(--color-neutral);
-  --destructive: var(--color-blood);
-  --destructive-foreground: var(--color-on-primary);
-  --border: var(--color-gunmetal);
-  --input: var(--color-gunmetal);
-  --ring: var(--color-hellfire);
+  --primary: #c1121f;
+  --primary-foreground: #f4efe6;
+  --secondary: #1e1e22;
+  --secondary-foreground: #e9e3d6;
+  --muted: #1e1e22;
+  --muted-foreground: #9b958a;
+  --accent: #ff6a00;
+  --accent-foreground: #0a0a0a;
+  --destructive: #c1121f;
+  --destructive-foreground: #f4efe6;
+  --border: #34343c;
+  --input: #34343c;
+  --ring: #ff6a00;
   /* Default page accent (overridden per-page via inline style). */
   --page-accent: var(--color-hellfire);
 }

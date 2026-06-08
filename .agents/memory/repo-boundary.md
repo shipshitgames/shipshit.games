@@ -1,6 +1,6 @@
 # Repo Boundary
 
-last_verified: 2026-06-08
+last_verified: 2026-06-09
 
 `shipshitgames` is the studio/tooling repo.
 
@@ -34,7 +34,9 @@ Do not move `packages/assetgen` into `../deadrotcom`; configure it to read/write
 `../deadrotcom/packages/assets` instead.
 
 Do not move or rename `@shipshitgames/engine` to `@deadrot/engine`. Deadrot
-games should consume the canonical org-level engine from this repo through a
-documented package/link workflow. Do not create a separate engine repo or board
-until the engine has an independent release cadence or multiple active IP
-consumers that justify the split.
+games should consume the canonical org-level engine from this repo through the
+published package for CI/release builds or a temporary local `bun link` bridge
+for unpublished engine changes. The workflow and temporary duplicate-package
+handling live in `packages/engine/CANONICAL-ENGINE.md`. Do not create a separate
+engine repo or board until the engine has an independent release cadence or
+multiple active IP consumers that justify the split.
