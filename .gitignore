@@ -6,6 +6,9 @@ next-env.d.ts
 dist/
 out/
 coverage/
+test-results/
+playwright-report/
+.playwright/
 .vercel/
 *.log
 .DS_Store
