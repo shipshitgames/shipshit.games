@@ -6,6 +6,14 @@ const path = require("node:path");
 const fs = require("node:fs");
 const { spawn, execFileSync } = require("node:child_process");
 const { readSharedGameSlugs } = require("./game-slugs.cjs");
+const { createTerminalManager, terminalShell } = require("./terminal-manager.cjs");
+
+let pty = null;
+try {
+  pty = require("node-pty");
+} catch (error) {
+  console.warn("node-pty unavailable; terminal IPC will report unavailable", error);
+}
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
 const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
@@ -20,6 +28,12 @@ const RESSOURCES = path.join(STUDIO_REPO, "packages", "ressources", "src", "cli.
 const DEFAULT_GAME = "scourge-survivors";
 const GAME_SLUGS = readSharedGameSlugs(STUDIO_REPO);
 const gameDir = (g) => path.join(GAMES_ROOT, g === "shared" ? DEFAULT_GAME : g);
+const terminalManager = createTerminalManager({
+  pty,
+  cwd: STUDIO_REPO,
+  env: process.env,
+  shell: terminalShell(process.platform, process.env),
+});
 
 // ---- settings (non-secret) ----
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
@@ -100,6 +114,14 @@ ipcMain.handle("settings:set", (_e, partial) => mergeSettings(partial));
 ipcMain.handle("keys:status", () => keyStatus());
 ipcMain.handle("keys:set", (_e, { provider, key }) => { const s = KEY_SERVICES[provider]; if (s && key) setKey(s, key); return keyStatus(); });
 ipcMain.handle("studio:listGames", () => GAME_SLUGS.filter((g) => fs.existsSync(gameDir(g))));
+
+ipcMain.handle("terminal:start", (e, opts) => {
+  e.sender.once("destroyed", () => terminalManager.disposeForWebContents(e.sender.id));
+  return terminalManager.start(e.sender, opts);
+});
+ipcMain.handle("terminal:write", (e, { id, data }) => terminalManager.write(e.sender, id, data));
+ipcMain.handle("terminal:resize", (e, { id, cols, rows }) => terminalManager.resize(e.sender, id, { cols, rows }));
+ipcMain.handle("terminal:stop", (e, id) => terminalManager.stop(e.sender, id));
 
 // ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
 // GUI apps inherit a minimal PATH, so resolve ffmpeg from common install locations.
@@ -284,10 +306,11 @@ function createWindow() {
   });
   if (isDev) { mainWindow.loadURL(DEV_SERVER_URL); mainWindow.webContents.openDevTools({ mode: "detach" }); }
   else { mainWindow.loadFile(path.join(__dirname, "..", "dist", "index.html")); }
-  mainWindow.on("closed", () => { mainWindow = null; });
+  mainWindow.on("closed", () => { terminalManager.disposeAll(); mainWindow = null; });
 }
 app.whenReady().then(() => {
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
+app.on("before-quit", () => terminalManager.disposeAll());
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });

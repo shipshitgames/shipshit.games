@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { FitAddon } from "@xterm/addon-fit";
+import { Terminal } from "@xterm/xterm";
+import { useEffect, useRef, useState } from "react";
+import "@xterm/xterm/css/xterm.css";
 
 // Studio cockpit. Sprites is wired to @shipshitgames/assetgen via the studio IPC bridge with a
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
@@ -11,6 +14,11 @@ type Section = { id: SectionId; label: string; group: Group; glyph: string; blur
 interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null; previewPath?: string | null }
 interface ResearchResult { ok: boolean; log: string; path: string | null; rules: string | null }
 interface Settings { defaultProvider: string; defaultGame: string; providerDefaults: Record<string, string> }
+type TerminalStartResult =
+  | { ok: true; id: string; pid: number | null; shell: string; cwd: string; cols: number; rows: number }
+  | { ok: false; error: string };
+interface TerminalPayload { id: string; data: string }
+interface TerminalExitPayload { id: string; exitCode: number | null; signal: number | null }
 
 declare global {
   interface Window {
@@ -40,6 +48,14 @@ declare global {
       onTranscodeLog: (cb: (chunk: string) => void) => () => void;
       settings: { get: () => Promise<Settings>; set: (p: Partial<Settings>) => Promise<Settings> };
       keys: { status: () => Promise<Record<string, boolean>>; set: (provider: string, key: string) => Promise<Record<string, boolean>> };
+      terminal: {
+        start: (opts?: { cols?: number; rows?: number; cwd?: string }) => Promise<TerminalStartResult>;
+        write: (id: string, data: string) => Promise<boolean>;
+        resize: (id: string, size: { cols: number; rows: number }) => Promise<boolean>;
+        stop: (id: string) => Promise<boolean>;
+        onData: (cb: (payload: TerminalPayload) => void) => () => void;
+        onExit: (cb: (payload: TerminalExitPayload) => void) => () => void;
+      };
     };
   }
 }
@@ -412,6 +428,142 @@ function MusicPane() {
   );
 }
 
+function TerminalPane() {
+  const mountRef = useRef<HTMLDivElement | null>(null);
+  const terminalRef = useRef<Terminal | null>(null);
+  const fitRef = useRef<FitAddon | null>(null);
+  const sessionRef = useRef<string | null>(null);
+  const [status, setStatus] = useState("starting");
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+
+    const terminal = new Terminal({
+      cursorBlink: true,
+      convertEol: true,
+      fontFamily: '"JetBrains Mono", "SFMono-Regular", "Menlo", "Consolas", ui-monospace, monospace',
+      fontSize: 12,
+      lineHeight: 1.15,
+      scrollback: 5000,
+      theme: {
+        background: "#07070b",
+        foreground: "#e9e3d6",
+        cursor: "#c1121f",
+        selectionBackground: "#34343c",
+        black: "#0a0a0a",
+        red: "#c1121f",
+        green: "#a8a05a",
+        yellow: "#ff6a00",
+        blue: "#7c7f89",
+        magenta: "#a34747",
+        cyan: "#9b958a",
+        white: "#e9e3d6",
+        brightBlack: "#46464f",
+        brightRed: "#ff3b3b",
+        brightGreen: "#d1c26c",
+        brightYellow: "#ff8f1f",
+        brightBlue: "#aeb1bd",
+        brightMagenta: "#d26767",
+        brightCyan: "#c4baad",
+        brightWhite: "#fff7e8",
+      },
+    });
+    const fit = new FitAddon();
+    terminal.loadAddon(fit);
+    terminal.open(mount);
+    terminalRef.current = terminal;
+    fitRef.current = fit;
+
+    let resizeFrame: number | null = null;
+    const fitTerminal = () => {
+      try {
+        fit.fit();
+      } catch {}
+      const id = sessionRef.current;
+      if (id) {
+        void window.studio?.terminal.resize(id, { cols: terminal.cols, rows: terminal.rows });
+      }
+    };
+    const resize = () => {
+      if (resizeFrame !== null) return;
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = null;
+        fitTerminal();
+      });
+    };
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(mount);
+    window.addEventListener("resize", resize);
+
+    const input = terminal.onData((data) => {
+      const id = sessionRef.current;
+      if (id) void window.studio?.terminal.write(id, data);
+    });
+    const offData = window.studio?.terminal.onData(({ id, data }) => {
+      if (id === sessionRef.current) terminal.write(data);
+    });
+    const offExit = window.studio?.terminal.onExit(({ id, exitCode, signal }) => {
+      if (id !== sessionRef.current) return;
+      setStatus(`exited ${exitCode ?? signal ?? ""}`.trim());
+      terminal.writeln(`\r\n[terminal exited ${exitCode ?? signal ?? "unknown"}]`);
+      sessionRef.current = null;
+    });
+
+    async function start() {
+      if (!window.studio?.terminal) {
+        setStatus("bridge unavailable");
+        terminal.writeln("studio terminal bridge unavailable");
+        return;
+      }
+
+      resize();
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+      fitTerminal();
+      const started = await window.studio.terminal.start({ cols: terminal.cols, rows: terminal.rows });
+      if (!started.ok) {
+        setStatus("node-pty unavailable");
+        terminal.writeln(started.error);
+        return;
+      }
+
+      sessionRef.current = started.id;
+      setStatus(`pid ${started.pid ?? "unknown"}`);
+    }
+
+    void start();
+
+    return () => {
+      const id = sessionRef.current;
+      sessionRef.current = null;
+      if (id) void window.studio?.terminal.stop(id);
+      input.dispose();
+      offData?.();
+      offExit?.();
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", resize);
+      if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
+      terminal.dispose();
+      terminalRef.current = null;
+      fitRef.current = null;
+    };
+  }, []);
+
+  return (
+    <section className="terminal" aria-label="Terminal">
+      <div className="terminal-bar">
+        <span className="terminal-dot" />
+        <span className="terminal-title">terminal</span>
+        <span className="terminal-hint">{status}</span>
+      </div>
+      <div className="terminal-body">
+        <div ref={mountRef} className="terminal-mount" />
+      </div>
+    </section>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState<SectionId>("sprites");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -463,17 +615,7 @@ export default function App() {
           </div>
         </main>
 
-        <section className="terminal" aria-label="Terminal">
-          <div className="terminal-bar">
-            <span className="terminal-dot" />
-            <span className="terminal-title">terminal</span>
-            <span className="terminal-hint">assetgen streams Codex through node-pty</span>
-          </div>
-          <div className="terminal-body">
-            <span className="terminal-prompt">shipshit&nbsp;~&nbsp;studio&nbsp;$</span>
-            <span className="terminal-caret" aria-hidden="true">▋</span>
-          </div>
-        </section>
+        <TerminalPane />
       </div>
 
       {settingsOpen && (
