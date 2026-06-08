@@ -1,0 +1,88 @@
+---
+title: Ressources
+description: Turn sources into reusable build rulesets.
+---
+
+# Ressources
+
+`packages/ressources` is the single studio package for source manifests,
+transcript capture, distillation, and derivative rules, skills, apps, and tool
+candidates.
+
+```txt
+source -> transcript/resource -> distilled rule -> skill/app/tool candidate
+```
+
+There is no separate legacy research package. The legacy `research` binary name
+is only a compatibility alias for `packages/ressources/src/cli.ts`.
+
+## Basic run
+
+```bash
+bun packages/ressources/src/cli.ts distill \
+  --url "https://www.youtube.com/watch?v=..." \
+  --out rules.md
+```
+
+## Offline proof
+
+Use `mock` to prove extraction and output shape with no model.
+
+```bash
+bun packages/ressources/src/cli.ts distill \
+  --url "<url>" \
+  --provider mock \
+  --out /tmp/rules.md
+```
+
+## Already have a transcript
+
+```bash
+bun packages/ressources/src/cli.ts distill \
+  --transcript-file transcript.txt \
+  --title "Tutorial title" \
+  --out rules.md
+```
+
+## Transcript engine
+
+The preferred path is `yt-dlp` because YouTube timed text can require visitor
+or PoToken handling.
+
+```bash
+brew install yt-dlp
+```
+
+Optionally point to a specific binary:
+
+```bash
+RESSOURCES_YT_DLP=/path/to/yt-dlp bun packages/ressources/src/cli.ts distill --url "<url>"
+```
+
+## Raw transcript policy
+
+Every source manifest must declare `rights.transcriptPolicy`,
+`rights.storeRawTranscript`, and `rights.notes`.
+
+Raw transcript text may be committed only when the source manifest opts in with
+`storeRawTranscript: true` and the transcript sidecar records known rights, such
+as `user-provided`, `permissioned`, `official-api`, or `public-captions`.
+Sources with `storeRawTranscript: false` should stay as links plus original
+distilled notes.
+
+Run validation before promoting new source or transcript material:
+
+```bash
+bun packages/ressources/src/cli.ts validate
+```
+
+## Output rule
+
+Ressources output should be concrete enough that an agent can build from it:
+
+- extracted mechanic or implementation rules
+- important constraints
+- reusable checklists
+- source URL and title
+- no raw transcript dumps in derivative files
+- no secrets or personal data

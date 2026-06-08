@@ -36,6 +36,9 @@
     "lint": {
       "dependsOn": ["^build"]
     },
+    "check:tokens": {
+      "outputs": []
+    },
     "typecheck": {
       "dependsOn": ["^build"]
     },

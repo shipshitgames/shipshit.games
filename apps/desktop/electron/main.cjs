@@ -13,12 +13,20 @@ const {
   summarizeProject,
   uniqueProjects,
 } = require("./projects.cjs");
+const { createMoodboardStore } = require("./moodboards.cjs");
+// Single, shared manifest writer + license validator (issue #17). Reusing the
+// assetgen core keeps the desktop from drifting (it used to ship a weaker copy).
+const { register } = require("../../../packages/assetgen/src/manifest-core.cjs");
 
 let pty = null;
 try {
   pty = require("node-pty");
 } catch (error) {
-  console.warn("node-pty unavailable; terminal IPC will report unavailable", error);
+  console.warn(
+    "node-pty failed to load; terminal IPC will report unavailable. " +
+      "Run `bun run rebuild:native` in apps/desktop to build it against Electron's ABI.",
+    error,
+  );
 }
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
@@ -39,6 +47,9 @@ const terminalManager = createTerminalManager({
   cwd: STUDIO_REPO,
   env: process.env,
   shell: terminalShell(process.platform, process.env),
+});
+const moodboards = createMoodboardStore({
+  rootDir: () => path.join(app.getPath("userData"), "moodboards"),
 });
 
 // ---- settings (non-secret) ----
@@ -218,6 +229,21 @@ ipcMain.handle("terminal:write", (e, { id, data }) => terminalManager.write(e.se
 ipcMain.handle("terminal:resize", (e, { id, cols, rows }) => terminalManager.resize(e.sender, id, { cols, rows }));
 ipcMain.handle("terminal:stop", (e, id) => terminalManager.stop(e.sender, id));
 
+ipcMain.handle("moodboard:listGames", () => ALL_GAMES);
+ipcMain.handle("moodboard:get", (_e, game) => moodboards.readBoard(game || readSettings().defaultGame));
+ipcMain.handle("moodboard:addNote", (_e, payload = {}) => moodboards.addNote(payload.game || readSettings().defaultGame, payload.text));
+ipcMain.handle("moodboard:updateItem", (_e, payload = {}) => moodboards.updateItem(payload.game || readSettings().defaultGame, payload.item));
+ipcMain.handle("moodboard:setVisualTarget", (_e, payload = {}) => moodboards.setVisualTarget(payload.game || readSettings().defaultGame, payload.id, payload.visualTarget));
+ipcMain.handle("moodboard:removeItem", (_e, payload = {}) => moodboards.removeItem(payload.game || readSettings().defaultGame, payload.id));
+ipcMain.handle("moodboard:importImages", async (_e, game) => {
+  const r = await dialog.showOpenDialog({
+    title: "Import moodboard references",
+    properties: ["openFile", "multiSelections"],
+    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
+  });
+  return r.canceled ? moodboards.readBoard(game || readSettings().defaultGame) : moodboards.importImages(game || readSettings().defaultGame, r.filePaths);
+});
+
 // ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
 // GUI apps inherit a minimal PATH, so resolve ffmpeg from common install locations.
 function resolveFfmpeg() {
@@ -228,22 +254,6 @@ function resolveFfmpeg() {
 }
 const AUDIO_CATEGORIES = ["sfx", "music", "voice"];
 const audioSlug = (file) => path.basename(file).replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-
-async function registerDesktopAsset(manifestPath, entry) {
-  for (const field of ["tool", "plan", "date", "kind"]) {
-    if (!entry.license?.[field]) throw new Error(`asset manifest entry ${entry.id}:${entry.kind} requires license.${field}`);
-  }
-  let data = { assets: [] };
-  try {
-    const parsed = JSON.parse(await fs.promises.readFile(manifestPath, "utf8"));
-    if (Array.isArray(parsed.assets)) data = parsed;
-  } catch {}
-  const i = data.assets.findIndex((a) => a.id === entry.id && a.kind === entry.kind);
-  if (i >= 0) data.assets[i] = entry;
-  else data.assets.push(entry);
-  await fs.promises.mkdir(path.dirname(manifestPath), { recursive: true });
-  await fs.promises.writeFile(manifestPath, JSON.stringify(data, null, 2) + "\n");
-}
 
 function audioLicense(category, bitrate, normalize) {
   return {
@@ -299,8 +309,7 @@ ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
     });
     if (code === 0) {
       try {
-        const manifestPath = path.join(gameDir(game), "src", "assets", "assets.json");
-        await registerDesktopAsset(manifestPath, {
+        await register(target.manifestPath, {
           id: audioSlug(input),
           kind: category,
           game,
@@ -310,7 +319,7 @@ ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
         });
         outputs.push(out);
         send(`✓ ${out}\n`);
-        send(`[manifest] ${manifestPath} updated\n`);
+        send(`[manifest] ${target.manifestPath} updated\n`);
       } catch (err) {
         send(`✗ manifest registration failed for ${path.basename(out)}: ${err?.message || err}\n`);
       }
@@ -363,10 +372,10 @@ ipcMain.handle("studio:generate", async (e, opts) => {
   });
 });
 
-// Research → rules: drives @shipshitgames/ressources over a streaming log, same shape as
+// Ressources -> rules: drives @shipshitgames/ressources over a streaming log, same shape as
 // studio:generate. Writes the ruleset into the repo under docs/rules/ by default.
 ipcMain.handle("studio:research", async (e, opts) => {
-  // research only distills with codex | mock; ignore the image-gen default provider.
+  // Ressources only distills with codex | mock; ignore the image-gen default provider.
   const provider = opts?.provider === "mock" ? "mock" : "codex";
   const url = (opts?.url || "").trim();
   const slug = (opts?.slug || "ruleset").replace(/[^a-z0-9-]+/gi, "-").toLowerCase();

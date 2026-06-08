@@ -4,7 +4,7 @@ import { buildPrompt } from "./style.ts";
 import { assetProviders, generateAsset } from "./providers.ts";
 import type { AssetKind, GeneratedAsset, ProviderId } from "./providers.ts";
 import { toWebp } from "./postprocess.ts";
-import { register } from "./manifest.ts";
+import { register, REQUIRED_LICENSE_FIELDS } from "./manifest.ts";
 import type { AssetEntry, AssetLicenseRecord } from "./manifest.ts";
 import { appendUsageLog } from "./usage.ts";
 import type { UsageLogEvent } from "./usage.ts";
@@ -127,7 +127,8 @@ export function describeAssetPipeline(): PipelineContract {
       service: provider.key?.service,
     })),
     manifest: {
-      requiredLicenseFields: ["tool", "plan", "date", "kind"],
+      // Single source of truth — mirror the validator's required set, never re-list it.
+      requiredLicenseFields: [...REQUIRED_LICENSE_FIELDS],
     },
     previewPane: {
       emits: ["path", "mediaType", "dataUrl"],
