@@ -1,6 +1,6 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const crypto = require("node:crypto");
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
 
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
 const MIME_BY_EXT = {
@@ -65,7 +65,7 @@ function createMoodboardStore(options) {
 
   function normalizeItem(game, raw) {
     const type = raw?.type === "image" ? "image" : "note";
-    const item = {
+    const item: any = {
       id: String(raw?.id || makeId()),
       type,
       x: Number.isFinite(raw?.x) ? raw.x : 80,
@@ -218,7 +218,7 @@ function createMoodboardStore(options) {
   };
 }
 
-module.exports = {
+export {
   createMoodboardStore,
   sanitizeGame,
 };

@@ -1,13 +1,13 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import "@xterm/xterm/css/xterm.css";
 
 // Studio cockpit. Sprites is wired to @shipshitgames/assetgen via the studio IPC bridge with a
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
 // Default provider = codex CLI (your subscription — no API key).
 
-type SectionId = "projects" | "maps" | "sprites" | "music" | "3d" | "moodboard" | "research" | "codegen";
+type SectionId = "projects" | "gallery" | "maps" | "sprites" | "music" | "3d" | "moodboard" | "research" | "codegen";
 type Group = "Generators" | "Art Direction" | "Ressources" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
@@ -57,6 +57,35 @@ interface MoodboardItem {
   dataUrl?: string | null;
 }
 interface Moodboard { game: string; items: MoodboardItem[]; updatedAt: string }
+interface GalleryAsset {
+  id: string;
+  assetId: string;
+  category: string;
+  type: string;
+  view: string | null;
+  path: string;
+  group: string;
+  dimensions: [number, number] | null;
+  scale: [number, number] | null;
+  filter: string | null;
+  role: string | null;
+  license: Record<string, unknown> | null;
+  missing: boolean;
+  dataUrl: string | null;
+  bytes: number | null;
+  deferred: boolean;
+}
+interface GalleryResult {
+  ok: boolean;
+  error?: string;
+  root: string | null;
+  source?: "manifest" | "filesystem";
+  manifestPath?: string | null;
+  game: string;
+  games: string[];
+  assets: GalleryAsset[];
+  embeddedBytes?: number;
+}
 
 declare global {
   interface Window {
@@ -101,6 +130,11 @@ declare global {
         onData: (cb: (payload: TerminalPayload) => void) => () => void;
         onExit: (cb: (payload: TerminalExitPayload) => void) => () => void;
       };
+      gallery: {
+        listGames: () => Promise<string[]>;
+        list: (game: string, opts?: { embedBudget?: number }) => Promise<GalleryResult>;
+        image: (assetPath: string) => Promise<{ dataUrl: string; bytes: number } | null>;
+      };
       moodboard: {
         listGames: () => Promise<string[]>;
         get: (game: string) => Promise<Moodboard>;
@@ -120,6 +154,7 @@ const SECTIONS: Section[] = [
   { id: "sprites", label: "Sprites", group: "Generators", glyph: "✦", blurb: "Forge DOOM-grade billboards and enemy cutouts — straight into a game's assets." },
   { id: "music", label: "Music + SFX", group: "Generators", glyph: "♪", blurb: "Brutal scores and combat SFX for the shipshitshow." },
   { id: "3d", label: "3D", group: "Generators", glyph: "◈", blurb: "Meshes, props and Warden engineering for the 3D titles." },
+  { id: "gallery", label: "Gallery", group: "Art Direction", glyph: "▤", blurb: "Review and compare every generated asset in a game's pack — sprites, tiers, textures, UI." },
   { id: "moodboard", label: "Moodboard", group: "Art Direction", glyph: "▦", blurb: "Per-game reference boards for notes, images, and locked visual targets." },
   { id: "research", label: "Rules", group: "Ressources", glyph: "📖", blurb: "Distill a YouTube game-dev tutorial into a reusable build ruleset." },
   { id: "codegen", label: "Codegen", group: "Codegen", glyph: "λ", blurb: "Plan → Review → Execute → Verify → Ship over the local CLI." },
@@ -969,6 +1004,283 @@ function MoodboardPane() {
   );
 }
 
+function formatBytes(bytes: number | null): string {
+  if (!bytes && bytes !== 0) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+const GALLERY_EMPTY: GalleryResult = { ok: false, root: null, game: "", games: [], assets: [] };
+
+// Asset gallery — read-only review + compare surface over the shared Deadrot assets
+// package. Loads thumbnails inline (with a lazy fallback for deferred ones), groups
+// by folder, filters by category/search, and offers a pin-to-compare tray + lightbox.
+function GalleryPane() {
+  const [game, setGame] = useState("scourge-survivors");
+  const [result, setResult] = useState<GalleryResult>(GALLERY_EMPTY);
+  const [busy, setBusy] = useState(false);
+  const [category, setCategory] = useState("all");
+  const [query, setQuery] = useState("");
+  const [extra, setExtra] = useState<Record<string, string>>({});
+  const [compare, setCompare] = useState<string[]>([]);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
+  const load = useCallback(async (target: string) => {
+    if (!window.studio?.gallery) {
+      setResult({ ...GALLERY_EMPTY, error: "studio bridge unavailable — restart the app" });
+      return;
+    }
+    setBusy(true);
+    setExtra({});
+    setCompare([]);
+    setLightbox(null);
+    try {
+      setResult(await window.studio.gallery.list(target));
+    } catch (e) {
+      setResult({ ...GALLERY_EMPTY, game: target, error: String((e as Error)?.message ?? e) });
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.studio?.settings.get().then((s) => {
+      const target = s.defaultGame || "scourge-survivors";
+      setGame(target);
+      void load(target);
+    }).catch(() => { void load("scourge-survivors"); });
+  }, [load]);
+
+  // Lazily pull thumbnails the main process deferred past its inline byte budget.
+  useEffect(() => {
+    const deferred = result.assets.filter((a) => a.deferred && !a.dataUrl && !extra[a.path]);
+    if (!deferred.length || !window.studio?.gallery) return;
+    let cancelled = false;
+    (async () => {
+      const queue = [...deferred];
+      const workers = Array.from({ length: Math.min(6, queue.length) }, async () => {
+        while (queue.length && !cancelled) {
+          const next = queue.shift();
+          if (!next) break;
+          try {
+            const img = await window.studio?.gallery.image(next.path);
+            if (img?.dataUrl && !cancelled) setExtra((prev) => ({ ...prev, [next.path]: img.dataUrl }));
+          } catch {}
+        }
+      });
+      await Promise.all(workers);
+    })();
+    return () => { cancelled = true; };
+  }, [result, extra]);
+
+  const srcFor = useCallback((asset: GalleryAsset): string | null => asset.dataUrl ?? extra[asset.path] ?? null, [extra]);
+
+  const categories = useMemo(() => {
+    const set = new Map<string, number>();
+    for (const a of result.assets) set.set(a.category, (set.get(a.category) || 0) + 1);
+    return [...set.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [result.assets]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return result.assets.filter((a) => {
+      if (category !== "all" && a.category !== category) return false;
+      if (!q) return true;
+      return a.id.toLowerCase().includes(q) || a.group.toLowerCase().includes(q) || a.path.toLowerCase().includes(q);
+    });
+  }, [result.assets, category, query]);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, GalleryAsset[]>();
+    for (const a of filtered) {
+      const list = map.get(a.group) || [];
+      list.push(a);
+      map.set(a.group, list);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [filtered]);
+
+  const byId = useMemo(() => new Map(result.assets.map((a) => [a.id, a])), [result.assets]);
+  const compareAssets = compare.map((id) => byId.get(id)).filter(Boolean) as GalleryAsset[];
+  const lightboxAsset = lightbox ? byId.get(lightbox) || null : null;
+  const lightboxIndex = lightboxAsset ? filtered.findIndex((a) => a.id === lightboxAsset.id) : -1;
+
+  const togglePin = useCallback((id: string) => {
+    setCompare((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 4 ? prev : [...prev, id]));
+  }, []);
+
+  const step = useCallback((delta: number) => {
+    setLightbox((current) => {
+      if (!current) return current;
+      const idx = filtered.findIndex((a) => a.id === current);
+      if (idx < 0) return current;
+      const next = filtered[(idx + delta + filtered.length) % filtered.length];
+      return next ? next.id : current;
+    });
+  }, [filtered]);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightbox(null);
+      else if (e.key === "ArrowRight") step(1);
+      else if (e.key === "ArrowLeft") step(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox, step]);
+
+  const games = result.games.length ? result.games : [game];
+
+  return (
+    <div className="gallery">
+      <div className="gallery-toolbar">
+        <label className="gen-field gallery-game"><span>Game</span>
+          <select value={game} onChange={(e) => { setGame(e.target.value); void load(e.target.value); }}>
+            {games.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+        <input
+          className="gallery-search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search id, folder, path…"
+        />
+        <button className="set-btn" type="button" disabled={busy} onClick={() => void load(game)}>{busy ? "Loading…" : "Reload"}</button>
+      </div>
+
+      <div className="gallery-filter">
+        <button type="button" className={"gallery-chip" + (category === "all" ? " is-active" : "")} onClick={() => setCategory("all")}>
+          all <b>{result.assets.length}</b>
+        </button>
+        {categories.map(([cat, count]) => (
+          <button key={cat} type="button" className={"gallery-chip" + (category === cat ? " is-active" : "")} onClick={() => setCategory(cat)}>
+            {cat} <b>{count}</b>
+          </button>
+        ))}
+        <span className="gallery-meta">
+          {result.source ? `${result.source}` : ""}
+          {result.assets.some((a) => a.missing) ? ` · ${result.assets.filter((a) => a.missing).length} missing` : ""}
+        </span>
+      </div>
+
+      {compareAssets.length > 0 && (
+        <div className="gallery-compare">
+          <div className="gallery-compare-head">
+            <span>Compare · {compareAssets.length}/4</span>
+            <button className="set-btn" type="button" onClick={() => setCompare([])}>Clear</button>
+          </div>
+          <div className="gallery-compare-row">
+            {compareAssets.map((a) => (
+              <figure key={a.id} className="gallery-compare-item">
+                <button type="button" className="gallery-compare-remove" aria-label="Remove" onClick={() => togglePin(a.id)}>×</button>
+                {srcFor(a) ? <img src={srcFor(a) ?? undefined} alt={a.id} /> : <div className="gallery-missing">{a.missing ? "missing" : "…"}</div>}
+                <figcaption>{a.id}{a.dimensions ? ` · ${a.dimensions[0]}×${a.dimensions[1]}` : ""}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {result.error && <pre className="gen-log is-err">{result.error}</pre>}
+
+      <div className="gallery-scroll">
+        {filtered.length === 0 && !busy && (
+          <div className="gallery-empty">{result.error ? "no assets" : "no matches"}</div>
+        )}
+        {groups.map(([groupName, assets]) => (
+          <section className="gallery-group" key={groupName}>
+            <header className="gallery-group-head">{groupName} <span>{assets.length}</span></header>
+            <div className="gallery-grid">
+              {assets.map((a) => {
+                const src = srcFor(a);
+                const pinned = compare.includes(a.id);
+                return (
+                  <article className={"gallery-card" + (pinned ? " is-pinned" : "")} key={a.id}>
+                    <button type="button" className="gallery-thumb" onClick={() => setLightbox(a.id)} title={a.path}>
+                      {a.missing ? (
+                        <div className="gallery-missing">missing</div>
+                      ) : src ? (
+                        <img src={src} alt={a.id} style={a.filter === "nearest" ? { imageRendering: "pixelated" } : undefined} />
+                      ) : (
+                        <div className="gallery-missing">…</div>
+                      )}
+                      {a.view && <span className="gallery-tag">{a.view}</span>}
+                    </button>
+                    <div className="gallery-card-meta">
+                      <span className="gallery-card-id" title={a.id}>{a.id}</span>
+                      <span className="gallery-card-sub">
+                        {a.dimensions ? `${a.dimensions[0]}×${a.dimensions[1]}` : a.type} · {formatBytes(a.bytes)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className={"gallery-pin" + (pinned ? " is-pinned" : "")}
+                      onClick={() => togglePin(a.id)}
+                      aria-label={pinned ? "Unpin from compare" : "Pin to compare"}
+                      title={pinned ? "Unpin" : "Pin to compare"}
+                    >
+                      {pinned ? "✓" : "⊕"}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+
+      {lightboxAsset && (
+        <div className="modal-backdrop" onClick={() => setLightbox(null)}>
+          <div className="gallery-lightbox" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <span className="modal-title">{lightboxAsset.id}</span>
+              <div className="gallery-lightbox-nav">
+                <button className="modal-close" aria-label="Previous" onClick={() => step(-1)}>‹</button>
+                <span className="gallery-lightbox-count">{lightboxIndex + 1} / {filtered.length}</span>
+                <button className="modal-close" aria-label="Next" onClick={() => step(1)}>›</button>
+                <button className="modal-close" aria-label="Close" onClick={() => setLightbox(null)}>×</button>
+              </div>
+            </div>
+            <div className="gallery-lightbox-body">
+              <div className="gallery-lightbox-stage">
+                {srcFor(lightboxAsset) ? (
+                  <img src={srcFor(lightboxAsset) ?? undefined} alt={lightboxAsset.id} style={lightboxAsset.filter === "nearest" ? { imageRendering: "pixelated" } : undefined} />
+                ) : (
+                  <div className="gallery-missing">{lightboxAsset.missing ? "missing on disk" : "loading…"}</div>
+                )}
+              </div>
+              <dl className="gallery-lightbox-meta">
+                <dt>category</dt><dd>{lightboxAsset.category}{lightboxAsset.view ? ` · ${lightboxAsset.view}` : ""}</dd>
+                <dt>type</dt><dd>{lightboxAsset.type}</dd>
+                {lightboxAsset.dimensions && (<><dt>dimensions</dt><dd>{lightboxAsset.dimensions[0]}×{lightboxAsset.dimensions[1]}</dd></>)}
+                {lightboxAsset.scale && (<><dt>scale</dt><dd>{lightboxAsset.scale[0]} × {lightboxAsset.scale[1]}</dd></>)}
+                {lightboxAsset.filter && (<><dt>filter</dt><dd>{lightboxAsset.filter}</dd></>)}
+                {lightboxAsset.role && (<><dt>role</dt><dd>{lightboxAsset.role}</dd></>)}
+                <dt>size</dt><dd>{formatBytes(lightboxAsset.bytes)}</dd>
+                <dt>path</dt><dd className="gallery-lightbox-path">{lightboxAsset.path}</dd>
+                {lightboxAsset.license && (
+                  <><dt>license</dt><dd>{Object.entries(lightboxAsset.license).map(([k, v]) => `${k}: ${String(v)}`).join("\n")}</dd></>
+                )}
+              </dl>
+            </div>
+            <div className="gallery-lightbox-foot">
+              <button
+                className="set-btn"
+                type="button"
+                onClick={() => togglePin(lightboxAsset.id)}
+              >
+                {compare.includes(lightboxAsset.id) ? "Unpin from compare" : "Pin to compare"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState<SectionId>("sprites");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1010,7 +1322,7 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "projects" ? <ProjectsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "moodboard" ? <MoodboardPane /> : active === "research" ? <ResearchPane /> : (
+            {active === "projects" ? <ProjectsPane /> : active === "gallery" ? <GalleryPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "moodboard" ? <MoodboardPane /> : active === "research" ? <ResearchPane /> : (
               <div className="placeholder-card">
                 <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
                 <p><strong>{section.label}</strong> workspace coming online.</p>

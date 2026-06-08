@@ -1,4 +1,4 @@
-const { randomUUID } = require("node:crypto");
+import { randomUUID } from "node:crypto";
 
 const DEFAULT_COLS = 100;
 const DEFAULT_ROWS = 24;
@@ -13,7 +13,7 @@ function clampInteger(value, fallback, min, max) {
   return Math.max(min, Math.min(max, next));
 }
 
-function normalizeTerminalSize(size = {}) {
+function normalizeTerminalSize(size: any = {}) {
   return {
     cols: clampInteger(size.cols, DEFAULT_COLS, MIN_COLS, MAX_COLS),
     rows: clampInteger(size.rows, DEFAULT_ROWS, MIN_ROWS, MAX_ROWS),
@@ -34,7 +34,7 @@ function senderId(webContents) {
   return Number.isInteger(webContents?.id) ? webContents.id : null;
 }
 
-function createTerminalManager(options = {}) {
+function createTerminalManager(options: any = {}) {
   const sessions = new Map();
   const pty = options.pty;
   const cwd = options.cwd || process.cwd();
@@ -48,7 +48,7 @@ function createTerminalManager(options = {}) {
     return session.webContentsId === senderId(webContents) ? session : null;
   }
 
-  function start(webContents, opts = {}) {
+  function start(webContents, opts: any = {}) {
     if (!pty?.spawn) {
       return { ok: false, error: "node-pty is unavailable" };
     }
@@ -84,7 +84,7 @@ function createTerminalManager(options = {}) {
     child.onData((data) => {
       send(webContents, "terminal:data", { id, data });
     });
-    child.onExit((event = {}) => {
+    child.onExit((event: any = {}) => {
       sessions.delete(id);
       send(webContents, "terminal:exit", {
         id,
@@ -154,7 +154,7 @@ function createTerminalManager(options = {}) {
   };
 }
 
-module.exports = {
+export {
   createTerminalManager,
   normalizeTerminalSize,
   terminalShell,

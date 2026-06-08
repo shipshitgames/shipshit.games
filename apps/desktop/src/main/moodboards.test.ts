@@ -1,8 +1,8 @@
-const { afterEach, expect, test } = require("bun:test");
-const fs = require("node:fs");
-const os = require("node:os");
-const path = require("node:path");
-const { createMoodboardStore, sanitizeGame } = require("./moodboards.cjs");
+import { afterEach, expect, test } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { createMoodboardStore, sanitizeGame } from "./moodboards";
 
 const temps = [];
 function tempRoot() {

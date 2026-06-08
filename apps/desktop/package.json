@@ -9,20 +9,20 @@
     "url": "git+https://github.com/shipshitgames/shipshit.games.git",
     "directory": "apps/desktop"
   },
-  "main": "dist-electron/main/index.cjs",
+  "main": "dist/main/index.cjs",
   "type": "module",
   "scripts": {
-    "dev": "node electron/rebuild-native.cjs && vite",
+    "dev": "node scripts/rebuild-native.cjs && vite",
     "build": "vite build",
-    "package:mac": "node electron/rebuild-native.cjs && bun run build && electron-builder --mac dmg --publish never",
+    "package:mac": "node scripts/rebuild-native.cjs && bun run build && electron-builder --mac dmg --publish never",
     "preview": "vite preview",
-    "start": "node electron/rebuild-native.cjs && bun run build && NODE_ENV=production electron .",
-    "postinstall": "node electron/rebuild-native.cjs --soft",
-    "rebuild:native": "node electron/rebuild-native.cjs",
-    "verify:terminal": "node electron/verify-terminal.cjs",
+    "start": "node scripts/rebuild-native.cjs && bun run build && NODE_ENV=production electron .",
+    "postinstall": "node scripts/rebuild-native.cjs --soft",
+    "rebuild:native": "node scripts/rebuild-native.cjs",
+    "verify:terminal": "bun run build && node dist/verify/index.cjs",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.electron.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
@@ -37,13 +37,13 @@
     "productName": "Ship Shit Games Studio",
     "files": [
       "dist/**/*",
-      "dist-electron/**/*",
+      "!dist/verify/**",
       "package.json"
     ],
     "asarUnpack": [
       "**/node_modules/node-pty/**"
     ],
-    "afterPack": "./electron/after-pack.cjs",
+    "afterPack": "./scripts/after-pack.cjs",
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [

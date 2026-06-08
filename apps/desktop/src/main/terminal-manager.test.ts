@@ -1,5 +1,5 @@
-const { describe, expect, test } = require("bun:test");
-const { createTerminalManager, normalizeTerminalSize, terminalShell } = require("./terminal-manager.cjs");
+import { describe, expect, test } from "bun:test";
+import { createTerminalManager, normalizeTerminalSize, terminalShell } from "./terminal-manager";
 
 function mockWebContents(id) {
   return {
