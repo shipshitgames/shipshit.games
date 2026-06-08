@@ -60,8 +60,6 @@ if (!fs.existsSync(ASSETGEN)) {
   );
 }
 const GAME_SLUGS = readSharedGameSlugs(STUDIO_REPO);
-// Full static game catalogue surfaced to the moodboard picker (moodboard:listGames).
-const ALL_GAMES = GAME_SLUGS;
 const gameDir = (g) => path.join(GAMES_ROOT, g === "shared" ? DEFAULT_GAME : g);
 const terminalManager = createTerminalManager({
   pty,
@@ -250,7 +248,8 @@ ipcMain.handle("terminal:write", (e, { id, data }) => terminalManager.write(e.se
 ipcMain.handle("terminal:resize", (e, { id, cols, rows }) => terminalManager.resize(e.sender, id, { cols, rows }));
 ipcMain.handle("terminal:stop", (e, id) => terminalManager.stop(e.sender, id));
 
-ipcMain.handle("moodboard:listGames", () => ALL_GAMES);
+// Same source of truth as studio:listGames so the moodboard picker shows the same games as the rest of the app.
+ipcMain.handle("moodboard:listGames", () => listProjectState().projects.map((project) => project.slug));
 ipcMain.handle("moodboard:get", (_e, game) => moodboards.readBoard(game || readSettings().defaultGame));
 ipcMain.handle("moodboard:addNote", (_e, payload = {}) => moodboards.addNote(payload.game || readSettings().defaultGame, payload.text));
 ipcMain.handle("moodboard:updateItem", (_e, payload = {}) => moodboards.updateItem(payload.game || readSettings().defaultGame, payload.item));
