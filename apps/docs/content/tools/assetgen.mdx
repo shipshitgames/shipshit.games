@@ -77,6 +77,19 @@ bun packages/assetgen/src/cli.ts matrix \
   --assets-dir ../deadrotcom/packages/assets
 ```
 
+## Generate design tokens
+
+```bash
+bun packages/assetgen/src/cli.ts tokens \
+  --assets-dir ../deadrotcom/packages/assets
+```
+
+The token compiler writes `tokens/theme.css`, `tokens/tokens.css`,
+`tokens/fonts.css`, `tokens/tokens.ts`, and `tokens/tokens.json` for the selected
+assets package. Font delivery is centralized in the generated `fonts.css` file:
+the generator imports the required Google Fonts families and records display,
+body, and mono font requirements in `tokens.json`.
+
 ## Providers
 
 | Provider | Use |
