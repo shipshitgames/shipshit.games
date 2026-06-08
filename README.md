@@ -10,7 +10,7 @@
 ## Current Stage
 
 This repo is the studio side of Ship Shit Games: the public site, docs, CLI,
-desktop studio, asset-generation tooling, research library, and shared packages
+desktop studio, asset-generation tooling, ressources library, and shared packages
 used to build and explain the DEADROT pipeline.
 
 The player-facing DEADROT hub, lore app, games, runtime assets, and shipped game
@@ -21,7 +21,7 @@ packages now live in
 
 - `apps/web` - live Next 16 studio site for Skills Pro, DEADROT proof, the asset
   pipeline, pricing, and public calls to action.
-- `apps/docs` - Nextra docs for studio tools, asset generation, research,
+- `apps/docs` - Nextra docs for studio tools, asset generation, ressources,
   shared packages, canon rules, and deployment notes.
 - `apps/cli` - `shipshitgames` / `ssg` command-line entrypoint.
 - `apps/desktop` - Electron + Vite + React studio cockpit for maps, sprites, 3D,
@@ -33,8 +33,8 @@ packages now live in
   core and CLI. Reads/writes `../deadrotcom/packages/assets` by default.
 - `packages/engine` / `@shipshitgames/engine` - open-source embodied Three.js
   game engine primitives shared by studio titles.
-- `packages/ressources` / `@shipshitgames/ressources` - research/transcript
-  library, distillation CLI, and derivative skill/app/tool candidates.
+- `packages/ressources` / `@shipshitgames/ressources` - source/transcript
+  library, distillation CLI, and derivative rule/skill/app/tool candidates.
 - `packages/shared` / `@shipshitgames/shared` - shared TypeScript utilities and
   types.
 - `packages/ui` / `@shipshitgames/ui` - shared React UI primitives, Tailwind
@@ -91,7 +91,8 @@ bun --filter @shipshitgames/desktop dev
 - Warline ships from `../deadrotcom/apps/games/warline` with its runtime package
   in `../deadrotcom/packages/warline`.
 - Generated game assets belong in `../deadrotcom/packages/assets`.
-- Studio learning material and distilled rules belong in `packages/ressources`.
+- Studio learning material, source manifests, raw transcript sidecars, and
+  distilled rules belong in `packages/ressources`.
 - Release automation starts at `bun run release`; use `bun run release:run` to
   execute the planned release.
 

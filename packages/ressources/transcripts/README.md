@@ -2,6 +2,14 @@
 
 Drop authorized transcript text here with a `.resource.json` sidecar.
 
+Before committing raw text, check the matching
+`packages/ressources/sources/<source>/source.json` manifest:
+
+- `rights.storeRawTranscript` must be `true`
+- the transcript sidecar `rights.status` must be known, not `unknown`
+- derivative rules, skills, apps, and tools should store original distilled
+  notes, not raw transcript dumps
+
 Use:
 
 ```bash

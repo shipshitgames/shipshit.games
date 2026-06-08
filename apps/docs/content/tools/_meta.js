@@ -1,7 +1,7 @@
 export default {
   index: "Tools Overview",
   assetgen: "Assetgen",
-  research: "Research",
+  ressources: "Ressources",
   engine: "Engine",
   ui: "UI",
   desktop: "Desktop Studio",

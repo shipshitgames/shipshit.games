@@ -8,7 +8,7 @@ import "@xterm/xterm/css/xterm.css";
 // Default provider = codex CLI (your subscription — no API key).
 
 type SectionId = "projects" | "maps" | "sprites" | "music" | "3d" | "research" | "codegen";
-type Group = "Generators" | "Research" | "Codegen";
+type Group = "Generators" | "Ressources" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
 interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null; previewPath?: string | null }
@@ -97,10 +97,10 @@ const SECTIONS: Section[] = [
   { id: "sprites", label: "Sprites", group: "Generators", glyph: "✦", blurb: "Forge DOOM-grade billboards and enemy cutouts — straight into a game's assets." },
   { id: "music", label: "Music + SFX", group: "Generators", glyph: "♪", blurb: "Brutal scores and combat SFX for the shipshitshow." },
   { id: "3d", label: "3D", group: "Generators", glyph: "◈", blurb: "Meshes, props and Warden engineering for the 3D titles." },
-  { id: "research", label: "Rules", group: "Research", glyph: "📖", blurb: "Distill a YouTube game-dev tutorial into a reusable build ruleset." },
+  { id: "research", label: "Rules", group: "Ressources", glyph: "📖", blurb: "Distill a YouTube game-dev tutorial into a reusable build ruleset." },
   { id: "codegen", label: "Codegen", group: "Codegen", glyph: "λ", blurb: "Plan → Review → Execute → Verify → Ship over the local CLI." },
 ];
-const GROUPS: Group[] = ["Generators", "Research", "Codegen"];
+const GROUPS: Group[] = ["Generators", "Ressources", "Codegen"];
 
 const PROVIDERS = [
   { id: "codex", label: "Codex CLI — your subscription (no key)" },
@@ -482,7 +482,7 @@ function ResearchPane() {
   const [result, setResult] = useState<ResearchResult | null>(null);
 
   useEffect(() => {
-    // research distills with codex | mock only — not the image-gen providers.
+    // Ressources distills with codex | mock only, not the image-gen providers.
     const off = window.studio?.onResearchLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
     return () => { off?.(); };
   }, []);

@@ -363,10 +363,10 @@ ipcMain.handle("studio:generate", async (e, opts) => {
   });
 });
 
-// Research → rules: drives @shipshitgames/ressources over a streaming log, same shape as
+// Ressources -> rules: drives @shipshitgames/ressources over a streaming log, same shape as
 // studio:generate. Writes the ruleset into the repo under docs/rules/ by default.
 ipcMain.handle("studio:research", async (e, opts) => {
-  // research only distills with codex | mock; ignore the image-gen default provider.
+  // Ressources only distills with codex | mock; ignore the image-gen default provider.
   const provider = opts?.provider === "mock" ? "mock" : "codex";
   const url = (opts?.url || "").trim();
   const slug = (opts?.slug || "ruleset").replace(/[^a-z0-9-]+/gi, "-").toLowerCase();

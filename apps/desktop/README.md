@@ -2,6 +2,7 @@
 
 Electron studio cockpit for Ship Shit Games.
 
+<<<<<<< HEAD
 ## Terminal foundation
 
 The desktop app runs a real shell through Electron IPC:
@@ -31,6 +32,12 @@ bun run dev
 If the terminal pane reports a `node-pty failed to spawn` error, rebuild the
 native dependency in an unsigned/local Node environment before retrying the
 desktop app.
+
+## Ressources (Rules) pane
+
+The Rules pane shells out to `packages/ressources/src/cli.ts`; it should keep
+using the package CLI rather than duplicating transcript capture or distillation
+logic in Electron.
 
 ```bash
 brew tap shipshitgames/tap
