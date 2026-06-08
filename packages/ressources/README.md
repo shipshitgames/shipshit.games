@@ -8,6 +8,9 @@ workspace package. Treat it as the human learning and agent-knowledge layer that
 owns transcript capture, distillation, source manifests, and derived
 skills/apps/tools.
 
+There is no separate legacy research package. The legacy `research` binary name
+remains only as a compatibility alias to this package's CLI entrypoint.
+
 ```txt
 source/channel -> transcript/resource -> distilled rule -> skill/app/tool candidate
 ```
@@ -21,6 +24,27 @@ source/channel -> transcript/resource -> distilled rule -> skill/app/tool candid
 
 Do not put shipped Deadrot assets here. If a resource becomes a generated game
 asset, it still ships from `../deadrotcom/packages/assets`.
+
+## Raw Transcript Rights
+
+Every source manifest declares:
+
+- `rights.transcriptPolicy` - the expected provenance for transcript text
+- `rights.storeRawTranscript` - whether raw transcript files may live in this
+  repo for that source
+- `rights.notes` - source-specific handling guidance
+
+Only commit raw transcript text when `storeRawTranscript` is `true` and the
+transcript sidecar records known rights such as `user-provided`, `permissioned`,
+`official-api`, or `public-captions`. Sources with `storeRawTranscript: false`
+should remain as links plus original distilled notes. Derivative rule, skill,
+app, and tool files should never be raw transcript dumps.
+
+Run this before promoting new source or transcript material:
+
+```bash
+bun packages/ressources/src/cli.ts validate
+```
 
 ## AI Oriented Dev
 
@@ -75,11 +99,13 @@ bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit
 ## Transcript Flow
 
 1. Create a transcript stub with `new-transcript`.
-2. Drop the transcript text into the generated `.transcript.md` file, or capture
+2. Confirm the source manifest permits raw transcript storage and the sidecar
+   rights status is known.
+3. Drop the transcript text into the generated `.transcript.md` file, or capture
    it with `distill --out-transcript`.
-3. Run `validate`.
-4. Distill the transcript with `packages/ressources` into a rules markdown file.
-5. Promote the rules into a derivative skill/app/tool candidate here.
+4. Run `validate`.
+5. Distill the transcript with `packages/ressources` into a rules markdown file.
+6. Promote the rules into a derivative skill/app/tool candidate here.
 
 Example:
 

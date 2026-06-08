@@ -2,6 +2,10 @@
 
 Electron studio cockpit for Ship Shit Games.
 
+The Rules pane shells out to `packages/ressources/src/cli.ts`; it should keep
+using the package CLI rather than duplicating transcript capture or distillation
+logic in Electron.
+
 ```bash
 brew tap shipshitgames/tap
 brew install --cask shipshitgames-studio
