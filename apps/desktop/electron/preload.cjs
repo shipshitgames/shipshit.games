@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld("studio", {
     ipcRenderer.on("studio:gen-log", h);
     return () => ipcRenderer.removeListener("studio:gen-log", h);
   },
-  // Research → rules (runs @shipshitgames/ressources in the main process).
+  // Ressources -> rules (runs @shipshitgames/ressources in the main process).
   research: (opts) => ipcRenderer.invoke("studio:research", opts),
   onResearchLog: (cb) => {
     const h = (_e, chunk) => cb(chunk);
@@ -38,8 +38,40 @@ contextBridge.exposeInMainWorld("studio", {
     get: () => ipcRenderer.invoke("settings:get"),
     set: (partial) => ipcRenderer.invoke("settings:set", partial),
   },
+  projects: {
+    list: () => ipcRenderer.invoke("projects:list"),
+    add: () => ipcRenderer.invoke("projects:add"),
+    remove: (id) => ipcRenderer.invoke("projects:remove", id),
+    setActive: (id) => ipcRenderer.invoke("projects:setActive", id),
+  },
   keys: {
     status: () => ipcRenderer.invoke("keys:status"),
     set: (provider, key) => ipcRenderer.invoke("keys:set", { provider, key }),
+  },
+  // Interactive terminal (node-pty in the main process, xterm in the renderer).
+  terminal: {
+    start: (opts) => ipcRenderer.invoke("terminal:start", opts),
+    write: (id, data) => ipcRenderer.invoke("terminal:write", { id, data }),
+    resize: (id, size) => ipcRenderer.invoke("terminal:resize", { id, ...size }),
+    stop: (id) => ipcRenderer.invoke("terminal:stop", id),
+    onData: (cb) => {
+      const h = (_e, payload) => cb(payload);
+      ipcRenderer.on("terminal:data", h);
+      return () => ipcRenderer.removeListener("terminal:data", h);
+    },
+    onExit: (cb) => {
+      const h = (_e, payload) => cb(payload);
+      ipcRenderer.on("terminal:exit", h);
+      return () => ipcRenderer.removeListener("terminal:exit", h);
+    },
+  },
+  moodboard: {
+    listGames: () => ipcRenderer.invoke("moodboard:listGames"),
+    get: (game) => ipcRenderer.invoke("moodboard:get", game),
+    addNote: (game, text) => ipcRenderer.invoke("moodboard:addNote", { game, text }),
+    importImages: (game) => ipcRenderer.invoke("moodboard:importImages", game),
+    updateItem: (game, item) => ipcRenderer.invoke("moodboard:updateItem", { game, item }),
+    setVisualTarget: (game, id, visualTarget) => ipcRenderer.invoke("moodboard:setVisualTarget", { game, id, visualTarget }),
+    removeItem: (game, id) => ipcRenderer.invoke("moodboard:removeItem", { game, id }),
   },
 });

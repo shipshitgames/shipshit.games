@@ -1,15 +1,22 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { initAssetsPackage } from "../assets-package.ts";
+import type { GameSlug } from "../assets-package.ts";
 import { runMatrix } from "../matrix.ts";
-import type { GameSlug } from "../matrix.ts";
 import { flag, has, intFlag } from "./args.ts";
 import { defaultAssetsDir, defaultGamesRoot } from "./paths.ts";
 
 export async function runMatrixCommand(argv: string[]): Promise<void> {
   const assetsDir = flag(argv, "assets-dir") || defaultAssetsDir();
   if (!existsSync(join(assetsDir, "assets-catalog.json"))) {
-    console.error(`[matrix] no assets-catalog.json under ${assetsDir} — pass --assets-dir <@shipshitgames/assets path>`);
-    process.exit(1);
+    if (has(argv, "init-catalog") || has(argv, "init")) {
+      const result = await initAssetsPackage(assetsDir);
+      console.log(`[matrix] initialized ${result.catalogPath}`);
+    } else {
+      console.error(`[matrix] no assets-catalog.json under ${assetsDir} — pass --assets-dir <@shipshitgames/assets path>`);
+      console.error("[matrix] to bootstrap a new Deadrot asset package, rerun with --init-catalog");
+      process.exit(1);
+    }
   }
   const res = await runMatrix({
     assetsDir,

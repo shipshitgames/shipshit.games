@@ -36,8 +36,31 @@
     "lint": {
       "dependsOn": ["^build"]
     },
+    "check:tokens": {
+      "outputs": []
+    },
     "typecheck": {
       "dependsOn": ["^build"]
+    },
+    "test": {
+      "outputs": []
+    },
+    "test:coverage": {
+      "outputs": ["coverage/**"]
+    },
+    "e2e": {
+      "cache": false,
+      "env": [
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_SITE_URL",
+        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+        "CLERK_SECRET_KEY",
+        "ACCESS_SIGNING_SECRET",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "STRIPE_SKILLS_PRO_PRICE_ID",
+        "STRIPE_STUDIO_PASS_PRICE_ID"
+      ]
     }
   }
 }

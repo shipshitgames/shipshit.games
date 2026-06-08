@@ -1,0 +1,4 @@
+# Coverage runs only with --coverage (bun run test:coverage).
+[test]
+coverageThreshold = { line = 0.7, function = 0.7 }
+coverageSkipTestFiles = true

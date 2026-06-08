@@ -12,11 +12,11 @@ export const metadata: Metadata = {
     template: "%s — Ship Shit Games",
   },
   description:
-    "The studio building the DEADROT universe live with AI. We ship games in public and sell the playbook — newsletter, course, templates, and the tools we built to do it.",
+    "The studio building the DEADROT universe live with AI. We ship games in public and sell the monthly Studio Pass: skills, assets, build breakdowns, and the tools we built to do it.",
   openGraph: {
     title: "Ship Shit Games",
     description:
-      "Building games with AI, in public. Steal the playbook — newsletter, course, templates, and tooling.",
+      "Building games with AI, in public. Get the monthly Studio Pass for skills, assets, build breakdowns, and tooling.",
     url: "https://shipshit.games",
     siteName: "Ship Shit Games",
     type: "website",

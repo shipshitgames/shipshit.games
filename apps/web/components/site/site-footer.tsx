@@ -1,10 +1,12 @@
 import Link from "next/link";
 
 const LINKS: { label: string; href: string; ext?: boolean }[] = [
+  { label: "Games", href: "/games" },
   { label: "Pricing", href: "/pricing" },
   { label: "Assets", href: "/assets" },
   { label: "YouTube", href: "/youtube" },
   { label: "Docs ↗", href: "https://docs.shipshit.games", ext: true },
+  { label: "Legal", href: "/legal" },
   { label: "Play (DEADROT) ↗", href: "https://deadrot.com", ext: true },
   { label: "GitHub ↗", href: "https://github.com/shipshitgames", ext: true },
   { label: "v0 scaffolder ↗", href: "https://github.com/shipshitdev/v0", ext: true },
@@ -21,7 +23,7 @@ export function SiteFooter() {
         </div>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-ash">
           The studio building the <a href="https://deadrot.com" className="text-bone underline decoration-gunmetal underline-offset-2 hover:decoration-blood">DEADROT</a> universe
-          live with AI. We ship games in public and sell the Skills Pro playbook.
+          live with AI. We ship games in public and sell the monthly Studio Pass.
         </p>
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs font-bold uppercase tracking-widest">
           {LINKS.map((l) =>
