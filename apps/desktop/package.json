@@ -9,23 +9,20 @@
     "url": "git+https://github.com/shipshitgames/shipshit.games.git",
     "directory": "apps/desktop"
   },
-  "main": "electron/main.cjs",
+  "main": "dist-electron/main/index.cjs",
   "type": "module",
   "scripts": {
-    "dev:renderer": "vite",
-    "dev:electron": "node electron/rebuild-native.cjs && wait-on tcp:5273 && electron .",
-    "dev": "concurrently -k -n renderer,electron -c magenta,cyan \"bun run dev:renderer\" \"bun run dev:electron\"",
-    "build:renderer": "vite build",
+    "dev": "node electron/rebuild-native.cjs && vite",
     "build": "vite build",
     "package:mac": "node electron/rebuild-native.cjs && bun run build && electron-builder --mac dmg --publish never",
     "preview": "vite preview",
-    "start": "node electron/rebuild-native.cjs && electron .",
+    "start": "node electron/rebuild-native.cjs && bun run build && NODE_ENV=production electron .",
     "postinstall": "node electron/rebuild-native.cjs --soft",
     "rebuild:native": "node electron/rebuild-native.cjs",
     "verify:terminal": "node electron/verify-terminal.cjs",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.electron.json",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
@@ -40,7 +37,7 @@
     "productName": "Ship Shit Games Studio",
     "files": [
       "dist/**/*",
-      "electron/**/*",
+      "dist-electron/**/*",
       "package.json"
     ],
     "asarUnpack": [
@@ -55,14 +52,14 @@
   },
   "devDependencies": {
     "@electron/rebuild": "4.0.3",
+    "@types/node": "25.9.1",
     "@types/react": "19.2.16",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
-    "concurrently": "10.0.3",
     "electron": "42.3.3",
     "electron-builder": "26.15.0",
     "typescript": "6.0.3",
     "vite": "8.0.16",
-    "wait-on": "9.0.10"
+    "vite-plugin-electron": "^1.0.4"
   }
 }
