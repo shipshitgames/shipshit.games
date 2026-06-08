@@ -21,6 +21,23 @@ test("register requires license provenance fields", async () => {
   );
 });
 
+test("register rejects blank (whitespace-only) license fields", async () => {
+  // The desktop once shipped a truthiness-only copy of this check that let a
+  // "   " plan through; the shared writer trims, so this must reject.
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-manifest-test-"));
+  await assert.rejects(
+    () =>
+      register(join(repo, "assets.json"), {
+        id: "blank-license",
+        kind: "music",
+        game: "shared",
+        path: "audio/music/blank-license.webm",
+        license: { tool: "ffmpeg", plan: "   ", date: "2026-06-08", kind: "music" },
+      } as AssetEntry),
+    /requires license.plan/,
+  );
+});
+
 test("register upserts entries with license provenance", async () => {
   const repo = await mkdtemp(join(tmpdir(), "assetgen-manifest-test-"));
   const manifestPath = join(repo, "assets.json");
@@ -51,3 +68,16 @@ test("register upserts entries with license provenance", async () => {
     kind: "sprite",
   });
 });
+
+// Symmetric to the desktop guard in apps/desktop/electron/manifest-core.test.mjs:
+// every assetgen generator must write the manifest through the shared register(),
+// never via an inline upsert — that is the issue #17 "no generator may skip
+// register" guarantee for the assetgen side.
+for (const generator of ["pipeline.ts", "matrix.ts"]) {
+  test(`${generator} writes the manifest through the shared register()`, async () => {
+    const source = await readFile(new URL(`./${generator}`, import.meta.url), "utf8");
+    assert.match(source, /import \{[^}]*\bregister\b[^}]*\} from "\.\/manifest(\.ts)?"/);
+    // No hand-rolled upsert (the fingerprint of a forked manifest writer).
+    assert.doesNotMatch(source, /\.assets\.findIndex/);
+  });
+}

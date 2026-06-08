@@ -1,6 +1,6 @@
 # Ship Shit Games Studio Repo - Repo Memory
 
-last_verified: 2026-06-06
+last_verified: 2026-06-08
 
 ## What this is
 The studio/tooling monorepo (Turborepo + Bun), GitHub
@@ -19,12 +19,20 @@ This repo owns the studio products and tooling used to build Deadrot:
 - `packages/assetgen` - reusable asset generation core and CLI entrypoint.
   This stays here so the studio can ship a CLI ASAP and dogfood it against
   Deadrot.
+- `packages/engine` / `@shipshitgames/engine` - the canonical org-level
+  reusable game engine package. It stays in this repo because the package is for
+  Ship Shit Games as a platform, not only the Deadrot IP.
 - Studio-only shared packages such as research, shared utilities, and studio UI.
 
 ## Repo Boundary
-This repo does not own shipped Deadrot games, runtime assets, audio,
-soundtrack, generated source archives, or canonical runtime packages consumed by
-games.
+This repo does not own shipped Deadrot games, Deadrot-specific runtime assets,
+audio, soundtrack, generated source archives, or Deadrot-specific runtime
+packages consumed by games.
+
+Exception: `packages/engine` is intentionally owned here as
+`@shipshitgames/engine`. Deadrot games should consume that canonical org-level
+engine through an explicit published/local-link/workspace bridge, not own a
+divergent `@deadrot/engine` fork.
 
 Those live in the sibling Deadrot repo:
 
@@ -44,13 +52,15 @@ For example, `packages/assetgen` defaults to that package and accepts
 Do not move `packages/assetgen` into `deadrotcom`. It is the studio/product CLI.
 
 If a game ships to players, it belongs in `../deadrotcom/apps/games`. If a
-package is imported by shipped Deadrot games at runtime, it belongs in
-`../deadrotcom/packages`.
+package is Deadrot-specific runtime data, content, or assets, it belongs in
+`../deadrotcom/packages`, especially `../deadrotcom/packages/assets`.
 
 ## Conventions
 The generator/tooling product lives in `shipshitgames`; generated outputs ship
-from `deadrotcom`. Do not treat runtime package copies in this repo as the
-Deadrot shipping source of truth unless the user explicitly says otherwise.
+from `deadrotcom`. Do not treat Deadrot-specific runtime package copies in this
+repo as the Deadrot shipping source of truth unless the user explicitly says
+otherwise. Do treat `@shipshitgames/engine` as a studio/org package that can be
+reused by Deadrot and future IPs.
 
 Deadrot canon lives in the sibling repo at `../deadrotcom/apps/lore/content`,
 which is the Obsidian vault root.

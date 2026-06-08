@@ -13,13 +13,16 @@
   "type": "module",
   "scripts": {
     "dev:renderer": "vite",
-    "dev:electron": "wait-on tcp:5273 && electron .",
+    "dev:electron": "node electron/rebuild-native.cjs && wait-on tcp:5273 && electron .",
     "dev": "concurrently -k -n renderer,electron -c magenta,cyan \"bun run dev:renderer\" \"bun run dev:electron\"",
     "build:renderer": "vite build",
     "build": "vite build",
-    "package:mac": "bun run build && electron-builder --mac dmg --publish never",
+    "package:mac": "node electron/rebuild-native.cjs && bun run build && electron-builder --mac dmg --publish never",
     "preview": "vite preview",
-    "start": "electron .",
+    "start": "node electron/rebuild-native.cjs && electron .",
+    "postinstall": "node electron/rebuild-native.cjs --soft",
+    "rebuild:native": "node electron/rebuild-native.cjs",
+    "verify:terminal": "node electron/verify-terminal.cjs",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "typecheck": "tsc --noEmit",
@@ -40,6 +43,9 @@
       "electron/**/*",
       "package.json"
     ],
+    "asarUnpack": [
+      "**/node_modules/node-pty/**"
+    ],
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [
@@ -48,6 +54,7 @@
     }
   },
   "devDependencies": {
+    "@electron/rebuild": "4.0.3",
     "@types/react": "19.2.16",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
