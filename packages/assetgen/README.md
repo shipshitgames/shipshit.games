@@ -69,6 +69,24 @@ Flags: `--provider` (default `mock` — safe to batch), `--game`, `--id`,
 `--only-missing` (skip cells already rendered on disk), `--size`, `--dry-run`
 (force mock), `--sync-games`, `--assets-dir`.
 
+## Token drift gate
+
+`assetgen tokens` compiles the reviewed `DESIGN.md` front matter into generated
+style/token artifacts. `--check` regenerates those artifacts into a temp tree,
+diffs them against the committed files, and fails on drift, including generated
+token body changes where the banner version/hash did not change.
+
+```bash
+# Repo CI path: checks packages/assetgen/src/style.generated.ts only.
+bun packages/assetgen/src/cli.ts tokens --check --repo-only
+
+# Full local path when the Deadrot assets package is checked out.
+bun packages/assetgen/src/cli.ts tokens --check --assets-dir ../deadrotcom/packages/assets
+
+# Regenerate committed artifacts.
+bun packages/assetgen/src/cli.ts tokens --assets-dir ../deadrotcom/packages/assets
+```
+
 ## Providers
 - `codex` — delegates to the local authed `codex` CLI via node-pty (no key wiring needed)
 - `openai` — **gpt-image-2** (`--model` to override), transparent PNG

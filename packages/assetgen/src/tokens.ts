@@ -6,21 +6,23 @@
 //   - deadrotcom/packages/assets/tokens/tokens.ts (COLORS 0xRRGGBB + FONTS, Three.js)
 //   - deadrotcom/packages/assets/tokens/theme.css (Tailwind v4 @theme)
 //   - deadrotcom/packages/assets/tokens/tokens.css (:root vars)
-// `--check` regenerates in memory and diffs the committed files (drift gate).
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+// `--check` regenerates to a temp tree and diffs the committed files (drift gate).
+import { readFile, writeFile, mkdir, mkdtemp } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url)); // packages/assetgen/src
 const ROOT = join(here, "..", "..", ".."); // monorepo root (shipshitgames/)
 
-/** Resolve the CANONICAL DESIGN.md — the lore one, never the stale monorepo copy. */
+/** Resolve the canonical DESIGN.md, falling back to the reviewed root copy until lore is wired. */
 export function resolveDesignPath(override?: string): string {
   const candidates = [
     override,
     join(ROOT, ".agents/lore/DESIGN.md"), // submodule (preferred once wired)
     join(ROOT, "..", "lore", "DESIGN.md"), // sibling repo (current workspace layout)
+    join(ROOT, "DESIGN.md"), // reviewed fallback while lore/DESIGN.md is not checked out
   ].filter(Boolean) as string[];
   for (const c of candidates) if (existsSync(c)) return c;
   throw new Error(`DESIGN.md not found (tried: ${candidates.join(", ")}). Pass --design <path>.`);
@@ -53,6 +55,13 @@ const banner = (v: string, h: string, open = "/*", close = "*/") =>
 export interface TokensResult {
   drift: boolean;
   files: string[];
+  drifts: TokenDrift[];
+}
+
+export interface TokenDrift {
+  path: string;
+  reason: "missing" | "content" | "metadata-unchanged";
+  diff?: string;
 }
 
 export function resolveAssetsDir(override?: string): string {
@@ -66,11 +75,18 @@ export function resolveAssetsDir(override?: string): string {
 }
 
 export async function runTokens(
-  opts: { check?: boolean; design?: string; assetsDir?: string; log?: (m: string) => void } = {},
+  opts: {
+    check?: boolean;
+    design?: string;
+    assetsDir?: string;
+    repoOnly?: boolean;
+    stylePath?: string;
+    log?: (m: string) => void;
+  } = {},
 ): Promise<TokensResult> {
   const log = opts.log ?? (() => {});
   const designPath = resolveDesignPath(opts.design);
-  const assetsDir = resolveAssetsDir(opts.assetsDir);
+  const assetsDir = opts.repoOnly ? undefined : resolveAssetsDir(opts.assetsDir);
   const design = frontmatter(await readFile(designPath, "utf8"));
   const colors: Record<string, string> = design.colors ?? {};
   const version: string = String(design.version ?? "0.0.0");
@@ -144,14 +160,18 @@ export async function runTokens(
     `\n}\n`;
 
   const outputs: Record<string, string> = {
-    [join(here, "style.generated.ts")]: styleGen,
-    [join(assetsDir, "tokens/tokens.ts")]: tokensTs,
-    [join(assetsDir, "tokens/theme.css")]: themeCss,
-    [join(assetsDir, "tokens/tokens.css")]: tokensCss,
+    [opts.stylePath ?? join(here, "style.generated.ts")]: styleGen,
   };
 
-  let drift = false;
-  for (const [path, content] of Object.entries(outputs)) {
+  if (assetsDir) {
+    outputs[join(assetsDir, "tokens/tokens.ts")] = tokensTs;
+    outputs[join(assetsDir, "tokens/theme.css")] = themeCss;
+    outputs[join(assetsDir, "tokens/tokens.css")] = tokensCss;
+  }
+
+  const drifts: TokenDrift[] = [];
+  const tempRoot = opts.check ? await mkdtemp(join(tmpdir(), "assetgen-tokens-")) : undefined;
+  for (const [index, [path, content]] of Object.entries(outputs).entries()) {
     const rel = relative(ROOT, path);
     const current = existsSync(path) ? await readFile(path, "utf8") : "";
     if (current === content) {
@@ -159,14 +179,58 @@ export async function runTokens(
       continue;
     }
     if (opts.check) {
-      drift = true;
+      const tempPath = join(tempRoot ?? tmpdir(), String(index), basename(path));
+      await mkdir(dirname(tempPath), { recursive: true });
+      await writeFile(tempPath, content);
+      const currentMeta = artifactMetadata(current);
+      const generatedMeta = artifactMetadata(content);
+      const reason =
+        current.length === 0
+          ? "missing"
+          : currentMeta &&
+              generatedMeta &&
+              currentMeta.version === generatedMeta.version &&
+              currentMeta.hash === generatedMeta.hash
+            ? "metadata-unchanged"
+            : "content";
+      const diff = existsSync(path)
+        ? await unifiedDiff(path, tempPath, `${rel} (committed)`, `${rel} (generated)`)
+        : undefined;
+      drifts.push({ path: rel, reason, diff });
       log(`[tokens] DRIFT ${rel} — run 'bun assetgen tokens'`);
+      if (reason === "metadata-unchanged") {
+        log(`[tokens] version/hash unchanged for ${rel}; token output changed without a metadata bump`);
+      }
+      if (diff) log(diff.trimEnd());
     } else {
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, content);
       log(`[tokens] wrote ${rel}`);
     }
   }
-  if (opts.check && !drift) log(`[tokens] all artifacts current ✓`);
-  return { drift, files: Object.keys(outputs) };
+  if (opts.check && drifts.length === 0) log(`[tokens] all artifacts current ✓`);
+  return { drift: drifts.length > 0, files: Object.keys(outputs), drifts };
+}
+
+function artifactMetadata(content: string): { version: string; hash: string } | undefined {
+  const match = content.match(/^\/\* GENERATED FROM lore\/DESIGN\.md v([^ ]+) hash:([0-9a-f]+) /);
+  if (!match?.[1] || !match[2]) return undefined;
+  return { version: match[1], hash: match[2] };
+}
+
+async function unifiedDiff(
+  currentPath: string,
+  generatedPath: string,
+  currentLabel: string,
+  generatedLabel: string,
+): Promise<string> {
+  const proc = Bun.spawn(["diff", "-u", "--label", currentLabel, "--label", generatedLabel, currentPath, generatedPath], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const stdout = await new Response(proc.stdout).text();
+  const stderr = await new Response(proc.stderr).text();
+  const exitCode = await proc.exited;
+  if (exitCode > 1) return stderr.trim();
+  return stdout.trim();
 }
