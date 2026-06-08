@@ -3,4 +3,3 @@ dist/
 out/
 *.log
 .DS_Store
-dist-electron/

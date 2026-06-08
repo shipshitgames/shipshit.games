@@ -26,8 +26,8 @@ test("web imports generated Tailwind theme tokens", async () => {
 });
 
 test("desktop imports generated root tokens instead of local theme forks", async () => {
-  const styles = await repoFile("apps/desktop/src/styles.css");
-  const tokens = await repoFile("apps/desktop/src/tokens.css");
+  const styles = await repoFile("apps/desktop/src/renderer/styles.css");
+  const tokens = await repoFile("apps/desktop/src/renderer/tokens.css");
 
   assert.match(styles, /^@import "\.\/tokens\.css";/);
   assert.match(tokens, /GENERATED FROM DESIGN\.md/);

@@ -6,19 +6,20 @@ import path from "node:path";
 import fs from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { readSharedGameSlugs } from "./game-slugs.cjs";
-import { createTerminalManager, terminalShell } from "./terminal-manager.cjs";
+import { readSharedGameSlugs } from "./game-slugs";
+import { createTerminalManager, terminalShell } from "./terminal-manager";
 import {
   manifestPathForRepo,
   projectFromRepoPath,
   summarizeProject,
   uniqueProjects,
-} from "./projects.cjs";
-import { createMoodboardStore } from "./moodboards.cjs";
+} from "./projects";
+import { createMoodboardStore } from "./moodboards";
+import { createGallery } from "./gallery";
 // Single, shared manifest writer + license validator (issue #17). The Electron
 // main process is bundled from TypeScript (vite-plugin-electron), so it imports
 // assetgen's register() directly — no CommonJS shim, one writer for both runtimes.
-import { register } from "../../../packages/assetgen/src/manifest.ts";
+import { register } from "../../../../packages/assetgen/src/manifest.ts";
 
 // node-pty is a native addon kept external from the bundle; load it through a
 // runtime require so an ABI/load failure degrades gracefully instead of crashing.
@@ -37,7 +38,7 @@ try {
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
 const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
 
-// The bundled main lives at <repo>/apps/desktop/dist-electron/main, so __dirname
+// The bundled main lives at <repo>/apps/desktop/dist/main, so __dirname
 // no longer points at the package. app.getAppPath() resolves to <repo>/apps/desktop
 // in dev regardless of bundle depth; the studio repo root is two levels up.
 const STUDIO_REPO = path.resolve(app.getAppPath(), "..", "..");
@@ -69,6 +70,18 @@ const terminalManager = createTerminalManager({
 });
 const moodboards = createMoodboardStore({
   rootDir: () => path.join(app.getPath("userData"), "moodboards"),
+});
+
+// Asset gallery reads the shared Deadrot @shipshitgames/assets package — the source
+// of truth for shipped game art. Prefer the sibling Deadrot checkout; fall back to a
+// co-located packages/assets for older layouts.
+const ASSETS_PKG_CANDIDATES = [
+  path.join(WORKSPACE, "deadrotcom", "packages", "assets"),
+  path.join(WORKSPACE, "packages", "assets"),
+  path.join(STUDIO_REPO, "packages", "assets"),
+];
+const gallery = createGallery({
+  assetsRoot: () => ASSETS_PKG_CANDIDATES.find((p) => fs.existsSync(path.join(p, "games"))) || null,
 });
 
 // ---- settings (non-secret) ----
@@ -263,6 +276,11 @@ ipcMain.handle("moodboard:importImages", async (_e, game) => {
   });
   return r.canceled ? moodboards.readBoard(game || readSettings().defaultGame) : moodboards.importImages(game || readSettings().defaultGame, r.filePaths);
 });
+
+// ---- asset gallery (read-only review of the shared Deadrot assets package) ----
+ipcMain.handle("gallery:listGames", () => gallery.listGames());
+ipcMain.handle("gallery:list", (_e, payload = {}) => gallery.list(payload.game || readSettings().defaultGame, payload));
+ipcMain.handle("gallery:image", (_e, payload = {}) => gallery.image(payload.path));
 
 // ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
 // GUI apps inherit a minimal PATH, so resolve ffmpeg from common install locations.

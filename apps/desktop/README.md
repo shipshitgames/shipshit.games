@@ -6,10 +6,10 @@ Electron studio cockpit for Ship Shit Games.
 
 The desktop app runs a real shell through Electron IPC:
 
-- `electron/terminal-manager.cjs` owns `node-pty` sessions and restricts
+- `src/main/terminal-manager.ts` owns `node-pty` sessions and restricts
   write/resize/stop calls to the renderer process that created the terminal.
-- `electron/preload.cjs` exposes a narrow `window.studio.terminal` bridge.
-- `src/App.tsx` renders the bottom xterm.js terminal and fits it to the
+- `src/preload/index.ts` exposes a narrow `window.studio.terminal` bridge.
+- `src/renderer/App.tsx` renders the bottom xterm.js terminal and fits it to the
   existing cockpit layout.
 
 ### Native `node-pty` rebuild (required)
@@ -24,7 +24,7 @@ The desktop app runs a real shell through Electron IPC:
    open a PTY you get `node-pty failed to spawn …: posix_spawnp failed.` (The
    `.node` itself is N-API and loads fine — the helper is the blocker.)
 
-`electron/rebuild-native.cjs` fixes both by building `node-pty` **from source
+`scripts/rebuild-native.cjs` fixes both by building `node-pty` **from source
 against Electron's ABI** with `@electron/rebuild`. That produces
 `build/Release/pty.node` **and** a `755` `build/Release/spawn-helper`, which
 `node-pty`'s loader prefers over `prebuilds/`. The script is idempotent (it skips
@@ -46,9 +46,11 @@ ELECTRON_HEADER_URL=https://registry.npmmirror.com/-/binary/electron/ bun run re
 
 ### Verifying the working terminal path
 
-`electron/verify-terminal.cjs` is an end-to-end check that runs under Electron's
-own Node (`ELECTRON_RUN_AS_NODE`, no window/display needed). It loads `node-pty`,
-starts a session through the production `terminal-manager`, asserts `ok:true`
+`scripts/verify-terminal.ts` is an end-to-end check that runs under Electron's
+own Node (`ELECTRON_RUN_AS_NODE`, no window/display needed). `verify:terminal`
+bundles it to `dist/verify/index.cjs` first (Electron's raw Node can't load TS),
+then it loads `node-pty`, starts a session through the production
+`terminal-manager`, asserts `ok:true`
 with a real `pid`, then runs `echo "SSG_VERIFY=$((6*7))"` and confirms the
 streamed output contains `SSG_VERIFY=42` — proving the shell actually executed.
 
@@ -102,7 +104,7 @@ brew install --cask shipshitgames-studio
 
 Build the macOS release artifact (`asarUnpack` keeps `node-pty` unpacked so the
 native addon and `spawn-helper` remain on disk inside the app bundle). The
-`afterPack` hook (`electron/after-pack.cjs`) then asserts the unpacked
+`afterPack` hook (`scripts/after-pack.cjs`) then asserts the unpacked
 `spawn-helper` is present and still executable, failing the build before a broken
 `.dmg` can ship:
 
