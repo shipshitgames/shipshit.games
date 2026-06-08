@@ -1,5 +1,5 @@
-const fs = require("node:fs");
-const path = require("node:path");
+import fs from "node:fs";
+import path from "node:path";
 
 const FALLBACK_GAME_SLUGS = Object.freeze([
   "scourge-survivors",
@@ -24,4 +24,4 @@ function readSharedGameSlugs(studioRepo) {
   return [...FALLBACK_GAME_SLUGS];
 }
 
-module.exports = { FALLBACK_GAME_SLUGS, readSharedGameSlugs };
+export { FALLBACK_GAME_SLUGS, readSharedGameSlugs };

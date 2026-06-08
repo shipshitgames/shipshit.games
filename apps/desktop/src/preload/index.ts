@@ -1,6 +1,6 @@
 // Ship Shit Games — Studio shell (Electron preload)
 // Isolated context. Exposes an explicit API on `window.studio` via contextBridge.
-const { contextBridge, ipcRenderer } = require("electron");
+import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("studio", {
   platform: process.platform,
@@ -64,6 +64,12 @@ contextBridge.exposeInMainWorld("studio", {
       ipcRenderer.on("terminal:exit", h);
       return () => ipcRenderer.removeListener("terminal:exit", h);
     },
+  },
+  // Asset gallery — read-only review of the shared Deadrot assets package.
+  gallery: {
+    listGames: () => ipcRenderer.invoke("gallery:listGames"),
+    list: (game, opts) => ipcRenderer.invoke("gallery:list", { game, ...(opts || {}) }),
+    image: (assetPath) => ipcRenderer.invoke("gallery:image", { path: assetPath }),
   },
   moodboard: {
     listGames: () => ipcRenderer.invoke("moodboard:listGames"),

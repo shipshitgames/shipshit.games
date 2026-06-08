@@ -1,7 +1,7 @@
-const crypto = require("node:crypto");
-const fs = require("node:fs");
-const path = require("node:path");
-const ENGINE_ASSETS_MANIFEST_SCHEMA = require("../../../packages/engine/src/assets/assets-manifest.schema.json");
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import ENGINE_ASSETS_MANIFEST_SCHEMA from "../../../../packages/engine/src/assets/assets-manifest.schema.json";
 
 const MANIFEST_RELATIVE_PATH = path.join("src", "assets", "assets.json");
 const CATALOG_LIMIT = 80;
@@ -36,7 +36,7 @@ function normalizeProjectRecord(raw, source = "registered") {
   };
 }
 
-function projectFromRepoPath(repoPath, overrides = {}) {
+function projectFromRepoPath(repoPath, overrides: any = {}) {
   return normalizeProjectRecord({ ...overrides, repoPath }, overrides.source || "registered");
 }
 
@@ -174,7 +174,7 @@ function summarizeProject(project, activeProjectId) {
   };
 }
 
-module.exports = {
+export {
   CATALOG_LIMIT,
   MANIFEST_RELATIVE_PATH,
   idForRepoPath,

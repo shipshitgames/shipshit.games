@@ -1,9 +1,11 @@
-const { test, expect } = require("bun:test");
-const path = require("node:path");
+import { test, expect } from "bun:test";
+import path from "node:path";
 
-const { FALLBACK_GAME_SLUGS, readSharedGameSlugs } = require("../electron/game-slugs.cjs");
+import { FALLBACK_GAME_SLUGS, readSharedGameSlugs } from "./game-slugs";
 
-const STUDIO_REPO = path.join(__dirname, "..", "..", "..");
+// From apps/desktop/src/main, four levels up is the monorepo root (the shared
+// game catalog the loader reads lives at packages/shared/src/games.json).
+const STUDIO_REPO = path.join(__dirname, "..", "..", "..", "..");
 
 test("loads all canonical game slugs from the shared catalog", () => {
   expect(readSharedGameSlugs(STUDIO_REPO)).toEqual([

@@ -2,16 +2,13 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const {
+import {
   manifestPathForRepo,
   projectFromRepoPath,
   summarizeProject,
   uniqueProjects,
   validateAssetsManifestData,
-} = require("./projects.cjs");
+} from "./projects";
 
 const tmpRoots = [];
 

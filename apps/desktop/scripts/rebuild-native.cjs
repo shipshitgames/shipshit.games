@@ -17,8 +17,8 @@
 // never ran. This script makes the rebuild explicit and idempotent.
 //
 // Usage:
-//   node electron/rebuild-native.cjs           # rebuild if needed; exit 1 on failure
-//   node electron/rebuild-native.cjs --soft     # never fail the caller (postinstall)
+//   node scripts/rebuild-native.cjs           # rebuild if needed; exit 1 on failure
+//   node scripts/rebuild-native.cjs --soft     # never fail the caller (postinstall)
 //
 // Environment:
 //   SSG_SKIP_NATIVE_REBUILD  any value -> skip entirely (escape hatch).
