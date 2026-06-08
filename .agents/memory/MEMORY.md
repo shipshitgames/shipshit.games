@@ -1,10 +1,10 @@
 # Ship Shit Games Studio Repo - Repo Memory
 
-last_verified: 2026-06-08
+last_verified: 2026-06-09
 
 ## What this is
 The studio/tooling monorepo (Turborepo + Bun), GitHub
-`shipshitgames/shipshitgames`.
+`shipshitgames/shipshit.games`.
 
 This repo owns the studio products and tooling used to build Deadrot:
 
@@ -31,8 +31,9 @@ packages consumed by games.
 
 Exception: `packages/engine` is intentionally owned here as
 `@shipshitgames/engine`. Deadrot games should consume that canonical org-level
-engine through an explicit published/local-link/workspace bridge, not own a
-divergent `@deadrot/engine` fork.
+engine through the published package in CI/release builds or a temporary local
+`bun link` bridge for unpublished cross-repo development, not own a divergent
+`@deadrot/engine` fork.
 
 Those live in the sibling Deadrot repo:
 
@@ -60,7 +61,11 @@ The generator/tooling product lives in `shipshitgames`; generated outputs ship
 from `deadrotcom`. Do not treat Deadrot-specific runtime package copies in this
 repo as the Deadrot shipping source of truth unless the user explicitly says
 otherwise. Do treat `@shipshitgames/engine` as a studio/org package that can be
-reused by Deadrot and future IPs.
+reused by Deadrot and future IPs. The package/link workflow and temporary
+duplicate-package handling are documented in
+`packages/engine/CANONICAL-ENGINE.md`. The engine package intentionally exports
+`assets-manifest.schema.json`; Deadrot asset files and generated source history
+still belong in `../deadrotcom/packages/assets`.
 
 Deadrot canon lives in the sibling repo at `../deadrotcom/apps/lore/content`,
 which is the Obsidian vault root.
