@@ -91,6 +91,10 @@ bun --filter @shipshitgames/desktop dev
 - Warline ships from `../deadrotcom/apps/games/warline` with its runtime package
   in `../deadrotcom/packages/warline`.
 - Generated game assets belong in `../deadrotcom/packages/assets`.
+- `packages/engine` is intentionally different from Deadrot-specific runtime
+  packages: it is the canonical org-level source for `@shipshitgames/engine`.
+  Deadrot games should depend on the package release or use a temporary local
+  `bun link` bridge during cross-repo engine development.
 - Studio learning material, source manifests, raw transcript sidecars, and
   distilled rules belong in `packages/ressources`.
 - Release automation starts at `bun run release`; use `bun run release:run` to

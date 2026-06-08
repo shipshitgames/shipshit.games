@@ -15,6 +15,7 @@
     "./assets-manifest.schema.json": "./src/assets/assets-manifest.schema.json"
   },
   "files": [
+    "CANONICAL-ENGINE.md",
     "ENGINE-EXTRACTION-BOUNDARY.md",
     "src"
   ],
@@ -25,7 +26,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "bun test src ENGINE-EXTRACTION-BOUNDARY.test.ts",
+    "test": "bun test src ENGINE-EXTRACTION-BOUNDARY.test.ts CANONICAL-ENGINE.test.ts",
     "test:coverage": "bun test src --coverage",
     "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
@@ -57,7 +58,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/shipshitgames/shipshitgames",
+    "url": "git+https://github.com/shipshitgames/shipshit.games.git",
     "directory": "packages/engine"
   }
 }
