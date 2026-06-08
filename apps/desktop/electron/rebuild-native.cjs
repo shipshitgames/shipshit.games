@@ -20,14 +20,25 @@
 //   node electron/rebuild-native.cjs           # rebuild if needed; exit 1 on failure
 //   node electron/rebuild-native.cjs --soft     # never fail the caller (postinstall)
 //
-// Honors ELECTRON_HEADER_URL to point node-gyp at an alternate Electron headers
-// mirror when the default (https://www.electronjs.org/headers) is unreachable.
+// Environment:
+//   SSG_SKIP_NATIVE_REBUILD  any value -> skip entirely (escape hatch).
+//   SSG_REBUILD_ARCH         target arch to build for (default: host process.arch);
+//                            set to e.g. x64 when packaging a non-host dmg.
+//   ELECTRON_HEADER_URL      point node-gyp at an alternate Electron headers mirror
+//                            when the default (https://www.electronjs.org/headers)
+//                            is unreachable.
+//
+// In CI the --soft postinstall hook is skipped: CI never launches or packages the
+// desktop app on the shared Linux runner, so there's no reason to compile native
+// code (and pull Electron headers) during `bun install`. Explicit `rebuild:native`
+// still runs everywhere.
 
 const fs = require("node:fs");
 const path = require("node:path");
 
 const DESKTOP_DIR = path.join(__dirname, "..");
 const SOFT = process.argv.includes("--soft");
+const TARGET_ARCH = process.env.SSG_REBUILD_ARCH || process.arch;
 
 function log(msg) {
   process.stdout.write(`[rebuild-native] ${msg}\n`);
@@ -63,6 +74,17 @@ function nodePtyDir() {
 }
 
 function main() {
+  if (process.env.SSG_SKIP_NATIVE_REBUILD) {
+    log("SSG_SKIP_NATIVE_REBUILD set; skipping native rebuild");
+    return;
+  }
+  // The postinstall hook exists only for local-dev convenience. CI never runs or
+  // packages the desktop app, so don't compile native code during `bun install`.
+  if (SOFT && process.env.CI) {
+    log("CI detected; skipping postinstall native rebuild (run `bun run rebuild:native` to force)");
+    return;
+  }
+
   let version;
   try {
     version = electronVersion();
@@ -79,8 +101,8 @@ function main() {
   if (fs.existsSync(builtBinary) && fs.existsSync(sentinel)) {
     try {
       const meta = JSON.parse(fs.readFileSync(sentinel, "utf8"));
-      if (meta.electronVersion === version && meta.arch === process.arch) {
-        log(`node-pty already built for Electron ${version} (${process.arch}); skipping`);
+      if (meta.electronVersion === version && meta.arch === TARGET_ARCH) {
+        log(`node-pty already built for Electron ${version} (${TARGET_ARCH}); skipping`);
         return;
       }
     } catch {
@@ -98,11 +120,11 @@ function main() {
     );
   }
 
-  log(`rebuilding node-pty against Electron ${version} (${process.arch})…`);
+  log(`rebuilding node-pty against Electron ${version} (${TARGET_ARCH})…`);
   const opts = {
     buildPath: DESKTOP_DIR,
     electronVersion: version,
-    arch: process.arch,
+    arch: TARGET_ARCH,
     onlyModules: ["node-pty"],
     force: true,
   };
@@ -119,7 +141,7 @@ function main() {
       fs.mkdirSync(releaseDir, { recursive: true });
       fs.writeFileSync(
         sentinel,
-        JSON.stringify({ electronVersion: version, arch: process.arch }, null, 2) + "\n",
+        JSON.stringify({ electronVersion: version, arch: TARGET_ARCH }, null, 2) + "\n",
       );
       log(`done → ${path.relative(DESKTOP_DIR, builtBinary)}`);
     })

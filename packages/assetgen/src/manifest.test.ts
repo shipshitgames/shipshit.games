@@ -69,7 +69,7 @@ test("register upserts entries with license provenance", async () => {
   });
 });
 
-// Symmetric to the desktop guard in apps/desktop/electron/manifest-core.test.mjs:
+// Symmetric to the desktop guard in apps/desktop/electron/main-register.test.mjs:
 // every assetgen generator must write the manifest through the shared register(),
 // never via an inline upsert — that is the issue #17 "no generator may skip
 // register" guarantee for the assetgen side.

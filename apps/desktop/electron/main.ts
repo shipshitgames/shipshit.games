@@ -1,26 +1,31 @@
 // Ship Shit Games — Studio shell (Electron main process)
 // Loads Vite in dev / the built renderer in prod; runs @shipshitgames/assetgen on IPC
 // with live streaming, plus settings + keychain-backed key management.
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
-const path = require("node:path");
-const fs = require("node:fs");
-const { spawn, execFileSync } = require("node:child_process");
-const { readSharedGameSlugs } = require("./game-slugs.cjs");
-const { createTerminalManager, terminalShell } = require("./terminal-manager.cjs");
-const {
+import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import path from "node:path";
+import fs from "node:fs";
+import { spawn, execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { readSharedGameSlugs } from "./game-slugs.cjs";
+import { createTerminalManager, terminalShell } from "./terminal-manager.cjs";
+import {
   manifestPathForRepo,
   projectFromRepoPath,
   summarizeProject,
   uniqueProjects,
-} = require("./projects.cjs");
-const { createMoodboardStore } = require("./moodboards.cjs");
-// Single, shared manifest writer + license validator (issue #17). Reusing the
-// assetgen core keeps the desktop from drifting (it used to ship a weaker copy).
-const { register } = require("../../../packages/assetgen/src/manifest-core.cjs");
+} from "./projects.cjs";
+import { createMoodboardStore } from "./moodboards.cjs";
+// Single, shared manifest writer + license validator (issue #17). The Electron
+// main process is bundled from TypeScript (vite-plugin-electron), so it imports
+// assetgen's register() directly — no CommonJS shim, one writer for both runtimes.
+import { register } from "../../../packages/assetgen/src/manifest.ts";
 
+// node-pty is a native addon kept external from the bundle; load it through a
+// runtime require so an ABI/load failure degrades gracefully instead of crashing.
+const nodeRequire = createRequire(__filename);
 let pty = null;
 try {
-  pty = require("node-pty");
+  pty = nodeRequire("node-pty");
 } catch (error) {
   console.warn(
     "node-pty failed to load; terminal IPC will report unavailable. " +
@@ -32,7 +37,10 @@ try {
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
 const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
 
-const STUDIO_REPO = path.join(__dirname, "..", "..", "..");
+// The bundled main lives at <repo>/apps/desktop/dist-electron/main, so __dirname
+// no longer points at the package. app.getAppPath() resolves to <repo>/apps/desktop
+// in dev regardless of bundle depth; the studio repo root is two levels up.
+const STUDIO_REPO = path.resolve(app.getAppPath(), "..", "..");
 const WORKSPACE = path.join(STUDIO_REPO, "..");
 const DEADROT_GAMES_ROOT = path.join(WORKSPACE, "deadrotcom", "apps", "games");
 const LEGACY_GAMES_ROOT = path.join(WORKSPACE, "games");
@@ -40,6 +48,17 @@ const GAMES_ROOT = fs.existsSync(DEADROT_GAMES_ROOT) ? DEADROT_GAMES_ROOT : LEGA
 const ASSETGEN = path.join(STUDIO_REPO, "packages", "assetgen", "src", "cli.ts");
 const RESSOURCES = path.join(STUDIO_REPO, "packages", "ressources", "src", "cli.ts");
 const DEFAULT_GAME = "scourge-survivors";
+// The Studio shells out to `bun` against TS source in the monorepo, so it must run
+// from a checked-out repo (dev via `electron .`). If STUDIO_REPO mis-resolves — e.g.
+// a packaged .dmg, where app.getAppPath() points inside the asar — surface it once at
+// startup instead of failing silently deep inside a generate/research/terminal handler.
+if (!fs.existsSync(ASSETGEN)) {
+  console.warn(
+    `[studio] assetgen CLI not found at ${ASSETGEN} (STUDIO_REPO=${STUDIO_REPO}). ` +
+      "The Studio must run from a monorepo checkout (bun run dev), not a packaged build; " +
+      "generate/research/terminal/game-discovery will be unavailable.",
+  );
+}
 const GAME_SLUGS = readSharedGameSlugs(STUDIO_REPO);
 const gameDir = (g) => path.join(GAMES_ROOT, g === "shared" ? DEFAULT_GAME : g);
 const terminalManager = createTerminalManager({
@@ -85,7 +104,7 @@ function writeSettings(s) {
 }
 function normalizeSettings(raw) {
   const providerDefaults = { ...DEFAULT_PROVIDER_BY_KIND, ...(raw?.providerDefaults || {}) };
-  for (const [kind, provider] of Object.entries(providerDefaults)) {
+  for (const [kind, provider] of Object.entries(providerDefaults) as [string, string][]) {
     providerDefaults[kind] = PROVIDERS.has(provider) ? provider : (DEFAULT_PROVIDER_BY_KIND[kind] || "codex");
   }
   const projects = uniqueProjects(Array.isArray(raw?.projects) ? raw.projects : []);
@@ -150,7 +169,7 @@ function persistProjects(projects, activeProjectId) {
   });
 }
 
-function resolveProjectTarget(opts = {}) {
+function resolveProjectTarget(opts: any = {}) {
   const settings = readSettings();
   const projects = allProjects(settings);
   const requestedProjectId = typeof opts.projectId === "string" ? opts.projectId : "";
@@ -229,7 +248,8 @@ ipcMain.handle("terminal:write", (e, { id, data }) => terminalManager.write(e.se
 ipcMain.handle("terminal:resize", (e, { id, cols, rows }) => terminalManager.resize(e.sender, id, { cols, rows }));
 ipcMain.handle("terminal:stop", (e, id) => terminalManager.stop(e.sender, id));
 
-ipcMain.handle("moodboard:listGames", () => ALL_GAMES);
+// Same source of truth as studio:listGames so the moodboard picker shows the same games as the rest of the app.
+ipcMain.handle("moodboard:listGames", () => listProjectState().projects.map((project) => project.slug));
 ipcMain.handle("moodboard:get", (_e, game) => moodboards.readBoard(game || readSettings().defaultGame));
 ipcMain.handle("moodboard:addNote", (_e, payload = {}) => moodboards.addNote(payload.game || readSettings().defaultGame, payload.text));
 ipcMain.handle("moodboard:updateItem", (_e, payload = {}) => moodboards.updateItem(payload.game || readSettings().defaultGame, payload.item));
@@ -411,10 +431,10 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440, height: 900, minWidth: 960, minHeight: 600,
     backgroundColor: "#0a0a0a", title: "Ship Shit Games — Studio", autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true },
+    webPreferences: { preload: path.join(__dirname, "..", "preload", "index.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   if (isDev) { mainWindow.loadURL(DEV_SERVER_URL); mainWindow.webContents.openDevTools({ mode: "detach" }); }
-  else { mainWindow.loadFile(path.join(__dirname, "..", "dist", "index.html")); }
+  else { mainWindow.loadFile(path.join(__dirname, "..", "..", "dist", "index.html")); }
   mainWindow.on("closed", () => { terminalManager.disposeAll(); mainWindow = null; });
 }
 app.whenReady().then(() => {
