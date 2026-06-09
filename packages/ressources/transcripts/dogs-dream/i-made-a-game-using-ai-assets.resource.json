@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "slug": "i-made-a-game-using-ai-assets",
+  "sourceSlug": "dogs-dream",
+  "sourceKind": "youtube-video",
+  "title": "I Made a Game using AI Assets",
+  "url": "https://www.youtube.com/watch?v=DLY38_vJ0hc",
+  "capturedAt": "2026-06-09T20:32:10.700Z",
+  "transcriptPath": "transcripts/dogs-dream/i-made-a-game-using-ai-assets.transcript.md",
+  "transcriptFormat": "markdown",
+  "rights": {
+    "status": "public-captions",
+    "notes": "Public YouTube captions (yt-dlp) fetched 2026-06-09T20:32:10.700Z at user direction for internal study. 1958 words. Not redistributed."
+  },
+  "tags": [
+    "ai-assisted-development",
+    "ai-generated-assets",
+    "game-production",
+    "indie-devlog"
+  ],
+  "derivatives": {
+    "skillCandidates": [],
+    "appCandidates": [],
+    "toolCandidates": []
+  }
+}

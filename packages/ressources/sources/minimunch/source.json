@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "slug": "minimunch",
+  "kind": "youtube-channel",
+  "title": "Minimunch",
+  "url": "https://www.youtube.com/channel/UCabERhdn6eNbGYcO2g98k_w",
+  "priority": "inbox",
+  "status": "active",
+  "channelId": "UCabERhdn6eNbGYcO2g98k_w",
+  "owner": "Minimunch",
+  "topics": [
+    "ai-assisted-development",
+    "llm-codegen",
+    "model-comparison",
+    "game-production"
+  ],
+  "rights": {
+    "transcriptPolicy": "public-captions",
+    "storeRawTranscript": true,
+    "notes": "Public YouTube captions fetched at user direction for internal study. Prefer distilled rules over raw dumps in derivatives. Remove raw text if the channel objects."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill"
+  ],
+  "notes": [
+    "Added 2026-06-09 at user request from a single video; not yet vetted as a primary reference.",
+    "LLM-vs-LLM codegen experiments (e.g. ChatGPT vs Grok building Doom); useful for model-routing intuition.",
+    "Auto-generated English captions only; expect noisier transcript text."
+  ]
+}
