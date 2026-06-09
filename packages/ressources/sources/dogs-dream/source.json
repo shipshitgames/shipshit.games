@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "slug": "dogs-dream",
+  "kind": "youtube-channel",
+  "title": "Dog's Dream",
+  "url": "https://www.youtube.com/channel/UC3hB-wGiqWVd3w2R2PyTvfw",
+  "priority": "inbox",
+  "status": "active",
+  "channelId": "UC3hB-wGiqWVd3w2R2PyTvfw",
+  "owner": "Dog's Dream",
+  "topics": [
+    "ai-assisted-development",
+    "ai-generated-assets",
+    "game-production",
+    "indie-devlog"
+  ],
+  "rights": {
+    "transcriptPolicy": "public-captions",
+    "storeRawTranscript": true,
+    "notes": "Public YouTube captions fetched at user direction for internal study. Prefer distilled rules over raw dumps in derivatives. Remove raw text if the channel objects."
+  },
+  "desiredOutputs": [
+    "rule",
+    "skill"
+  ],
+  "notes": [
+    "Added 2026-06-09 at user request from a single video; not yet vetted as a primary reference.",
+    "Devlog of building a game on AI-generated assets; compare against our deadrot asset pipeline boundary.",
+    "Auto-generated English captions only; expect noisier transcript text."
+  ]
+}

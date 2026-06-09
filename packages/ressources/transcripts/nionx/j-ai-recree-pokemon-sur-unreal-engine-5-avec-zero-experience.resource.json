@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "slug": "j-ai-recree-pokemon-sur-unreal-engine-5-avec-zero-experience",
+  "sourceSlug": "nionx",
+  "sourceKind": "youtube-video",
+  "title": "J'ai recréé POKÉMON sur UNREAL ENGINE 5 (avec ZÉRO EXPERIENCE)",
+  "url": "https://www.youtube.com/watch?v=r9UTQaiXVls",
+  "capturedAt": "2026-06-09T20:33:43.053Z",
+  "transcriptPath": "transcripts/nionx/j-ai-recree-pokemon-sur-unreal-engine-5-avec-zero-experience.transcript.md",
+  "transcriptFormat": "markdown",
+  "rights": {
+    "status": "public-captions",
+    "notes": "Public YouTube captions (yt-dlp:cap.en.json3) fetched 2026-06-09T20:33:43.053Z at user direction for internal study. 3408 words. Not redistributed."
+  },
+  "tags": [
+    "ai-assisted-development",
+    "game-production",
+    "unreal-engine",
+    "3d-games",
+    "beginner-from-zero"
+  ],
+  "derivatives": {
+    "skillCandidates": [],
+    "appCandidates": [],
+    "toolCandidates": []
+  }
+}
