@@ -13,6 +13,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   codegen: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("codegen"),
   check: async () => (await import("./commands/check.ts")).runCheckCommand,
   index: async () => (await import("./commands/index-assets.ts")).runIndexCommand,
+  atlas: async () => (await import("./commands/atlas.ts")).runAtlasCommand,
 };
 
 const argv = process.argv.slice(2);
