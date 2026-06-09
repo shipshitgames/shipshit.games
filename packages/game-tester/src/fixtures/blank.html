@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>game-tester blank fixture</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #101018;
+      }
+      canvas {
+        display: block;
+        width: 480px;
+        height: 320px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Reaches the ready state but never draws: the canvas stays blank. -->
+    <canvas id="scene" width="480" height="320"></canvas>
+    <script>
+      requestAnimationFrame(() => {
+        window.__GAME_READY__ = true;
+      });
+    </script>
+  </body>
+</html>
