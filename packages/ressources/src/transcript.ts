@@ -142,10 +142,16 @@ async function viaYtDlp(videoId: string): Promise<TranscriptResult> {
   }
 
   const dir = await mkdtemp(join(tmpdir(), "ressources-yt-"));
+  // Request BOTH manual (--write-subs) and auto (--write-auto-subs) captions.
+  // Manual subs are higher quality and live on a different endpoint, so a video
+  // that has creator-uploaded EN subs still works even when the auto-caption
+  // endpoint is rate-limited (HTTP 429). yt-dlp prefers the manual track when
+  // both exist, which also bumps transcript quality on translated videos.
   await pexec(
     bin,
     [
       "--skip-download",
+      "--write-subs",
       "--write-auto-subs",
       "--sub-langs",
       "en-orig,en,en.*",
