@@ -54,6 +54,7 @@ export function Signup({
             src={`${SUBSTACK_URL}/embed`}
             className="h-80 w-full border-0 bg-bone"
             loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
           />
         </div>
         <div className="mt-3 flex flex-wrap gap-3">
@@ -103,6 +104,7 @@ export function Signup({
         name="email"
         required
         autoComplete="email"
+        aria-label="Email address"
         placeholder="you@example.com"
         className="flex-1 rounded-md border border-gunmetal bg-coal px-4 py-3 text-bone placeholder:text-ash/60 focus:border-hellfire focus:outline-none"
       />

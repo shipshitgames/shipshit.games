@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SignInButton } from "@clerk/nextjs";
 import { ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import { formatUsd, STUDIO_PASS } from "@shipshitgames/shared";
+
+export const metadata: Metadata = {
+  title: "Studio Pass Portal",
+  description:
+    "app.shipshit.games manages the monthly Studio Pass: Skills Pro, signed access links, member assets, billing, and member community access.",
+};
 
 export default function HomePage() {
   return (
@@ -28,7 +35,10 @@ export default function HomePage() {
               <ArrowRight aria-hidden="true" />
             </Link>
             <SignInButton mode="modal">
-              <button className="rounded-md border border-gunmetal px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire">
+              <button
+                type="button"
+                className="rounded-md border border-gunmetal px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
+              >
                 Sign in
               </button>
             </SignInButton>

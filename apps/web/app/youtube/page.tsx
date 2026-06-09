@@ -102,6 +102,7 @@ export default function YoutubePage() {
                       className="h-full w-full"
                       src={`https://www.youtube.com/embed/${video.videoId}`}
                       title={video.title}
+                      sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       referrerPolicy="strict-origin-when-cross-origin"
                       allowFullScreen

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight, BadgeCheck, Boxes, WandSparkles } from "lucide-react";
 
 import { Backdrop } from "@/components/site/atmosphere";
@@ -124,10 +125,10 @@ export default function AssetsPage() {
               </p>
               <div className="mt-9 flex flex-wrap gap-3">
                 <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-                  <a href="/pricing">
+                  <Link href="/pricing">
                     Get Skills Pro
                     <ArrowRight aria-hidden="true" />
-                  </a>
+                  </Link>
                 </Button>
                 <Button
                   asChild
