@@ -12,7 +12,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   promote: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("promote"),
   codegen: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("codegen"),
   check: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("check"),
-  index: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("index"),
+  index: async () => (await import("./commands/index-assets.ts")).runIndexCommand,
 };
 
 const argv = process.argv.slice(2);
