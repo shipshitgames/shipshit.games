@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
@@ -43,10 +44,12 @@ export function SiteHeader() {
           className="flex items-center"
           aria-label="Ship Shit Games home"
         >
-          <img
+          <Image
             src="/brand/shipshit-games-logo-transparent.png"
             alt=""
             aria-hidden="true"
+            width={44}
+            height={44}
             className="h-11 w-11 object-contain drop-shadow-[0_0_12px_rgba(193,18,31,0.28)]"
           />
         </Link>
@@ -64,6 +67,7 @@ export function SiteHeader() {
         </nav>
 
         <button
+          type="button"
           onClick={() => setOpen((o) => !o)}
           className="text-bone md:hidden"
           aria-label="Toggle menu"

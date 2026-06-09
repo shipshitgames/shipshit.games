@@ -1,4 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
+import type { Metadata } from "next";
 import { KeyRound, Lock, Users } from "lucide-react";
 
 import { StatusPill } from "@/components/status-pill";
@@ -7,9 +8,14 @@ import { hasActiveStudioPass, primaryEmail, readStudioPass } from "@/lib/entitle
 
 export const dynamic = "force-dynamic";
 
+export const metadata: Metadata = {
+  title: "Signed access",
+  description:
+    "Claim your Studio Pass deliverables: signed Skills Pro access, member community, and the asset library.",
+};
+
 export default async function AccessPage() {
-  const { userId } = await auth();
-  const user = await currentUser();
+  const [{ userId }, user] = await Promise.all([auth(), currentUser()]);
   const email = primaryEmail(user);
   const pass = readStudioPass(user?.privateMetadata);
   const active = hasActiveStudioPass(user?.privateMetadata);
@@ -68,6 +74,7 @@ export default async function AccessPage() {
             </p>
             <form action="/api/fulfillment/skool" method="post" className="mt-6">
               <button
+                type="button"
                 disabled
                 className="rounded-md border border-gunmetal px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:pointer-events-none disabled:opacity-50"
               >

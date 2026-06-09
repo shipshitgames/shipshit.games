@@ -53,7 +53,7 @@ const STATUS_ORDER: Record<GameStatus, number> = {
   concept: 4,
 };
 
-const games = [...GAMES].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+const games = GAMES.toSorted((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 
 function StatusBadge({ status }: { status: GameStatus }) {
   return (

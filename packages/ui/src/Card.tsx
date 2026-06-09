@@ -33,8 +33,12 @@ export function Card({ asChild = false, className, children, ...props }: CardPro
   );
 }
 
-export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("ssg-section-heading", className)} {...props} />;
+export function CardTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+  return (
+    <h3 className={cn("ssg-section-heading", className)} {...props}>
+      {children}
+    </h3>
+  );
 }
 
 export function CardBody({ className, ...props }: CardProps) {
