@@ -36,6 +36,7 @@ Run:
   --frames <n>          evenly-spaced screenshots during the observe window (default 0)
   --viewport <WxH>      default 1280x720
   --nav-timeout <ms>    navigation timeout (default 30000)
+  --click-timeout <ms>  timeout for click steps (default 5000)
   --headed              run a headed browser (default headless)
 
 Output:
@@ -47,18 +48,37 @@ Output:
 
 Exit code is 0 when the run passes, 1 when it fails.`;
 
-interface RawArgs {
+export interface RawArgs {
   values: Map<string, string>;
   flags: Set<string>;
   /** Ordered inline input actions (--press / --hold / --shot). */
   inlineSteps: InputStep[];
 }
 
-function parseArgs(argv: string[]): RawArgs {
+const BOOLEAN_FLAGS = new Set(["headed", "no-check-blank", "json", "help", "h"]);
+const VALUE_KEYS = new Set([
+  "url",
+  "ready",
+  "ready-timeout",
+  "canvas",
+  "script",
+  "observe",
+  "frames",
+  "out",
+  "blank-fill",
+  "blank-colors",
+  "viewport",
+  "nav-timeout",
+  "click-timeout",
+  "report-json",
+  "report-md",
+]);
+
+export function parseArgs(argv: string[]): RawArgs {
   const values = new Map<string, string>();
   const flags = new Set<string>();
   const inlineSteps: InputStep[] = [];
-  const booleanFlags = new Set(["headed", "no-check-blank", "json", "help", "h"]);
+  const booleanFlags = BOOLEAN_FLAGS;
 
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i];
@@ -92,6 +112,7 @@ function parseArgs(argv: string[]): RawArgs {
         inlineSteps.push({ type: "screenshot", name: sanitizeName(value) });
         break;
       default:
+        if (!VALUE_KEYS.has(key)) throw new Error(`unknown option --${key}`);
         values.set(key, value);
     }
   }
@@ -99,7 +120,7 @@ function parseArgs(argv: string[]): RawArgs {
   return { values, flags, inlineSteps };
 }
 
-function parseReadySpec(spec: string, canvasSelector: string): ReadyMode {
+export function parseReadySpec(spec: string, canvasSelector: string): ReadyMode {
   if (spec === "canvas") return { kind: "canvas", selector: canvasSelector };
   const idx = spec.indexOf(":");
   if (idx > 0) {
@@ -113,13 +134,13 @@ function parseReadySpec(spec: string, canvasSelector: string): ReadyMode {
   throw new Error(`invalid --ready "${spec}" (expected canvas | selector:<css> | expr:<js> | flag:<path>)`);
 }
 
-function parseViewport(spec: string): { width: number; height: number } {
+export function parseViewport(spec: string): { width: number; height: number } {
   const match = /^(\d+)x(\d+)$/.exec(spec.trim());
   if (!match) throw new Error(`invalid --viewport "${spec}" (expected WxH, e.g. 1280x720)`);
   return { width: Number(match[1]), height: Number(match[2]) };
 }
 
-function numberOption(values: Map<string, string>, key: string, fallback: number): number {
+export function numberOption(values: Map<string, string>, key: string, fallback: number): number {
   const raw = values.get(key);
   if (raw === undefined) return fallback;
   const n = Number(raw);
@@ -133,7 +154,7 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-async function buildOptions(args: RawArgs): Promise<TesterOptions> {
+export async function buildOptions(args: RawArgs): Promise<TesterOptions> {
   const { values, flags, inlineSteps } = args;
   const url = values.get("url");
   if (!url) throw new Error("missing required --url");
@@ -172,6 +193,7 @@ async function buildOptions(args: RawArgs): Promise<TesterOptions> {
     },
     viewport: values.has("viewport") ? parseViewport(values.get("viewport")!) : { width: 1280, height: 720 },
     navTimeoutMs: numberOption(values, "nav-timeout", 30000),
+    clickTimeoutMs: numberOption(values, "click-timeout", 5000),
     headed: flags.has("headed"),
     reportJsonPath: values.get("report-json") ?? join(outDir, "report.json"),
     reportMarkdownPath: values.get("report-md") ?? join(outDir, "report.md"),
@@ -210,4 +232,6 @@ async function main(): Promise<void> {
   process.exit(report.pass ? 0 : 1);
 }
 
-await main();
+if (import.meta.main) {
+  await main();
+}

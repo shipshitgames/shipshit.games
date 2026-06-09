@@ -4,9 +4,15 @@
   "private": true,
   "type": "module",
   "description": "Generic Playwright browser-QA harness for canvas/WebGL games: wait for ready, drive input, screenshot, detect blank renders, emit an agent-readable report.",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
   "bin": { "game-tester": "./src/cli.ts" },
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   },
   "scripts": {
     "test": "bun test",

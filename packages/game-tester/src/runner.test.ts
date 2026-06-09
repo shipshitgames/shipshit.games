@@ -49,6 +49,7 @@ function baseOptions(url: string, outDir: string, overrides: Partial<TesterOptio
     blank: { fillRatio: 0.005, uniqueColors: 2 },
     viewport: { width: 480, height: 320 },
     navTimeoutMs: 10000,
+    clickTimeoutMs: 5000,
     headed: false,
     reportJsonPath: join(outDir, "report.json"),
     reportMarkdownPath: join(outDir, "report.md"),

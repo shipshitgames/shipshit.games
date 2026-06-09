@@ -23,8 +23,6 @@ import type {
 
 /** Edge length the canvas is downscaled to before pixel analysis. */
 const SAMPLE_SIZE = 48;
-/** Timeout for `click` steps that target a selector. */
-const CLICK_TIMEOUT_MS = 5000;
 
 interface CanvasSample {
   found: boolean;
@@ -88,6 +86,7 @@ async function runStep(
   page: Page,
   step: InputStep,
   shoot: (name: string) => Promise<void>,
+  clickTimeoutMs: number,
 ): Promise<void> {
   switch (step.type) {
     case "wait":
@@ -111,7 +110,7 @@ async function runStep(
       await page.mouse.click(step.x, step.y);
       return;
     case "click":
-      await page.click(step.selector, { timeout: CLICK_TIMEOUT_MS });
+      await page.click(step.selector, { timeout: clickTimeoutMs });
       return;
     case "screenshot":
       await shoot(step.name);
@@ -186,17 +185,24 @@ export async function runGameTest(opts: TesterOptions): Promise<GameTestReport> 
   const steps: StepResult[] = [];
   const screenshots: ScreenshotResult[] = [];
 
-  await mkdir(opts.outDir, { recursive: true });
-
   let browser: Browser | undefined;
   let page: Page | undefined;
   let ready: ReadyResult = { ok: false, mode: describeReadyMode(opts.ready), waitedMs: 0 };
   let canvas: CanvasResult = { found: false, selector: opts.canvasSelector, width: 0, height: 0 };
 
   const elapsed = (): number => Date.now() - startedAtMs;
+  // Track emitted names so distinct steps whose names sanitize to the same
+  // string don't silently overwrite each other's screenshot file.
+  const usedNames = new Set<string>();
   const shoot = async (rawName: string): Promise<void> => {
     if (!page) return;
-    const name = sanitizeName(rawName);
+    let name = sanitizeName(rawName);
+    if (usedNames.has(name)) {
+      let n = 2;
+      while (usedNames.has(`${name}-${n}`)) n++;
+      name = `${name}-${n}`;
+    }
+    usedNames.add(name);
     const path = join(opts.outDir, `${name}.png`);
     try {
       await page.screenshot({ path });
@@ -207,6 +213,7 @@ export async function runGameTest(opts: TesterOptions): Promise<GameTestReport> 
   };
 
   try {
+    await mkdir(opts.outDir, { recursive: true });
     browser = await chromium.launch({ headless: !opts.headed });
     const context = await browser.newContext({ viewport: opts.viewport });
     page = await context.newPage();
@@ -234,7 +241,7 @@ export async function runGameTest(opts: TesterOptions): Promise<GameTestReport> 
       const step = opts.script.steps[i];
       if (!step) continue;
       try {
-        await runStep(page, step, shoot);
+        await runStep(page, step, shoot, opts.clickTimeoutMs);
         steps.push({ index: i, step, ok: true });
       } catch (error) {
         steps.push({ index: i, step, ok: false, error: (error as Error).message });
@@ -312,6 +319,10 @@ export async function runGameTest(opts: TesterOptions): Promise<GameTestReport> 
     failures,
   };
 
-  await writeReports(report, opts);
+  try {
+    await writeReports(report, opts);
+  } catch (error) {
+    report.pageErrors.push(`writing report failed: ${(error as Error).message}`);
+  }
   return report;
 }

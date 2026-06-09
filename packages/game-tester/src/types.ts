@@ -59,6 +59,8 @@ export interface TesterOptions {
   blank: BlankThresholds;
   viewport: Viewport;
   navTimeoutMs: number;
+  /** Timeout (ms) for `click` steps that target a selector. */
+  clickTimeoutMs: number;
   /** Run a headed browser (default headless). */
   headed: boolean;
   /** When set, write the JSON report here (defaults to <outDir>/report.json). */
