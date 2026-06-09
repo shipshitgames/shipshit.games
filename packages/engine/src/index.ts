@@ -82,6 +82,7 @@ export {
 // --- embodied-base: camera rig (seam: CameraRig — the spine) ---
 export {
   firstPersonPointerLock,
+  thirdPersonFollow,
   type CameraRig,
   type CameraRigPreset,
   type RigCaptureEvent,
@@ -95,8 +96,16 @@ export {
   clearMoveIntent,
   applyMoveKey,
   actionFor,
+  isJumpKey,
+  DEFAULT_MOVE_KEYS,
+  DEFAULT_MOVEMENT_CONFIG,
   type MoveIntent,
   type ActionMap,
+  type ActionId,
+  type CaptureRig,
+  type InputActionHandler,
+  type MovementConfig,
+  type MovementKeyMap,
 } from './input/bindings'
 
 // --- embodied-base: agents (seam: kinematic Agent + pluggable SteeringStrategy) ---

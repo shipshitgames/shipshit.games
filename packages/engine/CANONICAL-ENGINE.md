@@ -37,7 +37,7 @@ Use this default dependency shape in Deadrot game packages:
 ```json
 {
   "dependencies": {
-    "@shipshitgames/engine": "^0.1.1",
+    "@shipshitgames/engine": "^0.2.0",
     "three": "^0.184.0"
   }
 }
@@ -70,6 +70,23 @@ game checks, then discard the link state.
 As of 2026-06-09, `shipshitgames/deadrot.com@develop` still contains
 `packages/engine`. Treat that package as a temporary compatibility copy, not as
 a source of truth.
+
+### Reconciliation status — 2026-06-09
+
+The Deadrot fork's camera + input extraction (issues #87/#88) has now been
+**upstreamed into this canonical package and released as `0.2.0`**:
+`thirdPersonFollow` + the full `ThirdPersonRig`, the generic
+`InputSystem<A extends ActionId>`, `CaptureRig`, `MovementConfig` /
+`DEFAULT_MOVE_KEYS` / `DEFAULT_MOVEMENT_CONFIG` / `isJumpKey` / `ActionId` /
+`InputActionHandler`, the `requestCapture(): void | Promise<void>` widening, and
+the pointer-lock / raycast hardening. The fork's other files (`spawn`, `bounds`,
+`steering`, `Agent`, `index` ordering) were style-only and were dropped in favor
+of this repo's versions.
+
+The Deadrot fork therefore no longer holds unique engine work. The Deadrot
+cleanup PR should now switch `scourge-survivors` / `deadlane` / `warline` to
+`"@shipshitgames/engine": "^0.2.0"` and retire `packages/engine` (shim first,
+then delete).
 
 The same remote inspection found `apps/games/deadlane`,
 `apps/games/warline`, and `apps/games/scourge-survivors` still using

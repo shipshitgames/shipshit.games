@@ -1,6 +1,6 @@
 {
   "name": "@shipshitgames/engine",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Ship Shit Games' open-source embodied 3D game engine — the Game/Context/Systems spine, swappable camera rig, embodied movement + collision + world bounds, the agent/steering + spawn + wave-director seams, the generic HUD snapshot shell, input bindings, and replicated presence. One MIT npm package serving every studio title.",
   "license": "MIT",
   "type": "module",
