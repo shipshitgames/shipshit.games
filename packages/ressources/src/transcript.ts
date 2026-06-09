@@ -1,6 +1,8 @@
-// Pull a YouTube transcript with zero native deps: scrape the watch page for the
-// player response, find an English caption track, fetch json3 timed text, and
-// flatten it to plain prose. Uses yt-dlp first when available.
+// Pull a YouTube transcript. yt-dlp is the primary (and now effectively
+// required) path: it fetches manual + auto English captions as json3 and we
+// flatten them to prose. The legacy dependency-free watch-page scrape stays as
+// a last-ditch fallback, but YouTube now returns an EMPTY timedtext body
+// without a player-generated `pot` token, so it rarely works — install yt-dlp.
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, readdir } from "node:fs/promises";

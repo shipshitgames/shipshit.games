@@ -59,6 +59,23 @@ raw copyrighted captions unless they are user-provided, permissioned, or clearly
 allowed for this repo. Prefer distilled rules and original implementation notes
 for reusable skills/apps/tools.
 
+## Fetching transcripts (yt-dlp required)
+
+YouTube no longer serves caption text to the old dependency-free watch-page
+scrape — the `timedtext` `baseUrl` now returns an empty body without a
+player-generated `pot` token. **Install `yt-dlp`** for any network capture:
+
+```bash
+brew install yt-dlp   # or: pipx install yt-dlp
+```
+
+`fetchTranscript` requests both **manual** (`--write-subs`) and **auto**
+(`--write-auto-subs`) English captions and prefers the manual track — higher
+quality, and it sidesteps the auto-caption endpoint's HTTP 429 rate limiting.
+Point `RESSOURCES_YT_DLP` at a custom binary if it is not on `PATH`. The only
+true no-network path is `distill --transcript-file <path>` with text you already
+have.
+
 ## Commands
 
 ```bash
