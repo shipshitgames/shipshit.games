@@ -2,9 +2,12 @@ import Link from "next/link";
 
 const LINKS: { label: string; href: string; ext?: boolean }[] = [
   { label: "Games", href: "/games" },
+  { label: "Factions", href: "/factions" },
+  { label: "Build Log", href: "/log" },
   { label: "Pricing", href: "/pricing" },
   { label: "Assets", href: "/assets" },
   { label: "YouTube", href: "/youtube" },
+  { label: "Newsletter", href: "/#newsletter" },
   { label: "Docs ↗", href: "https://docs.shipshit.games", ext: true },
   { label: "Legal", href: "/legal" },
   { label: "Play (DEADROT) ↗", href: "https://deadrot.com", ext: true },

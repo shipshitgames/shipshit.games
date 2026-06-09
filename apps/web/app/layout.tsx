@@ -16,12 +16,19 @@ const oswald = Oswald({
   variable: "--font-oswald",
 });
 
+import { Analytics } from "@vercel/analytics/next";
+
 import { SiteHeader } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
 import { Grain } from "@/components/site/atmosphere";
+import { CommandPalette } from "@/components/site/command-palette";
+import { Konami } from "@/components/site/konami";
+import { jsonLdString, organizationJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://shipshit.games"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://shipshit.games"
+  ),
   title: {
     default: "Ship Shit Games — building games with AI, in public",
     template: "%s — Ship Shit Games",
@@ -77,10 +84,20 @@ export default function RootLayout({
       }
     >
       <body className="min-h-screen bg-void font-body text-ash antialiased">
+        <script
+          type="application/ld+json"
+          // JSON-LD is sanitized by jsonLdString (escapes "<").
+          dangerouslySetInnerHTML={{
+            __html: jsonLdString(organizationJsonLd()),
+          }}
+        />
         <Grain />
         <SiteHeader />
         {children}
         <SiteFooter />
+        <CommandPalette />
+        <Konami />
+        {process.env.VERCEL ? <Analytics /> : null}
       </body>
     </html>
   );
