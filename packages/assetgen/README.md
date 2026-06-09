@@ -142,6 +142,33 @@ non-zero if any is stale — drop it into CI or a pre-commit hook.
 bun packages/assetgen/src/cli.ts check
 ```
 
+## `atlas` — texture atlas packing (issue #92)
+
+`assetgen atlas` packs a game's individual sprite frames into one or more
+**texture atlas pages** + a deterministic JSON frame map. Each frame gets an
+**edge-extruded gutter** (its border pixels copied outward, not transparent) so
+bilinear filtering never samples a neighbouring frame — no runtime atlas bleed.
+Frames that overflow a page wrap onto additional pages (WebP caps at 16383px;
+default page cap 4096).
+
+```bash
+# Pack a game's sprites -> scourge-survivors.atlas<n>.webp + scourge-survivors.atlas.json
+bun packages/assetgen/src/cli.ts atlas --game scourge-survivors
+
+# Tune gutter / page size / output dir:
+bun packages/assetgen/src/cli.ts atlas --game pactfall --padding 4 --max-width 2048 --out-dir ./out
+
+# CI / pre-commit: fail if the committed atlas map is stale
+bun packages/assetgen/src/cli.ts atlas --game scourge-survivors --check
+```
+
+Flags: `--game <slug>`, `--padding <px>` (default 2), `--max-width` / `--max-height`
+(default 4096), `--out-dir`, `--name`, `--assets-dir`, `--check`.
+
+The map records each frame's `page`, `x`, `y`, `w`, `h`, `id`, and `game`, plus a
+`pages` list with each page image's filename and dimensions — feed it to a
+runtime loader / `codegen` (#22) for type-safe sprite lookups.
+
 ## `codegen` — typed per-game asset bindings (issue #22)
 
 `assetgen codegen --game <slug>` turns the asset index (+ optional
