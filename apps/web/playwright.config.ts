@@ -12,6 +12,8 @@ const baseURL = `http://localhost:${PORT}`;
 
 const ciEnv = {
   NEXT_TELEMETRY_DISABLED: "1",
+  // All content fetchers (github/youtube) serve committed snapshots — zero network in e2e.
+  CONTENT_SNAPSHOT_ONLY: "1",
   NEXT_PUBLIC_SITE_URL: baseURL,
   NEXT_PUBLIC_APP_URL: "http://localhost:3002",
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ci_placeholder",
