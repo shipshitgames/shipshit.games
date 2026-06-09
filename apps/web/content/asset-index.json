@@ -1,0 +1,1482 @@
+[
+  {
+    "id": "cover:deadlane",
+    "kind": "cover",
+    "name": "Deadlane cover",
+    "faction": "the-wardens",
+    "game": "deadlane",
+    "publicPath": "/images/games/deadlane.webp",
+    "dimensions": [
+      1200,
+      630
+    ],
+    "provenance": null
+  },
+  {
+    "id": "cover:pactfall",
+    "kind": "cover",
+    "name": "Pactfall cover",
+    "faction": null,
+    "game": "pactfall",
+    "publicPath": "/images/games/pactfall.webp",
+    "dimensions": [
+      1200,
+      630
+    ],
+    "provenance": null
+  },
+  {
+    "id": "cover:redline",
+    "kind": "cover",
+    "name": "Redline cover",
+    "faction": null,
+    "game": "redline",
+    "publicPath": "/images/games/redline.webp",
+    "dimensions": [
+      1200,
+      630
+    ],
+    "provenance": null
+  },
+  {
+    "id": "cover:rothulk",
+    "kind": "cover",
+    "name": "Rothulk cover",
+    "faction": "the-pyre",
+    "game": "rothulk",
+    "publicPath": "/images/games/rothulk.webp",
+    "dimensions": [
+      1200,
+      630
+    ],
+    "provenance": null
+  },
+  {
+    "id": "cover:scourge-survivors",
+    "kind": "cover",
+    "name": "Scourge Survivors cover",
+    "faction": "the-pyre",
+    "game": "scourge-survivors",
+    "publicPath": "/images/games/scourge-survivors.webp",
+    "dimensions": [
+      1200,
+      630
+    ],
+    "provenance": null
+  },
+  {
+    "id": "cover:starblight",
+    "kind": "cover",
+    "name": "Starblight cover",
+    "faction": null,
+    "game": "starblight",
+    "publicPath": "/images/games/starblight.webp",
+    "dimensions": [
+      1200,
+      630
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:boss",
+    "kind": "runtime-sprite",
+    "name": "Breach-Boss",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/boss.webp",
+    "dimensions": [
+      128,
+      180
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:boss-back",
+    "kind": "runtime-sprite",
+    "name": "Boss Back",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/boss-back.webp",
+    "dimensions": [
+      128,
+      180
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:boss-side",
+    "kind": "runtime-sprite",
+    "name": "Boss Side",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/boss-side.webp",
+    "dimensions": [
+      128,
+      180
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:enemy-melee",
+    "kind": "runtime-sprite",
+    "name": "Swarm Ripper",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/enemy-melee.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:enemy-melee-back",
+    "kind": "runtime-sprite",
+    "name": "Enemy Melee Back",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/enemy-melee-back.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:enemy-melee-side",
+    "kind": "runtime-sprite",
+    "name": "Enemy Melee Side",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/enemy-melee-side.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:enemy-ranged",
+    "kind": "runtime-sprite",
+    "name": "Swarm Spitter",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/enemy-ranged.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:enemy-ranged-back",
+    "kind": "runtime-sprite",
+    "name": "Enemy Ranged Back",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/enemy-ranged-back.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:enemy-ranged-side",
+    "kind": "runtime-sprite",
+    "name": "Enemy Ranged Side",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/enemy-ranged-side.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:pickup-ammo",
+    "kind": "runtime-sprite",
+    "name": "Pickup Ammo",
+    "faction": null,
+    "game": null,
+    "publicPath": "/sprites/deadrot/pickup-ammo.webp",
+    "dimensions": [
+      323,
+      384
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:pickup-damage",
+    "kind": "runtime-sprite",
+    "name": "Pickup Damage",
+    "faction": null,
+    "game": null,
+    "publicPath": "/sprites/deadrot/pickup-damage.webp",
+    "dimensions": [
+      295,
+      384
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:pickup-health",
+    "kind": "runtime-sprite",
+    "name": "Pickup Health",
+    "faction": null,
+    "game": null,
+    "publicPath": "/sprites/deadrot/pickup-health.webp",
+    "dimensions": [
+      342,
+      384
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-heavy-back",
+    "kind": "runtime-sprite",
+    "name": "Player Heavy Back",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-heavy-back.webp",
+    "dimensions": [
+      435,
+      704
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-heavy-front",
+    "kind": "runtime-sprite",
+    "name": "Bulwark",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-heavy-front.webp",
+    "dimensions": [
+      422,
+      704
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-heavy-side",
+    "kind": "runtime-sprite",
+    "name": "Player Heavy Side",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-heavy-side.webp",
+    "dimensions": [
+      542,
+      704
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-medic-back",
+    "kind": "runtime-sprite",
+    "name": "Player Medic Back",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-medic-back.webp",
+    "dimensions": [
+      354,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-medic-front",
+    "kind": "runtime-sprite",
+    "name": "Patch",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-medic-front.webp",
+    "dimensions": [
+      281,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-medic-side",
+    "kind": "runtime-sprite",
+    "name": "Player Medic Side",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-medic-side.webp",
+    "dimensions": [
+      471,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-ranger-back",
+    "kind": "runtime-sprite",
+    "name": "Player Ranger Back",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-ranger-back.webp",
+    "dimensions": [
+      339,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-ranger-front",
+    "kind": "runtime-sprite",
+    "name": "Ranger",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-ranger-front.webp",
+    "dimensions": [
+      329,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-ranger-side",
+    "kind": "runtime-sprite",
+    "name": "Player Ranger Side",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-ranger-side.webp",
+    "dimensions": [
+      420,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-scout-back",
+    "kind": "runtime-sprite",
+    "name": "Player Scout Back",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-scout-back.webp",
+    "dimensions": [
+      309,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-scout-front",
+    "kind": "runtime-sprite",
+    "name": "Vector",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-scout-front.webp",
+    "dimensions": [
+      281,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:player-scout-side",
+    "kind": "runtime-sprite",
+    "name": "Player Scout Side",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/player-scout-side.webp",
+    "dimensions": [
+      511,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-field-engineer",
+    "kind": "portrait",
+    "name": "Field Engineer",
+    "faction": "the-wardens",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-field-engineer.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-graft-breacher",
+    "kind": "portrait",
+    "name": "Graft-Breacher",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-graft-breacher.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-lane-gunner",
+    "kind": "portrait",
+    "name": "Lane Gunner",
+    "faction": "the-wardens",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-lane-gunner.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-orbital-breach-carrier",
+    "kind": "portrait",
+    "name": "Orbital Breach Carrier",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-orbital-breach-carrier.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-pyre-cauterizer",
+    "kind": "portrait",
+    "name": "Pyre Cauterizer",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-pyre-cauterizer.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-pyre-courier",
+    "kind": "portrait",
+    "name": "Pyre Courier",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-pyre-courier.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-pyre-duelist",
+    "kind": "portrait",
+    "name": "Pyre Duelist",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-pyre-duelist.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-pyre-interceptor-pilot",
+    "kind": "portrait",
+    "name": "Pyre Interceptor Pilot",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-pyre-interceptor-pilot.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-pyre-saboteur",
+    "kind": "portrait",
+    "name": "Pyre Saboteur",
+    "faction": "the-pyre",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-pyre-saboteur.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-render",
+    "kind": "portrait",
+    "name": "Render",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-render.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-rot-engine",
+    "kind": "portrait",
+    "name": "Rot-Engine",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-rot-engine.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-scourge",
+    "kind": "portrait",
+    "name": "The Scourge",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-scourge.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-scourge-fighter",
+    "kind": "portrait",
+    "name": "Scourge Fighter",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-scourge-fighter.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-scourge-host-families",
+    "kind": "portrait",
+    "name": "Scourge Host Families",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-scourge-host-families.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-trucebreaker",
+    "kind": "portrait",
+    "name": "Trucebreaker",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-trucebreaker.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-wallwright",
+    "kind": "portrait",
+    "name": "Wallwright",
+    "faction": "the-wardens",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-wallwright.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-warden-artillerist",
+    "kind": "portrait",
+    "name": "Warden Artillerist",
+    "faction": "the-wardens",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-warden-artillerist.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-warden-bastion",
+    "kind": "portrait",
+    "name": "Warden Bastion",
+    "faction": "the-wardens",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-warden-bastion.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-warden-courier",
+    "kind": "portrait",
+    "name": "Warden Courier",
+    "faction": "the-wardens",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-warden-courier.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:portrait-warden-defense-pilot",
+    "kind": "portrait",
+    "name": "Warden Defense Pilot",
+    "faction": "the-wardens",
+    "game": null,
+    "publicPath": "/sprites/deadrot/portrait-warden-defense-pilot.webp",
+    "dimensions": [
+      768,
+      768
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:projectile-boss",
+    "kind": "runtime-sprite",
+    "name": "Projectile Boss",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/projectile-boss.webp",
+    "dimensions": [
+      288,
+      242
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:projectile-enemy",
+    "kind": "runtime-sprite",
+    "name": "Projectile Enemy",
+    "faction": "scourge",
+    "game": null,
+    "publicPath": "/sprites/deadrot/projectile-enemy.webp",
+    "dimensions": [
+      253,
+      256
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:weapon-cannon",
+    "kind": "runtime-sprite",
+    "name": "Weapon Cannon",
+    "faction": null,
+    "game": null,
+    "publicPath": "/sprites/deadrot/weapon-cannon.webp",
+    "dimensions": [
+      640,
+      592
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:weapon-rifle",
+    "kind": "runtime-sprite",
+    "name": "Weapon Rifle",
+    "faction": null,
+    "game": null,
+    "publicPath": "/sprites/deadrot/weapon-rifle.webp",
+    "dimensions": [
+      551,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:weapon-shotgun",
+    "kind": "runtime-sprite",
+    "name": "Weapon Shotgun",
+    "faction": null,
+    "game": null,
+    "publicPath": "/sprites/deadrot/weapon-shotgun.webp",
+    "dimensions": [
+      604,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "deadrot:weapon-smg",
+    "kind": "runtime-sprite",
+    "name": "Weapon Smg",
+    "faction": null,
+    "game": null,
+    "publicPath": "/sprites/deadrot/weapon-smg.webp",
+    "dimensions": [
+      429,
+      640
+    ],
+    "provenance": null
+  },
+  {
+    "id": "entity:breach-boss:deadlane",
+    "kind": "entity-variant",
+    "name": "Breach-Boss",
+    "faction": "scourge",
+    "game": "deadlane",
+    "publicPath": "/sprites/entities/breach-boss/deadlane.webp",
+    "dimensions": [
+      128,
+      180
+    ],
+    "provenance": null,
+    "canon": "Monstrous Scourge expression grown around a breach heart, wielding melee pressure and ranged barrages behind a shield-organ ring.",
+    "promptBase": "Scourge breach-boss with huge non-human war body, toxic-green chest core, shield-organ ring, fused rusted metal and wet chitin, massive arms, projectile vents.",
+    "hostFamily": "bone-titan"
+  },
+  {
+    "id": "entity:breach-boss:pactfall",
+    "kind": "entity-variant",
+    "name": "Breach-Boss",
+    "faction": "scourge",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/breach-boss/pactfall.webp",
+    "dimensions": [
+      128,
+      180
+    ],
+    "provenance": null,
+    "canon": "Monstrous Scourge expression grown around a breach heart, wielding melee pressure and ranged barrages behind a shield-organ ring.",
+    "promptBase": "Scourge breach-boss with huge non-human war body, toxic-green chest core, shield-organ ring, fused rusted metal and wet chitin, massive arms, projectile vents.",
+    "hostFamily": "bone-titan"
+  },
+  {
+    "id": "entity:breach-boss:scourge-survivors",
+    "kind": "entity-variant",
+    "name": "Breach-Boss",
+    "faction": "scourge",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/entities/breach-boss/scourge-survivors.webp",
+    "dimensions": [
+      128,
+      180
+    ],
+    "provenance": null,
+    "canon": "Monstrous Scourge expression grown around a breach heart, wielding melee pressure and ranged barrages behind a shield-organ ring.",
+    "promptBase": "Scourge breach-boss with huge non-human war body, toxic-green chest core, shield-organ ring, fused rusted metal and wet chitin, massive arms, projectile vents.",
+    "hostFamily": "bone-titan"
+  },
+  {
+    "id": "entity:graft-breacher:deadlane",
+    "kind": "entity-variant",
+    "name": "Graft-Breacher",
+    "faction": "scourge",
+    "game": "deadlane",
+    "publicPath": "/sprites/entities/graft-breacher/deadlane.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Machine-Graft siege elite that walks up and shears through fortifications with a massive demolition claw and tendril-burst secondary attack.",
+    "promptBase": "Scourge elite industrial walker frame overtaken by parasite, black chitin threading through riveted metal joints, one massive demolition-claw fused with bone-sinew, toxic-green breach cores at former control panels, asymmetric tendril mass opposite.",
+    "hostFamily": "machine-graft"
+  },
+  {
+    "id": "entity:graft-breacher:scourge-survivors",
+    "kind": "entity-variant",
+    "name": "Graft-Breacher",
+    "faction": "scourge",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/entities/graft-breacher/scourge-survivors.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Machine-Graft siege elite that walks up and shears through fortifications with a massive demolition claw and tendril-burst secondary attack.",
+    "promptBase": "Scourge elite industrial walker frame overtaken by parasite, black chitin threading through riveted metal joints, one massive demolition-claw fused with bone-sinew, toxic-green breach cores at former control panels, asymmetric tendril mass opposite.",
+    "hostFamily": "machine-graft"
+  },
+  {
+    "id": "entity:orbital-breach-carrier:starblight",
+    "kind": "entity-variant",
+    "name": "Orbital-Breach-Carrier",
+    "faction": "scourge",
+    "game": "starblight",
+    "publicPath": "/sprites/entities/orbital-breach-carrier/starblight.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Starblight orbital boss: a living carrier-ship grown around a breach heart, releasing spore mines and fighter waves while shielding its core.",
+    "promptBase": "Scourge orbital carrier boss with infected wreckage grown around toxic-green breach heart, chitin plating over rusted ship ribs, spore vents, raw tissue in broken engines, arcade boss silhouette.",
+    "hostFamily": "voidship"
+  },
+  {
+    "id": "entity:pyre-bulwark:pactfall",
+    "kind": "entity-variant",
+    "name": "Bulwark",
+    "faction": "pyre",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/pyre-bulwark/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Heavy Pyre Purger built to stand in breach pressure longer than anyone, running heavy cannon or shotgun.",
+    "promptBase": "Pyre heavy Purger, broad slab armor, rotary shotgun or cannon, furnace vents, scorched gunmetal, cracked bone plates, hellfire light",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:pyre-bulwark:scourge-survivors",
+    "kind": "entity-variant",
+    "name": "Bulwark",
+    "faction": "pyre",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/entities/pyre-bulwark/scourge-survivors.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Heavy Pyre Purger built to stand in breach pressure longer than anyone, running heavy cannon or shotgun.",
+    "promptBase": "Pyre heavy Purger, broad slab armor, rotary shotgun or cannon, furnace vents, scorched gunmetal, cracked bone plates, hellfire light",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:pyre-cauterizer:pactfall",
+    "kind": "entity-variant",
+    "name": "Pyre Cauterizer",
+    "faction": "pyre",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/pyre-cauterizer/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Pyre arena controller treating every problem as fuel for incineration, running heat tanks and short-range burner weaponry.",
+    "promptBase": "Pyre Cauterizer, sealed furnace mask, heat tanks and hoses, short-range burner, scorched plates, hellfire heat lines, blood and rust",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:pyre-duelist:pactfall",
+    "kind": "entity-variant",
+    "name": "Pyre Duelist",
+    "faction": "pyre",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/pyre-duelist/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Arena-tuned Pyre fighter built for sanctioned violence where the Pact is tested but not broken, driving aggressive melee pressure.",
+    "promptBase": "Pyre arena duelist, light scorched armor, ember blade or carbide weapon, aggressive triangular silhouette, blood and rust, hellfire, sanctioned arena gear",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:pyre-interceptor-pilot:starblight",
+    "kind": "entity-variant",
+    "name": "Pyre Interceptor Pilot",
+    "faction": "pyre",
+    "game": "starblight",
+    "publicPath": "/sprites/entities/pyre-interceptor-pilot/starblight.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Pyre pilot burning Scourge breach matter out of orbit before it can fall into the lanes, flying fast interceptors with burn weapons.",
+    "promptBase": "Pyre interceptor pilot, sealed scorched flight armor, furnace visor, compact life-support rig, blood-hot warning lamps, hellfire weapons, triangular silhouette",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:pyre-patch:pactfall",
+    "kind": "entity-variant",
+    "name": "Patch",
+    "faction": "pyre",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/pyre-patch/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Pyre support operator cauterizing field damage faster than breach pressure can inflict it, using injector tubes and heat-seal tools.",
+    "promptBase": "Pyre support Purger, scorched cauterizer medic rig, injector tubes, bone plates, furnace visor, ember medical heat glow, grimy industrial",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:pyre-patch:scourge-survivors",
+    "kind": "entity-variant",
+    "name": "Patch",
+    "faction": "pyre",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/entities/pyre-patch/scourge-survivors.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Pyre support operator cauterizing field damage faster than breach pressure can inflict it, using injector tubes and heat-seal tools.",
+    "promptBase": "Pyre support Purger, scorched cauterizer medic rig, injector tubes, bone plates, furnace visor, ember medical heat glow, grimy industrial",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:pyre-ranger:pactfall",
+    "kind": "entity-variant",
+    "name": "Ranger",
+    "faction": "pyre",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/pyre-ranger/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Baseline Pyre Purger operating rifle-first at medium armor and balanced speed for breach descent.",
+    "promptBase": "Pyre human Purger, medium armor, rifle, scorched gunmetal, bone ceramic, furnace visor, hellfire orange heat lines, high contrast gunmetal and blood",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:pyre-ranger:scourge-survivors",
+    "kind": "entity-variant",
+    "name": "Ranger",
+    "faction": "pyre",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/entities/pyre-ranger/scourge-survivors.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Baseline Pyre Purger operating rifle-first at medium armor and balanced speed for breach descent.",
+    "promptBase": "Pyre human Purger, medium armor, rifle, scorched gunmetal, bone ceramic, furnace visor, hellfire orange heat lines, high contrast gunmetal and blood",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:pyre-vector:pactfall",
+    "kind": "entity-variant",
+    "name": "Vector",
+    "faction": "pyre",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/pyre-vector/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Fast Pyre scout breaching to mark infiltration points and kiting swarms with sensor rig and grapnel.",
+    "promptBase": "Pyre scout Purger, slim fast armor, compact SMG, breach-marker sensors, scorched black suit, ember visor, blood and rust",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:pyre-vector:scourge-survivors",
+    "kind": "entity-variant",
+    "name": "Vector",
+    "faction": "pyre",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/entities/pyre-vector/scourge-survivors.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Fast Pyre scout breaching to mark infiltration points and kiting swarms with sensor rig and grapnel.",
+    "promptBase": "Pyre scout Purger, slim fast armor, compact SMG, breach-marker sensors, scorched black suit, ember visor, blood and rust",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:rot-engine:deadlane",
+    "kind": "entity-variant",
+    "name": "Rot-Engine",
+    "faction": "scourge",
+    "game": "deadlane",
+    "publicPath": "/sprites/entities/rot-engine/deadlane.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Machine-Graft ranged siege elite that dissolves fortifications from standoff with a sustained bile-lance, planted and unhittable until the sac is destroyed.",
+    "promptBase": "Scourge elite siege unit with rusted industrial machine chassis infested by parasite, black chitin over burst metal hull, toxic-green bile sac swollen inside engine cavity, organic tendrils pulsing through joints, hollow breached cockpit.",
+    "hostFamily": "machine-graft"
+  },
+  {
+    "id": "entity:rot-engine:scourge-survivors",
+    "kind": "entity-variant",
+    "name": "Rot-Engine",
+    "faction": "scourge",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/entities/rot-engine/scourge-survivors.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Machine-Graft ranged siege elite that dissolves fortifications from standoff with a sustained bile-lance, planted and unhittable until the sac is destroyed.",
+    "promptBase": "Scourge elite siege unit with rusted industrial machine chassis infested by parasite, black chitin over burst metal hull, toxic-green bile sac swollen inside engine cavity, organic tendrils pulsing through joints, hollow breached cockpit.",
+    "hostFamily": "machine-graft"
+  },
+  {
+    "id": "entity:scourge-elite:deadlane",
+    "kind": "entity-variant",
+    "name": "Render",
+    "faction": "scourge",
+    "game": "deadlane",
+    "publicPath": "/sprites/entities/scourge-elite/deadlane.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Chitin Warhost melee charger that charges in straight lines with armor-piercing carapace, enraging at half health with exposed toxic-green breach nodes.",
+    "promptBase": "Scourge elite charger with cracked alien carapace, hunched low-profile silhouette, blade-claw forelimbs, toxic-green parasite nodes at seams, enrage variant shows blood-hot exposed tissue.",
+    "hostFamily": "chitin"
+  },
+  {
+    "id": "entity:scourge-elite:pactfall",
+    "kind": "entity-variant",
+    "name": "Render",
+    "faction": "scourge",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/scourge-elite/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Chitin Warhost melee charger that charges in straight lines with armor-piercing carapace, enraging at half health with exposed toxic-green breach nodes.",
+    "promptBase": "Scourge elite charger with cracked alien carapace, hunched low-profile silhouette, blade-claw forelimbs, toxic-green parasite nodes at seams, enrage variant shows blood-hot exposed tissue.",
+    "hostFamily": "chitin"
+  },
+  {
+    "id": "entity:scourge-elite:scourge-survivors",
+    "kind": "entity-variant",
+    "name": "Render",
+    "faction": "scourge",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/entities/scourge-elite/scourge-survivors.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Chitin Warhost melee charger that charges in straight lines with armor-piercing carapace, enraging at half health with exposed toxic-green breach nodes.",
+    "promptBase": "Scourge elite charger with cracked alien carapace, hunched low-profile silhouette, blade-claw forelimbs, toxic-green parasite nodes at seams, enrage variant shows blood-hot exposed tissue.",
+    "hostFamily": "chitin"
+  },
+  {
+    "id": "entity:scourge-fighter:starblight",
+    "kind": "entity-variant",
+    "name": "Scourge Fighter",
+    "faction": "scourge",
+    "game": "starblight",
+    "publicPath": "/sprites/entities/scourge-fighter/starblight.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Small infected attack craft that flies in arcade formations and mutates pattern behavior as the Starblight run escalates.",
+    "promptBase": "Scourge infected small attack craft with rusted hull fused with black chitin and raw tissue, toxic-green parasite core, arcade-readable silhouette, dark parasitic growth.",
+    "hostFamily": "voidship"
+  },
+  {
+    "id": "entity:scourge-spitter:deadlane",
+    "kind": "entity-variant",
+    "name": "Swarm Spitter",
+    "faction": "scourge",
+    "game": "deadlane",
+    "publicPath": "/sprites/entities/scourge-spitter/deadlane.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Ranged Scourge form that turns infection into projectile pressure via distended toxic sacs or fused arm-lances.",
+    "promptBase": "Scourge ranged creature with thin predatory silhouette, distended toxic-green firing sac or bio-industrial arm lance, black chitin, raw sinew, rusted tech fragments embedded in flesh.",
+    "hostFamily": "mycelial"
+  },
+  {
+    "id": "entity:scourge-spitter:scourge-survivors",
+    "kind": "entity-variant",
+    "name": "Swarm Spitter",
+    "faction": "scourge",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/entities/scourge-spitter/scourge-survivors.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Ranged Scourge form that turns infection into projectile pressure via distended toxic sacs or fused arm-lances.",
+    "promptBase": "Scourge ranged creature with thin predatory silhouette, distended toxic-green firing sac or bio-industrial arm lance, black chitin, raw sinew, rusted tech fragments embedded in flesh.",
+    "hostFamily": "mycelial"
+  },
+  {
+    "id": "entity:scourge-swarm:deadlane",
+    "kind": "entity-variant",
+    "name": "Swarm Ripper",
+    "faction": "scourge",
+    "game": "deadlane",
+    "publicPath": "/sprites/entities/scourge-swarm/deadlane.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": null,
+    "canon": "Fast melee Scourge fodder that floods lanes and breach rooms through numbers and claws.",
+    "promptBase": "Scourge melee swarm creature with hunched parasite frame, black chitin over raw muscle, blade-like forearms, toxic-green breach cores, wet gore and exposed sinew.",
+    "hostFamily": "rot-flesh"
+  },
+  {
+    "id": "entity:scourge-swarm:pactfall",
+    "kind": "entity-variant",
+    "name": "Swarm Ripper",
+    "faction": "scourge",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/scourge-swarm/pactfall.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": null,
+    "canon": "Fast melee Scourge fodder that floods lanes and breach rooms through numbers and claws.",
+    "promptBase": "Scourge melee swarm creature with hunched parasite frame, black chitin over raw muscle, blade-like forearms, toxic-green breach cores, wet gore and exposed sinew.",
+    "hostFamily": "rot-flesh"
+  },
+  {
+    "id": "entity:scourge-swarm:scourge-survivors",
+    "kind": "entity-variant",
+    "name": "Swarm Ripper",
+    "faction": "scourge",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/entities/scourge-swarm/scourge-survivors.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": null,
+    "canon": "Fast melee Scourge fodder that floods lanes and breach rooms through numbers and claws.",
+    "promptBase": "Scourge melee swarm creature with hunched parasite frame, black chitin over raw muscle, blade-like forearms, toxic-green breach cores, wet gore and exposed sinew.",
+    "hostFamily": "rot-flesh"
+  },
+  {
+    "id": "entity:trucebreaker:pactfall",
+    "kind": "entity-variant",
+    "name": "Trucebreaker",
+    "faction": "scourge",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/trucebreaker/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Neutral Scourge arena threat in Pactfall that pressures both Pyre and Wardens equally from broken arena wreckage.",
+    "promptBase": "Neutral Scourge arena boss with parasite mass grown over broken arena metal, toxic-green core, chitin and raw tissue, objective monster silhouette readable from top-down view.",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:warden-artillerist:pactfall",
+    "kind": "entity-variant",
+    "name": "Warden Artillerist",
+    "faction": "wardens",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/warden-artillerist/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Warden ranged hero who brings siege mathematics into sanctioned arena combat with controlled firepower and calculated strikes.",
+    "promptBase": "Warden Artillerist, shoulder targeting rig, compact artillery launcher, braced stance, gunmetal armor, industrial yellow, ember rangefinder lamps, gritty arena war gear",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:warden-bastion:pactfall",
+    "kind": "entity-variant",
+    "name": "Warden Bastion",
+    "faction": "wardens",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/warden-bastion/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Warden arena defender who turns a duel into a fortified position, projecting shields inside sanctioned blood-arenas.",
+    "promptBase": "Warden Bastion, shield projector, square heavy silhouette, gunmetal slab armor, industrial yellow, ember barrier hardware, gritty blood-arena defender",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:warden-defense-pilot:starblight",
+    "kind": "entity-variant",
+    "name": "Warden Defense Pilot",
+    "faction": "wardens",
+    "game": "starblight",
+    "publicPath": "/sprites/entities/warden-defense-pilot/starblight.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Warden pilot protecting orbital infrastructure and shielding the lanes below from Scourge breach incursions and infected craft.",
+    "promptBase": "Warden defense pilot, reinforced flight suit, shield-control harness, gunmetal plating, industrial yellow, ember shield hardware, practical orbital defender",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:warden-field-engineer:deadlane",
+    "kind": "entity-variant",
+    "name": "Field Engineer",
+    "faction": "wardens",
+    "game": "deadlane",
+    "publicPath": "/sprites/entities/warden-field-engineer/deadlane.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Warden builder who turns broken ground into defendable lanes, deploying tower-control rigs and repair harnesses under fire.",
+    "promptBase": "Warden field engineer, practical armored technician, square modular plates, tool harness, tower-control rig, gunmetal, industrial yellow, bone stencils, ember hardware",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:warden-field-engineer:pactfall",
+    "kind": "entity-variant",
+    "name": "Field Engineer",
+    "faction": "wardens",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/warden-field-engineer/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Warden builder who turns broken ground into defendable lanes, deploying tower-control rigs and repair harnesses under fire.",
+    "promptBase": "Warden field engineer, practical armored technician, square modular plates, tool harness, tower-control rig, gunmetal, industrial yellow, bone stencils, ember hardware",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:warden-lane-gunner:deadlane",
+    "kind": "entity-variant",
+    "name": "Lane Gunner",
+    "faction": "wardens",
+    "game": "deadlane",
+    "publicPath": "/sprites/entities/warden-lane-gunner/deadlane.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Warden heavy gunner who wins by staying planted while the Scourge breaks itself against attrition firepower and reinforced stance.",
+    "promptBase": "Warden lane gunner, heavy stabilized weapon, ammo feed pack, planted stance, gunmetal armor, hazard yellow, ember targeting lamps, square modular silhouette",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:warden-lane-gunner:pactfall",
+    "kind": "entity-variant",
+    "name": "Lane Gunner",
+    "faction": "wardens",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/warden-lane-gunner/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Warden heavy gunner who wins by staying planted while the Scourge breaks itself against attrition firepower and reinforced stance.",
+    "promptBase": "Warden lane gunner, heavy stabilized weapon, ammo feed pack, planted stance, gunmetal armor, hazard yellow, ember targeting lamps, square modular silhouette",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:warden-wallwright:deadlane",
+    "kind": "entity-variant",
+    "name": "Wallwright",
+    "faction": "wardens",
+    "game": "deadlane",
+    "publicPath": "/sprites/entities/warden-wallwright/deadlane.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Warden specialist who builds the last wall before a lane becomes a grave, deploying shield emitters and barricade anchors.",
+    "promptBase": "Warden Wallwright, shield emitter backpack, deployable barricade anchors, slab armor, gunmetal, worn steel, hazard stripes, ember field nodes, gritty industrial",
+    "hostFamily": null
+  },
+  {
+    "id": "entity:warden-wallwright:pactfall",
+    "kind": "entity-variant",
+    "name": "Wallwright",
+    "faction": "wardens",
+    "game": "pactfall",
+    "publicPath": "/sprites/entities/warden-wallwright/pactfall.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "provenance": null,
+    "canon": "Warden specialist who builds the last wall before a lane becomes a grave, deploying shield emitters and barricade anchors.",
+    "promptBase": "Warden Wallwright, shield emitter backpack, deployable barricade anchors, slab armor, gunmetal, worn steel, hazard stripes, ember field nodes, gritty industrial",
+    "hostFamily": null
+  },
+  {
+    "id": "runtime:scourge-survivors:boss",
+    "kind": "runtime-sprite",
+    "name": "Boss",
+    "faction": "scourge",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/games/scourge-survivors/boss.webp",
+    "dimensions": [
+      128,
+      180
+    ],
+    "provenance": {
+      "tool": "gpt-image-2",
+      "date": "2026-06-05",
+      "kind": "AI generated 2D Scourge boss sprite sheet",
+      "scope": "Scourge Survivors runtime"
+    }
+  },
+  {
+    "id": "runtime:scourge-survivors:enemy-flying",
+    "kind": "runtime-sprite",
+    "name": "Enemy Flying",
+    "faction": "scourge",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/games/scourge-survivors/enemy-flying.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": {
+      "tool": "gpt-image-2",
+      "date": "2026-06-05",
+      "kind": "AI generated 2D flying Scourge sprite sheet, purple wing readability lane",
+      "scope": "Scourge Survivors runtime"
+    }
+  },
+  {
+    "id": "runtime:scourge-survivors:enemy-melee",
+    "kind": "runtime-sprite",
+    "name": "Enemy Melee",
+    "faction": "scourge",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/games/scourge-survivors/enemy-melee.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": {
+      "tool": "gpt-image-2",
+      "date": "2026-06-05",
+      "kind": "AI generated 2D Scourge melee host sprite sheet with body-grown bone sword blades",
+      "scope": "Scourge Survivors runtime"
+    }
+  },
+  {
+    "id": "runtime:scourge-survivors:enemy-ranged",
+    "kind": "runtime-sprite",
+    "name": "Enemy Ranged",
+    "faction": "scourge",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/games/scourge-survivors/enemy-ranged.webp",
+    "dimensions": [
+      128,
+      128
+    ],
+    "provenance": {
+      "tool": "gpt-image-2",
+      "date": "2026-06-05",
+      "kind": "AI generated 2D Scourge ranged spitter sprite sheet, chartreuse acid readability lane",
+      "scope": "Scourge Survivors runtime"
+    }
+  },
+  {
+    "id": "runtime:scourge-survivors:player-heavy",
+    "kind": "runtime-sprite",
+    "name": "Player Heavy",
+    "faction": "pyre",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/games/scourge-survivors/player-heavy.webp",
+    "dimensions": [
+      422,
+      704
+    ],
+    "provenance": {
+      "tool": "legacy repository asset",
+      "date": "2026-06-02",
+      "kind": "generated 2D player sprite",
+      "scope": "project prototype"
+    }
+  },
+  {
+    "id": "runtime:scourge-survivors:player-medic",
+    "kind": "runtime-sprite",
+    "name": "Player Medic",
+    "faction": "pyre",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/games/scourge-survivors/player-medic.webp",
+    "dimensions": [
+      281,
+      640
+    ],
+    "provenance": {
+      "tool": "legacy repository asset",
+      "date": "2026-06-02",
+      "kind": "generated 2D player sprite",
+      "scope": "project prototype"
+    }
+  },
+  {
+    "id": "runtime:scourge-survivors:player-ranger",
+    "kind": "runtime-sprite",
+    "name": "Player Ranger",
+    "faction": "pyre",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/games/scourge-survivors/player-ranger.webp",
+    "dimensions": [
+      329,
+      640
+    ],
+    "provenance": {
+      "tool": "legacy repository asset",
+      "date": "2026-06-02",
+      "kind": "generated 2D player sprite",
+      "scope": "project prototype"
+    }
+  },
+  {
+    "id": "runtime:scourge-survivors:player-scout",
+    "kind": "runtime-sprite",
+    "name": "Player Scout",
+    "faction": "pyre",
+    "game": "scourge-survivors",
+    "publicPath": "/sprites/games/scourge-survivors/player-scout.webp",
+    "dimensions": [
+      281,
+      640
+    ],
+    "provenance": {
+      "tool": "legacy repository asset",
+      "date": "2026-06-02",
+      "kind": "generated 2D player sprite",
+      "scope": "project prototype"
+    }
+  }
+]

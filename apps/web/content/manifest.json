@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-06-09T22:56:14.882Z",
+  "counts": {
+    "games": 7,
+    "factions": 3,
+    "characters": 16,
+    "bestiary": 11,
+    "assets": 102,
+    "sprites": 96
+  },
+  "spriteBytes": 4376602,
+  "spriteBudgetBytes": 15728640
+}
