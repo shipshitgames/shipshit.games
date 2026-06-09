@@ -134,6 +134,14 @@ animation clip's name, duration, and channel count. Entries carry `game`,
 **Agents:** treat `assets.index.json` as the source of truth for which assets
 exist per game, their sizes, and which read as blank — don't re-scan the tree.
 
+`assetgen check` is the asset-integrity gate: it rebuilds and verifies every
+committed `assets.index*.json` (the full index and any per-game ones) and exits
+non-zero if any is stale — drop it into CI or a pre-commit hook.
+
+```bash
+bun packages/assetgen/src/cli.ts check
+```
+
 ## Design tokens
 
 `assetgen tokens` compiles the reviewed `DESIGN.md` frontmatter into generated
