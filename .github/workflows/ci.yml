@@ -20,6 +20,8 @@ permissions:
 env:
   NEXT_TELEMETRY_DISABLED: "1"
   TURBO_TELEMETRY_DISABLED: "1"
+  # Content fetchers (lib/github, lib/youtube) serve committed snapshots in CI.
+  CONTENT_SNAPSHOT_ONLY: "1"
   ACCESS_SIGNING_SECRET: ci-access-signing-secret
   CLERK_SECRET_KEY: ci-clerk-secret-key
   NEXT_PUBLIC_APP_URL: http://localhost:3002
@@ -79,6 +81,48 @@ jobs:
 
       - name: Build
         run: bun run build
+
+  web-e2e:
+    name: Website E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Cache Bun and Turbo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            .turbo
+          key: ${{ runner.os }}-bun-turbo-${{ hashFiles('bun.lock', 'turbo.json', '**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-turbo-
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+        working-directory: apps/web
+
+      # playwright.config.ts builds and serves the app itself (webServer),
+      # with CONTENT_SNAPSHOT_ONLY so no spec ever touches the network.
+      - name: Run Website E2E
+        run: bun run e2e
+        working-directory: apps/web
 
   desktop-terminal:
     name: Desktop Terminal (node-pty)

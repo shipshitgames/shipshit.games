@@ -7,6 +7,7 @@ import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { Eyebrow } from "@/components/site/eyebrow";
 import { Button } from "@/components/ui/button";
 import { accentStyle } from "@/components/games/accent";
+import { PlayBuildLink } from "@/components/games/play-build-link";
 import { StatusBadge } from "@/components/games/status-badge";
 import type { GameLore } from "@/lib/content/types";
 
@@ -76,10 +77,10 @@ export function GameHero({ game, lore }: { game: Game; lore: GameLore | null }) 
             <div className="mt-9 flex flex-wrap gap-3">
               {game.demoUrl ? (
                 <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-                  <a href={game.demoUrl} target="_blank" rel="noreferrer">
+                  <PlayBuildLink href={game.demoUrl} game={game.slug}>
                     <Gamepad2 aria-hidden="true" />
                     Play build
-                  </a>
+                  </PlayBuildLink>
                 </Button>
               ) : null}
               <Button

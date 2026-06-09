@@ -5,6 +5,7 @@ import { ArrowRight, Code2, Gamepad2 } from "lucide-react";
 import type { GameStatus } from "@shipshitgames/shared";
 
 import { Button } from "@/components/ui/button";
+import { PlayBuildLink } from "@/components/games/play-build-link";
 import { StatusBadge } from "@/components/games/status-badge";
 import type { AccentToken } from "@/lib/content/types";
 
@@ -66,10 +67,10 @@ function CardActions({ game }: { game: GalleryGame }) {
       </Button>
       {game.demoUrl ? (
         <Button asChild size="sm" variant="outline" className="font-display uppercase tracking-widest">
-          <a href={game.demoUrl} target="_blank" rel="noreferrer">
+          <PlayBuildLink href={game.demoUrl} game={game.slug}>
             <Gamepad2 aria-hidden="true" />
             Play
-          </a>
+          </PlayBuildLink>
         </Button>
       ) : null}
       <Button asChild size="sm" variant="outline" className="font-display uppercase tracking-widest">
