@@ -142,6 +142,31 @@ non-zero if any is stale — drop it into CI or a pre-commit hook.
 bun packages/assetgen/src/cli.ts check
 ```
 
+## `codegen` — typed per-game asset bindings (issue #22)
+
+`assetgen codegen --game <slug>` turns the asset index (+ optional
+`<game>.atlas.json`) into one generated TypeScript module the game imports:
+
+- **Typed manifest** — `ASSETS` (id → path/width/height/frames) + an `AssetId`
+  union, so asset references are typo-proof and autocomplete.
+- **Atlas table** — `ATLAS` (pages + per-frame `page/x/y/w/h`) when an atlas map
+  exists alongside.
+- **Animation bindings** — `ANIMATIONS` (frame size/count/fps/loop) from
+  sprite-sheet metadata (run `index --frame-size` to populate frame grids).
+- **Thin loader** — `loadAssets(base)` preloads every asset by id. Framework-
+  agnostic: plain data + DOM `Image`, no engine import.
+
+```bash
+# Writes ../deadrotcom/apps/games/<game>/src/assets.generated.ts by default:
+bun packages/assetgen/src/cli.ts codegen --game scourge-survivors
+bun packages/assetgen/src/cli.ts codegen --game pactfall --out ./assets.generated.ts
+bun packages/assetgen/src/cli.ts codegen --game scourge-survivors --check   # CI gate
+```
+
+Flags: `--game <slug>` (required), `--out <path>`, `--atlas <path>`,
+`--frame-size <WxH>`, `--assets-dir`, `--check`. Colliding ids (e.g. `x.png` +
+`x.webp`) keep their extension so no asset is dropped.
+
 ## Design tokens
 
 `assetgen tokens` compiles the reviewed `DESIGN.md` frontmatter into generated
