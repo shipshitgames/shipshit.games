@@ -11,7 +11,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   pixelize: async () => (await import("./commands/pixelize.ts")).runPixelizeCommand,
   promote: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("promote"),
   codegen: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("codegen"),
-  check: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("check"),
+  check: async () => (await import("./commands/check.ts")).runCheckCommand,
   index: async () => (await import("./commands/index-assets.ts")).runIndexCommand,
 };
 
