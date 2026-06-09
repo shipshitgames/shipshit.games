@@ -100,6 +100,40 @@ Flags: `--provider` (default `mock` — safe to batch), `--game`, `--id`,
 `--only-missing` (skip cells already rendered on disk), `--size`, `--dry-run`
 (force mock), `--sync-games`, `--assets-dir`, `--init-catalog`.
 
+## `index` — asset indexer (issue #101)
+
+`assetgen index` scans an asset package and writes a deterministic, reviewable
+`assets.index.json` — the canonical map of what art exists. Every asset is
+tagged with its **game**, so you can index everything at once or one game at a
+time.
+
+```bash
+# Index the whole Deadrot asset package (default --assets-dir):
+bun packages/assetgen/src/cli.ts index
+
+# One game only -> writes assets.index.<game>.json:
+bun packages/assetgen/src/cli.ts index --game scourge-survivors
+
+# Treat images as fixed-size sprite sheets (records frame grid + blank frames):
+bun packages/assetgen/src/cli.ts index --frame-size 64x64
+
+# Fail (exit 1) if the on-disk index is stale — for CI / pre-commit:
+bun packages/assetgen/src/cli.ts index --check
+```
+
+Flags: `--assets-dir` (default `../deadrotcom/packages/assets`), `--game <slug>`,
+`--frame-size <WxH>`, `--out <path>`, `--check`.
+
+Each entry records, for **2D images**: dimensions, format, alpha, byte size,
+`blank` (uniform/transparent), and — with `--frame-size` — sprite-sheet
+`frames`/`cols`/`rows` plus the indices of blank frames. For **3D models**
+(`.glb`/`.gltf`): mesh/material/texture/skin counts, total joints, and each
+animation clip's name, duration, and channel count. Entries carry `game`,
+`group`, `id`, and `inCatalog`, and the file opens with a per-game rollup.
+
+**Agents:** treat `assets.index.json` as the source of truth for which assets
+exist per game, their sizes, and which read as blank — don't re-scan the tree.
+
 ## Design tokens
 
 `assetgen tokens` compiles the reviewed `DESIGN.md` frontmatter into generated
