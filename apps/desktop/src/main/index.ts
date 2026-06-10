@@ -16,10 +16,15 @@ import {
 } from "./projects";
 import { createMoodboardStore } from "./moodboards";
 import { createGallery } from "./gallery";
+import { DEFAULT_GAME, DEFAULTS, normalizeSettings } from "./settings";
+import { buildGenerateArgs } from "./generate-args";
 // Single, shared manifest writer + license validator (issue #17). The Electron
 // main process is bundled from TypeScript (vite-plugin-electron), so it imports
 // assetgen's register() directly — no CommonJS shim, one writer for both runtimes.
 import { register } from "../../../../packages/assetgen/src/manifest.ts";
+// fal model catalog for the renderer's model picker (studio:models). fal.ts is
+// bundle-safe for the main process — no sharp/node-pty imports (see its header).
+import { FAL_MODELS } from "../../../../packages/assetgen/src/fal.ts";
 
 // node-pty is a native addon kept external from the bundle; load it through a
 // runtime require so an ABI/load failure degrades gracefully instead of crashing.
@@ -48,7 +53,6 @@ const LEGACY_GAMES_ROOT = path.join(WORKSPACE, "games");
 const GAMES_ROOT = fs.existsSync(DEADROT_GAMES_ROOT) ? DEADROT_GAMES_ROOT : LEGACY_GAMES_ROOT;
 const ASSETGEN = path.join(STUDIO_REPO, "packages", "assetgen", "src", "cli.ts");
 const RESSOURCES = path.join(STUDIO_REPO, "packages", "ressources", "src", "cli.ts");
-const DEFAULT_GAME = "scourge-survivors";
 // The Studio shells out to `bun` against TS source in the monorepo, so it must run
 // from a checked-out repo (dev via `electron .`). If STUDIO_REPO mis-resolves — e.g.
 // a packaged .dmg, where app.getAppPath() points inside the asar — surface it once at
@@ -85,26 +89,9 @@ const gallery = createGallery({
 });
 
 // ---- settings (non-secret) ----
+// Defaults + normalization live in ./settings (pure, bun-testable); this block
+// only owns the settings.json file I/O.
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
-const PROVIDERS = new Set(["codex", "openai", "fal", "replicate", "suno", "mock"]);
-const DEFAULT_PROVIDER_BY_KIND = {
-  sprite: "codex",
-  texture: "openai",
-  icon: "openai",
-  map: "codex",
-  music: "suno",
-  sfx: "suno",
-  voice: "suno",
-  model: "replicate",
-  "3d": "replicate",
-};
-const DEFAULTS = {
-  defaultProvider: "codex",
-  defaultGame: DEFAULT_GAME,
-  providerDefaults: DEFAULT_PROVIDER_BY_KIND,
-  activeProjectId: "",
-  projects: [],
-};
 function readSettings() {
   try { return normalizeSettings({ ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsPath(), "utf8")) }); }
   catch { return { ...DEFAULTS }; }
@@ -115,21 +102,6 @@ function writeSettings(s) {
   fs.writeFileSync(settingsPath(), JSON.stringify(s, null, 2));
   return s;
 }
-function normalizeSettings(raw) {
-  const providerDefaults = { ...DEFAULT_PROVIDER_BY_KIND, ...(raw?.providerDefaults || {}) };
-  for (const [kind, provider] of Object.entries(providerDefaults) as [string, string][]) {
-    providerDefaults[kind] = PROVIDERS.has(provider) ? provider : (DEFAULT_PROVIDER_BY_KIND[kind] || "codex");
-  }
-  const projects = uniqueProjects(Array.isArray(raw?.projects) ? raw.projects : []);
-  const activeProjectId = typeof raw?.activeProjectId === "string" ? raw.activeProjectId : "";
-  return {
-    defaultProvider: PROVIDERS.has(raw?.defaultProvider) ? raw.defaultProvider : "codex",
-    defaultGame: typeof raw?.defaultGame === "string" ? raw.defaultGame : DEFAULT_GAME,
-    providerDefaults,
-    activeProjectId,
-    projects,
-  };
-}
 function mergeSettings(partial) {
   const current = readSettings();
   return writeSettings({
@@ -139,11 +111,10 @@ function mergeSettings(partial) {
       ...current.providerDefaults,
       ...(partial?.providerDefaults || {}),
     },
+    // Replaced wholesale, not deep-merged: the renderer sends the full map, and
+    // merging would make removing a kind's model override impossible.
+    falModelDefaults: partial?.falModelDefaults || current.falModelDefaults,
   });
-}
-function providerForKind(settings, kind, explicit) {
-  if (explicit && PROVIDERS.has(explicit)) return explicit;
-  return settings.providerDefaults?.[kind] || settings.defaultProvider || DEFAULT_PROVIDER_BY_KIND[kind] || "codex";
 }
 
 // ---- local game projects ----
@@ -225,6 +196,8 @@ ipcMain.handle("settings:get", () => readSettings());
 ipcMain.handle("settings:set", (_e, partial) => mergeSettings(partial));
 ipcMain.handle("keys:status", () => keyStatus());
 ipcMain.handle("keys:set", (_e, { provider, key }) => { const s = KEY_SERVICES[provider]; if (s && key) setKey(s, key); return keyStatus(); });
+// Model catalogs for the renderer's per-kind pickers — single source: assetgen.
+ipcMain.handle("studio:models", () => ({ fal: FAL_MODELS }));
 ipcMain.handle("studio:listGames", () => listProjectState().projects.map((project) => project.slug));
 ipcMain.handle("projects:list", () => listProjectState());
 ipcMain.handle("projects:add", async () => {
@@ -371,20 +344,9 @@ ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
 ipcMain.handle("studio:generate", async (e, opts) => {
   const settings = readSettings();
   const target = resolveProjectTarget(opts);
-  const game = target.slug || opts?.game || settings.defaultGame;
-  const kind = opts?.kind || "sprite";
-  const provider = providerForKind(settings, kind, opts?.provider);
-  const repo = target.repoPath;
-  const args = [ASSETGEN, "--provider", provider, "--game", game, "--kind", kind, "--id", opts?.id || "asset", "--prompt", opts?.prompt || "", "--repo", repo];
-  if (opts?.views) args.push("--views", String(opts.views));
-  if (opts?.frames) args.push("--frames", String(opts.frames));
-  if (opts?.fps) args.push("--fps", String(opts.fps));
-  if (opts?.anchor) args.push("--anchor", String(opts.anchor));
-  if (opts?.scale) args.push("--scale", String(opts.scale));
-  if (opts?.license) args.push("--license", String(opts.license));
-  if (opts?.licenseUrl) args.push("--license-url", String(opts.licenseUrl));
+  const { args, provider, game, kind, repo, model } = buildGenerateArgs({ assetgenPath: ASSETGEN, settings, opts, target });
   const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:gen-log", chunk); };
-  send(`$ assetgen --provider ${provider} --game ${game} --kind ${kind} --id ${opts?.id}\n`);
+  send(`$ assetgen --provider ${provider} --game ${game} --kind ${kind} --id ${opts?.id}${model ? ` --model ${model}` : ""}\n`);
   send(`[repo] ${repo}\n`);
   send(`[manifest] ${target.manifestPath}\n`);
   return await new Promise((resolve) => {

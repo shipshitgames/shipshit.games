@@ -3,7 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { runCodexCli } from "./codex.ts";
+import { DEFAULT_FAL_MODEL, FAL_KEY_CONFIG, FAL_MODELS, generateFalAsset } from "./fal.ts";
+import type { FalModel } from "./fal.ts";
 import { getKey } from "./keys.ts";
+import { downloadGeneratedAsset, outputUrl } from "./media.ts";
+import type { GeneratedAsset } from "./media.ts";
+
+export type { GeneratedAsset } from "./media.ts";
+export { extensionForMediaType } from "./media.ts";
 
 export type ProviderId = "codex" | "openai" | "fal" | "replicate" | "suno" | "mock";
 export type AssetKind = "sprite" | "texture" | "icon" | "map" | "music" | "sfx" | "voice" | "model" | "3d" | string;
@@ -24,18 +31,12 @@ export interface ProviderKeyConfig {
   label: string;
 }
 
-export interface GeneratedAsset {
-  data: Buffer;
-  mediaType: string;
-  extension: string;
-  model?: string;
-}
-
 export interface AssetProvider {
   id: ProviderId;
   label: string;
   supports: readonly string[];
   defaultModel?: string;
+  models?: readonly FalModel[];
   key?: ProviderKeyConfig;
   generate(kind: AssetKind, prompt: string, opts: ProviderOptions): Promise<GeneratedAsset>;
 }
@@ -95,23 +96,6 @@ async function generateOpenAi(prompt: string, opts: ProviderOptions): Promise<Ge
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
   const json: any = await res.json();
   return imageAsset(Buffer.from(json.data[0].b64_json, "base64"), model);
-}
-
-/** fal.ai (FLUX) — key via env or keychain. */
-async function generateFal(prompt: string, _opts: ProviderOptions): Promise<GeneratedAsset> {
-  const provider = assetProviders.fal;
-  const key = providerKey(provider);
-  if (!key) throw missingKeyMessage(provider);
-  const res = await fetch("https://fal.run/fal-ai/flux/dev", {
-    method: "POST",
-    headers: { authorization: `Key ${key}`, "content-type": "application/json" },
-    body: JSON.stringify({ prompt, image_size: "square_hd" }),
-  });
-  if (!res.ok) throw new Error(`fal ${res.status}: ${await res.text()}`);
-  const json: any = await res.json();
-  const url = json.images?.[0]?.url;
-  if (!url) throw new Error("fal: no image in response");
-  return imageAsset(Buffer.from(await (await fetch(url)).arrayBuffer()), "fal-ai/flux/dev");
 }
 
 /** Local Codex CLI — drives the authed `codex` agent on YOUR subscription (no API key). */
@@ -207,55 +191,6 @@ async function generateSuno(kind: AssetKind, prompt: string, opts: ProviderOptio
   return downloadGeneratedAsset(url, model);
 }
 
-async function downloadGeneratedAsset(url: string, model?: string): Promise<GeneratedAsset> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`download ${res.status}: ${await res.text()}`);
-  const mediaType = res.headers.get("content-type")?.split(";")[0]?.trim() || mediaTypeFromUrl(url);
-  return {
-    data: Buffer.from(await res.arrayBuffer()),
-    mediaType,
-    extension: extensionForMediaType(mediaType, url),
-    model,
-  };
-}
-
-function outputUrl(output: unknown): string | undefined {
-  if (typeof output === "string") return output;
-  if (Array.isArray(output)) return output.find((item): item is string => typeof item === "string");
-  if (output && typeof output === "object") {
-    const obj = output as Record<string, unknown>;
-    const direct = obj.audio_url ?? obj.audioUrl ?? obj.image_url ?? obj.imageUrl ?? obj.url;
-    if (typeof direct === "string") return direct;
-    if (Array.isArray(obj.data)) return outputUrl(obj.data);
-    if (obj.output) return outputUrl(obj.output);
-  }
-  return undefined;
-}
-
-function mediaTypeFromUrl(url: string): string {
-  if (url.endsWith(".webp")) return "image/webp";
-  if (url.endsWith(".jpg") || url.endsWith(".jpeg")) return "image/jpeg";
-  if (url.endsWith(".mp3")) return "audio/mpeg";
-  if (url.endsWith(".ogg")) return "audio/ogg";
-  if (url.endsWith(".webm")) return "audio/webm";
-  if (url.endsWith(".wav")) return "audio/wav";
-  if (url.endsWith(".glb")) return "model/gltf-binary";
-  return "application/octet-stream";
-}
-
-export function extensionForMediaType(mediaType: string, url = ""): string {
-  if (mediaType === "image/png") return "png";
-  if (mediaType === "image/webp") return "webp";
-  if (mediaType === "image/jpeg") return "jpg";
-  if (mediaType === "audio/mpeg") return "mp3";
-  if (mediaType === "audio/ogg") return "ogg";
-  if (mediaType === "audio/webm") return "webm";
-  if (mediaType === "audio/wav") return "wav";
-  if (mediaType === "model/gltf-binary") return "glb";
-  const match = url.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/i);
-  return match?.[1]?.toLowerCase() ?? "bin";
-}
-
 /** Offline placeholder for dry-runs / pipeline tests. */
 async function generateMock(_kind: AssetKind, _prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
   const n = parseInt(opts.size, 10) || 256;
@@ -287,9 +222,10 @@ export const assetProviders: Record<ProviderId, AssetProvider> = {
     id: "fal",
     label: "fal.ai",
     supports: IMAGE_KINDS,
-    defaultModel: "fal-ai/flux/dev",
-    key: { envName: "FAL_KEY", service: "shipshit-fal", label: "fal.ai" },
-    generate: (_kind, prompt, opts) => generateFal(prompt, opts),
+    defaultModel: DEFAULT_FAL_MODEL,
+    models: FAL_MODELS,
+    key: FAL_KEY_CONFIG,
+    generate: (kind, prompt, opts) => generateFalAsset(kind, prompt, opts),
   },
   replicate: {
     id: "replicate",
