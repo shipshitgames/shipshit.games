@@ -6,6 +6,9 @@
       "dependsOn": ["^build"],
       "env": [
         "ACCESS_SIGNING_SECRET",
+        "CONTENT_SNAPSHOT_ONLY",
+        "GITHUB_TOKEN",
+        "GITHUB_TOKEN_HAS_PROJECT_SCOPE",
         "ACCESS_EMAIL_FROM",
         "CLERK_SECRET_KEY",
         "FULFILLMENT_WEBHOOK_URL",
@@ -51,6 +54,7 @@
     "e2e": {
       "cache": false,
       "env": [
+        "CONTENT_SNAPSHOT_ONLY",
         "NEXT_PUBLIC_APP_URL",
         "NEXT_PUBLIC_SITE_URL",
         "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",

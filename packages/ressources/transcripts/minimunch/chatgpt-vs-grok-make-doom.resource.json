@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "slug": "chatgpt-vs-grok-make-doom",
+  "sourceSlug": "minimunch",
+  "sourceKind": "youtube-video",
+  "title": "ChatGPT vs Grok Make Doom",
+  "url": "https://www.youtube.com/watch?v=MWl2qQRyutc",
+  "capturedAt": "2026-06-09T20:32:17.722Z",
+  "transcriptPath": "transcripts/minimunch/chatgpt-vs-grok-make-doom.transcript.md",
+  "transcriptFormat": "markdown",
+  "rights": {
+    "status": "public-captions",
+    "notes": "Public YouTube captions (yt-dlp) fetched 2026-06-09T20:32:17.722Z at user direction for internal study. 3037 words. Not redistributed."
+  },
+  "tags": [
+    "ai-assisted-development",
+    "llm-codegen",
+    "model-comparison",
+    "game-production"
+  ],
+  "derivatives": {
+    "skillCandidates": [],
+    "appCandidates": [],
+    "toolCandidates": []
+  }
+}

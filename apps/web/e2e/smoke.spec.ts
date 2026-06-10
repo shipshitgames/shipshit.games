@@ -2,7 +2,16 @@ import { test, expect, type ConsoleMessage } from "@playwright/test";
 
 // Public, service-free routes. /pricing and /pricing/success need live Stripe
 // and are covered by unit tests, so they are intentionally excluded here.
-const PUBLIC_ROUTES = ["/", "/games", "/assets", "/youtube", "/legal"];
+const PUBLIC_ROUTES = [
+  "/",
+  "/games",
+  "/assets",
+  "/youtube",
+  "/legal",
+  "/log",
+  "/factions",
+  "/factions/the-pyre",
+];
 
 for (const route of PUBLIC_ROUTES) {
   test(`public route ${route} renders without errors`, async ({ page }) => {

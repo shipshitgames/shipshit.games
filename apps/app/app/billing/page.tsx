@@ -1,10 +1,17 @@
 import { currentUser } from "@clerk/nextjs/server";
+import type { Metadata } from "next";
 import { CreditCard } from "lucide-react";
 
 import { StatusPill } from "@/components/status-pill";
 import { readStudioPass } from "@/lib/entitlements";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Billing",
+  description:
+    "Manage your Studio Pass subscription, update payment details, and view invoices through the Stripe Billing Portal.",
+};
 
 export default async function BillingPage() {
   const user = await currentUser();
@@ -37,6 +44,7 @@ export default async function BillingPage() {
 
           <form action="/api/billing/portal" method="post" className="mt-7">
             <button
+              type="submit"
               disabled={!pass?.stripeCustomerId}
               className="rounded-md bg-blood px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-bone shadow-ember hover:bg-blood-hot disabled:pointer-events-none disabled:opacity-50"
             >

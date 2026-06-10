@@ -1,10 +1,17 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
-import { ArrowRight, BadgeCheck, Boxes, WandSparkles } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { GAMES } from "@shipshitgames/shared";
 
 import { Backdrop } from "@/components/site/atmosphere";
 import { Eyebrow } from "@/components/site/eyebrow";
 import { Button } from "@/components/ui/button";
+import { AssetBrowser, type GameOption } from "@/components/assets/asset-browser";
+import { VariantMatrix } from "@/components/assets/variant-matrix";
+import { formatDimensions } from "@/components/assets/asset-meta";
+import { CONTENT_MANIFEST, getAssetIndex } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Asset Gallery",
@@ -34,80 +41,48 @@ export const metadata: Metadata = {
   },
 };
 
-const GAME_ASSETS = [
-  {
-    title: "Scourge Survivors",
-    path: "/images/games/scourge-survivors.webp",
-    note: "horde survival key art",
-  },
-  {
-    title: "Pactfall",
-    path: "/images/games/pactfall.webp",
-    note: "siege strategy thumbnail",
-  },
-  {
-    title: "Deadlane",
-    path: "/images/games/deadlane.webp",
-    note: "lane shooter thumbnail",
-  },
-  {
-    title: "Starblight",
-    path: "/images/games/starblight.webp",
-    note: "orbital breach thumbnail",
-  },
-  {
-    title: "Redline",
-    path: "/images/games/redline.webp",
-    note: "courier runner thumbnail",
-  },
-  {
-    title: "Rothulk",
-    path: "/images/games/rothulk.webp",
-    note: "platform combat thumbnail",
-  },
-] as const;
+const accent = (hex: string): CSSProperties => ({ "--page-accent": hex }) as CSSProperties;
+const HELLFIRE = "#ff6a00";
+const BLOOD = "#c1121f";
+const RUST = "#a35a33";
 
-const PORTRAITS = [
-  ["Warden Bastion", "/sprites/portrait-warden-bastion.webp", "Warden"],
-  ["Warden Artillerist", "/sprites/portrait-warden-artillerist.webp", "Warden"],
-  ["Warden Defense Pilot", "/sprites/portrait-warden-defense-pilot.webp", "Warden"],
-  ["Field Engineer", "/sprites/portrait-field-engineer.webp", "Warden"],
-  ["Lane Gunner", "/sprites/portrait-lane-gunner.webp", "Warden"],
-  ["Wallwright", "/sprites/portrait-wallwright.webp", "Warden"],
-  ["Pyre Duelist", "/sprites/portrait-pyre-duelist.webp", "Pyre"],
-  ["Pyre Cauterizer", "/sprites/portrait-pyre-cauterizer.webp", "Pyre"],
-  ["Pyre Saboteur", "/sprites/portrait-pyre-saboteur.webp", "Pyre"],
-  ["Pyre Interceptor", "/sprites/portrait-pyre-interceptor-pilot.webp", "Pyre"],
-  ["Graft Breacher", "/sprites/portrait-graft-breacher.webp", "Scourge"],
-  ["Rot Engine", "/sprites/portrait-rot-engine.webp", "Scourge"],
-  ["Scourge Fighter", "/sprites/portrait-scourge-fighter.webp", "Scourge"],
-  ["Host Families", "/sprites/portrait-scourge-host-families.webp", "Scourge"],
-  ["Orbital Carrier", "/sprites/portrait-orbital-breach-carrier.webp", "Scourge"],
-  ["Trucebreaker", "/sprites/portrait-trucebreaker.webp", "Neutral"],
-] as const;
+const GAME_OPTIONS: GameOption[] = GAMES.map((game) => ({
+  slug: game.slug,
+  title: game.title,
+}));
 
-const PROCESS = [
-  {
-    icon: WandSparkles,
-    title: "Prompted in canon",
-    text: "Every asset starts from game role, faction rules, palette constraints, and a concrete shipping use.",
-  },
-  {
-    icon: Boxes,
-    title: "Batched into sets",
-    text: "The pipeline can expand one roster into thumbnails, portraits, sprites, pickups, weapons, and UI-ready variants.",
-  },
-  {
-    icon: BadgeCheck,
-    title: "Prepared for games",
-    text: "Outputs are trimmed, optimized, named, and dropped where the runtime can actually use them.",
-  },
+const GAME_TITLES: Record<string, string> = Object.fromEntries(
+  GAMES.map((game) => [game.slug, game.title])
+);
+
+/** The locked grading pipeline every render passes before it ships. */
+const GRADE_LOCKS = [
+  "110px grid",
+  "DOOM palette lock",
+  "ordered dither",
+  "lossless WebP",
+  "alpha defringe",
 ] as const;
 
 export default function AssetsPage() {
+  const assetIndex = getAssetIndex();
+  const { counts } = CONTENT_MANIFEST;
+
+  const covers = assetIndex.filter((entry) => entry.kind === "cover").slice(0, 6);
+  const swarmRender = assetIndex.find(
+    (entry) => entry.id === "entity:scourge-swarm:scourge-survivors"
+  );
+  const swarmRuntime = assetIndex.find(
+    (entry) => entry.id === "runtime:scourge-survivors:enemy-melee"
+  );
+
   return (
     <main>
-      <section className="relative overflow-hidden border-b border-gunmetal/40 px-6 pb-20 pt-32">
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <section
+        style={accent(HELLFIRE)}
+        className="relative overflow-hidden border-b border-gunmetal/40 px-6 pb-20 pt-32"
+      >
         <Backdrop />
         <div className="relative z-10 mx-auto max-w-7xl">
           <div className="grid gap-12 lg:grid-cols-[minmax(0,0.78fr)_minmax(360px,1fr)] lg:items-center">
@@ -117,17 +92,17 @@ export default function AssetsPage() {
                 Game art, generated for shipping.
               </h1>
               <p className="mt-7 max-w-2xl text-lg leading-relaxed text-ash">
-                Thumbnails, portraits, sprites, and production assets from the same
-                pipeline we use to build Deadrot games in public. The point is
-                not pretty one-offs. The point is coherent sets a game can use,
-                with subscriber packs delivered through the Studio Pass as they ship.
+                {counts.sprites} production sprites across {counts.games} games, generated in
+                canon. Every render is palette-locked to the DOOM ramp, indexed with its
+                provenance, and registered where the Deadrot runtime can actually use it —
+                {" "}{counts.assets} cataloged assets and counting.
               </p>
               <div className="mt-9 flex flex-wrap gap-3">
                 <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-                  <a href="/pricing">
+                  <Link href="/pricing">
                     Get Skills Pro
                     <ArrowRight aria-hidden="true" />
-                  </a>
+                  </Link>
                 </Button>
                 <Button
                   asChild
@@ -143,91 +118,208 @@ export default function AssetsPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {GAME_ASSETS.slice(0, 6).map((asset) => (
+              {covers.map((cover, coverIndex) => (
                 <div
-                  key={asset.path}
+                  key={cover.id}
                   className="group relative aspect-[1200/630] overflow-hidden rounded-md border border-gunmetal bg-coal"
                 >
                   <Image
-                    src={asset.path}
-                    alt={`${asset.title} generated thumbnail art`}
+                    src={cover.publicPath}
+                    alt={`${cover.name} generated key art`}
                     fill
                     sizes="(min-width: 1024px) 280px, 50vw"
                     className="object-cover transition duration-500 group-hover:scale-105"
-                    priority={asset.path === "/images/games/scourge-survivors.webp"}
+                    priority={coverIndex === 0}
                   />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-void via-void/75 to-transparent p-3">
                     <p className="font-display text-sm font-bold uppercase leading-tight text-bone">
-                      {asset.title}
+                      {cover.game ? (GAME_TITLES[cover.game] ?? cover.name) : cover.name}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </section>
 
-      <section className="border-b border-gunmetal/40 px-6 py-20">
-        <div className="mx-auto max-w-7xl">
-          <Eyebrow>What the pipeline makes</Eyebrow>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {PROCESS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.title} className="rounded-md border border-gunmetal bg-coal p-6">
-                  <Icon className="size-5 text-hellfire" aria-hidden="true" />
-                  <h2 className="mt-4 font-display text-xl font-bold uppercase tracking-tight text-bone">
-                    {item.title}
-                  </h2>
-                  <p className="mt-3 text-sm leading-relaxed text-ash">{item.text}</p>
-                </div>
-              );
-            })}
+          <div className="mt-14 grid gap-px overflow-hidden rounded-md border border-gunmetal bg-gunmetal sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { value: counts.assets, label: "Cataloged assets" },
+              { value: counts.sprites, label: "Production sprites" },
+              { value: counts.games, label: "Game fronts" },
+              { value: counts.factions, label: "Factions in canon" },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-coal px-5 py-5">
+                <span className="font-display text-4xl font-bold leading-none text-bone">
+                  {stat.value}
+                </span>
+                <span className="mt-2 block font-display text-xs font-bold uppercase tracking-widest text-hellfire">
+                  {stat.label}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="px-6 py-20">
+      {/* ── BROWSER ──────────────────────────────────────────────────────── */}
+      <section style={accent(BLOOD)} className="border-b border-gunmetal/40 px-6 py-20">
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
             <div>
-              <Eyebrow>Faction portraits</Eyebrow>
+              <Eyebrow>The armory</Eyebrow>
               <h2 className="mt-3 font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
-                Cohesive character sets
+                Browse every asset
               </h2>
             </div>
             <p className="max-w-xl text-sm leading-relaxed text-ash">
-              Warden engineering, Pyre violence, and Scourge host-takeover forms
-              stay visually distinct while still belonging to the same universe.
+              The full committed index: cross-game entity renders, runtime sprites,
+              faction portraits, and covers. Filter by game, kind, or faction —
+              click any card for pixel-perfect preview and provenance.
             </p>
           </div>
 
-          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {PORTRAITS.map(([title, path, faction]) => (
-              <article
-                key={path}
-                className="group overflow-hidden rounded-md border border-gunmetal bg-coal transition duration-300 hover:border-hellfire"
-              >
-                <div className="relative aspect-square bg-void">
-                  <Image
-                    src={path}
-                    alt={`${title} ${faction} generated portrait`}
-                    fill
-                    sizes="(min-width: 1024px) 25vw, 50vw"
-                    className="mask-fade-b object-contain object-bottom p-2 transition duration-500 group-hover:scale-105"
+          <div className="mt-10">
+            <AssetBrowser assets={assetIndex} games={GAME_OPTIONS} gameTitles={GAME_TITLES} />
+          </div>
+        </div>
+      </section>
+
+      {/* ── VARIANT MATRIX ───────────────────────────────────────────────── */}
+      <section
+        style={accent(RUST)}
+        className="relative overflow-hidden border-b border-gunmetal/40 px-6 py-20"
+      >
+        <Backdrop />
+        <div className="relative z-10 mx-auto max-w-7xl">
+          <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+            <div>
+              <Eyebrow>One entity, every front</Eyebrow>
+              <h2 className="mt-3 font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
+                Same canon, new camera
+              </h2>
+            </div>
+            <p className="max-w-xl text-sm leading-relaxed text-ash">
+              One canon entity, re-rendered for each game&apos;s camera and art
+              direction: FPS billboards for Scourge Survivors, top-down lane reads
+              for Deadlane, battlefield silhouettes for Pactfall.
+            </p>
+          </div>
+
+          <div className="mt-10">
+            <VariantMatrix assets={assetIndex} gameTitles={GAME_TITLES} />
+          </div>
+        </div>
+      </section>
+
+      {/* ── PROCESS: PROMPT → RENDER → GRADE → SHIP ─────────────────────── */}
+      <section style={accent(HELLFIRE)} className="px-6 py-20">
+        <div className="mx-auto max-w-7xl">
+          <Eyebrow>The pipeline</Eyebrow>
+          <h2 className="mt-3 font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
+            Prompt → Render → Grade → Ship
+          </h2>
+          <p className="mt-5 max-w-2xl leading-relaxed text-ash">
+            The same entity, walked through the real pipeline. This is the Swarm
+            Ripper — Scourge fodder — from canon prompt to registered runtime sprite.
+          </p>
+
+          <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {/* 01 Prompt */}
+            <div className="flex flex-col rounded-md border border-gunmetal bg-coal p-6">
+              <span className="font-display text-sm font-bold uppercase tracking-widest text-hellfire">
+                01 · Prompt
+              </span>
+              <h3 className="mt-3 font-display text-xl font-bold uppercase tracking-tight text-bone">
+                Written in canon
+              </h3>
+              {swarmRender?.promptBase ? (
+                <blockquote className="mt-4 flex-1 rounded-md border border-gunmetal bg-void p-4 font-mono text-xs leading-relaxed text-ash">
+                  “{swarmRender.promptBase}”
+                </blockquote>
+              ) : (
+                <p className="mt-4 flex-1 text-sm leading-relaxed text-ash">
+                  Every render starts from the entity&apos;s canon prompt base —
+                  faction rules, host family, palette constraints.
+                </p>
+              )}
+              <p className="mt-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+                prompt base · scourge-swarm
+              </p>
+            </div>
+
+            {/* 02 Render */}
+            <div className="flex flex-col rounded-md border border-gunmetal bg-coal p-6">
+              <span className="font-display text-sm font-bold uppercase tracking-widest text-hellfire">
+                02 · Render
+              </span>
+              <h3 className="mt-3 font-display text-xl font-bold uppercase tracking-tight text-bone">
+                Per-game variant
+              </h3>
+              {swarmRender ? (
+                <div className="mt-4 flex flex-1 items-center justify-center rounded-md border border-gunmetal bg-void p-4">
+                  <img
+                    src={swarmRender.publicPath}
+                    alt="Swarm Ripper rendered for Scourge Survivors"
+                    loading="lazy"
+                    decoding="async"
+                    className="max-h-40 [image-rendering:pixelated]"
                   />
                 </div>
-                <div className="border-t border-gunmetal p-4">
-                  <p className="font-display text-base font-bold uppercase leading-tight text-bone">
-                    {title}
-                  </p>
-                  <p className="mt-1 text-xs font-bold uppercase tracking-widest text-hellfire">
-                    {faction}
-                  </p>
+              ) : null}
+              <p className="mt-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+                scourge-survivors front
+                {swarmRender?.dimensions
+                  ? ` · ${formatDimensions(swarmRender.dimensions)}`
+                  : null}
+              </p>
+            </div>
+
+            {/* 03 Grade */}
+            <div className="flex flex-col rounded-md border border-gunmetal bg-coal p-6">
+              <span className="font-display text-sm font-bold uppercase tracking-widest text-hellfire">
+                03 · Grade
+              </span>
+              <h3 className="mt-3 font-display text-xl font-bold uppercase tracking-tight text-bone">
+                Locked pipeline
+              </h3>
+              <ul className="mt-4 flex-1 space-y-2">
+                {GRADE_LOCKS.map((lock) => (
+                  <li
+                    key={lock}
+                    className="border-l border-hellfire/60 pl-3 font-mono text-xs uppercase tracking-widest text-ash"
+                  >
+                    {lock}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+                no anti-aliasing survives
+              </p>
+            </div>
+
+            {/* 04 Ship */}
+            <div className="flex flex-col rounded-md border border-gunmetal bg-coal p-6">
+              <span className="font-display text-sm font-bold uppercase tracking-widest text-hellfire">
+                04 · Ship
+              </span>
+              <h3 className="mt-3 font-display text-xl font-bold uppercase tracking-tight text-bone">
+                Into the runtime
+              </h3>
+              {swarmRuntime ? (
+                <div className="mt-4 flex flex-1 items-center justify-center rounded-md border border-gunmetal bg-void p-4">
+                  <img
+                    src={swarmRuntime.publicPath}
+                    alt="Swarm Ripper runtime sprite in the Scourge Survivors build"
+                    loading="lazy"
+                    decoding="async"
+                    className="max-h-40 [image-rendering:pixelated]"
+                  />
                 </div>
-              </article>
-            ))}
+              ) : null}
+              <p className="mt-3 font-mono text-[11px] uppercase tracking-widest text-ash">
+                registered in the Deadrot asset package
+              </p>
+            </div>
           </div>
         </div>
       </section>

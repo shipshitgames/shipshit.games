@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>game-tester fixture</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #101018;
+        display: grid;
+        place-items: center;
+        height: 100vh;
+      }
+      canvas {
+        display: block;
+        width: 480px;
+        height: 320px;
+        image-rendering: pixelated;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Mirrors the games' convention: a canvas with id="scene". -->
+    <canvas id="scene" width="480" height="320"></canvas>
+    <script>
+      (() => {
+        const canvas = document.getElementById("scene");
+        const ctx = canvas.getContext("2d");
+        const W = canvas.width;
+        const H = canvas.height;
+        let x = W / 2;
+        let y = H / 2;
+        let hue = 200;
+        let frame = 0;
+        const keys = new Set();
+
+        window.addEventListener("keydown", (event) => {
+          keys.add(event.key);
+          if (event.key === " " || event.key === "Spacebar") hue = (hue + 40) % 360;
+        });
+        window.addEventListener("keyup", (event) => keys.delete(event.key));
+
+        function draw() {
+          frame++;
+          // Gradient background guarantees many colors -> a real (non-blank) frame.
+          const gradient = ctx.createLinearGradient(0, 0, W, H);
+          gradient.addColorStop(0, "#0a0a12");
+          gradient.addColorStop(1, "#2a1018");
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, W, H);
+
+          const speed = 4;
+          if (keys.has("ArrowLeft") || keys.has("a")) x -= speed;
+          if (keys.has("ArrowRight") || keys.has("d")) x += speed;
+          if (keys.has("ArrowUp") || keys.has("w")) y -= speed;
+          if (keys.has("ArrowDown") || keys.has("s")) y += speed;
+          x = Math.max(20, Math.min(W - 20, x));
+          y = Math.max(20, Math.min(H - 20, y));
+
+          ctx.fillStyle = `hsl(${hue}, 80%, 55%)`;
+          ctx.fillRect(x - 18, y - 18, 36, 36);
+          ctx.strokeStyle = "#ffd166";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(x - 18, y - 18, 36, 36);
+
+          // Exposed for debugging / manual inspection.
+          window.__FIXTURE_STATE__ = { x, y, hue, frame };
+          requestAnimationFrame(draw);
+        }
+
+        requestAnimationFrame(() => {
+          draw();
+          // Game-ready signal the harness can wait on.
+          window.__GAME_READY__ = true;
+        });
+      })();
+    </script>
+  </body>
+</html>

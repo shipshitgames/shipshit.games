@@ -1,17 +1,27 @@
 import type { CSSProperties } from "react";
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight, Mail, Play } from "lucide-react";
+import { GAMES } from "@shipshitgames/shared";
 
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/site/eyebrow";
 import { Backdrop, EmberParticles } from "@/components/site/atmosphere";
 import { Signup } from "@/components/site/signup";
-import {
-  formatUsd,
-  SKILLS_PRO,
-  SKILLS_PRO_EARLY_PRICE_USD,
-} from "@/lib/skills-pro";
+import { GameRailCard } from "@/components/home/game-rail-card";
+import { EventGlyph, utcDay } from "@/components/log/event-feed";
+import { CONTENT_MANIFEST, getActivitySnapshot } from "@/lib/content";
+import { formatUsd, SKILLS_PRO_EARLY_PRICE_USD } from "@/lib/skills-pro";
 
-const WATCH = "/youtube";
+export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: "Ship Shit Games",
+  description:
+    "Ship Shit Games builds the DEADROT universe live with AI — a whole IP, many browser games, one bloody canon, and the studio tools behind it.",
+};
+
 const PLAY = "https://deadrot.com";
 
 const accent = (hex: string): CSSProperties =>
@@ -50,26 +60,29 @@ const SOLUTION_STEPS = [
   },
 ] as const;
 
+const ACTIVITY = getActivitySnapshot();
+const LATEST_SHIPPED = ACTIVITY.events.slice(0, 4);
+
 const STUDIO_SIGNALS = [
   {
-    value: "7",
+    value: CONTENT_MANIFEST.counts.games,
     label: "Game tracks",
     body: "Public DEADROT builds with playable links, source, and readiness gates.",
   },
   {
-    value: "16",
-    label: "Faction portraits",
-    body: "Warden, Pyre, Scourge, and neutral characters in one visual canon.",
+    value: CONTENT_MANIFEST.counts.sprites,
+    label: "Production sprites",
+    body: "Canon pixel assets synced straight from the live asset catalog.",
   },
   {
-    value: "3",
-    label: "Tool surfaces",
-    body: "Skills Pro, assetgen docs, and open scaffolding workflows.",
+    value: ACTIVITY.stats.mergedPrsTotal,
+    label: "PRs shipped",
+    body: "Merged pull requests across the studio and DEADROT repos, all-time.",
   },
   {
-    value: "1",
-    label: "Live war IP",
-    body: "A single universe used to prove every pipeline decision in public.",
+    value: ACTIVITY.stats.commitsLast30d,
+    label: "Commits / 30 days",
+    body: "Commit pressure across both repos in the last thirty days.",
   },
 ] as const;
 
@@ -82,7 +95,7 @@ const PRODUCTS = [
   },
   {
     name: "Skills Pro",
-    desc: "The agent skills, prompts, checklists, and game-shipping workflows behind the studio.",
+    desc: `The paid operating manual: production prompts, agent workflows, review loops, and updates from the live build. Early buyers get in at ${formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}.`,
     href: "/pricing",
     cta: "Buy the pack",
   },
@@ -95,8 +108,8 @@ const PRODUCTS = [
   {
     name: "Build log",
     desc: "The public record of what worked, what broke, and how the system changed after real shipping pressure.",
-    href: WATCH,
-    cta: "Watch the build",
+    href: "/log",
+    cta: "Read the build log",
   },
 ] as const;
 
@@ -134,10 +147,12 @@ function SectionIllustration({
 }) {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <img
+      <Image
         src={src}
         alt=""
-        className="h-full w-full object-cover contrast-110 saturate-125 [image-rendering:pixelated]"
+        fill
+        sizes="100vw"
+        className="object-cover contrast-110 saturate-125 [image-rendering:pixelated]"
         style={{ objectPosition, opacity }}
       />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(6,6,5,0.98),rgba(6,6,5,0.82)_46%,rgba(6,6,5,0.96))]" />
@@ -160,10 +175,13 @@ export default function Home() {
         <div className="relative z-10 flex flex-col items-center">
           <Eyebrow>Building games with AI, in public</Eyebrow>
           <h1 className="sr-only">Ship Shit Games</h1>
-          <img
+          <Image
             src="/brand/shipshit-games-wordmark.png"
             alt=""
             aria-hidden="true"
+            width={1200}
+            height={382}
+            priority
             className="mt-5 h-auto w-full max-w-2xl drop-shadow-[0_0_42px_rgba(193,18,31,0.46)]"
           />
           <p className="mt-8 max-w-2xl text-lg leading-relaxed text-ash">
@@ -174,10 +192,10 @@ export default function Home() {
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-              <a href="/pricing">
+              <Link href="/pricing">
                 Buy Skills Pro
                 <ArrowRight aria-hidden="true" />
-              </a>
+              </Link>
             </Button>
             <Button
               asChild
@@ -205,11 +223,17 @@ export default function Home() {
         style={accent(RUST)}
         className="relative overflow-hidden border-t border-gunmetal/40 bg-void px-6 py-10"
       >
-        <div className="mx-auto grid max-w-7xl gap-px overflow-hidden rounded-md border border-gunmetal bg-gunmetal md:grid-cols-4">
+        <div
+          data-testid="stats-strip"
+          className="mx-auto grid max-w-7xl gap-px overflow-hidden rounded-md border border-gunmetal bg-gunmetal md:grid-cols-4"
+        >
           {STUDIO_SIGNALS.map((signal) => (
             <div key={signal.label} className="bg-coal px-5 py-6">
               <div className="flex items-end gap-3">
-                <span className="font-display text-5xl font-bold leading-none text-bone">
+                <span
+                  data-testid="stat-value"
+                  className="font-display text-5xl font-bold leading-none text-bone"
+                >
                   {signal.value}
                 </span>
                 <span className="pb-1 font-display text-xs font-bold uppercase tracking-widest text-hellfire">
@@ -219,6 +243,73 @@ export default function Home() {
               <p className="mt-3 text-sm leading-relaxed text-ash">{signal.body}</p>
             </div>
           ))}
+        </div>
+
+        {/* -- LATEST SHIPPED ------------------------------------------------ */}
+        <div className="mx-auto mt-6 max-w-7xl">
+          <div className="hud-frame overflow-hidden rounded-md bg-void/80">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gunmetal/60 bg-coal/70 px-4 py-2">
+              <span className="font-mono text-xs uppercase tracking-widest text-ash">
+                <span className="text-hellfire">$</span> latest shipped
+              </span>
+              <Link
+                href="/log"
+                className="font-display text-xs font-bold uppercase tracking-widest text-hellfire transition-colors hover:text-blood"
+              >
+                Full build log →
+              </Link>
+            </div>
+            <ul data-testid="latest-shipped">
+              {LATEST_SHIPPED.map((event) => (
+                <li
+                  key={event.url}
+                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-gunmetal/30 px-4 py-2 font-mono text-sm last:border-b-0"
+                >
+                  <EventGlyph type={event.type} />
+                  <a
+                    href={event.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="min-w-0 flex-1 basis-64 truncate text-bone transition-colors hover:text-hellfire"
+                  >
+                    {event.type === "pr_merged" ? event.title : event.message}
+                  </a>
+                  <span className="shrink-0 text-xs text-ash/70">{utcDay(event.date)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* -- GAMES RAIL ------------------------------------------------------ */}
+      <section
+        style={accent(HELLFIRE)}
+        className="relative overflow-hidden border-t border-gunmetal/40 px-6 py-14"
+      >
+        <div className="mx-auto max-w-7xl">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <Eyebrow>The games</Eyebrow>
+              <h2 className="mt-3 font-display text-3xl font-bold uppercase tracking-tight text-bone sm:text-4xl">
+                Seven tracks. One war.
+              </h2>
+            </div>
+            <Link
+              href="/games"
+              className="font-display text-xs font-bold uppercase tracking-widest text-hellfire transition-colors hover:text-blood"
+            >
+              All games →
+            </Link>
+          </div>
+          <div
+            data-testid="games-rail"
+            className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3"
+          >
+            {GAMES.map((game) => (
+              <GameRailCard key={game.slug} game={game} />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -323,16 +414,18 @@ export default function Home() {
                 variant="outline"
                 className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
               >
-                <a href="/assets">See the war assets</a>
+                <Link href="/assets">See the war assets</Link>
               </Button>
             </div>
           </div>
 
           <div className="relative aspect-[1600/759] w-full overflow-hidden border border-gunmetal/70 bg-coal shadow-[0_28px_70px_rgba(0,0,0,0.72)]">
-            <img
+            <Image
               src={DEADROT_KEY_ART}
               alt="Landscape pixel art Deadrot key art"
-              className="h-full w-full object-cover [image-rendering:pixelated]"
+              fill
+              sizes="(min-width: 1024px) 700px, 100vw"
+              className="object-cover [image-rendering:pixelated]"
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,6,5,0.12),transparent_42%,rgba(6,6,5,0.28))]" />
           </div>
@@ -376,63 +469,23 @@ export default function Home() {
               </a>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* ── BUY / TOOL ACCESS ────────────────────────────────────────────── */}
-      <section
-        id="skills"
-        style={accent(BLOOD)}
-        className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
-      >
-        <Backdrop />
-        <SectionIllustration src="/images/games/redline.webp" objectPosition="center 46%" opacity={0.18} />
-        <div className="relative z-10 mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
-          <div>
-            <Eyebrow>Skills Pro</Eyebrow>
-            <h2 className="mt-3 max-w-3xl font-display text-4xl font-bold uppercase leading-tight tracking-tight text-bone sm:text-5xl">
-              Skills Pro. Tools included.
-            </h2>
-            <p className="mt-5 max-w-2xl leading-relaxed text-ash">
-              Skills Pro is the paid operating manual: production prompts,
-              agent workflows, review loops, and updates from the live build.
-              Early buyers get the default {formatUsd(SKILLS_PRO.earlyBuyerDiscountUsd)} coupon,
-              bringing access to{" "}
-              <span className="font-bold text-bone">{formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}</span>.
-            </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-                <a href="/pricing">Buy Skills Pro</a>
-              </Button>
-              <Button
-                asChild
-                size="xl"
-                variant="outline"
-                className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
-              >
-                <a href="https://docs.shipshit.games">Read the docs</a>
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid gap-4">
+          <div className="mt-10 grid gap-4 lg:grid-cols-3">
             {TOOL_ACCESS.map((tool) => (
               <a
                 key={tool.name}
                 href={tool.href}
                 target="_blank"
                 rel="noreferrer"
-                className="group flex items-start justify-between gap-5 rounded-md border border-gunmetal bg-coal/90 p-5 transition-colors hover:border-hellfire"
+                className="group flex flex-col rounded-md border border-gunmetal bg-coal/90 p-5 transition-colors hover:border-hellfire"
               >
-                <span>
-                  <span className="block font-display text-lg font-bold uppercase tracking-tight text-bone">
-                    {tool.name}
-                  </span>
-                  <span className="mt-2 block text-sm leading-relaxed text-ash">
-                    {tool.desc}
-                  </span>
+                <span className="block font-display text-lg font-bold uppercase tracking-tight text-bone">
+                  {tool.name}
                 </span>
-                <span className="shrink-0 pt-1 font-display text-xs font-bold uppercase tracking-widest text-hellfire group-hover:text-blood">
+                <span className="mt-2 block flex-1 text-sm leading-relaxed text-ash">
+                  {tool.desc}
+                </span>
+                <span className="mt-4 font-display text-xs font-bold uppercase tracking-widest text-hellfire group-hover:text-blood">
                   {tool.cta} →
                 </span>
               </a>

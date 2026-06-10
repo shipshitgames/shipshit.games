@@ -6,11 +6,17 @@ on:
   push:
     branches: [develop]
 
+env:
+  # All JS actions on Node 24 ahead of the 2026-06-16 default switch
+  # (covers third-party actions still declaring node20, e.g. setup-bun).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   check-token-drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
         with:

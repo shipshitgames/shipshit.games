@@ -1,0 +1,290 @@
+{
+  "generatedAt": "2026-06-09T22:56:14.882Z",
+  "boards": [
+    {
+      "scope": "deadrot",
+      "title": "deadrot.com",
+      "projectNumber": 10,
+      "url": "https://github.com/orgs/shipshitgames/projects/10",
+      "counts": {
+        "todo": 41,
+        "inProgress": 1,
+        "done": 2
+      },
+      "topItems": [
+        {
+          "title": "Consolidate games and lore",
+          "status": "In Progress"
+        },
+        {
+          "title": "Reach automated coverage baseline",
+          "status": "Todo"
+        },
+        {
+          "title": "Maintain game E2E coverage",
+          "status": "Todo"
+        },
+        {
+          "title": "ArenaMap v2 schema",
+          "status": "Todo"
+        },
+        {
+          "title": "Biome theme presets",
+          "status": "Todo"
+        }
+      ]
+    },
+    {
+      "scope": "deadlane",
+      "title": "deadrot.com/deadlane",
+      "projectNumber": 5,
+      "url": "https://github.com/orgs/shipshitgames/projects/5",
+      "counts": {
+        "todo": 9,
+        "inProgress": 0,
+        "done": 0
+      },
+      "topItems": [
+        {
+          "title": "Validate canonical @shipshitgames/engine with Deadlane",
+          "status": "Todo"
+        },
+        {
+          "title": "Scaffold Deadlane app",
+          "status": "Todo"
+        },
+        {
+          "title": "Deadlane grid system",
+          "status": "Todo"
+        },
+        {
+          "title": "Deadlane creep pathfinding",
+          "status": "Todo"
+        },
+        {
+          "title": "Deadlane tower system",
+          "status": "Todo"
+        }
+      ]
+    },
+    {
+      "scope": "pactfall",
+      "title": "deadrot.com/pactfall",
+      "projectNumber": 6,
+      "url": "https://github.com/orgs/shipshitgames/projects/6",
+      "counts": {
+        "todo": 21,
+        "inProgress": 0,
+        "done": 0
+      },
+      "topItems": [
+        {
+          "title": "Bloodlane design doc",
+          "status": "Todo"
+        },
+        {
+          "title": "Server-authoritative PvP spike",
+          "status": "Todo"
+        },
+        {
+          "title": "Pactfall camera and controls spike",
+          "status": "Todo"
+        },
+        {
+          "title": "Champion ability system",
+          "status": "Todo"
+        },
+        {
+          "title": "Scourge jungle mechanic",
+          "status": "Todo"
+        }
+      ]
+    },
+    {
+      "scope": "redline",
+      "title": "deadrot.com/redline",
+      "projectNumber": 8,
+      "url": "https://github.com/orgs/shipshitgames/projects/8",
+      "counts": {
+        "todo": 8,
+        "inProgress": 0,
+        "done": 0
+      },
+      "topItems": [
+        {
+          "title": "Redline core loop",
+          "status": "Todo"
+        },
+        {
+          "title": "Speed and flow tuning",
+          "status": "Todo"
+        },
+        {
+          "title": "Hazards and Scourge obstacles",
+          "status": "Todo"
+        },
+        {
+          "title": "Redline course checkpoints",
+          "status": "Todo"
+        },
+        {
+          "title": "Redline speed juice pass",
+          "status": "Todo"
+        }
+      ]
+    },
+    {
+      "scope": "rothulk",
+      "title": "deadrot.com/rothulk",
+      "projectNumber": 9,
+      "url": "https://github.com/orgs/shipshitgames/projects/9",
+      "counts": {
+        "todo": 8,
+        "inProgress": 0,
+        "done": 0
+      },
+      "topItems": [
+        {
+          "title": "Rothulk core loop",
+          "status": "Todo"
+        },
+        {
+          "title": "Platformer feel tuning",
+          "status": "Todo"
+        },
+        {
+          "title": "Scourge blobs and hazards",
+          "status": "Todo"
+        },
+        {
+          "title": "Platform level design",
+          "status": "Todo"
+        },
+        {
+          "title": "HP and ignite sequence",
+          "status": "Todo"
+        }
+      ]
+    },
+    {
+      "scope": "scourge-survivors",
+      "title": "deadrot.com/scourge-survivors",
+      "projectNumber": 1,
+      "url": "https://github.com/orgs/shipshitgames/projects/1",
+      "counts": {
+        "todo": 57,
+        "inProgress": 0,
+        "done": 1
+      },
+      "topItems": [
+        {
+          "title": "Add bonus and blade sprites",
+          "status": "Todo"
+        },
+        {
+          "title": "Re-extract enemy sprites",
+          "status": "Todo"
+        },
+        {
+          "title": "Make boss visually distinct",
+          "status": "Todo"
+        },
+        {
+          "title": "Show weapon upgrade visuals",
+          "status": "Todo"
+        },
+        {
+          "title": "Finish two-weapon bonus",
+          "status": "Todo"
+        }
+      ]
+    },
+    {
+      "scope": "starblight",
+      "title": "deadrot.com/starblight",
+      "projectNumber": 7,
+      "url": "https://github.com/orgs/shipshitgames/projects/7",
+      "counts": {
+        "todo": 52,
+        "inProgress": 0,
+        "done": 0
+      },
+      "topItems": [
+        {
+          "title": "Build Starblight end-to-end",
+          "status": "Todo"
+        },
+        {
+          "title": "Lock Starblight camera",
+          "status": "Todo"
+        },
+        {
+          "title": "Starblight reference moodboard",
+          "status": "Todo"
+        },
+        {
+          "title": "Ship and pilot silhouettes",
+          "status": "Todo"
+        },
+        {
+          "title": "Orbital Scourge silhouettes",
+          "status": "Todo"
+        }
+      ]
+    },
+    {
+      "scope": "warline",
+      "title": "deadrot.com/warline",
+      "projectNumber": 11,
+      "url": "https://github.com/orgs/shipshitgames/projects/11",
+      "counts": {
+        "todo": 2,
+        "inProgress": 0,
+        "done": 0
+      },
+      "topItems": [
+        {
+          "title": "Add Warline to games catalog",
+          "status": "Todo"
+        },
+        {
+          "title": "Warline finished product v1",
+          "status": "Todo"
+        }
+      ]
+    },
+    {
+      "scope": "studio",
+      "title": "shipshit.games",
+      "projectNumber": 4,
+      "url": "https://github.com/orgs/shipshitgames/projects/4",
+      "counts": {
+        "todo": 72,
+        "inProgress": 4,
+        "done": 24
+      },
+      "topItems": [
+        {
+          "title": "Build game gallery cards",
+          "status": "In Progress"
+        },
+        {
+          "title": "Build per-game landing pages",
+          "status": "In Progress"
+        },
+        {
+          "title": "Instrument show funnel analytics",
+          "status": "In Progress"
+        },
+        {
+          "title": "Generate Zero-Day pixel cover",
+          "status": "In Progress"
+        },
+        {
+          "title": "Integrate fal.ai provider",
+          "status": "Todo"
+        }
+      ]
+    }
+  ]
+}

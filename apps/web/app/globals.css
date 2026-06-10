@@ -134,3 +134,78 @@
   50% { transform: translateY(7px); }
 }
 .animate-bob { animation: bob 2.4s ease-in-out infinite; }
+
+/* ── Lane D polish utilities ───────────────────────────────────────────────── */
+
+/* Subtle CRT scanline overlay — drop onto a pointer-events-none element. */
+.scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.04) 0px,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* Sprite hover pop — scale + accent drop-shadow, tinted by --page-accent. */
+.sprite-pop:hover {
+  transform: scale(1.1);
+  filter: drop-shadow(
+    0 0 12px color-mix(in srgb, var(--page-accent) 60%, transparent)
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sprite-pop {
+    transition:
+      transform 200ms ease,
+      filter 200ms ease;
+  }
+
+  /* Soft hellfire glow pulse for "playable" status badges. */
+  @keyframes ember-pulse {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 1px rgba(255, 106, 0, 0.35),
+        0 0 10px -2px rgba(255, 106, 0, 0.35);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px rgba(255, 106, 0, 0.65),
+        0 0 18px -2px rgba(255, 106, 0, 0.7);
+    }
+  }
+  .badge-pulse {
+    animation: ember-pulse 2.6s ease-in-out infinite;
+  }
+}
+
+/* ── Scourge takeover (konami) ─────────────────────────────────────────────── */
+/* The overlay element always shows the text; the toxic flash only animates
+   when the user has not asked for reduced motion. */
+
+.scourge-takeover-overlay {
+  pointer-events: none;
+}
+
+.scourge-takeover-text {
+  text-shadow: 0 0 24px color-mix(in srgb, var(--color-toxic) 60%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body.scourge-takeover .scourge-takeover-overlay {
+    animation: scourge-flash 1.5s steps(12, end) both;
+    background-color: color-mix(in srgb, var(--color-toxic) 14%, transparent);
+  }
+
+  @keyframes scourge-flash {
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    20% { opacity: 0.55; }
+    30% { opacity: 1; }
+    80% { opacity: 0.9; }
+    100% { opacity: 0; }
+  }
+}

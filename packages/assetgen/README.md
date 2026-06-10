@@ -100,6 +100,100 @@ Flags: `--provider` (default `mock` — safe to batch), `--game`, `--id`,
 `--only-missing` (skip cells already rendered on disk), `--size`, `--dry-run`
 (force mock), `--sync-games`, `--assets-dir`, `--init-catalog`.
 
+## `index` — asset indexer (issue #101)
+
+`assetgen index` scans an asset package and writes a deterministic, reviewable
+`assets.index.json` — the canonical map of what art exists. Every asset is
+tagged with its **game**, so you can index everything at once or one game at a
+time.
+
+```bash
+# Index the whole Deadrot asset package (default --assets-dir):
+bun packages/assetgen/src/cli.ts index
+
+# One game only -> writes assets.index.<game>.json:
+bun packages/assetgen/src/cli.ts index --game scourge-survivors
+
+# Treat images as fixed-size sprite sheets (records frame grid + blank frames):
+bun packages/assetgen/src/cli.ts index --frame-size 64x64
+
+# Fail (exit 1) if the on-disk index is stale — for CI / pre-commit:
+bun packages/assetgen/src/cli.ts index --check
+```
+
+Flags: `--assets-dir` (default `../deadrotcom/packages/assets`), `--game <slug>`,
+`--frame-size <WxH>`, `--out <path>`, `--check`.
+
+Each entry records, for **2D images**: dimensions, format, alpha, byte size,
+`blank` (uniform/transparent), and — with `--frame-size` — sprite-sheet
+`frames`/`cols`/`rows` plus the indices of blank frames. For **3D models**
+(`.glb`/`.gltf`): mesh/material/texture/skin counts, total joints, and each
+animation clip's name, duration, and channel count. Entries carry `game`,
+`group`, `id`, and `inCatalog`, and the file opens with a per-game rollup.
+
+**Agents:** treat `assets.index.json` as the source of truth for which assets
+exist per game, their sizes, and which read as blank — don't re-scan the tree.
+
+`assetgen check` is the asset-integrity gate: it rebuilds and verifies every
+committed `assets.index*.json` (the full index and any per-game ones) and exits
+non-zero if any is stale — drop it into CI or a pre-commit hook.
+
+```bash
+bun packages/assetgen/src/cli.ts check
+```
+
+## `atlas` — texture atlas packing (issue #92)
+
+`assetgen atlas` packs a game's individual sprite frames into one or more
+**texture atlas pages** + a deterministic JSON frame map. Each frame gets an
+**edge-extruded gutter** (its border pixels copied outward, not transparent) so
+bilinear filtering never samples a neighbouring frame — no runtime atlas bleed.
+Frames that overflow a page wrap onto additional pages (WebP caps at 16383px;
+default page cap 4096).
+
+```bash
+# Pack a game's sprites -> scourge-survivors.atlas<n>.webp + scourge-survivors.atlas.json
+bun packages/assetgen/src/cli.ts atlas --game scourge-survivors
+
+# Tune gutter / page size / output dir:
+bun packages/assetgen/src/cli.ts atlas --game pactfall --padding 4 --max-width 2048 --out-dir ./out
+
+# CI / pre-commit: fail if the committed atlas map is stale
+bun packages/assetgen/src/cli.ts atlas --game scourge-survivors --check
+```
+
+Flags: `--game <slug>`, `--padding <px>` (default 2), `--max-width` / `--max-height`
+(default 4096), `--out-dir`, `--name`, `--assets-dir`, `--check`.
+
+The map records each frame's `page`, `x`, `y`, `w`, `h`, `id`, and `game`, plus a
+`pages` list with each page image's filename and dimensions — feed it to a
+runtime loader / `codegen` (#22) for type-safe sprite lookups.
+
+## `codegen` — typed per-game asset bindings (issue #22)
+
+`assetgen codegen --game <slug>` turns the asset index (+ optional
+`<game>.atlas.json`) into one generated TypeScript module the game imports:
+
+- **Typed manifest** — `ASSETS` (id → path/width/height/frames) + an `AssetId`
+  union, so asset references are typo-proof and autocomplete.
+- **Atlas table** — `ATLAS` (pages + per-frame `page/x/y/w/h`) when an atlas map
+  exists alongside.
+- **Animation bindings** — `ANIMATIONS` (frame size/count/fps/loop) from
+  sprite-sheet metadata (run `index --frame-size` to populate frame grids).
+- **Thin loader** — `loadAssets(base)` preloads every asset by id. Framework-
+  agnostic: plain data + DOM `Image`, no engine import.
+
+```bash
+# Writes ../deadrotcom/apps/games/<game>/src/assets.generated.ts by default:
+bun packages/assetgen/src/cli.ts codegen --game scourge-survivors
+bun packages/assetgen/src/cli.ts codegen --game pactfall --out ./assets.generated.ts
+bun packages/assetgen/src/cli.ts codegen --game scourge-survivors --check   # CI gate
+```
+
+Flags: `--game <slug>` (required), `--out <path>`, `--atlas <path>`,
+`--frame-size <WxH>`, `--assets-dir`, `--check`. Colliding ids (e.g. `x.png` +
+`x.webp`) keep their extension so no asset is dropped.
+
 ## Design tokens
 
 `assetgen tokens` compiles the reviewed `DESIGN.md` frontmatter into generated

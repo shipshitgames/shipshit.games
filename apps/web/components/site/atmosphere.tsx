@@ -239,6 +239,7 @@ export function EmberParticles({
     <canvas
       ref={canvasRef}
       aria-hidden
+      tabIndex={-1}
       className={cn("pointer-events-none absolute inset-0 z-[1] h-full w-full mix-blend-screen", className)}
     />
   );
