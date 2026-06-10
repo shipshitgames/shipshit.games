@@ -20,10 +20,10 @@ export interface GalleryGame {
   tagline: string;
   coverPath: string;
   accent: AccentToken;
-  /** Presence signals a playable build; the Play link itself goes to deadrotUrl. */
+  /** Presence signals a playable build; the Play link itself goes to playUrl. */
   demoUrl?: string;
-  /** Canonical player-facing page: deadrot.com/games/<slug>. */
-  deadrotUrl: string;
+  /** Direct play route on the Deadrot hub: deadrot.com/<slug>. */
+  playUrl: string;
   repoUrl: string;
   /** Up to 3 character sprite thumbnails from the lore roster. */
   sprites: { name: string; src: string }[];
@@ -70,7 +70,7 @@ function CardActions({ game }: { game: GalleryGame }) {
       </Button>
       {game.demoUrl ? (
         <Button asChild size="sm" variant="outline" className="font-display uppercase tracking-widest">
-          <PlayBuildLink href={game.deadrotUrl} game={game.slug}>
+          <PlayBuildLink href={game.playUrl} game={game.slug}>
             <Gamepad2 aria-hidden="true" />
             Play
           </PlayBuildLink>
