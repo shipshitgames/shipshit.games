@@ -53,9 +53,15 @@ test("home shows real stats and the seven-game rail", async ({ page }) => {
   await expect(page.getByTestId("latest-shipped")).toBeVisible();
   await expect(page.getByRole("link", { name: /full build log/i })).toBeVisible();
 
-  // Games rail carries all 7 catalogue entries.
+  // Games rail carries all 7 catalogue entries and actually scrolls.
   await expect(page.getByTestId("games-rail")).toBeVisible();
   await expect(page.getByTestId("game-rail-card")).toHaveCount(7);
+  const rail = page.getByTestId("games-rail");
+  await rail.scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Scroll games right" }).click();
+  await expect
+    .poll(async () => rail.evaluate((el) => el.scrollLeft), { timeout: 3000 })
+    .toBeGreaterThan(0);
 
   expect(errors, `console errors on /: ${errors.join(" | ")}`).toEqual([]);
 });

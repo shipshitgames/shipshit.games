@@ -10,6 +10,7 @@ import { Eyebrow } from "@/components/site/eyebrow";
 import { Backdrop, EmberParticles } from "@/components/site/atmosphere";
 import { Signup } from "@/components/site/signup";
 import { GameRailCard } from "@/components/home/game-rail-card";
+import { GamesRail } from "@/components/home/games-rail";
 import { EventGlyph, utcDay } from "@/components/log/event-feed";
 import { CONTENT_MANIFEST, getActivitySnapshot } from "@/lib/content";
 import { formatUsd, SKILLS_PRO_EARLY_PRICE_USD } from "@/lib/skills-pro";
@@ -302,13 +303,12 @@ export default function Home() {
               All games →
             </Link>
           </div>
-          <div
-            data-testid="games-rail"
-            className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3"
-          >
-            {GAMES.map((game) => (
-              <GameRailCard key={game.slug} game={game} />
-            ))}
+          <div className="mt-8">
+            <GamesRail>
+              {GAMES.map((game) => (
+                <GameRailCard key={game.slug} game={game} />
+              ))}
+            </GamesRail>
           </div>
         </div>
       </section>

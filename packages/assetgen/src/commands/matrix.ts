@@ -21,7 +21,7 @@ export async function runMatrixCommand(argv: string[]): Promise<void> {
   const res = await runMatrix({
     assetsDir,
     provider: flag(argv, "provider", "mock")!, // mock by default: safe to batch the whole matrix with no keys
-    model: flag(argv, "model", "gpt-image-2"),
+    model: flag(argv, "model"), // no default: each provider resolves its own defaultModel (fal would treat a hardcoded id as an explicit override)
     size: intFlag(argv, "size", 1024),
     game: flag(argv, "game") as GameSlug | undefined,
     id: flag(argv, "id"),

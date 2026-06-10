@@ -35,9 +35,11 @@ interface Settings {
   defaultProvider: string;
   defaultGame: string;
   providerDefaults: Record<string, string>;
+  falModelDefaults: Record<string, string>;
   activeProjectId?: string;
   projects?: Array<{ id: string; name: string; slug: string; repoPath: string }>;
 }
+interface FalModelInfo { id: string; label: string; kinds: string[] }
 type TerminalStartResult =
   | { ok: true; id: string; pid: number | null; shell: string; cwd: string; cols: number; rows: number }
   | { ok: false; error: string };
@@ -98,6 +100,7 @@ declare global {
         game: string;
         kind: string;
         provider?: string;
+        model?: string;
         projectId?: string;
         views?: string;
         frames?: number;
@@ -122,6 +125,7 @@ declare global {
         setActive: (id: string) => Promise<ProjectState>;
       };
       keys: { status: () => Promise<Record<string, boolean>>; set: (provider: string, key: string) => Promise<Record<string, boolean>> };
+      models: { list: () => Promise<{ fal: FalModelInfo[] }> };
       terminal: {
         start: (opts?: { cols?: number; rows?: number; cwd?: string }) => Promise<TerminalStartResult>;
         write: (id: string, data: string) => Promise<boolean>;
@@ -196,12 +200,16 @@ const ASSET_DEFAULTS = [
   { kind: "voice", label: "Voice" },
   { kind: "model", label: "Models" },
 ];
+// ASSET_DEFAULTS kinds that fal can render (assetgen's FAL_IMAGE_KINDS); the
+// model catalog itself comes over studio:models, only this filter is local.
+const FAL_MODEL_KINDS = new Set(["sprite", "texture", "icon", "map"]);
 
 function withSettingsDefaults(settings: Partial<Settings>): Settings {
   return {
     defaultProvider: settings.defaultProvider || "codex",
     defaultGame: settings.defaultGame || "scourge-survivors",
     providerDefaults: { ...DEFAULT_PROVIDER_BY_KIND, ...(settings.providerDefaults || {}) },
+    falModelDefaults: settings.falModelDefaults || {},
     activeProjectId: settings.activeProjectId || "",
     projects: settings.projects || [],
   };
@@ -223,10 +231,12 @@ function SettingsPane() {
   const [games, setGames] = useState<string[]>(["scourge-survivors"]);
   const [status, setStatus] = useState<Record<string, boolean>>({});
   const [inputs, setInputs] = useState<Record<string, string>>({});
+  const [falModels, setFalModels] = useState<FalModelInfo[]>([]);
 
   useEffect(() => {
     window.studio?.settings.get().then((s) => setSettings(withSettingsDefaults(s))).catch(() => {});
     window.studio?.keys.status().then(setStatus).catch(() => {});
+    window.studio?.models?.list().then((m) => setFalModels(m?.fal || [])).catch(() => {});
     window.studio?.projects.list().then((state) => {
       const slugs = state.projects.map((project) => project.slug);
       if (slugs.length) setGames(slugs);
@@ -239,6 +249,13 @@ function SettingsPane() {
   const updateKindProvider = (kind: string, provider: string) => update({
     providerDefaults: { ...settings.providerDefaults, [kind]: provider },
   });
+  // Empty value = "provider default": delete the key instead of storing "".
+  const updateKindFalModel = (kind: string, model: string) => {
+    const falModelDefaults = { ...settings.falModelDefaults };
+    if (model) falModelDefaults[kind] = model;
+    else delete falModelDefaults[kind];
+    update({ falModelDefaults });
+  };
   const saveKey = (provider: string) => {
     const key = inputs[provider];
     if (!key) return;
@@ -270,6 +287,22 @@ function SettingsPane() {
             </select>
           </label>
         ))}
+      </div>
+      <div className="set-group">
+        <div className="set-group-title">fal.ai model by asset type</div>
+        {ASSET_DEFAULTS.filter((item) => FAL_MODEL_KINDS.has(item.kind)).map((item) => {
+          const chosen = settings.falModelDefaults[item.kind] || "";
+          return (
+            <label className="set-provider-row" key={item.kind}>
+              <span>{item.label}</span>
+              <select value={chosen} onChange={(e) => updateKindFalModel(item.kind, e.target.value)}>
+                <option value="">Provider default (FLUX.1 dev)</option>
+                {falModels.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                {chosen && !falModels.some((m) => m.id === chosen) && <option value={chosen}>{chosen} (custom)</option>}
+              </select>
+            </label>
+          );
+        })}
       </div>
       <div className="set-group">
         <div className="set-group-title">API keys — only for key-based providers</div>
@@ -393,6 +426,7 @@ function SpritesPane() {
   const [projectState, setProjectState] = useState<ProjectState>(EMPTY_PROJECT_STATE);
   const [projectId, setProjectId] = useState("");
   const [provider, setProvider] = useState("codex");
+  const [falModel, setFalModel] = useState("");
   const [views, setViews] = useState("front,side,back");
   const [frames, setFrames] = useState(1);
   const [fps, setFps] = useState(8);
@@ -407,6 +441,7 @@ function SpritesPane() {
     window.studio?.settings.get().then((s) => {
       const next = withSettingsDefaults(s);
       setProvider(next.providerDefaults.sprite || next.defaultProvider);
+      setFalModel(next.falModelDefaults.sprite || "");
       setGame(next.defaultGame);
     }).catch(() => {});
     window.studio?.projects.list().then((state) => {
@@ -504,7 +539,7 @@ function SpritesPane() {
         <label className="gen-field"><span>License record</span>
           <input value={license} onChange={(e) => setLicense(e.target.value)} />
         </label>
-        <div className="gen-active">sprite provider <b>{provider}</b> · change in Settings (topbar ⚙)</div>
+        <div className="gen-active">sprite provider <b>{provider}</b>{provider === "fal" && <> · model <b>{falModel || "flux dev default"}</b></>} · change in Settings (topbar ⚙)</div>
         {selectedProject?.manifestPath && <div className="gen-manifest">manifest {selectedProject.manifestPath}</div>}
         {selectedProject && !selectedProject.valid && <div className="project-error">{selectedProject.error}</div>}
         <button className="gen-btn" type="button" disabled={busy || !id || !prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>

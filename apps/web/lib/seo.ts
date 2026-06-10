@@ -3,7 +3,8 @@ import type { Game } from "@shipshitgames/shared";
 
 import type { GameLore } from "@/lib/content/types";
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://shipshit.games";
+// `||` not `??`: tolerate the env var existing as an empty string.
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://shipshit.games";
 
 export function organizationJsonLd() {
   return {
@@ -32,7 +33,7 @@ export function videoGameJsonLd(game: Game, lore: GameLore | null) {
     gamePlatform: "Web browser",
     applicationCategory: "Game",
     publisher: { "@type": "Organization", name: "Ship Shit Games", url: SITE_URL },
-    ...(game.demoUrl ? { gameServer: game.demoUrl } : {}),
+    gameServer: game.playUrl,
   };
 }
 
