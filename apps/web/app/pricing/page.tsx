@@ -3,7 +3,8 @@ import { ArrowRight, CheckCircle2, Gamepad2, Users, Workflow, Zap } from "lucide
 
 import { Backdrop } from "@/components/site/atmosphere";
 import { Eyebrow } from "@/components/site/eyebrow";
-import { Button } from "@/components/ui/button";
+
+import { CheckoutButton } from "./checkout-button";
 import {
   formatUsd,
   SKILLS_PRO,
@@ -164,14 +165,13 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
             ) : null}
 
             <form action="/api/checkout" method="post" className="mt-7">
-              <Button
-                type="submit"
+              <CheckoutButton
                 size="xl"
                 className="w-full font-display uppercase tracking-widest shadow-ember"
               >
                 Get the {formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}/mo pass
                 <ArrowRight aria-hidden="true" />
-              </Button>
+              </CheckoutButton>
             </form>
 
             <p className="mt-4 text-xs uppercase tracking-widest text-gunmetal">

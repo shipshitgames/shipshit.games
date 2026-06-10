@@ -35,7 +35,18 @@ export default defineConfig({
     baseURL,
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        // CI uses the runner's preinstalled Chrome: `playwright install` hung
+        // indefinitely after the chromium download on GitHub runners (both via
+        // bunx and npx). Local runs keep the bundled chromium.
+        channel: process.env.CI ? "chrome" : undefined,
+      },
+    },
+  ],
   webServer: {
     command: "bun run build && bun run start",
     url: baseURL,

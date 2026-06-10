@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Code2, ExternalLink, Gamepad2 } from "lucide-react";
-import { GAMES, STATUS_LABELS, type GameStatus } from "@shipshitgames/shared";
+import { CheckCircle2, ExternalLink } from "lucide-react";
+import { GAMES } from "@shipshitgames/shared";
 
 import { Backdrop } from "@/components/site/atmosphere";
 import { Eyebrow } from "@/components/site/eyebrow";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { GameGalleryGrid } from "@/components/games/game-gallery-grid";
+import type { GalleryGame } from "@/components/games/game-card";
+import { getCharacters, getGameLore } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Game Gallery",
@@ -37,33 +38,36 @@ export const metadata: Metadata = {
   },
 };
 
-const STATUS_STYLES: Record<GameStatus, string> = {
-  finished: "border-toxic/60 bg-toxic/10 text-toxic",
-  playable: "border-hellfire/60 bg-hellfire/10 text-hellfire",
-  prototype: "border-rust/70 bg-rust/15 text-bone",
-  "in-dev": "border-gunmetal bg-iron text-ash",
-  concept: "border-gunmetal bg-void text-ash",
-};
+/** Join the shared gallery catalogue with committed lore (tagline, accent, roster sprites). */
+function buildGalleryGames(): GalleryGame[] {
+  return GAMES.map((game) => {
+    const lore = getGameLore(game.slug);
+    const sprites = lore
+      ? getCharacters(lore.characterSlugs)
+          .filter((character) => character.spritePath !== null)
+          .slice(0, 3)
+          .map((character) => ({ name: character.name, src: character.spritePath as string }))
+      : [];
 
-const STATUS_ORDER: Record<GameStatus, number> = {
-  finished: 0,
-  playable: 1,
-  prototype: 2,
-  "in-dev": 3,
-  concept: 4,
-};
-
-const games = GAMES.toSorted((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
-
-function StatusBadge({ status }: { status: GameStatus }) {
-  return (
-    <Badge variant="outline" className={`font-display uppercase tracking-widest ${STATUS_STYLES[status]}`}>
-      {STATUS_LABELS[status]}
-    </Badge>
-  );
+    return {
+      slug: game.slug,
+      title: game.title,
+      status: game.status,
+      genre: lore?.genre ?? game.genre,
+      faction: lore?.factionName ?? game.faction,
+      tagline: lore?.tagline ?? game.blurb,
+      coverPath: game.coverPath,
+      accent: lore?.accent ?? "blood",
+      demoUrl: game.demoUrl,
+      repoUrl: game.repoUrl,
+      sprites,
+    };
+  });
 }
 
 export default function GamesPage() {
+  const games = buildGalleryGames();
+
   return (
     <main>
       <section className="relative overflow-hidden border-b border-gunmetal/40 px-6 pb-16 pt-32">
@@ -93,7 +97,7 @@ export default function GamesPage() {
                   variant="outline"
                   className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
                 >
-                  <Link href="/pricing">Get Studio Pass</Link>
+                  <Link href="/factions">Meet the factions</Link>
                 </Button>
               </div>
             </div>
@@ -117,69 +121,7 @@ export default function GamesPage() {
 
       <section className="px-6 py-16">
         <div className="mx-auto max-w-7xl">
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {games.map((game) => (
-              <article
-                key={game.slug}
-                className="group overflow-hidden rounded-md border border-gunmetal bg-coal transition duration-300 hover:border-hellfire"
-              >
-                <Link href={`/games/${game.slug}`} className="block">
-                  <div className="relative aspect-[1200/630] overflow-hidden bg-void">
-                    <Image
-                      src={game.coverPath}
-                      alt={`${game.title} pixel art cover`}
-                      fill
-                      sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                      className="object-cover transition duration-500 group-hover:scale-105"
-                      priority={game.slug === "scourge-survivors"}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-void via-void/35 to-transparent" />
-                    <div className="absolute left-4 top-4">
-                      <StatusBadge status={game.status} />
-                    </div>
-                  </div>
-                </Link>
-
-                <div className="p-5">
-                  <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-widest text-ash">
-                    <span>{game.genre}</span>
-                    <span className="text-gunmetal">/</span>
-                    <span>{game.faction}</span>
-                  </div>
-                  <h2 className="mt-3 font-display text-2xl font-bold uppercase leading-none tracking-tight text-bone">
-                    {game.title}
-                  </h2>
-                  <p className="mt-3 min-h-16 text-sm leading-relaxed text-ash">{game.blurb}</p>
-                  <p className="mt-4 border-l border-hellfire/60 pl-4 text-sm leading-relaxed text-ash">
-                    {game.courseAngle}
-                  </p>
-
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <Button asChild size="sm" className="font-display uppercase tracking-widest">
-                      <Link href={`/games/${game.slug}`}>
-                        Brief
-                        <ArrowRight aria-hidden="true" />
-                      </Link>
-                    </Button>
-                    {game.demoUrl ? (
-                      <Button asChild size="sm" variant="outline" className="font-display uppercase tracking-widest">
-                        <a href={game.demoUrl} target="_blank" rel="noreferrer">
-                          <Gamepad2 aria-hidden="true" />
-                          Play
-                        </a>
-                      </Button>
-                    ) : null}
-                    <Button asChild size="sm" variant="outline" className="font-display uppercase tracking-widest">
-                      <a href={game.repoUrl} target="_blank" rel="noreferrer">
-                        <Code2 aria-hidden="true" />
-                        Source
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
+          <GameGalleryGrid games={games} />
         </div>
       </section>
     </main>
