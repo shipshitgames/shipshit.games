@@ -1,10 +1,10 @@
 name: Token Drift
 
 on:
+  # No branch filter: required status check on develop/staging/master PRs.
   pull_request:
-    branches: [develop]
   push:
-    branches: [develop]
+    branches: [develop, staging, master]
 
 env:
   # All JS actions on Node 24 ahead of the 2026-06-16 default switch
