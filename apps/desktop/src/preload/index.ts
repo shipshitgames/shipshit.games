@@ -48,6 +48,10 @@ contextBridge.exposeInMainWorld("studio", {
     status: () => ipcRenderer.invoke("keys:status"),
     set: (provider, key) => ipcRenderer.invoke("keys:set", { provider, key }),
   },
+  // Provider model catalogs (currently fal) for the Settings pickers.
+  models: {
+    list: () => ipcRenderer.invoke("studio:models"),
+  },
   // Interactive terminal (node-pty in the main process, xterm in the renderer).
   terminal: {
     start: (opts) => ipcRenderer.invoke("terminal:start", opts),

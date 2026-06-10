@@ -28,6 +28,8 @@ export interface Game {
   coverPath: string;
   /** Public Deadrot hub page or canonical game URL. */
   deadrotUrl: string;
+  /** Direct play route on the Deadrot hub (deadrot.com/<slug>). */
+  playUrl: string;
   /** Deadrot finished-product issue URL. */
   readinessIssueUrl: string;
   /** Specific proof bullets shown on the detail page. */
@@ -72,6 +74,7 @@ export const GAMES: Game[] = [
     coverPath: "/images/games/scourge-survivors.webp",
     demoUrl: "https://scourge-survivors.vercel.app",
     deadrotUrl: "https://deadrot.com/games/scourge-survivors",
+    playUrl: "https://deadrot.com/scourge-survivors",
     readinessIssueUrl: "https://github.com/shipshitgames/deadrot.com/issues/242",
     repoUrl: "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/scourge-survivors",
     proofPoints: [
@@ -93,6 +96,7 @@ export const GAMES: Game[] = [
     coverPath: "/images/games/deadlane.webp",
     demoUrl: "https://deadlane-one.vercel.app",
     deadrotUrl: "https://deadrot.com/games/deadlane",
+    playUrl: "https://deadrot.com/deadlane",
     readinessIssueUrl: "https://github.com/shipshitgames/deadrot.com/issues/243",
     repoUrl: "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/deadlane",
     proofPoints: [
@@ -114,6 +118,7 @@ export const GAMES: Game[] = [
     coverPath: "/images/games/pactfall.webp",
     demoUrl: "https://pactfall.vercel.app",
     deadrotUrl: "https://deadrot.com/games/pactfall",
+    playUrl: "https://deadrot.com/pactfall",
     readinessIssueUrl: "https://github.com/shipshitgames/deadrot.com/issues/246",
     repoUrl: "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/pactfall",
     proofPoints: [
@@ -135,6 +140,7 @@ export const GAMES: Game[] = [
     coverPath: "/images/games/starblight.webp",
     demoUrl: "https://starblight.vercel.app",
     deadrotUrl: "https://deadrot.com/games/starblight",
+    playUrl: "https://deadrot.com/starblight",
     readinessIssueUrl: "https://github.com/shipshitgames/deadrot.com/issues/247",
     repoUrl: "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/starblight",
     proofPoints: [
@@ -156,6 +162,7 @@ export const GAMES: Game[] = [
     coverPath: "/images/games/redline.webp",
     demoUrl: "https://redline-eight-theta.vercel.app",
     deadrotUrl: "https://deadrot.com/games/redline",
+    playUrl: "https://deadrot.com/redline",
     readinessIssueUrl: "https://github.com/shipshitgames/deadrot.com/issues/244",
     repoUrl: "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/redline",
     proofPoints: [
@@ -177,6 +184,7 @@ export const GAMES: Game[] = [
     coverPath: "/images/games/rothulk.webp",
     demoUrl: "https://rothulk.vercel.app",
     deadrotUrl: "https://deadrot.com/games/rothulk",
+    playUrl: "https://deadrot.com/rothulk",
     readinessIssueUrl: "https://github.com/shipshitgames/deadrot.com/issues/245",
     repoUrl: "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/rothulk",
     proofPoints: [
@@ -198,6 +206,7 @@ export const GAMES: Game[] = [
     coverPath: "/images/hero.webp",
     demoUrl: "https://warline-jet.vercel.app",
     deadrotUrl: "https://deadrot.com/warline",
+    playUrl: "https://deadrot.com/warline",
     readinessIssueUrl: "https://github.com/shipshitgames/deadrot.com/issues/248",
     repoUrl: "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/warline",
     proofPoints: [
