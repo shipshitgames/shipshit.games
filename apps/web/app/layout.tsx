@@ -26,8 +26,10 @@ import { Konami } from "@/components/site/konami";
 import { jsonLdString, organizationJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = {
+  // `||` not `??`: the env var exists as an empty string on Vercel and
+  // new URL("") throws at build time.
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://shipshit.games"
+    process.env.NEXT_PUBLIC_SITE_URL || "https://shipshit.games"
   ),
   title: {
     default: "Ship Shit Games — building games with AI, in public",

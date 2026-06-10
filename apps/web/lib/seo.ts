@@ -3,7 +3,8 @@ import type { Game } from "@shipshitgames/shared";
 
 import type { GameLore } from "@/lib/content/types";
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://shipshit.games";
+// `||` not `??`: tolerate the env var existing as an empty string.
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://shipshit.games";
 
 export function organizationJsonLd() {
   return {
