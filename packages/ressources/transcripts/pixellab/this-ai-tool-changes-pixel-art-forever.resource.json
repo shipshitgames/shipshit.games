@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "slug": "this-ai-tool-changes-pixel-art-forever",
+  "sourceSlug": "pixellab",
+  "sourceKind": "youtube-video",
+  "title": "This AI Tool Changes Pixel Art Forever",
+  "url": "https://www.youtube.com/watch?v=7ChVezZPv64",
+  "capturedAt": "2026-06-09T20:32:04.819Z",
+  "transcriptPath": "transcripts/pixellab/this-ai-tool-changes-pixel-art-forever.transcript.md",
+  "transcriptFormat": "markdown",
+  "rights": {
+    "status": "public-captions",
+    "notes": "Public YouTube captions (yt-dlp) fetched 2026-06-09T20:32:04.819Z at user direction for internal study. 418 words. Not redistributed."
+  },
+  "tags": [
+    "pixel-art",
+    "ai-art-tools",
+    "asset-generation",
+    "game-art-pipeline"
+  ],
+  "derivatives": {
+    "skillCandidates": [],
+    "appCandidates": [],
+    "toolCandidates": []
+  }
+}

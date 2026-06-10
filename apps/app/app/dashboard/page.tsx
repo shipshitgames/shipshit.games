@@ -8,6 +8,12 @@ import { readStudioPass } from "@/lib/entitlements";
 
 export const dynamic = "force-dynamic";
 
+const renewsDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
 export default async function DashboardPage() {
   const user = await currentUser();
   const pass = readStudioPass(user?.privateMetadata);
@@ -49,11 +55,7 @@ export default async function DashboardPage() {
                 <dt className="text-xs uppercase tracking-widest text-gunmetal">Renews</dt>
                 <dd className="mt-1 text-bone">
                   {pass?.currentPeriodEnd
-                    ? new Intl.DateTimeFormat("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      }).format(new Date(pass.currentPeriodEnd))
+                    ? renewsDateFormatter.format(new Date(pass.currentPeriodEnd))
                     : "Not active"}
                 </dd>
               </div>
@@ -64,7 +66,10 @@ export default async function DashboardPage() {
             </dl>
             {!pass?.active ? (
               <form action="/api/checkout" method="post" className="mt-7">
-                <button className="rounded-md bg-blood px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-bone shadow-ember hover:bg-blood-hot">
+                <button
+                  type="submit"
+                  className="rounded-md bg-blood px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-bone shadow-ember hover:bg-blood-hot"
+                >
                   Start Studio Pass
                 </button>
               </form>

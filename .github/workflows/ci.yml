@@ -20,6 +20,11 @@ permissions:
 env:
   NEXT_TELEMETRY_DISABLED: "1"
   TURBO_TELEMETRY_DISABLED: "1"
+  # All JS actions on Node 24 ahead of the 2026-06-16 default switch
+  # (covers third-party actions still declaring node20, e.g. setup-bun).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # Content fetchers (lib/github, lib/youtube) serve committed snapshots in CI.
+  CONTENT_SNAPSHOT_ONLY: "1"
   ACCESS_SIGNING_SECRET: ci-access-signing-secret
   CLERK_SECRET_KEY: ci-clerk-secret-key
   NEXT_PUBLIC_APP_URL: http://localhost:3002
@@ -37,10 +42,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
 
@@ -50,7 +55,7 @@ jobs:
           bun-version: 1.3.14
 
       - name: Cache Bun and Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.bun/install/cache
@@ -80,17 +85,17 @@ jobs:
       - name: Build
         run: bun run build
 
-  desktop-terminal:
-    name: Desktop Terminal (node-pty)
-    runs-on: macos-latest
+  web-e2e:
+    name: Website E2E (Playwright)
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
 
@@ -100,7 +105,49 @@ jobs:
           bun-version: 1.3.14
 
       - name: Cache Bun and Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            .turbo
+          key: ${{ runner.os }}-bun-turbo-${{ hashFiles('bun.lock', 'turbo.json', '**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-turbo-
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      # No `playwright install`: it hung indefinitely post-download on GitHub
+      # runners (via bunx AND npx). CI drives the runner's preinstalled Chrome
+      # instead (channel: "chrome" in playwright.config.ts).
+      # playwright.config.ts builds and serves the app itself (webServer),
+      # with CONTENT_SNAPSHOT_ONLY so no spec ever touches the network.
+      - name: Run Website E2E
+        run: bun run e2e
+        working-directory: apps/web
+        timeout-minutes: 12
+
+  desktop-terminal:
+    name: Desktop Terminal (node-pty)
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Cache Bun and Turbo
+        uses: actions/cache@v5
         with:
           path: |
             ~/.bun/install/cache

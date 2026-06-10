@@ -219,7 +219,7 @@ function kindSummary(kindCounts: Record<string, number>): string {
 }
 
 function SettingsPane() {
-  const [settings, setSettings] = useState<Settings>(withSettingsDefaults({}));
+  const [settings, setSettings] = useState<Settings>(() => withSettingsDefaults({}));
   const [games, setGames] = useState<string[]>(["scourge-survivors"]);
   const [status, setStatus] = useState<Record<string, boolean>>({});
   const [inputs, setInputs] = useState<Record<string, string>>({});
@@ -277,8 +277,8 @@ function SettingsPane() {
         {KEYED.map((k) => (
           <div className="set-key-row" key={k.id}>
             <span className="label">{k.label}</span>
-            <input type="password" placeholder={status[k.id] ? "•••••••• stored" : "paste key"} value={inputs[k.id] || ""} onChange={(e) => setInputs((s) => ({ ...s, [k.id]: e.target.value }))} />
-            <button className="set-btn" onClick={() => saveKey(k.id)}>Save</button>
+            <input type="password" aria-label={`${k.label} API key`} placeholder={status[k.id] ? "•••••••• stored" : "paste key"} value={inputs[k.id] || ""} onChange={(e) => setInputs((s) => ({ ...s, [k.id]: e.target.value }))} />
+            <button className="set-btn" type="button" onClick={() => saveKey(k.id)}>Save</button>
             <span className={"badge " + (status[k.id] ? "ok" : "no")}>{status[k.id] ? "set" : "none"}</span>
           </div>
         ))}
@@ -507,7 +507,7 @@ function SpritesPane() {
         <div className="gen-active">sprite provider <b>{provider}</b> · change in Settings (topbar ⚙)</div>
         {selectedProject?.manifestPath && <div className="gen-manifest">manifest {selectedProject.manifestPath}</div>}
         {selectedProject && !selectedProject.valid && <div className="project-error">{selectedProject.error}</div>}
-        <button className="gen-btn" disabled={busy || !id || !prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
+        <button className="gen-btn" type="button" disabled={busy || !id || !prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
           {busy ? "Forging…" : "Generate"}
         </button>
         <p className="gen-note">Auto-styled with the DOOM DESIGN.md suffix · writes the .webp + updates the game's assets.json. Codex runs take a minute — watch the log.</p>
@@ -575,7 +575,7 @@ function ResearchPane() {
             <option value="mock">mock — offline (transcript only)</option>
           </select>
         </label>
-        <button className="gen-btn" disabled={busy || !url.trim()} onClick={distill}>
+        <button className="gen-btn" type="button" disabled={busy || !url.trim()} onClick={distill}>
           {busy ? "Distilling…" : "Distill rules"}
         </button>
         <p className="gen-note">Transcript via yt-dlp (recommended) → distilled to docs/rules/&lt;slug&gt;.md. Codex runs take a minute — watch the log.</p>
@@ -688,7 +688,7 @@ function MusicPane() {
           <input type="number" min={32} max={320} value={bitrate} onChange={(e) => setBitrate(Number(e.target.value) || 128)} />
         </label>
         <label className="gen-field"><span><input type="checkbox" checked={normalize} onChange={(e) => setNormalize(e.target.checked)} /> loudnorm (recommended for SFX)</span></label>
-        <button className="gen-btn" disabled={busy || !files.length || !!(selectedProject && !selectedProject.valid)} onClick={transcode}>
+        <button className="gen-btn" type="button" disabled={busy || !files.length || !!(selectedProject && !selectedProject.valid)} onClick={transcode}>
           {busy ? "Transcoding…" : "Transcode → WebM/Opus"}
         </button>
         <p className="gen-note">ffmpeg → opus into the game's audio folder · strips cover art · registers each output in assets.json with a license record. Generate new SFX with ElevenLabs SFX / OptimizerAI; music with Soundraw / Beatoven (avoid Udio/Suno for shipped in-game loops).</p>
@@ -844,7 +844,7 @@ const emptyMoodboard = (game: string): Moodboard => ({ game, items: [], updatedA
 function MoodboardPane() {
   const [game, setGame] = useState("scourge-survivors");
   const [games, setGames] = useState<string[]>(["scourge-survivors", "deadlane", "pactfall", "starblight"]);
-  const [board, setBoard] = useState<Moodboard>(emptyMoodboard("scourge-survivors"));
+  const [board, setBoard] = useState<Moodboard>(() => emptyMoodboard("scourge-survivors"));
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const drag = useRef<{
@@ -994,7 +994,7 @@ function MoodboardPane() {
               {item.type === "image" ? (
                 item.dataUrl ? <img src={item.dataUrl} alt={item.image?.name || "reference"} /> : <div className="moodboard-missing">missing image</div>
               ) : (
-                <textarea defaultValue={item.text || ""} onBlur={(e) => updateNote(item, e.target.value)} />
+                <textarea aria-label="Note text" defaultValue={item.text || ""} onBlur={(e) => updateNote(item, e.target.value)} />
               )}
             </article>
           ))}
@@ -1102,7 +1102,7 @@ function GalleryPane() {
   }, [filtered]);
 
   const byId = useMemo(() => new Map(result.assets.map((a) => [a.id, a])), [result.assets]);
-  const compareAssets = compare.map((id) => byId.get(id)).filter(Boolean) as GalleryAsset[];
+  const compareAssets = compare.flatMap((id) => { const asset = byId.get(id); return asset ? [asset] : []; });
   const lightboxAsset = lightbox ? byId.get(lightbox) || null : null;
   const lightboxIndex = lightboxAsset ? filtered.findIndex((a) => a.id === lightboxAsset.id) : -1;
 
@@ -1143,6 +1143,7 @@ function GalleryPane() {
         </label>
         <input
           className="gallery-search"
+          aria-label="Search assets"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search id, folder, path…"
@@ -1232,15 +1233,22 @@ function GalleryPane() {
       </div>
 
       {lightboxAsset && (
-        <div className="modal-backdrop" onClick={() => setLightbox(null)}>
+        <div
+          className="modal-backdrop"
+          role="button"
+          tabIndex={0}
+          aria-label="Close"
+          onClick={() => setLightbox(null)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setLightbox(null); }}
+        >
           <div className="gallery-lightbox" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <span className="modal-title">{lightboxAsset.id}</span>
               <div className="gallery-lightbox-nav">
-                <button className="modal-close" aria-label="Previous" onClick={() => step(-1)}>‹</button>
+                <button className="modal-close" type="button" aria-label="Previous" onClick={() => step(-1)}>‹</button>
                 <span className="gallery-lightbox-count">{lightboxIndex + 1} / {filtered.length}</span>
-                <button className="modal-close" aria-label="Next" onClick={() => step(1)}>›</button>
-                <button className="modal-close" aria-label="Close" onClick={() => setLightbox(null)}>×</button>
+                <button className="modal-close" type="button" aria-label="Next" onClick={() => step(1)}>›</button>
+                <button className="modal-close" type="button" aria-label="Close" onClick={() => setLightbox(null)}>×</button>
               </div>
             </div>
             <div className="gallery-lightbox-body">
@@ -1297,12 +1305,12 @@ export default function App() {
           {GROUPS.map((group) => (
             <div className="nav-group" key={group}>
               <div className="nav-group-label">{group}</div>
-              {SECTIONS.filter((s) => s.group === group).map((s) => (
+              {SECTIONS.flatMap((s) => s.group === group ? [(
                 <button key={s.id} type="button" className={"nav-item" + (s.id === active ? " is-active" : "")} onClick={() => setActive(s.id)}>
                   <span className="nav-glyph" aria-hidden="true">{s.glyph}</span>
                   {s.label}
                 </button>
-              ))}
+              )] : [])}
             </div>
           ))}
         </nav>
@@ -1312,7 +1320,7 @@ export default function App() {
       <div className="workspace">
         <header className="topbar">
           <span className="topbar-label">{section.group} / {section.label}</span>
-          <button className="topbar-gear" title="Settings" aria-label="Settings" onClick={() => setSettingsOpen(true)}>⚙</button>
+          <button className="topbar-gear" type="button" title="Settings" aria-label="Settings" onClick={() => setSettingsOpen(true)}>⚙</button>
         </header>
 
         <main className="pane">
@@ -1336,11 +1344,18 @@ export default function App() {
       </div>
 
       {settingsOpen && (
-        <div className="modal-backdrop" onClick={() => setSettingsOpen(false)}>
+        <div
+          className="modal-backdrop"
+          role="button"
+          tabIndex={0}
+          aria-label="Close settings"
+          onClick={() => setSettingsOpen(false)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSettingsOpen(false); }}
+        >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <span className="modal-title">Settings</span>
-              <button className="modal-close" aria-label="Close" onClick={() => setSettingsOpen(false)}>×</button>
+              <button className="modal-close" type="button" aria-label="Close" onClick={() => setSettingsOpen(false)}>×</button>
             </div>
             <div className="modal-body"><SettingsPane /></div>
           </div>

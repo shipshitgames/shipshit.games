@@ -1,4 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CheckCircle2, CircleAlert } from "lucide-react";
 
@@ -9,6 +10,11 @@ import { syncCheckoutSession } from "@/lib/stripe-sync";
 import { appUrl } from "@/lib/urls";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Claim access",
+  description: "Claim your Studio Pass access after checkout.",
+};
 
 type ClaimPageProps = {
   searchParams?: Promise<{

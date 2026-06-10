@@ -12,6 +12,8 @@ const baseURL = `http://localhost:${PORT}`;
 
 const ciEnv = {
   NEXT_TELEMETRY_DISABLED: "1",
+  // All content fetchers (github/youtube) serve committed snapshots — zero network in e2e.
+  CONTENT_SNAPSHOT_ONLY: "1",
   NEXT_PUBLIC_SITE_URL: baseURL,
   NEXT_PUBLIC_APP_URL: "http://localhost:3002",
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ci_placeholder",
@@ -33,7 +35,18 @@ export default defineConfig({
     baseURL,
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        // CI uses the runner's preinstalled Chrome: `playwright install` hung
+        // indefinitely after the chromium download on GitHub runners (both via
+        // bunx and npx). Local runs keep the bundled chromium.
+        channel: process.env.CI ? "chrome" : undefined,
+      },
+    },
+  ],
   webServer: {
     command: "bun run build && bun run start",
     url: baseURL,

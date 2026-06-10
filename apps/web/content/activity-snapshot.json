@@ -1,0 +1,627 @@
+{
+  "generatedAt": "2026-06-09T22:56:14.882Z",
+  "events": [
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 309,
+      "title": "feat(scourge-survivors): elite wave affixes for Survivors breach surges",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/309",
+      "date": "2026-06-09T22:54:24Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 307,
+      "title": "chore(tooling): test-path hygiene + gitignore cleanup",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/307",
+      "date": "2026-06-09T22:54:21Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 306,
+      "title": "feat(game-kit): @deadrot/game-kit shared runtime (audio, juice, core)",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/306",
+      "date": "2026-06-09T22:54:17Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 168,
+      "title": "docs(sessions): 2026-06-09 session 2 + ressources transcript memory",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/168",
+      "date": "2026-06-09T22:01:10Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 165,
+      "title": "chore(ressources): add 4 AI game-dev transcripts + fix manual-subs fetch",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/165",
+      "date": "2026-06-09T22:01:07Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 305,
+      "title": "chore(ci): split game E2E matrix by viewport (parallel desktop/mobile)",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/305",
+      "date": "2026-06-09T20:59:09Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 304,
+      "title": "chore(ci): regroup quality + unit checks into one CI workflow",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/304",
+      "date": "2026-06-09T20:54:16Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 303,
+      "title": "chore(assets): back-fill pactfall catalog variants + lock deadlane first-person direction",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/303",
+      "date": "2026-06-09T20:54:12Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 294,
+      "title": "chore(engine): consume published @shipshitgames/engine@0.2.0; retire the fork",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/294",
+      "date": "2026-06-09T17:55:47Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 163,
+      "title": "feat(engine): upstream the camera + input extraction; release 0.2.0",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/163",
+      "date": "2026-06-09T17:48:11Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 292,
+      "title": "chore(ci): bump workflow actions to their Node 24 majors",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/292",
+      "date": "2026-06-09T17:00:31Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 161,
+      "title": "feat(assetgen): typed per-game asset codegen (#22)",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/161",
+      "date": "2026-06-09T16:58:12Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 160,
+      "title": "feat(assetgen): texture atlas packing, per-game multi-page (#92)",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/160",
+      "date": "2026-06-09T16:56:10Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 291,
+      "title": "feat(starblight): the Drydock — permanent meta-upgrade shop (#183)",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/291",
+      "date": "2026-06-09T16:15:09Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 159,
+      "title": "feat(assetgen): implement `check` asset-integrity gate",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/159",
+      "date": "2026-06-09T15:47:49Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 158,
+      "title": "fix(assetgen): defringe + lossless WebP to stop edge bleeding",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/158",
+      "date": "2026-06-09T15:47:29Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 157,
+      "title": "feat(assetgen): asset indexer CLI, per-game (#101)",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/157",
+      "date": "2026-06-09T15:40:46Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 286,
+      "title": "fix(starblight): hide the title hero once the menu is revealed",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/286",
+      "date": "2026-06-09T15:35:50Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 285,
+      "title": "refactor(games): unify menu titles on shared components + CSS",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/285",
+      "date": "2026-06-09T15:24:48Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 284,
+      "title": "refactor(ui): shared GameSettingsScreen across all games",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/284",
+      "date": "2026-06-09T15:13:46Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 282,
+      "title": "fix(web): link the hub to the live lore.deadrot.com vault",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/282",
+      "date": "2026-06-09T15:13:41Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 283,
+      "title": "fix(pactfall): repair the Enter Arena button",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/283",
+      "date": "2026-06-09T14:15:46Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 156,
+      "title": "chore(react): add react-doctor + clean up React apps (75→25 findings)",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/156",
+      "date": "2026-06-09T14:14:09Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 155,
+      "title": "feat(game-tester): Playwright game QA harness (#102)",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/155",
+      "date": "2026-06-09T14:13:45Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 281,
+      "title": "feat(catalog): single source of truth for the game roster",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/281",
+      "date": "2026-06-09T13:35:11Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 275,
+      "title": "Promote staging to master",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/275",
+      "date": "2026-06-08T23:08:49Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 274,
+      "title": "Promote develop overlay fixes to staging",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/274",
+      "date": "2026-06-08T23:05:08Z"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T23:02:59Z",
+      "message": "Merge staging back into develop",
+      "sha": "fbd0763",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/fbd076354deb4089774ea49dc9903c163f93ab0c"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T23:02:40Z",
+      "message": "fix(scourge): separate controls overlay click target",
+      "sha": "89f7462",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/89f7462403b4f113096ff2b6b186f73fef1f3354"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:55:16Z",
+      "message": "fix(ui): stabilize game overlays",
+      "sha": "4a80d0a",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/4a80d0a92282185a6c9e16d5cd4f85e801959734"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 273,
+      "title": "Promote develop to staging",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/273",
+      "date": "2026-06-08T22:53:15Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 271,
+      "title": "Add global game settings and refresh Scourge assets",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/271",
+      "date": "2026-06-08T22:43:44Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 272,
+      "title": "Add Warline 3D lobby snapshot",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/272",
+      "date": "2026-06-08T22:43:44Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 263,
+      "title": "Fix systemic Game E2E red (boot crash) + shard/cache the workflow",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/263",
+      "date": "2026-06-08T22:43:44Z"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:43:21Z",
+      "message": "Merge remote develop updates",
+      "sha": "a2b0de4",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/a2b0de4bd20d4f8bedf9b8125a51648fb031213d"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:41:59Z",
+      "message": "Mark stale Warline 3D lobby branch merged",
+      "sha": "8f2e4c1",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/8f2e4c1a369fcdff233c8e6a6fc82575300e7d02"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:41:46Z",
+      "message": "Mark stale game settings assets branch merged",
+      "sha": "a9e9f94",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/a9e9f9415fca5751b527f8afb367587bc3a00492"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:41:21Z",
+      "message": "Merge claude E2E fixes into develop",
+      "sha": "20ff39b",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/20ff39b7be29cdae56756f3bf2f73d8127d97fb1"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 266,
+      "title": "Add The Brace Ledger lore",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/266",
+      "date": "2026-06-08T22:39:55Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 268,
+      "title": "#23 Finish Scourge Survivors HUD overlay cleanup",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/268",
+      "date": "2026-06-08T22:39:52Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 270,
+      "title": "Audit canon consistency",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/270",
+      "date": "2026-06-08T22:39:48Z"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:32:48Z",
+      "message": "Format game HUD files",
+      "sha": "82a06d3",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/82a06d3b50c5bfe601d29e45ee62a94590815021"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:29:44Z",
+      "message": "Fix game menu DOM ownership crashes",
+      "sha": "cbe4c12",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/cbe4c12b7a57e438de1a32a1052a82a60a3f89f8"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 154,
+      "title": "Promote staging to master",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/154",
+      "date": "2026-06-08T22:27:22Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 153,
+      "title": "Promote develop to staging",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/153",
+      "date": "2026-06-08T22:25:39Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 152,
+      "title": "#143 Document canonical engine ownership",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/152",
+      "date": "2026-06-08T22:24:08Z"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T22:22:29Z",
+      "message": "style(web): update color variables in globals.css to use hex values",
+      "sha": "20e0a82",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/20e0a8248ac5fb1be03828b215e33f914fc1d3a7"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/deadrot.com",
+      "number": 267,
+      "title": "audit: canon consistency 2026-06-09",
+      "url": "https://github.com/shipshitgames/deadrot.com/pull/267",
+      "date": "2026-06-08T22:21:48Z"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:21:43Z",
+      "message": "feat(hud): refactor HUD system to utilize a centralized banner snapshot for state management",
+      "sha": "0c12f09",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/0c12f09a7f676ac514e8a09bd1246d662c72794e"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:19:06Z",
+      "message": "fix(scourge-survivors): finish HUD overlay cleanup (#23)",
+      "sha": "49ab81c",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/49ab81c429bedc26157822f2f68a4e584f375cf0"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T22:16:24Z",
+      "message": "docs(engine): document canonical ownership for #143",
+      "sha": "69b787c",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/69b787c3ecf9b711093f2652afa9d603d2c75dc2"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:15:00Z",
+      "message": "audit: canon consistency 2026-06-09",
+      "sha": "314c843",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/314c84379ff1065ee30ba1efd53f077025c90e79"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/deadrot.com",
+      "date": "2026-06-08T22:12:00Z",
+      "message": "lore: add The Brace Ledger (faction detail)",
+      "sha": "dda22f7",
+      "url": "https://github.com/shipshitgames/deadrot.com/commit/dda22f7f1738e68dbc8e563e3a2e92446030a356"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 151,
+      "title": "Promote staging to master",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/151",
+      "date": "2026-06-08T22:09:08Z"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T22:09:08Z",
+      "message": "Promote staging to master",
+      "sha": "195304a",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/195304af6e310d03d4e8cb7d26f76fc7a77406e1"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T22:08:17Z",
+      "message": "Merge remote-tracking branch 'origin/staging'",
+      "sha": "b51ad59",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/b51ad596fd30aa72ccdf898e1445675575a8a1f2"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T22:08:00Z",
+      "message": "Merge remote-tracking branch 'origin/develop' into staging",
+      "sha": "54fd42d",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/54fd42d9a3d7df3343b0e90287f0fd4e62f7fc0e"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T19:37:16Z",
+      "message": "refactor(desktop): adopt src/{main,preload,renderer} layout, convert runtime CJS to TS",
+      "sha": "2386a58",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/2386a58d5dba1dbe87fe7a2c13b0583ad75edf4b"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 149,
+      "title": "Promote staging to master",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/149",
+      "date": "2026-06-08T10:34:30Z"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T10:34:06Z",
+      "message": "Promote develop to staging",
+      "sha": "9ce0378",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/9ce03782d1289d881d3901d42eb02ee00d577a29"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 146,
+      "title": "feat(engine): define extraction boundary for #8",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/146",
+      "date": "2026-06-08T10:31:43Z"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T10:31:30Z",
+      "message": "Merge remote-tracking branch 'origin/develop' into feat/8-engine-extraction-boundary",
+      "sha": "ca0bdc3",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/ca0bdc359424172c827ca629dad908534cf89b14"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T09:02:15Z",
+      "message": "feat(desktop): add CI workflow for Desktop Terminal and enhance packaging validation",
+      "sha": "7bdbda1",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/7bdbda18b0f944c12c6e314fd995fb95635250e5"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T08:28:44Z",
+      "message": "refactor(desktop): update moodboard game listing logic",
+      "sha": "762ff0e",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/762ff0e9b833d564971b5899a29ce1325412b418"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T08:21:08Z",
+      "message": "feat(desktop): implement moodboard functionality and enhance design resources",
+      "sha": "7bd4e0e",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/7bd4e0e3b0edd0d223b969f2385e08ffe6de2ebf"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T08:12:19Z",
+      "message": "refactor(desktop): restructure Electron app and enhance TypeScript support",
+      "sha": "12a1147",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/12a1147f7a30a6d857be8d38bc70f7ae4406a296"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T07:49:20Z",
+      "message": "Promote develop to staging",
+      "sha": "07c21e0",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/07c21e00302d3a660d17a80ecc965942193d7c80"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 142,
+      "title": "#97 Enforce ressources package boundary",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/142",
+      "date": "2026-06-08T07:48:42Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 141,
+      "title": "#81 Add Studio Moodboard pane",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/141",
+      "date": "2026-06-08T07:48:42Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 137,
+      "title": "#41 Emit generated font token artifacts",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/137",
+      "date": "2026-06-08T07:48:42Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 139,
+      "title": "#42 Add token drift gate",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/139",
+      "date": "2026-06-08T07:48:42Z"
+    },
+    {
+      "type": "commit",
+      "repo": "shipshitgames/shipshit.games",
+      "date": "2026-06-08T07:47:49Z",
+      "message": "Merge develop (native addon + manifest-core) into token batch",
+      "sha": "4104ee6",
+      "url": "https://github.com/shipshitgames/shipshit.games/commit/4104ee6f720aaf4e6abc534c2f58dac1d515d2f9"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 127,
+      "title": "#6 Bootstrap per-game asset variant catalog",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/127",
+      "date": "2026-06-08T05:44:50Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 124,
+      "title": "Guard DESIGN.md copies for #36",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/124",
+      "date": "2026-06-07T12:38:25Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 123,
+      "title": "#5 Add provider BYOK abstraction",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/123",
+      "date": "2026-06-07T12:38:25Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 118,
+      "title": "fix(warline): run tests with bun",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/118",
+      "date": "2026-06-06T18:33:47Z"
+    },
+    {
+      "type": "pr_merged",
+      "repo": "shipshitgames/shipshit.games",
+      "number": 119,
+      "title": "fix(assetgen): split cli into command dispatcher",
+      "url": "https://github.com/shipshitgames/shipshit.games/pull/119",
+      "date": "2026-06-06T18:23:51Z"
+    }
+  ],
+  "stats": {
+    "gameCount": 7,
+    "spriteCount": 96,
+    "mergedPrsTotal": 134,
+    "commitsLast30d": 200
+  }
+}

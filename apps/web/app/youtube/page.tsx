@@ -4,31 +4,15 @@ import { ArrowRight, MonitorPlay, Radio, Terminal } from "lucide-react";
 import { Backdrop } from "@/components/site/atmosphere";
 import { Eyebrow } from "@/components/site/eyebrow";
 import { Button } from "@/components/ui/button";
+import { SITE_META } from "@/lib/content";
+import { fetchLatestVideos } from "@/lib/youtube";
+
+export const revalidate = 3600;
 
 const CHANNEL_URL = "https://youtube.com/@ShipShitShow";
 
-const FEATURED = [
-  {
-    label: "Latest build video",
-    title: "Opus 4.8: We Built a Browser FPS in 45 Minutes With One Prompt",
-    videoId: "49IkgeGr1kE",
-    published: "June 4, 2026",
-    summary:
-      "A one-prompt browser FPS build with enemy waves, a boss fight, weapons, pickups, collision fixes, and a final playthrough.",
-    cta: "Watch the FPS build",
-    icon: Terminal,
-  },
-  {
-    label: "Latest Opus livestream",
-    title: "[LIVE] Claude Opus 4.8 Masterclass: Everything You Need to Know",
-    videoId: "p-WXHu2gU2s",
-    published: "June 3, 2026",
-    summary:
-      "The model-release breakdown: benchmarks, reliability gains, dynamic workflows, token cost, and what changes for agentic builds.",
-    cta: "Watch the livestream",
-    icon: Radio,
-  },
-] as const;
+const FEATURED_ICONS = [Terminal, Radio] as const;
+const FEATURED_LABELS = ["Latest build video", "Latest livestream"] as const;
 
 export const metadata: Metadata = {
   title: "Ship Shit Show",
@@ -58,7 +42,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default function YoutubePage() {
+/** RSS dates are ISO; curated featured dates are already human-readable. */
+function formatPublished(published: string): string {
+  if (!published.includes("T")) return published;
+  const date = new Date(published);
+  if (Number.isNaN(date.getTime())) return published;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+export default async function YoutubePage() {
+  const { videos: latest } = await fetchLatestVideos(6);
+
   return (
     <main>
       <section className="relative overflow-hidden border-b border-gunmetal/40 px-6 pb-20 pt-32">
@@ -89,8 +88,9 @@ export default function YoutubePage() {
           </div>
 
           <div className="mt-14 grid gap-6 lg:grid-cols-2">
-            {FEATURED.map((video) => {
-              const Icon = video.icon;
+            {SITE_META.youtubeFeatured.map((video, index) => {
+              const Icon = FEATURED_ICONS[index % FEATURED_ICONS.length];
+              const label = FEATURED_LABELS[index % FEATURED_LABELS.length];
               const watchUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
               return (
                 <article
@@ -102,6 +102,7 @@ export default function YoutubePage() {
                       className="h-full w-full"
                       src={`https://www.youtube.com/embed/${video.videoId}`}
                       title={video.title}
+                      sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       referrerPolicy="strict-origin-when-cross-origin"
                       allowFullScreen
@@ -109,9 +110,9 @@ export default function YoutubePage() {
                   </div>
                   <div className="mt-5 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-hellfire">
                     <Icon className="size-4" aria-hidden="true" />
-                    <span>{video.label}</span>
+                    <span>{label}</span>
                     <span className="text-gunmetal">/</span>
-                    <span className="text-ash">{video.published}</span>
+                    <span className="text-ash">{formatPublished(video.published)}</span>
                   </div>
                   <h2 className="mt-3 font-display text-2xl font-bold uppercase leading-tight tracking-tight text-bone">
                     {video.title}
@@ -125,12 +126,66 @@ export default function YoutubePage() {
                     rel="noreferrer"
                     className="mt-5 inline-flex items-center gap-2 font-display text-xs font-bold uppercase tracking-widest text-hellfire transition-colors hover:text-blood"
                   >
-                    {video.cta}
+                    Watch on YouTube
                     <ArrowRight className="size-4" aria-hidden="true" />
                   </a>
                 </article>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      <section className="px-6 py-16">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <Eyebrow>Fresh from the channel</Eyebrow>
+              <h2 className="mt-3 font-display text-3xl font-bold uppercase tracking-tight text-bone sm:text-4xl">
+                Latest uploads
+              </h2>
+            </div>
+            <a
+              href={CHANNEL_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="font-display text-xs font-bold uppercase tracking-widest text-hellfire transition-colors hover:text-blood"
+            >
+              All videos →
+            </a>
+          </div>
+
+          <div
+            data-testid="latest-uploads"
+            className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {latest.map((video) => (
+              <a
+                key={video.videoId}
+                href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="group overflow-hidden rounded-md border border-gunmetal bg-coal transition-colors duration-300 hover:border-hellfire"
+              >
+                <div className="aspect-video overflow-hidden bg-void">
+                  {/* External host — next/image has no remotePatterns for ytimg. */}
+                  <img
+                    src={`https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`}
+                    alt={`${video.title} thumbnail`}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-4">
+                  <p className="font-mono text-xs text-ash/70">
+                    {formatPublished(video.published)}
+                  </p>
+                  <h3 className="mt-2 font-display text-lg font-bold uppercase leading-tight tracking-tight text-bone group-hover:text-hellfire">
+                    {video.title}
+                  </h3>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
       </section>

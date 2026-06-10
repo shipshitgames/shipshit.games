@@ -31,7 +31,7 @@ async function resolveUserId(input: {
   return user?.id ?? null;
 }
 
-export async function syncSubscriptionToClerk(input: SyncInput) {
+async function syncSubscriptionToClerk(input: SyncInput) {
   const userId = await resolveUserId({
     clerkUserId: input.clerkUserId,
     email: input.email,
