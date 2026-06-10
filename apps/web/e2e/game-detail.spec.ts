@@ -15,13 +15,13 @@ test("scourge survivors brief shows the lore-driven sections", async ({ page }) 
   expect(response, "no response for /games/scourge-survivors").toBeTruthy();
   expect(response!.status()).toBeLessThan(400);
 
-  // Hero with lore tagline + Play build link-out to the demo.
+  // Hero with lore tagline + Play link-out to the canonical deadrot.com page.
   await expect(
     page.getByRole("heading", { level: 1, name: /scourge survivors/i }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: /play build/i })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: /play on deadrot\.com/i })).toHaveAttribute(
     "href",
-    "https://scourge-survivors.vercel.app",
+    "https://deadrot.com/games/scourge-survivors",
   );
 
   // Lore features grid.
