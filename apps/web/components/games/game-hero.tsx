@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Code2, ExternalLink, Gamepad2 } from "lucide-react";
+import { Code2, Gamepad2 } from "lucide-react";
 import type { Game } from "@shipshitgames/shared";
 
 import { Backdrop } from "@/components/site/atmosphere";
@@ -77,9 +77,9 @@ export function GameHero({ game, lore }: { game: Game; lore: GameLore | null }) 
             <div className="mt-9 flex flex-wrap gap-3">
               {game.demoUrl ? (
                 <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-                  <PlayBuildLink href={game.demoUrl} game={game.slug}>
+                  <PlayBuildLink href={game.deadrotUrl} game={game.slug}>
                     <Gamepad2 aria-hidden="true" />
-                    Play build
+                    Play on deadrot.com
                   </PlayBuildLink>
                 </Button>
               ) : null}
@@ -92,17 +92,6 @@ export function GameHero({ game, lore }: { game: Game; lore: GameLore | null }) 
                 <a href={game.repoUrl} target="_blank" rel="noreferrer">
                   <Code2 aria-hidden="true" />
                   Source
-                </a>
-              </Button>
-              <Button
-                asChild
-                size="xl"
-                variant="outline"
-                className="border-gunmetal font-display uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire"
-              >
-                <a href={game.deadrotUrl} target="_blank" rel="noreferrer">
-                  Deadrot page
-                  <ExternalLink aria-hidden="true" />
                 </a>
               </Button>
             </div>
