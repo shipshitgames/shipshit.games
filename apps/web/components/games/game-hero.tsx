@@ -77,7 +77,7 @@ export function GameHero({ game, lore }: { game: Game; lore: GameLore | null }) 
             <div className="mt-9 flex flex-wrap gap-3">
               {game.demoUrl ? (
                 <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-                  <PlayBuildLink href={game.deadrotUrl} game={game.slug}>
+                  <PlayBuildLink href={game.playUrl} game={game.slug}>
                     <Gamepad2 aria-hidden="true" />
                     Play on deadrot.com
                   </PlayBuildLink>

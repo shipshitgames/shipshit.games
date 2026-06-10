@@ -59,7 +59,7 @@ function buildGalleryGames(): GalleryGame[] {
       coverPath: game.coverPath,
       accent: lore?.accent ?? "blood",
       demoUrl: game.demoUrl,
-      deadrotUrl: game.deadrotUrl,
+      playUrl: game.playUrl,
       repoUrl: game.repoUrl,
       sprites,
     };

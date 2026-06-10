@@ -33,7 +33,7 @@ export function videoGameJsonLd(game: Game, lore: GameLore | null) {
     gamePlatform: "Web browser",
     applicationCategory: "Game",
     publisher: { "@type": "Organization", name: "Ship Shit Games", url: SITE_URL },
-    gameServer: game.deadrotUrl,
+    gameServer: game.playUrl,
   };
 }
 

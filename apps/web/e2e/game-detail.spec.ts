@@ -21,7 +21,7 @@ test("scourge survivors brief shows the lore-driven sections", async ({ page }) 
   ).toBeVisible();
   await expect(page.getByRole("link", { name: /play on deadrot\.com/i })).toHaveAttribute(
     "href",
-    "https://deadrot.com/games/scourge-survivors",
+    "https://deadrot.com/scourge-survivors",
   );
 
   // Lore features grid.
