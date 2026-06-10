@@ -18,3 +18,4 @@ playwright-report/
 
 # git worktrees created by the /worktree skill
 .worktrees/
+.vercel
