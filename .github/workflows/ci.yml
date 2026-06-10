@@ -114,8 +114,16 @@ jobs:
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('apps/web/package.json') }}
+
+      # npx, not bunx: bunx has hung indefinitely after the chromium download
+      # completed (orphaned bunx process until the job timeout).
       - name: Install Playwright Chromium
-        run: bunx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium
         working-directory: apps/web
 
       # playwright.config.ts builds and serves the app itself (webServer),
