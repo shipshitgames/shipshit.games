@@ -51,6 +51,9 @@ export default async function RootLayout({
                 <Link className="text-xs font-bold uppercase tracking-widest text-ash hover:text-bone" href="/dashboard">
                   Dashboard
                 </Link>
+                <Link className="text-xs font-bold uppercase tracking-widest text-ash hover:text-bone" href="/assets">
+                  Assets
+                </Link>
                 <Link className="text-xs font-bold uppercase tracking-widest text-ash hover:text-bone" href="/access">
                   Access
                 </Link>
