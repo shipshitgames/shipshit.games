@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { listAssets } from "@/lib/asset-lab-store";
+import { apiFetch, withLocalAssetUrls } from "@/lib/api";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const records = await listAssets();
-  return NextResponse.json({
-    assets: records.map((r) => ({ ...r, url: `/api/assets/file/${r.id}` })),
-  });
+  const res = await apiFetch("/v1/assets");
+  const json = await res.json().catch(() => ({ error: "invalid API response" }));
+  if (Array.isArray(json.assets)) json.assets = withLocalAssetUrls(json.assets);
+  return NextResponse.json(json, { status: res.status });
 }

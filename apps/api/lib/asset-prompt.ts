@@ -1,8 +1,8 @@
 // Single place that turns Asset Lab requests into provider prompts. The assetgen
 // art bible (generated from lore/DESIGN.md) is the source of truth for studio
-// style; imported relatively like apps/desktop does.
-import { buildPrompt } from "../../../packages/assetgen/src/style.generated";
-import { spritePromptDirective } from "../../../packages/assetgen/src/sprites";
+// style; imported via the package's pure exports so no native deps tag along.
+import { buildPrompt } from "@shipshitgames/assetgen/style";
+import { spritePromptDirective } from "@shipshitgames/assetgen/sprite-prompt";
 
 export const SHEET_POSES = ["idle", "attacking", "running", "jumping"] as const;
 
