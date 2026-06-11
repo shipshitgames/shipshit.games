@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { readBodyCapped } from "@/lib/webhook-body";
 import { recordWebhookEvent } from "@/lib/webhook-events";
 
 export const runtime = "nodejs";
@@ -19,10 +20,12 @@ interface PushPayload {
 
 function verifySignature(secret: string, body: string, header: string | null): boolean {
   if (!header?.startsWith("sha256=")) return false;
-  const expected = createHmac("sha256", secret).update(body).digest("hex");
   const received = header.slice("sha256=".length);
-  if (received.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(received, "hex"), Buffer.from(expected, "hex"));
+  // Strict hex check: Buffer.from(.., "hex") silently truncates bad input,
+  // and timingSafeEqual throws on length mismatch.
+  if (!/^[0-9a-f]{64}$/i.test(received)) return false;
+  const expected = createHmac("sha256", secret).update(body).digest();
+  return timingSafeEqual(Buffer.from(received, "hex"), expected);
 }
 
 // Ingests push events into the Commit table; /v1/stats/commits reads it.
@@ -30,7 +33,8 @@ export async function POST(req: Request) {
   const secret = process.env.GITHUB_WEBHOOK_SECRET;
   if (!secret) return new Response("github webhook is not configured", { status: 503 });
 
-  const body = await req.text();
+  const body = await readBodyCapped(req);
+  if (body === null) return new Response("payload too large", { status: 413 });
   if (!verifySignature(secret, body, req.headers.get("x-hub-signature-256"))) {
     return new Response("invalid signature", { status: 400 });
   }

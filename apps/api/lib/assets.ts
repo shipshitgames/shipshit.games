@@ -8,7 +8,8 @@ export interface AssetRecord {
   fullPrompt: string;
   style: string | null;
   pose: string | null;
-  sheetPoses: string[];
+  /** null for single sprites — the UI treats truthiness as "is a sheet". */
+  sheetPoses: string[] | null;
   gameSlug: string | null;
   game: string | null;
   model: string;
@@ -31,8 +32,15 @@ const RECORD_SELECT = {
   createdAt: true,
 } as const;
 
-function toRecord(row: { createdAt: Date } & Omit<AssetRecord, "createdAt">): AssetRecord {
-  return { ...row, createdAt: row.createdAt.toISOString() };
+function toRecord(
+  row: { createdAt: Date; sheetPoses: string[] } & Omit<AssetRecord, "createdAt" | "sheetPoses">,
+): AssetRecord {
+  return {
+    ...row,
+    // Postgres stores [], the API contract is null for single sprites.
+    sheetPoses: row.sheetPoses.length ? row.sheetPoses : null,
+    createdAt: row.createdAt.toISOString(),
+  };
 }
 
 export async function listAssets(): Promise<AssetRecord[]> {

@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: shipshit
       POSTGRES_DB: shipshit_api
     ports:
-      - "5432:5432"
+      # localhost only — dev credentials must not listen on the LAN
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -16,6 +17,19 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # One-shot: applies prisma/migrations before the API starts.
+  migrate:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: builder
+    command: ["sh", "-c", "cd apps/api && bunx prisma migrate deploy"]
+    environment:
+      DATABASE_URL: postgresql://shipshit:shipshit@postgres:5432/shipshit_api
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   api:
     build:
@@ -35,6 +49,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:

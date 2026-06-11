@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3003",
+    "dev": "prisma generate && next dev -p 3003",
     "build": "prisma generate && next build",
     "start": "next start -p 3003",
     "typecheck": "prisma generate && tsc --noEmit",

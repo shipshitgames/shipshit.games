@@ -1,5 +1,8 @@
 generator client {
   provider      = "prisma-client-js"
+  // In-app output: bun's nested node_modules store breaks Next's standalone
+  // file tracing, so the client (and its engines) must live inside the app.
+  output        = "../generated/client"
   // native: local dev (darwin) / Vercel build (rhel); the rest: Docker runners.
   binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }

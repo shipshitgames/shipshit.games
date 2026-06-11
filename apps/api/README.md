@@ -49,6 +49,11 @@ docker build -f apps/api/Dockerfile -t shipshit-api .
 docker run -p 3003:3003 -e DATABASE_URL=... -e CLERK_SECRET_KEY=... shipshit-api
 ```
 
+The runtime image does not ship the prisma CLI — run migrations against the
+target database before (or alongside) rollout, e.g. `bun run db:deploy` from a
+checkout, or the `migrate` one-shot service in docker-compose.yml (compose
+runs it automatically before the API starts).
+
 A deadrot deployment is the same image with deadrot's Clerk instance,
 database, webhook secrets, and `SERVICE_NAME=api.deadrot.com`.
 

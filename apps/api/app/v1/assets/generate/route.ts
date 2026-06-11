@@ -3,6 +3,7 @@ import { GAMES } from "@shipshitgames/shared";
 import { requireAuth } from "@/lib/auth";
 import { readAssetImage, saveAsset } from "@/lib/assets";
 import { aspectRatioFor, SHEET_POSES, spritePrompt } from "@/lib/asset-prompt";
+import { db } from "@/lib/db";
 import { getReplicateToken, MODEL, runPrediction, uploadReference } from "@/lib/replicate";
 
 export const runtime = "nodejs";
@@ -10,6 +11,9 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const MAX_BATCH = 4;
+// Each render is paid Replicate spend; cap per user per hour (DB-counted, so
+// it holds across serverless instances).
+const HOURLY_LIMIT = Number(process.env.GENERATE_HOURLY_LIMIT) || 30;
 
 export async function POST(req: Request) {
   const auth = await requireAuth(req);
@@ -26,6 +30,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `unknown game: ${gameSlug}` }, { status: 400 });
   }
   const batch = Math.min(Math.max(Number(count) || 1, 1), MAX_BATCH);
+
+  const recentCount = await db.asset.count({
+    where: { ownerId: auth.userId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
+  });
+  if (recentCount + batch > HOURLY_LIMIT) {
+    return NextResponse.json(
+      { error: `generation limit reached (${HOURLY_LIMIT}/hour)` },
+      { status: 429 },
+    );
+  }
 
   const token = getReplicateToken();
   if (!token) {

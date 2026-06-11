@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { readBodyCapped } from "@/lib/webhook-body";
 import { recordWebhookEvent } from "@/lib/webhook-events";
 
 export const runtime = "nodejs";
@@ -13,7 +14,8 @@ export async function POST(req: Request) {
   const signature = req.headers.get("stripe-signature");
   if (!signature) return new Response("missing stripe signature", { status: 400 });
 
-  const body = await req.text();
+  const body = await readBodyCapped(req);
+  if (body === null) return new Response("payload too large", { status: 413 });
   let event: Stripe.Event;
   try {
     event = await Stripe.webhooks.constructEventAsync(body, signature, secret);

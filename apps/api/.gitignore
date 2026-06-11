@@ -1,2 +1,5 @@
 # local asset-lab gallery (generated sprites + manifest)
 .asset-lab/
+.vercel
+# prisma client build artifact (bun run build regenerates)
+generated/

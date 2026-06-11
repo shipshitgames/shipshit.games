@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { db } from "@/lib/db";
+import { readBodyCapped } from "@/lib/webhook-body";
 import { recordWebhookEvent } from "@/lib/webhook-events";
 
 export const runtime = "nodejs";
@@ -33,7 +34,8 @@ export async function POST(req: Request) {
   const secret = process.env.CLERK_WEBHOOK_SECRET;
   if (!secret) return new Response("clerk webhook is not configured", { status: 503 });
 
-  const body = await req.text();
+  const body = await readBodyCapped(req);
+  if (body === null) return new Response("payload too large", { status: 413 });
   let event: ClerkEvent;
   try {
     event = new Webhook(secret).verify(body, {
