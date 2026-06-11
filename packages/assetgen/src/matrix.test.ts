@@ -68,6 +68,27 @@ test("matrix renders one canon Scourge row into FPS, TD, and MOBA variants", asy
 
   assert.equal(catalog.shared.find((entry: any) => entry.id === "ui-breach-core-icon").game, undefined);
   assert.equal(catalog.shared.find((entry: any) => entry.id === "ui-breach-core-icon").path, "shared/ui/breach-core-icon.webp");
+
+  // The usage log records one event per rendered cell, attributed to the
+  // *requested* provider under the "matrix" command.
+  const events = (await readFile(join(assetsDir, "usage.jsonl"), "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.equal(events.length, 3);
+  for (const event of events) {
+    assert.equal(event.command, "matrix");
+    assert.equal(event.provider, "mock");
+    assert.equal(event.kind, "sprite");
+    assert.equal(event.id, "scourge-swarm");
+    assert.equal(event.model, "mock");
+    assert.equal(event.success, true);
+    assert.ok(event.outputPath.endsWith(`/${event.game}.webp`));
+  }
+  assert.deepEqual(
+    events.map((event: any) => event.game),
+    ["scourge-survivors", "deadlane", "pactfall"],
+  );
 });
 
 test("matrix prompt preserves lore parasite grammar and game framing", () => {
