@@ -1,0 +1,32 @@
+{
+  "name": "api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3003",
+    "build": "prisma generate && next build",
+    "start": "next start -p 3003",
+    "typecheck": "prisma generate && tsc --noEmit",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
+  },
+  "dependencies": {
+    "@clerk/backend": "^2.29.0",
+    "@prisma/client": "^6.19.0",
+    "@shipshitgames/assetgen": "workspace:*",
+    "@shipshitgames/shared": "workspace:*",
+    "next": "16",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "stripe": "^22.2.0",
+    "svix": "^1.84.0"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "@types/react": "19.2.16",
+    "prisma": "^6.19.0",
+    "typescript": "6.0.3"
+  }
+}

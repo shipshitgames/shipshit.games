@@ -1,0 +1,40 @@
+# Local stack: `docker compose up` from apps/api (API on :3003, Postgres on :5432).
+# For DB-only local dev: `docker compose up postgres` + `bun run dev`.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: shipshit
+      POSTGRES_PASSWORD: shipshit
+      POSTGRES_DB: shipshit_api
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shipshit -d shipshit_api"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://shipshit:shipshit@postgres:5432/shipshit_api
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-}
+      CLERK_WEBHOOK_SECRET: ${CLERK_WEBHOOK_SECRET:-}
+      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+      SERVICE_NAME: ${SERVICE_NAME:-api.shipshit.games}
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
