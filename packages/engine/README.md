@@ -4,7 +4,7 @@ The open-source embodied 3D game engine behind [Ship Shit Games](https://games.s
 
 Imperative [Three.js](https://threejs.org) for the game, React only for the HUD shell. The boundary axis is **player embodiment** ("is the player a body in a 3D world?"), so an FPS, a tower-defense builder, a platformer, and a runner all share the same core + embodied-base layer and differ only by camera rig and mechanic pack.
 
-> **Status: 0.1.x, early.** Extracted seam-by-seam out of the `scourge-survivors` reference game. Shipping now: world bounds, data-driven arena maps, render lifecycle, swappable camera rig, DOM input binding, agent/spawn seams, HUD snapshots, and generic FX/projectile/pickup lifecycles.
+> **Status: 0.3.x, early.** Extracted seam-by-seam out of the `scourge-survivors` reference game. Shipping now: world bounds, data-driven arena maps, render lifecycle, swappable camera rig, DOM input binding, agent/spawn seams, HUD snapshots, generic FX/projectile/pickup lifecycles, and the PartyKit multiplayer net seam (client transport, remote avatars, room server template).
 
 ## Extraction Boundary
 
@@ -84,6 +84,51 @@ projectiles.spawn({
 - **`InputSystem` + movement bindings** — DOM event lifecycle and WASD/arrow movement intent; genre verbs stay game-side.
 - **`HudSystem<TState>`** — typed snapshot/listener shell for React HUDs without making React part of the engine loop.
 - **`FxSystem` / `ProjectilesSystem` / `PickupsSystem`** — shared transient entity lifecycles with game-supplied content tables and collision/collection policy.
+
+## Multiplayer (PartyKit net seam)
+
+Optional [PartyKit](https://www.partykit.io) presence. The engine owns the transport, replicated transforms, and server-authoritative health/kills/respawns; games own avatar/weapon ids (opaque strings, `''` means "game default") and every payload that rides a non-reserved `t` discriminator.
+
+Client side — resolve the host, connect, and skin remote players:
+
+```ts
+import { NetClient, RemoteAvatar, resolvePartyKitHost, type RemotePlayerInfo } from '@shipshitgames/engine'
+
+const host = resolvePartyKitHost({ envHost: import.meta.env.VITE_PARTYKIT_HOST, dev: import.meta.env.DEV })
+const avatars = new Map<string, RemoteAvatar>()
+const addAvatar = (p: RemotePlayerInfo) =>
+  avatars.set(p.id, new RemoteAvatar(p, { yOffset: -1.8, skin: mySpriteSkin }))
+
+const net = new NetClient(
+  {
+    // the welcome roster carries everyone already in the room (including you)
+    onWelcome: (selfId, players) => players.filter((p) => p.id !== selfId).forEach(addAvatar),
+    onJoin: addAvatar,
+    onState: (id, x, y, z, yaw) => avatars.get(id)?.setTarget(x, y, z, yaw),
+    onHit: (msg) => avatars.get(msg.target)?.setHealth(msg.health),
+    onLeave: (id) => avatars.get(id)?.dispose(),
+    onGameMessage: (msg) => {}, // your own { t } payloads, verbatim
+  },
+  { host },
+)
+await net.connect('room-1', 'Ada', 'my-skin-id')
+net.sendState(x, y, z, yaw, weaponId, health) // throttled — safe to call every frame
+```
+
+Server side — `party/main.ts` is a thin wrapper around the room template. Import it through the **`./net/server` subpath** (it is deliberately not on the root barrel, so browser bundles never resolve `partykit` types):
+
+```ts
+import { createRoomServer } from '@shipshitgames/engine/net/server'
+
+export default createRoomServer({
+  spawnHeight: 1.8,
+  spawnPoint: () => ({ x: 0, z: 0 }),
+  // game payloads ride non-reserved t values on the same { t } envelope
+  onGameMessage: (msg, sender, api) => api.broadcast(msg),
+})
+```
+
+Reserved `t` values (`welcome`, `join`, `leave`, `state`, `name`, `hit`) belong to the base transport on both ends. `partysocket` ships as an **`optionalDependencies` entry** — package managers install it by default but tolerate it being absent (e.g. `--omit=optional`). `NetClient`'s default socket factory lazy-imports it and throws a descriptive error when it's missing; pass your own `createSocket` to use a different socket entirely.
 
 ## License
 
