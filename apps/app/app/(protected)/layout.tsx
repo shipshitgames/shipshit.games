@@ -1,5 +1,8 @@
+import { UserButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+
+import { AppHeader } from "@/components/app-header";
 
 // Server-side gate for every route in the (protected) group. The proxy
 // (proxy.ts) is the primary enforcement boundary; this layout is a second,
@@ -10,5 +13,12 @@ export default async function ProtectedLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
-  return <>{children}</>;
+  return (
+    <>
+      <AppHeader>
+        <UserButton />
+      </AppHeader>
+      {children}
+    </>
+  );
 }
