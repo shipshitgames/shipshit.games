@@ -1,8 +1,8 @@
 # Engine Extraction Boundary
 
 Issue: shipshitgames/shipshit.games#8
-Status: extraction spec, no runtime extraction in this change
-Last updated: 2026-06-07
+Status: extraction spec; the PartyKit net seam (issue #11) has since landed
+Last updated: 2026-06-11
 
 This document defines the core-vs-game-specific boundary for extracting the
 Scourge Survivors reference game into `@shipshitgames/engine`.
@@ -43,6 +43,8 @@ The current package already exposes these extraction seams:
 | `InputSystem`, `MoveIntent`, `ActionMap` | Engine | DOM lifecycle and movement are shared; action verbs stay game-defined. |
 | `Agent`, `SteeringStrategy` | Engine | Reusable kinematic agents and steering contracts. |
 | `SpawnPointProvider`, `RectScatterSpawnProvider` | Engine | Spawn location seam; lane spawners remain pluggable. |
+| `NetClient`, `resolvePartyKitHost`, `createRoomServer` | Engine | PartyKit transport (issue #11): connection lifecycle, replicated presence base messages, server-authoritative health/kills/respawns. Game payloads ride non-reserved `t` values; the room server template imports via the `./net/server` subpath only. |
+| `RemoteAvatar`, `RemoteAvatarSkin` | Engine | Remote-player presence (issue #11): transform interpolation, presence lifecycle, billboard/hit-mesh attach points. All visuals come from a game-supplied skin factory. |
 
 ## Module Classification
 
@@ -60,8 +62,8 @@ The current package already exposes these extraction seams:
 | `FxSystem` | Engine core plus game definitions | Engine owns pooling, TTL, transforms, material lifecycle, and generic emit/update contracts. Game owns effect definitions, palette, sound coupling, and lore-specific VFX meaning. |
 | `ProjectilesSystem` | Engine core plus game definitions | Engine owns generic projectile instances, movement, bounds culling, collision callbacks, and disposal. Game owns projectile definitions, damage, status effects, faction rules, meshes/sprites, and hit policy. |
 | `PickupsSystem` | Engine core plus game definitions | Engine owns pickup instance lifecycle, proximity checks, despawn, and collection callbacks. Game owns pickup definitions, economy, audio, UI messaging, and balancing. |
-| PartyKit transport | Engine net seam | Engine owns optional PartySocket wrapping, host resolution, connection lifecycle, replicated transform/presence base messages, and pluggable codec hooks. Game owns payload types such as weapon fire, hits, objectives, score, and revive/co-op rules. |
-| Remote avatar rendering | Engine core plus game skinning | Engine owns transform interpolation, presence lifecycle, and attach points. Game owns model/sprite selection, team/faction styling, nameplates, and combat readability rules. |
+| PartyKit transport | Engine net seam | Engine owns optional PartySocket wrapping, host resolution, connection lifecycle, replicated transform/presence base messages, and pluggable codec hooks. Game owns payload types such as weapon fire, hits, objectives, score, and revive/co-op rules. **Extracted in issue #11** as `NetClient` + `resolvePartyKitHost` on the root barrel and `createRoomServer` on the `./net/server` subpath; game payloads ride non-reserved `t` discriminators through `onGameMessage`/`sendGameMessage` as untyped envelopes — the typed `NetworkCodec` encode/decode hooks remain future work. |
+| Remote avatar rendering | Engine core plus game skinning | Engine owns transform interpolation, presence lifecycle, and attach points. Game owns model/sprite selection, team/faction styling, nameplates, and combat readability rules. **Extracted in issue #11** as `RemoteAvatar` with the game-supplied `RemoteAvatarSkin` factory seam. |
 | `WeaponSystem` | Game content | Scourge Survivors owns weapons, fire modes, recoil, reloads, muzzle flashes, first-person presentation, and balance. Extract only generic projectile/Fx seams it consumes. |
 | `WEAPONS` table | Game content | Concrete content data remains in Scourge Survivors. |
 | Enemy stats and enemy definitions | Game content | Keep all Scourge host families, stats, attack cadence, silhouettes, and canon language game-side. Engine may receive generic agent definitions. |

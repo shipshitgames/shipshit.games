@@ -1,0 +1,34 @@
+.git
+.worktrees
+.turbo
+.vercel
+.asset-lab
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/out
+**/generated
+**/*.tsbuildinfo
+**/.env*
+# Workspaces the api image doesn't build — keep only their manifests so a
+# frozen-lockfile bun install can validate the full workspace graph.
+apps/desktop/*
+!apps/desktop/package.json
+apps/docs/*
+!apps/docs/package.json
+apps/web/*
+!apps/web/package.json
+apps/cli/*
+!apps/cli/package.json
+apps/app/*
+!apps/app/package.json
+packages/game-tester/*
+!packages/game-tester/package.json
+packages/engine/*
+!packages/engine/package.json
+packages/ressources/*
+!packages/ressources/package.json
+packages/assets
+packages/ui/*
+!packages/ui/package.json

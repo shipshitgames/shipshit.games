@@ -4,6 +4,17 @@
   "private": true,
   "type": "module",
   "bin": { "assetgen": "./src/cli.ts" },
+  "exports": {
+    "./style": {
+      "types": "./src/style.generated.ts",
+      "default": "./src/style.generated.ts"
+    },
+    "./sprite-prompt": {
+      "types": "./src/sprite-prompt.ts",
+      "default": "./src/sprite-prompt.ts"
+    },
+    "./src/*": "./src/*"
+  },
   "scripts": {
     "gen": "bun src/cli.ts",
     "matrix": "bun src/cli.ts matrix",

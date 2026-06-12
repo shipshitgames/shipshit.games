@@ -2,7 +2,7 @@
 
 Issue: shipshitgames/shipshit.games#143
 Status: canonical ownership contract
-Last updated: 2026-06-09
+Last updated: 2026-06-11
 
 `packages/engine` in this repository is the canonical source for
 `@shipshitgames/engine`.
@@ -37,7 +37,7 @@ Use this default dependency shape in Deadrot game packages:
 ```json
 {
   "dependencies": {
-    "@shipshitgames/engine": "^0.2.0",
+    "@shipshitgames/engine": "^0.3.0",
     "three": "^0.184.0"
   }
 }
@@ -85,7 +85,9 @@ of this repo's versions.
 
 The Deadrot fork therefore no longer holds unique engine work. The Deadrot
 cleanup PR should now switch `scourge-survivors` / `deadlane` / `warline` to
-`"@shipshitgames/engine": "^0.2.0"` and retire `packages/engine` (shim first,
+`"@shipshitgames/engine": "^0.3.0"` (0.3.0 adds the PartyKit net seam from
+issue #11 — `NetClient`, `RemoteAvatar`, and the `./net/server` room template
+extracted from scourge-survivors) and retire `packages/engine` (shim first,
 then delete).
 
 The same remote inspection found `apps/games/deadlane`,

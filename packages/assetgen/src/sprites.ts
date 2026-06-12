@@ -2,6 +2,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import sharp from "sharp";
 
+// Moved to sprite-prompt.ts (pure, no sharp) so API bundles can import it
+// without native deps; re-exported here so existing imports keep working.
+export { spritePromptDirective } from "./sprite-prompt.ts";
+
 export type Anchor = [number, number];
 
 export interface SpriteSheetOptions {
@@ -70,30 +74,6 @@ export function parseAnchor(raw?: string): Anchor {
   const y = Number(yRaw);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return [0.5, 1];
   return [clamp(x, 0, 1), clamp(y, 0, 1)];
-}
-
-export function spritePromptDirective(views: string[], frameCount: number): string {
-  const cleanViews = views.length ? views : ["front"];
-  if (frameCount > 1 && cleanViews.length > 1) {
-    return [
-      `Sprite sheet layout: ${cleanViews.length} rows named ${cleanViews.join(", ")} from top to bottom`,
-      `${frameCount} animation frames per row from left to right`,
-      "transparent or near-black background, equal cell spacing, no labels",
-    ].join("; ");
-  }
-  if (frameCount > 1) {
-    return [
-      `Sprite animation sheet: ${frameCount} frames in one horizontal row`,
-      "transparent or near-black background, equal cell spacing, no labels",
-    ].join("; ");
-  }
-  if (cleanViews.length > 1) {
-    return [
-      `Multi-view sprite sheet: ${cleanViews.join(", ")} views in one horizontal row from left to right`,
-      "transparent or near-black background, equal cell spacing, no labels",
-    ].join("; ");
-  }
-  return "Single transparent billboard sprite, full body, centered in frame";
 }
 
 export function manifestKindForSprite(kind: string, frameCount: number): string {
