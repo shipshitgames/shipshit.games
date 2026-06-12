@@ -1,4 +1,5 @@
 import { Play } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { Eyebrow } from "@/components/site/eyebrow";
@@ -52,12 +53,12 @@ export function WatchTheBuild({
               className="group overflow-hidden rounded-md border border-gunmetal bg-coal transition-all duration-300 hover:border-[var(--accent)] hover:shadow-[0_0_36px_-14px_var(--accent)]"
             >
               <div className="relative aspect-video overflow-hidden border-b border-gunmetal/60 bg-void">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={`https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`}
                   alt={`${video.title} video thumbnail`}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  fill
+                  sizes="(min-width: 768px) 33vw, 100vw"
+                  className="object-cover transition duration-500 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-void/80 via-transparent to-transparent" />
                 <Play

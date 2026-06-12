@@ -4,6 +4,8 @@
  * fighter is re-rendered per game's camera and art direction. No fetching:
  * everything comes from the committed asset index passed in by the page.
  */
+import Image from "next/image";
+
 import type { AssetIndexEntry } from "@/lib/content/types";
 import { entityIdOf, formatDimensions, gameLabel } from "./asset-meta";
 
@@ -41,12 +43,12 @@ export function VariantMatrix({
     else groups.set(entityId, [entry]);
   }
 
-  const rows = [...groups.entries()]
-    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+  const rows = Array.from(groups.entries())
+    .toSorted((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
     .slice(0, maxEntities)
     .map(([entityId, variants]) => ({
       entityId,
-      variants: [...variants].sort((a, b) => gameRank(a.game) - gameRank(b.game)),
+      variants: variants.toSorted((a, b) => gameRank(a.game) - gameRank(b.game)),
     }));
 
   if (rows.length === 0) return null;
@@ -76,13 +78,14 @@ export function VariantMatrix({
             <div className="flex flex-wrap gap-3">
               {variants.map((variant) => (
                 <figure key={variant.id} className="w-28 sm:w-32">
-                  <div className="flex aspect-square items-center justify-center rounded-md border border-gunmetal bg-void p-2">
-                    <img
+                  <div className="relative flex aspect-square items-center justify-center rounded-md border border-gunmetal bg-void">
+                    <Image
                       src={variant.publicPath}
                       alt={`${variant.name} as rendered for ${gameLabel(variant.game, gameTitles) ?? "the shared canon"}`}
-                      loading="lazy"
-                      decoding="async"
-                      className="max-h-full max-w-full object-contain [image-rendering:pixelated]"
+                      fill
+                      sizes="8rem"
+                      unoptimized
+                      className="object-contain p-2 [image-rendering:pixelated]"
                     />
                   </div>
                   <figcaption className="mt-2 text-center">

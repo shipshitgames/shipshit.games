@@ -25,8 +25,10 @@ function getDynamicHopByHopHeaders(headers: Headers) {
   return new Set(
     connectionValue
       .split(",")
-      .map((header) => header.trim().toLowerCase())
-      .filter(Boolean),
+      .flatMap((header) => {
+        const normalized = header.trim().toLowerCase();
+        return normalized ? [normalized] : [];
+      }),
   );
 }
 

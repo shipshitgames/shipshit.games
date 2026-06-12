@@ -6,11 +6,9 @@ import { breadcrumbJsonLd, jsonLdString, type BreadcrumbItem } from "@/lib/seo";
 export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
   return (
     <nav aria-label="Breadcrumb">
-      <script
-        type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(items)) }}
-      />
+      <script type="application/ld+json">
+        {jsonLdString(breadcrumbJsonLd(items))}
+      </script>
       <ol className="flex flex-wrap items-center gap-2 font-display text-xs font-bold uppercase tracking-widest">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;

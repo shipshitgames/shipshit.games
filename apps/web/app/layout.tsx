@@ -86,13 +86,9 @@ export default function RootLayout({
       }
     >
       <body className="min-h-screen bg-void font-body text-ash antialiased">
-        <script
-          type="application/ld+json"
-          // JSON-LD is sanitized by jsonLdString (escapes "<").
-          dangerouslySetInnerHTML={{
-            __html: jsonLdString(organizationJsonLd()),
-          }}
-        />
+        <script type="application/ld+json">
+          {jsonLdString(organizationJsonLd())}
+        </script>
         <Grain />
         <SiteHeader />
         {children}

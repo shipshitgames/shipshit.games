@@ -54,7 +54,7 @@ export function Signup({
             src={`${SUBSTACK_URL}/embed`}
             className="h-80 w-full border-0 bg-bone"
             loading="lazy"
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+            sandbox="allow-forms allow-scripts allow-presentation allow-popups allow-popups-to-escape-sandbox"
           />
         </div>
         <div className="mt-3 flex flex-wrap gap-3">

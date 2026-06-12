@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { Backdrop } from "@/components/site/atmosphere";
 import { Breadcrumbs } from "@/components/site/breadcrumbs";
 import { Eyebrow } from "@/components/site/eyebrow";
-import { EventRow, groupEventsByDay, utcDay } from "@/components/log/event-feed";
+import { EventRow } from "@/components/log/event-feed";
+import { groupEventsByDay, utcDay } from "@/components/log/event-feed-utils";
 import { fetchActivity } from "@/lib/github";
 
 export const revalidate = 3600;

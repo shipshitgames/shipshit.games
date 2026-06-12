@@ -290,9 +290,10 @@ function SettingsPane() {
       </div>
       <div className="set-group">
         <div className="set-group-title">fal.ai model by asset type</div>
-        {ASSET_DEFAULTS.filter((item) => FAL_MODEL_KINDS.has(item.kind)).map((item) => {
+        {ASSET_DEFAULTS.flatMap((item) => {
+          if (!FAL_MODEL_KINDS.has(item.kind)) return [];
           const chosen = settings.falModelDefaults[item.kind] || "";
-          return (
+          return [(
             <label className="set-provider-row" key={item.kind}>
               <span>{item.label}</span>
               <select value={chosen} onChange={(e) => updateKindFalModel(item.kind, e.target.value)}>
@@ -301,7 +302,7 @@ function SettingsPane() {
                 {chosen && !falModels.some((m) => m.id === chosen) && <option value={chosen}>{chosen} (custom)</option>}
               </select>
             </label>
-          );
+          )];
         })}
       </div>
       <div className="set-group">

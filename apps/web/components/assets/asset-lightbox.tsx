@@ -7,6 +7,7 @@
  * contain fit. Arrow keys walk the filtered list, Esc closes (native cancel).
  */
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 import type { AssetIndexEntry } from "@/lib/content/types";
@@ -72,12 +73,16 @@ export function AssetLightbox({
   // Integer pixel scale: largest whole multiple of the native dimensions that
   // fits the preview pane (~60vh). Null → CSS contain fallback (big covers,
   // unknown dimensions).
-  const [pixelScale, setPixelScale] = useState<number | null>(null);
+  const scaleKey = open && entry?.dimensions ? entry.id : null;
+  const [pixelScaleMeasurement, setPixelScaleMeasurement] = useState<{
+    key: string;
+    scale: number | null;
+  } | null>(null);
+  const pixelScale =
+    pixelScaleMeasurement?.key === scaleKey ? pixelScaleMeasurement.scale : null;
+
   useEffect(() => {
-    if (!open || !entry?.dimensions) {
-      setPixelScale(null);
-      return;
-    }
+    if (!scaleKey || !entry?.dimensions) return;
     const [nativeWidth, nativeHeight] = entry.dimensions;
     const compute = () => {
       const pane = previewRef.current;
@@ -87,12 +92,15 @@ export function AssetLightbox({
         Math.floor(maxWidth / nativeWidth),
         Math.floor(maxHeight / nativeHeight)
       );
-      setPixelScale(fit >= 1 ? fit : null);
+      setPixelScaleMeasurement({
+        key: scaleKey,
+        scale: fit >= 1 ? fit : null,
+      });
     };
     compute();
     window.addEventListener("resize", compute);
     return () => window.removeEventListener("resize", compute);
-  }, [open, entry]);
+  }, [scaleKey, entry]);
 
   const count = entries.length;
   const goPrev = () => {
@@ -135,11 +143,14 @@ export function AssetLightbox({
             className="relative flex h-[46vh] items-center justify-center overflow-hidden bg-void p-6 lg:h-[64vh]"
           >
             <div aria-hidden className="vignette pointer-events-none absolute inset-0" />
-            <img
+            <Image
               key={entry.id}
               src={entry.publicPath}
               alt={entry.name}
-              decoding="async"
+              width={entry.dimensions?.[0] ?? 1200}
+              height={entry.dimensions?.[1] ?? 630}
+              sizes="(min-width: 1024px) 60vw, 96vw"
+              unoptimized
               className={cn(
                 "relative [image-rendering:pixelated]",
                 pixelScale === null && "max-h-full max-w-full object-contain"
