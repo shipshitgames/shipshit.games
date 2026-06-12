@@ -1,0 +1,335 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Loader2, Sparkles, Download, Gamepad2, RefreshCw, ImageIcon } from "lucide-react";
+import { GAMES } from "@shipshitgames/shared";
+
+const POSES = ["idle", "attacking", "running", "jumping", "side view", "back view"] as const;
+const BATCH_SIZES = [1, 2, 3, 4] as const;
+
+interface AssetRecord {
+  id: string;
+  subject: string;
+  description: string | null;
+  fullPrompt: string;
+  style: string | null;
+  pose: string | null;
+  sheetPoses: string[] | null;
+  gameSlug: string | null;
+  game: string | null;
+  url: string;
+  createdAt: string;
+}
+
+export default function AssetsPage() {
+  const [prompt, setPrompt] = useState("");
+  const [description, setDescription] = useState("");
+  const [sheet, setSheet] = useState(false);
+  const [pose, setPose] = useState<string>(POSES[0]);
+  const [batch, setBatch] = useState<number>(1);
+  const [gameSlug, setGameSlug] = useState<string>(GAMES[0]?.slug ?? "");
+  const [pending, setPending] = useState(0);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [assets, setAssets] = useState<AssetRecord[]>([]);
+  const [variantPose, setVariantPose] = useState<Record<string, string>>({});
+
+  const busy = pending > 0;
+
+  useEffect(() => {
+    fetch("/api/assets/list")
+      .then((r) => r.json())
+      .then((j) => setAssets(j.assets ?? []))
+      .catch(() => {});
+  }, []);
+
+  async function callGenerate(body: Record<string, unknown>, expected: number) {
+    setPending(expected);
+    setError(null);
+    try {
+      const res = await fetch("/api/assets/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
+      setAssets((prev) => [...json.assets, ...prev]);
+      if (json.errors?.length) setError(`${json.errors.length} of ${expected} renders failed: ${json.errors[0]}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setPending(0);
+    }
+  }
+
+  async function generate() {
+    if (!prompt.trim() || busy) return;
+    await callGenerate(
+      {
+        prompt: prompt.trim(),
+        description: description.trim() || undefined,
+        pose: sheet ? undefined : pose,
+        sheet,
+        gameSlug,
+        count: batch,
+      },
+      batch,
+    );
+  }
+
+  async function regenerate(asset: AssetRecord) {
+    if (busy) return;
+    setRegeneratingId(asset.id);
+    try {
+      await callGenerate(
+        {
+          prompt: asset.subject,
+          description: asset.description ?? undefined,
+          pose: asset.sheetPoses ? undefined : (variantPose[asset.id] ?? asset.pose ?? undefined),
+          sheet: Boolean(asset.sheetPoses),
+          gameSlug: asset.gameSlug ?? gameSlug,
+          sourceId: asset.id,
+          count: 1,
+        },
+        1,
+      );
+    } finally {
+      setRegeneratingId(null);
+    }
+  }
+
+  const chip = (active: boolean) =>
+    `rounded-md border px-3 py-1.5 text-xs font-bold uppercase tracking-widest ${
+      active
+        ? "border-hellfire text-hellfire"
+        : "border-gunmetal text-ash hover:border-hellfire/50 hover:text-bone"
+    }`;
+
+  return (
+    <main className="min-h-[calc(100vh-4rem)] px-6 py-16">
+      <section className="mx-auto max-w-7xl">
+        <p className="font-display text-xs font-bold uppercase tracking-[0.35em] text-hellfire">
+          Asset Lab
+        </p>
+        <h1 className="text-glow mt-4 font-display text-4xl font-bold uppercase leading-[0.95] text-bone sm:text-6xl">
+          Generate game sprites.
+        </h1>
+        <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ash">
+          Nano Banana 2 renders through Replicate using the studio art bible, framed for the
+          selected game. Reprints reuse the original image so the character stays consistent.
+        </p>
+
+        <div className="mt-10 rounded-md border border-gunmetal bg-coal p-6">
+          <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">Game</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {GAMES.map((g) => (
+              <button
+                key={g.slug}
+                type="button"
+                onClick={() => setGameSlug(g.slug)}
+                title={`${g.genre} — ${g.faction}`}
+                className={chip(gameSlug === g.slug)}
+              >
+                {g.title}
+              </button>
+            ))}
+          </div>
+          {gameSlug && (
+            <p className="mt-3 text-xs leading-relaxed text-ash/70">
+              {GAMES.find((g) => g.slug === gameSlug)?.summary}
+            </p>
+          )}
+          <label
+            htmlFor="sprite-prompt"
+            className="mt-6 block font-display text-xs font-bold uppercase tracking-widest text-ash"
+          >
+            Sprite description
+          </label>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <input
+              id="sprite-prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && generate()}
+              placeholder="a swarm ripper enemy"
+              className="flex-1 rounded-md border border-gunmetal bg-void px-4 py-3 text-bone placeholder:text-ash/50 focus:border-hellfire focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={generate}
+              disabled={busy || !prompt.trim()}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-blood px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-bone shadow-ember hover:bg-blood-hot disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {busy ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Sparkles className="size-4" aria-hidden="true" />
+              )}
+              {busy ? "Rendering…" : `Generate${batch > 1 ? ` ×${batch}` : ""}`}
+            </button>
+          </div>
+          <label
+            htmlFor="sprite-description"
+            className="mt-4 block font-display text-xs font-bold uppercase tracking-widest text-ash"
+          >
+            Character design <span className="text-ash/50">(keeps renders consistent)</span>
+          </label>
+          <textarea
+            id="sprite-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            placeholder="hulking quadruped, bone-plated skull, twin bile cannons grafted to its back, rusted iron harness, toxic green breach core in the chest"
+            className="mt-2 w-full rounded-md border border-gunmetal bg-void px-4 py-3 text-sm text-bone placeholder:text-ash/40 focus:border-hellfire focus:outline-none"
+          />
+          <div className="mt-4 flex flex-wrap gap-8">
+            <div>
+              <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">Mode</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button type="button" onClick={() => setSheet(false)} className={chip(!sheet)}>
+                  single
+                </button>
+                <button type="button" onClick={() => setSheet(true)} className={chip(sheet)}>
+                  1×4 pose sheet
+                </button>
+              </div>
+            </div>
+            {!sheet && (
+              <div>
+                <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">Pose</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {POSES.map((p) => (
+                    <button key={p} type="button" onClick={() => setPose(p)} className={chip(pose === p)}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div>
+              <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">Batch</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {BATCH_SIZES.map((n) => (
+                  <button key={n} type="button" onClick={() => setBatch(n)} className={chip(batch === n)}>
+                    ×{n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {error && (
+            <p className="mt-4 rounded-md border border-blood/50 bg-blood/10 px-4 py-3 text-sm text-bone">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <h2 className="mt-14 font-display text-2xl font-bold uppercase tracking-tight text-bone">
+          Gallery
+          <span className="ml-3 text-sm font-normal normal-case tracking-normal text-ash">
+            {assets.length} asset{assets.length === 1 ? "" : "s"}
+          </span>
+        </h2>
+        {assets.length === 0 && !busy ? (
+          <p className="mt-4 text-sm text-ash/70">Nothing generated yet. Render your first sprite above.</p>
+        ) : (
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: pending }, (_, i) => (
+              <div
+                key={`pending-${i}`}
+                className="flex flex-col overflow-hidden rounded-md border border-hellfire/40 bg-coal"
+              >
+                <div className="flex aspect-square w-full animate-pulse items-center justify-center bg-void">
+                  <div className="flex flex-col items-center gap-3 text-ash">
+                    <Loader2 className="size-8 animate-spin text-hellfire" aria-hidden="true" />
+                    <span className="font-display text-xs font-bold uppercase tracking-widest">
+                      Rendering…
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-4 text-xs text-ash/70">
+                  <ImageIcon className="size-3.5" aria-hidden="true" />
+                  Nano Banana 2 is painting
+                </div>
+              </div>
+            ))}
+            {assets.map((asset) => (
+              <figure
+                key={asset.id}
+                className="flex flex-col overflow-hidden rounded-md border border-gunmetal bg-coal"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={asset.url}
+                  alt={asset.subject}
+                  className={`w-full bg-void object-contain ${asset.sheetPoses ? "aspect-[21/9]" : "aspect-square"}`}
+                />
+                <figcaption className="flex flex-1 flex-col gap-3 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {asset.sheetPoses && (
+                      <span className="rounded-md border border-hellfire/50 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-hellfire">
+                        1×{asset.sheetPoses.length} sheet
+                      </span>
+                    )}
+                    {asset.game && (
+                      <span className="inline-flex items-center gap-1.5 rounded-md border border-hellfire/50 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-hellfire">
+                        <Gamepad2 className="size-3" aria-hidden="true" />
+                        {asset.game}
+                      </span>
+                    )}
+                    {asset.pose && (
+                      <span className="rounded-md border border-gunmetal px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-ash">
+                        {asset.pose}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs leading-relaxed text-ash">{asset.subject}</p>
+                  <div className="mt-auto flex items-center gap-2 border-t border-gunmetal/60 pt-3">
+                    {!asset.sheetPoses && (
+                    <select
+                      value={variantPose[asset.id] ?? asset.pose ?? POSES[0]}
+                      onChange={(e) =>
+                        setVariantPose((prev) => ({ ...prev, [asset.id]: e.target.value }))
+                      }
+                      aria-label="Pose for reprint"
+                      className="flex-1 rounded-md border border-gunmetal bg-void px-2 py-1.5 text-xs text-bone focus:border-hellfire focus:outline-none"
+                    >
+                      {POSES.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => regenerate(asset)}
+                      disabled={busy}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-gunmetal px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {regeneratingId === asset.id ? (
+                        <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <RefreshCw className="size-3.5" aria-hidden="true" />
+                      )}
+                      Reprint
+                    </button>
+                    <a
+                      href={asset.url}
+                      download={`${asset.subject.slice(0, 40).replace(/\W+/g, "-")}.png`}
+                      className="shrink-0 text-ash hover:text-hellfire"
+                      aria-label="Download sprite"
+                    >
+                      <Download className="size-4" aria-hidden="true" />
+                    </a>
+                  </div>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}

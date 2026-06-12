@@ -1,7 +1,17 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
-const IGNORED_DIRS = new Set([".git", ".next", ".turbo", ".worktrees", "coverage", "dist", "node_modules", "out"]);
+const IGNORED_DIRS = new Set([
+  ".claude",
+  ".git",
+  ".next",
+  ".turbo",
+  ".worktrees",
+  "coverage",
+  "dist",
+  "node_modules",
+  "out",
+]);
 const ROOT_DESIGN_PATH = "DESIGN.md";
 const LORE_DESIGN_PATHS = new Set(["lore/DESIGN.md", ".agents/lore/DESIGN.md"]);
 

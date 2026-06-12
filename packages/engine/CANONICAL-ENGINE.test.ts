@@ -20,7 +20,7 @@ test("canonical engine contract records issue 143 ownership decisions", () => {
 test("canonical engine contract documents Deadrot consumption and duplicate handling", () => {
   const requiredPhrases = [
     "Deadrot games should resolve engine code from this canonical package",
-    "\"@shipshitgames/engine\": \"^0.2.0\"",
+    "\"@shipshitgames/engine\": \"^0.3.0\"",
     "bun link @shipshitgames/engine",
     "temporary compatibility copy",
     "remove `packages/engine` from the",

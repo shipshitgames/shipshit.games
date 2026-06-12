@@ -1,0 +1,8 @@
+.next
+.turbo
+.worktrees
+.asset-lab
+*.tsbuildinfo
+apps/desktop
+apps/docs
+packages/game-tester

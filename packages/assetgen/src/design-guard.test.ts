@@ -62,3 +62,13 @@ test("design guard ignores DESIGN.md copies inside local git worktrees", async (
   const violations = await findDisallowedDesignDocs(root);
   assert.deepEqual(violations, []);
 });
+
+test("design guard ignores DESIGN.md copies inside Claude worktrees", async () => {
+  const root = await mkdtemp(join(tmpdir(), "assetgen-design-guard-"));
+  await writeFile(join(root, "DESIGN.md"), "---\nversion: 1\n---\n");
+  await mkdir(join(root, ".claude", "worktrees", "feat-x"), { recursive: true });
+  await writeFile(join(root, ".claude", "worktrees", "feat-x", "DESIGN.md"), "---\nversion: 1\n---\n");
+
+  const violations = await findDisallowedDesignDocs(root);
+  assert.deepEqual(violations, []);
+});

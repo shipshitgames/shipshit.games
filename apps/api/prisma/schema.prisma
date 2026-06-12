@@ -1,0 +1,76 @@
+generator client {
+  provider      = "prisma-client-js"
+  // In-app output: bun's nested node_modules store breaks Next's standalone
+  // file tracing, so the client (and its engines) must live inside the app.
+  output        = "../generated/client"
+  // native: local dev (darwin) / Vercel build (rhel); the rest: Docker runners.
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Generated Asset Lab sprite. Image bytes live in the row until the S3
+/// asset origin lands (#186); list queries must select around `image`.
+model Asset {
+  id          String   @id @default(uuid())
+  subject     String
+  description String?
+  fullPrompt  String
+  style       String?
+  pose        String?
+  sheetPoses  String[] @default([])
+  gameSlug    String?
+  game        String?
+  model       String
+  image       Bytes
+  ownerId     String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([gameSlug])
+}
+
+/// Mirror of Clerk users, maintained by the Clerk webhook.
+model User {
+  id        String    @id // Clerk user id
+  email     String?
+  firstName String?
+  lastName  String?
+  imageUrl  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+/// Audit log of every verified webhook delivery (stripe | clerk | github).
+model WebhookEvent {
+  id         String   @id @default(uuid())
+  source     String
+  externalId String?
+  type       String
+  payload    Json
+  receivedAt DateTime @default(now())
+
+  @@unique([source, externalId])
+  @@index([source, type])
+  @@index([receivedAt(sort: Desc)])
+}
+
+/// Commits ingested from GitHub push webhooks; feeds /v1/stats/commits.
+model Commit {
+  id          String   @id @default(uuid())
+  repo        String
+  sha         String
+  authorLogin String?
+  authorEmail String?
+  message     String
+  committedAt DateTime
+  receivedAt  DateTime @default(now())
+
+  @@unique([repo, sha])
+  @@index([repo, committedAt(sort: Desc)])
+  @@index([authorLogin])
+}

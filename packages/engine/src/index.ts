@@ -120,3 +120,48 @@ export {
   type SpawnPoint,
   type RectScatterConfig,
 } from './spawn'
+
+// --- embodied-base: net (seam: PartyKit transport + replicated presence; game payloads ride GameMessage) ---
+// The room server template is intentionally NOT re-exported here: import
+// `createRoomServer` from '@shipshitgames/engine/net/server' in your party/
+// entry so browser bundles never resolve partykit types.
+export {
+  RESERVED_MESSAGE_TYPES,
+  isReservedMessageType,
+  parseMessage,
+  type ClientMessage,
+  type GameMessage,
+  type HitBroadcast,
+  type HitMessage,
+  type HitReport,
+  type JoinBroadcast,
+  type JoinRequest,
+  type LeaveBroadcast,
+  type NameBroadcast,
+  type RemotePlayerInfo,
+  type ReservedMessageType,
+  type ServerMessage,
+  type StateBroadcast,
+  type StateUpdate,
+  type WelcomeMessage,
+} from './net/protocol'
+export {
+  DEFAULT_DEV_PARTYKIT_HOST,
+  resolvePartyKitHost,
+  type PartyKitHostEnv,
+} from './net/host'
+export {
+  NetClient,
+  type NetClientOptions,
+  type NetEvents,
+  type NetSocketFactory,
+  type NetSocketLike,
+} from './net/NetClient'
+export {
+  RemoteAvatar,
+  type RemoteAvatarFrame,
+  type RemoteAvatarMeta,
+  type RemoteAvatarOptions,
+  type RemoteAvatarSkin,
+  type RemoteAvatarSkinFactory,
+} from './net/RemoteAvatar'
