@@ -23,6 +23,7 @@
     "ci:engine": "bun run --cwd packages/engine build && bun run --cwd packages/engine typecheck && bun run --cwd packages/engine e2e",
     "ci:scaffold": "bun scripts/scaffold-smoke.mjs",
     "check:design": "bun packages/assetgen/src/cli.ts check-design",
+    "check:secrets": "node scripts/check-secrets.mjs",
     "check:tokens": "turbo run check:tokens",
     "check:content": "bun apps/web/scripts/sync-content.ts --check",
     "sync:content": "bun apps/web/scripts/sync-content.ts",

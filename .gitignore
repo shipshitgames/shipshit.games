@@ -18,4 +18,15 @@ playwright-report/
 
 # git worktrees created by the /worktree skill
 .worktrees/
+.claude/worktrees/
 .vercel
+
+# Local credentials and private keys
+.aws/
+**/.aws/
+*.pem
+*.p12
+*.pfx
+*.private-key
+id_rsa*
+id_ed25519*
