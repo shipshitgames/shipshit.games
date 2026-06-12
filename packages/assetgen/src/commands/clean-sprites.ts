@@ -2,66 +2,109 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 
+type ArgValue = string | boolean | undefined;
+type ParsedArgs = Record<string, ArgValue>;
+type ChromaKeyName = "magenta" | "green" | "blue";
+type ChromaMode = ChromaKeyName | "auto";
+type OutputFormat = "webp" | "png";
+type Rgb = readonly [number, number, number];
+
+type CleanSpriteOptions = {
+  chromaKey: ChromaMode;
+  tolerance: number;
+  halo: number;
+  padding: number;
+  size: number | undefined;
+  pixelScale: number;
+  fit: boolean;
+  format: OutputFormat;
+  quality: number;
+  recursive: boolean;
+  dryRun: boolean;
+};
+
+type Bounds = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+};
+
+type CleanSpriteResult = {
+  input: string;
+  output: string;
+  key: ChromaKeyName | "custom";
+  bounds: {
+    width: number;
+    height: number;
+  };
+  canvas: number;
+};
+
 const IMAGE_EXTENSIONS = new Set([".png", ".webp", ".jpg", ".jpeg"]);
 const CHROMA_KEYS = {
   magenta: [255, 0, 255],
   green: [0, 255, 0],
   blue: [0, 0, 255],
-};
+} as const satisfies Record<ChromaKeyName, Rgb>;
+const CHROMA_KEY_ENTRIES = Object.entries(CHROMA_KEYS) as Array<[ChromaKeyName, Rgb]>;
 
 export async function runCleanSpritesCommand(argv: string[] = process.argv.slice(2)): Promise<void> {
   const args = parseArgs(argv);
+  const input = stringArg(args.input);
+  const output = stringArg(args.output);
 
-  if (!args.input || !args.output) {
+  if (!input || !output) {
     console.error(
-    [
-      "Usage:",
-      "  assetgen clean-sprites --input <file-or-dir> --output <dir> [options]",
-      "",
-      "Options:",
-      "  --key magenta|green|blue|auto   Chroma key to remove. Default: auto",
-      "  --tolerance <0-255>             Chroma distance tolerance. Default: 70",
-      "  --halo <0-255>                  Desaturate/alpha fringe near key. Default: 115",
-  "  --padding <px>                  Transparent padding around crop. Default: 24",
-  "  --size <px>                     Square output canvas. Default: next power of two",
-  "  --pixel-scale <px>              Down/up pixelize step before export. Default: 0",
-  "  --no-fit                        Fail instead of resizing crops larger than canvas",
-      "  --format webp|png               Output format. Default: webp",
-      "  --quality <1-100>               WebP quality. Default: 92",
-      "  --recursive                     Recurse when input is a directory",
-      "  --dry-run                       Print actions only",
+      [
+        "Usage:",
+        "  assetgen clean-sprites --input <file-or-dir> --output <dir> [options]",
+        "",
+        "Options:",
+        "  --key magenta|green|blue|auto   Chroma key to remove. Default: auto",
+        "  --tolerance <0-255>             Chroma distance tolerance. Default: 70",
+        "  --halo <0-255>                  Desaturate/alpha fringe near key. Default: 115",
+        "  --padding <px>                  Transparent padding around crop. Default: 24",
+        "  --size <px>                     Square output canvas. Default: next power of two",
+        "  --pixel-scale <px>              Down/up pixelize step before export. Default: 0",
+        "  --no-fit                        Fail instead of resizing crops larger than canvas",
+        "  --format webp|png               Output format. Default: webp",
+        "  --quality <1-100>               WebP quality. Default: 92",
+        "  --recursive                     Recurse when input is a directory",
+        "  --dry-run                       Print actions only",
       ].join("\n"),
     );
     process.exit(1);
   }
 
-  const options = {
-    chromaKey: args.key ?? "auto",
+  const chromaKey = stringArg(args.key) ?? "auto";
+  if (!isChromaMode(chromaKey)) {
+    throw new Error(`Unknown --key ${chromaKey}`);
+  }
+
+  const options: CleanSpriteOptions = {
+    chromaKey,
     tolerance: numberArg(args.tolerance, 70),
     halo: numberArg(args.halo, 115),
     padding: numberArg(args.padding, 24),
-    size: args.size ? numberArg(args.size, 0) : undefined,
+    size: typeof args.size === "string" ? numberArg(args.size, 0) : undefined,
     pixelScale: numberArg(args["pixel-scale"], 0),
     fit: !args["no-fit"],
-    format: args.format ?? "webp",
+    format: formatArg(args.format),
     quality: numberArg(args.quality, 92),
     recursive: Boolean(args.recursive),
     dryRun: Boolean(args["dry-run"]),
   };
 
-  if (!["auto", ...Object.keys(CHROMA_KEYS)].includes(options.chromaKey)) {
-    throw new Error(`Unknown --key ${options.chromaKey}`);
-  }
-
-  const inputPath = path.resolve(String(args.input));
-  const outputPath = path.resolve(String(args.output));
+  const inputPath = path.resolve(input);
+  const outputPath = path.resolve(output);
   const inputs = await collectInputs(inputPath, options.recursive);
 
   if (!options.dryRun) {
     await fs.mkdir(outputPath, { recursive: true });
   }
 
-  const results = [];
+  const results: CleanSpriteResult[] = [];
   for (const input of inputs) {
     const result = await cleanSprite(input, outputPath, options);
     results.push(result);
@@ -78,11 +121,11 @@ export async function runCleanSpritesCommand(argv: string[] = process.argv.slice
   }
 }
 
-function parseArgs(argv) {
-  const parsed = {};
+function parseArgs(argv: string[]): ParsedArgs {
+  const parsed: ParsedArgs = {};
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    if (!token.startsWith("--")) continue;
+    if (!token?.startsWith("--")) continue;
     const key = token.slice(2);
     const next = argv[index + 1];
     if (!next || next.startsWith("--")) {
@@ -95,18 +138,28 @@ function parseArgs(argv) {
   return parsed;
 }
 
-function numberArg(value, fallback) {
+function stringArg(value: ArgValue): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function numberArg(value: ArgValue, fallback: number): number {
   if (value === undefined || value === true) return fallback;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) throw new Error(`Expected number, got ${value}`);
   return parsed;
 }
 
-async function collectInputs(input, recursive) {
+function formatArg(value: ArgValue): OutputFormat {
+  if (value === undefined || value === true) return "webp";
+  if (value === "webp" || value === "png") return value;
+  throw new Error(`Unknown --format ${value}`);
+}
+
+async function collectInputs(input: string, recursive: boolean): Promise<string[]> {
   const stat = await fs.stat(input);
   if (stat.isFile()) return IMAGE_EXTENSIONS.has(path.extname(input).toLowerCase()) ? [input] : [];
   const entries = await fs.readdir(input, { withFileTypes: true });
-  const files = [];
+  const files: string[] = [];
   for (const entry of entries) {
     const fullPath = path.join(input, entry.name);
     if (entry.isDirectory() && recursive) files.push(...(await collectInputs(fullPath, recursive)));
@@ -115,19 +168,26 @@ async function collectInputs(input, recursive) {
   return files.sort((a, b) => a.localeCompare(b));
 }
 
-async function cleanSprite(input, outputDir, options) {
+async function cleanSprite(input: string, outputDir: string, options: CleanSpriteOptions): Promise<CleanSpriteResult> {
   const image = sharp(input).ensureAlpha();
   const metadata = await image.metadata();
+  const width = metadata.width;
+  const height = metadata.height;
+  if (!width || !height) {
+    throw new Error(`Could not read image dimensions for ${input}`);
+  }
+
   const { data } = await image.raw().toBuffer({ resolveWithObject: true });
   const key = chooseChromaKey(data, options.chromaKey);
   const pixels = Buffer.from(data);
 
   for (let offset = 0; offset < pixels.length; offset += 4) {
-    const red = pixels[offset];
-    const green = pixels[offset + 1];
-    const blue = pixels[offset + 2];
-    const alpha = pixels[offset + 3];
-    const distance = colorDistance([red, green, blue], key);
+    const red = pixels[offset] ?? 0;
+    const green = pixels[offset + 1] ?? 0;
+    const blue = pixels[offset + 2] ?? 0;
+    const alpha = pixels[offset + 3] ?? 0;
+    const color: Rgb = [red, green, blue];
+    const distance = colorDistance(color, key);
 
     if (distance <= options.tolerance) {
       pixels[offset + 3] = 0;
@@ -140,10 +200,10 @@ async function cleanSprite(input, outputDir, options) {
     }
   }
 
-  const bounds = alphaBounds(pixels, metadata.width, metadata.height);
+  const bounds = alphaBounds(pixels, width, height);
   if (!bounds) throw new Error(`No non-chroma pixels found in ${input}`);
 
-  const paddedBounds = padBounds(bounds, metadata.width, metadata.height, options.padding);
+  const paddedBounds = padBounds(bounds, width, height, options.padding);
   const cropWidth = paddedBounds.right - paddedBounds.left + 1;
   const cropHeight = paddedBounds.bottom - paddedBounds.top + 1;
   const canvas = options.size ?? nextPowerOfTwo(Math.max(cropWidth, cropHeight));
@@ -153,8 +213,8 @@ async function cleanSprite(input, outputDir, options) {
 
   let cleaned = sharp(pixels, {
     raw: {
-      width: metadata.width,
-      height: metadata.height,
+      width,
+      height,
       channels: 4,
     },
   })
@@ -211,38 +271,38 @@ async function cleanSprite(input, outputDir, options) {
   };
 }
 
-function chooseChromaKey(data, mode) {
+function chooseChromaKey(data: Buffer, mode: ChromaMode): Rgb {
   if (mode !== "auto") return CHROMA_KEYS[mode];
-  const scores = new Map(Object.entries(CHROMA_KEYS).map(([name]) => [name, 0]));
+  const scores = new Map<ChromaKeyName, number>(CHROMA_KEY_ENTRIES.map(([name]) => [name, 0]));
   for (let offset = 0; offset < data.length; offset += 4) {
-    const color = [data[offset], data[offset + 1], data[offset + 2]];
-    for (const [name, key] of Object.entries(CHROMA_KEYS)) {
-      if (colorDistance(color, key) < 80) scores.set(name, scores.get(name) + 1);
+    const color: Rgb = [data[offset] ?? 0, data[offset + 1] ?? 0, data[offset + 2] ?? 0];
+    for (const [name, key] of CHROMA_KEY_ENTRIES) {
+      if (colorDistance(color, key) < 80) scores.set(name, (scores.get(name) ?? 0) + 1);
     }
   }
-  const [winner] = [...scores.entries()].sort((a, b) => b[1] - a[1])[0];
+  const winner = [...scores.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "magenta";
   return CHROMA_KEYS[winner];
 }
 
-function colorDistance(a, b) {
+function colorDistance(a: Rgb, b: Rgb): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 }
 
-function keyName(key) {
-  for (const [name, value] of Object.entries(CHROMA_KEYS)) {
+function keyName(key: Rgb): ChromaKeyName | "custom" {
+  for (const [name, value] of CHROMA_KEY_ENTRIES) {
     if (value.every((component, index) => component === key[index])) return name;
   }
   return "custom";
 }
 
-function alphaBounds(pixels, width, height) {
+function alphaBounds(pixels: Buffer, width: number, height: number): Bounds | null {
   let left = width;
   let top = height;
   let right = -1;
   let bottom = -1;
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const alpha = pixels[(y * width + x) * 4 + 3];
+      const alpha = pixels[(y * width + x) * 4 + 3] ?? 0;
       if (alpha <= 4) continue;
       left = Math.min(left, x);
       top = Math.min(top, y);
@@ -254,7 +314,7 @@ function alphaBounds(pixels, width, height) {
   return { left, top, right, bottom };
 }
 
-function padBounds(bounds, width, height, padding) {
+function padBounds(bounds: Bounds, width: number, height: number, padding: number): Bounds {
   return {
     left: Math.max(0, bounds.left - padding),
     top: Math.max(0, bounds.top - padding),
@@ -263,7 +323,7 @@ function padBounds(bounds, width, height, padding) {
   };
 }
 
-function fitDimensions(width, height, canvas) {
+function fitDimensions(width: number, height: number, canvas: number): { width: number; height: number } {
   if (width <= canvas && height <= canvas) return { width, height };
   const scale = Math.min(canvas / width, canvas / height);
   return {
@@ -272,10 +332,14 @@ function fitDimensions(width, height, canvas) {
   };
 }
 
-function nextPowerOfTwo(value) {
+function nextPowerOfTwo(value: number): number {
   return 2 ** Math.ceil(Math.log2(Math.max(1, value)));
 }
 
-function clamp(value, min, max) {
+function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function isChromaMode(value: string): value is ChromaMode {
+  return value === "auto" || value in CHROMA_KEYS;
 }
