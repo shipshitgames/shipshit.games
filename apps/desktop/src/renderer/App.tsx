@@ -88,6 +88,45 @@ interface GalleryResult {
   assets: GalleryAsset[];
   embeddedBytes?: number;
 }
+interface MapValidationIssue { code: string; message: string; obstacleId?: string }
+interface MapValidationResult { ok: boolean; issues: MapValidationIssue[] }
+interface MapSummary {
+  id: string;
+  name: string;
+  rooms: number;
+  levels: number;
+  obstacles: number;
+  lights: number;
+  bounds: { kind: "square"; half: number } | { kind: "rect"; minX: number; maxX: number; minZ: number; maxZ: number };
+}
+interface MapsGenOptions {
+  id: string;
+  game?: string;
+  name?: string;
+  seed?: number;
+  rooms?: number;
+  levels?: number;
+  half?: number;
+  coverPerRoom?: number;
+  spawnRadius?: number;
+  spawn?: { x: number; z: number };
+}
+interface MapPreviewResult {
+  ok: boolean;
+  dataUrl: string;
+  svg: string;
+  moduleText: string;
+  summary: MapSummary;
+  validation: MapValidationResult;
+}
+interface MapWriteResult {
+  ok: boolean;
+  path?: string;
+  svgPath?: string;
+  game?: string;
+  summary: MapSummary;
+  validation: MapValidationResult;
+}
 
 declare global {
   interface Window {
@@ -147,6 +186,11 @@ declare global {
         updateItem: (game: string, item: Partial<MoodboardItem> & { id: string }) => Promise<Moodboard>;
         setVisualTarget: (game: string, id: string, visualTarget: boolean) => Promise<Moodboard>;
         removeItem: (game: string, id: string) => Promise<Moodboard>;
+      };
+      maps: {
+        listGames: () => Promise<string[]>;
+        preview: (opts: MapsGenOptions) => Promise<MapPreviewResult>;
+        write: (opts: MapsGenOptions) => Promise<MapWriteResult>;
       };
     };
   }
@@ -1325,6 +1369,127 @@ function GalleryPane() {
   );
 }
 
+function MapsPane() {
+  const [id, setId] = useState("breach-alpha");
+  const [name, setName] = useState("");
+  const [game, setGame] = useState("scourge-survivors");
+  const [games, setGames] = useState<string[]>(["scourge-survivors"]);
+  const [seed, setSeed] = useState(1);
+  const [rooms, setRooms] = useState(6);
+  const [levels, setLevels] = useState(2);
+  const [half, setHalf] = useState(24);
+  const [coverPerRoom, setCoverPerRoom] = useState(3);
+  const [spawnRadius, setSpawnRadius] = useState(2.5);
+  const [preview, setPreview] = useState<MapPreviewResult | null>(null);
+  const [written, setWritten] = useState<MapWriteResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const options: MapsGenOptions = useMemo(
+    () => ({ id, name: name.trim() || undefined, game, seed, rooms, levels, half, coverPerRoom, spawnRadius }),
+    [id, name, game, seed, rooms, levels, half, coverPerRoom, spawnRadius],
+  );
+
+  useEffect(() => {
+    window.studio?.settings.get().then((s) => s.defaultGame && setGame(s.defaultGame)).catch(() => {});
+    window.studio?.maps.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
+  }, []);
+
+  // Live preview — the generator is pure + in-process, so it is cheap to re-seed
+  // on every input change. Failures surface in the validation panel, not a throw.
+  useEffect(() => {
+    if (!window.studio?.maps || !id.trim()) { setPreview(null); return; }
+    let live = true;
+    setError("");
+    window.studio.maps.preview(options)
+      .then((next) => { if (live) { setPreview(next); setWritten(null); } })
+      .catch((e) => { if (live) setError(String((e as Error)?.message ?? e)); });
+    return () => { live = false; };
+  }, [options, id]);
+
+  async function write() {
+    if (!window.studio?.maps) { setError("studio bridge unavailable — restart the app"); return; }
+    if (!id.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await window.studio.maps.write(options);
+      setWritten(result);
+      if (!result.ok) setError("layout failed validation — fix the issues above before writing");
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const summary = preview?.summary;
+  const issues = preview && !preview.ok ? preview.validation.issues : [];
+
+  return (
+    <div className="gen">
+      <div className="gen-form">
+        <label className="gen-field"><span>Map ID</span>
+          <input value={id} onChange={(e) => setId(e.target.value)} placeholder="breach-alpha" />
+        </label>
+        <label className="gen-field"><span>Display name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="(defaults to “<id> breach arena”)" />
+        </label>
+        <label className="gen-field"><span>Game</span>
+          <select value={game} onChange={(e) => setGame(e.target.value)}>
+            {games.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+        <div className="gen-row">
+          <label className="gen-field"><span>Seed</span>
+            <input type="number" min={0} value={seed} onChange={(e) => setSeed(Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
+          </label>
+          <label className="gen-field"><span>Rooms</span>
+            <input type="number" min={1} max={64} value={rooms} onChange={(e) => setRooms(Math.max(1, Math.min(64, Number(e.target.value) || 1)))} />
+          </label>
+        </div>
+        <div className="gen-row">
+          <label className="gen-field"><span>Levels</span>
+            <input type="number" min={1} max={8} value={levels} onChange={(e) => setLevels(Math.max(1, Math.min(8, Number(e.target.value) || 1)))} />
+          </label>
+          <label className="gen-field"><span>Arena half-extent (m)</span>
+            <input type="number" min={8} max={200} value={half} onChange={(e) => setHalf(Math.max(8, Math.min(200, Number(e.target.value) || 24)))} />
+          </label>
+        </div>
+        <div className="gen-row">
+          <label className="gen-field"><span>Cover / room</span>
+            <input type="number" min={0} max={20} value={coverPerRoom} onChange={(e) => setCoverPerRoom(Math.max(0, Math.min(20, Number(e.target.value) || 0)))} />
+          </label>
+          <label className="gen-field"><span>Spawn radius (m)</span>
+            <input type="number" min={0.5} max={20} step={0.5} value={spawnRadius} onChange={(e) => setSpawnRadius(Math.max(0.5, Math.min(20, Number(e.target.value) || 2.5)))} />
+          </label>
+        </div>
+        <div className="gen-active">preset <b>breach-arena</b> · seeded engine ArenaMap · validated geometry</div>
+        <button className="gen-btn" type="button" disabled={busy || !id.trim() || !!(preview && !preview.ok)} onClick={write}>
+          {busy ? "Writing…" : "Write map module"}
+        </button>
+        <p className="gen-note">Writes a typed <code>{`${id || "<id>"}.maps.ts`}</code> (+ SVG) into the Studio maps folder — copy it into the target game’s <code>data/maps.ts</code>. Layout is deterministic per seed.</p>
+      </div>
+      <div className="gen-preview">
+        {preview?.dataUrl ? (
+          <img className="map-preview" src={preview.dataUrl} alt={`${id} top-down preview`} />
+        ) : <div className="gen-preview-empty">preview</div>}
+        {summary && (
+          <div className="gen-active">
+            {summary.rooms} rooms · {summary.levels} levels · {summary.obstacles} obstacles · {summary.lights} lights
+          </div>
+        )}
+        {issues.length > 0 && (
+          <pre className="gen-log is-err">{issues.map((i) => `[${i.code}] ${i.message}`).join("\n")}</pre>
+        )}
+        {error && <pre className="gen-log is-err">{error}</pre>}
+        {written?.ok && written.path && <div className="gen-path">{written.path}</div>}
+        {written?.ok && written.svgPath && <div className="gen-path">{written.svgPath}</div>}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState<SectionId>("sprites");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1366,7 +1531,7 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "projects" ? <ProjectsPane /> : active === "gallery" ? <GalleryPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "moodboard" ? <MoodboardPane /> : active === "research" ? <ResearchPane /> : (
+            {active === "projects" ? <ProjectsPane /> : active === "gallery" ? <GalleryPane /> : active === "maps" ? <MapsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "moodboard" ? <MoodboardPane /> : active === "research" ? <ResearchPane /> : (
               <div className="placeholder-card">
                 <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
                 <p><strong>{section.label}</strong> workspace coming online.</p>

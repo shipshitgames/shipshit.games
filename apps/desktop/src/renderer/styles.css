@@ -136,6 +136,7 @@ body {
   image-rendering: pixelated; image-rendering: crisp-edges;
   filter: drop-shadow(0 0 20px color-mix(in srgb, var(--blood) 45%, transparent));
 }
+.gen-preview .map-preview { max-width: 460px; }
 .gen-preview-empty {
   display: flex; align-items: center; justify-content: center; width: 100%; max-width: 420px; aspect-ratio: 1;
   border: 1px dashed color-mix(in srgb, var(--gunmetal) 76%, var(--bone)); border-radius: 2px; color: color-mix(in srgb, var(--ash) 68%, var(--void));

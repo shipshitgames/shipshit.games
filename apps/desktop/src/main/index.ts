@@ -15,6 +15,7 @@ import {
   uniqueProjects,
 } from "./projects";
 import { createMoodboardStore } from "./moodboards";
+import { createMapsStore } from "./maps";
 import { createGallery } from "./gallery";
 import { DEFAULT_GAME, DEFAULTS, normalizeSettings } from "./settings";
 import { buildGenerateArgs } from "./generate-args";
@@ -74,6 +75,12 @@ const terminalManager = createTerminalManager({
 });
 const moodboards = createMoodboardStore({
   rootDir: () => path.join(app.getPath("userData"), "moodboards"),
+});
+// Maps generator (#18): seeds engine-schema ArenaMap layouts in-process via the
+// pure assetgen core. Generated modules land in a Studio-owned maps dir; a human
+// copies them into the target game's data/maps.ts (shipped games live out-of-repo).
+const maps = createMapsStore({
+  rootDir: () => path.join(app.getPath("userData"), "maps"),
 });
 
 // Asset gallery reads the shared Deadrot @shipshitgames/assets package — the source
@@ -249,6 +256,12 @@ ipcMain.handle("moodboard:importImages", async (_e, game) => {
   });
   return r.canceled ? moodboards.readBoard(game || readSettings().defaultGame) : moodboards.importImages(game || readSettings().defaultGame, r.filePaths);
 });
+
+// ---- maps generator (#18): seed/validate/preview/write ArenaMap layouts ----
+// Same game source of truth as the rest of the app so the picker matches.
+ipcMain.handle("maps:listGames", () => listProjectState().projects.map((project) => project.slug));
+ipcMain.handle("maps:preview", (_e, opts = {}) => maps.preview(opts));
+ipcMain.handle("maps:write", (_e, opts = {}) => maps.write(opts));
 
 // ---- asset gallery (read-only review of the shared Deadrot assets package) ----
 ipcMain.handle("gallery:listGames", () => gallery.listGames());

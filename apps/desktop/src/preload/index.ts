@@ -84,4 +84,11 @@ contextBridge.exposeInMainWorld("studio", {
     setVisualTarget: (game, id, visualTarget) => ipcRenderer.invoke("moodboard:setVisualTarget", { game, id, visualTarget }),
     removeItem: (game, id) => ipcRenderer.invoke("moodboard:removeItem", { game, id }),
   },
+  // Maps generator (#18): seed/validate/preview an ArenaMap layout, then write
+  // the typed module + SVG into the Studio's maps dir.
+  maps: {
+    listGames: () => ipcRenderer.invoke("maps:listGames"),
+    preview: (opts) => ipcRenderer.invoke("maps:preview", opts),
+    write: (opts) => ipcRenderer.invoke("maps:write", opts),
+  },
 });
