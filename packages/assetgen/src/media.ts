@@ -4,11 +4,25 @@
  * import provider catalogs without dragging native modules into its bundle.
  */
 
+/** Model-catalog entry shared by providers; kept here so it stays dependency-free. */
+export interface ProviderModel {
+  id: string;
+  label: string;
+  kinds: readonly string[];
+}
+
 export interface GeneratedAsset {
   data: Buffer;
   mediaType: string;
   extension: string;
   model?: string;
+  /** Provenance for generated media — commercial rights are plan-dependent for some providers. */
+  license?: {
+    type?: string;
+    terms?: string;
+    url?: string;
+    generatedAt?: string;
+  };
 }
 
 export async function downloadGeneratedAsset(
