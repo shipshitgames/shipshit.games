@@ -121,6 +121,37 @@ export {
   type RectScatterConfig,
 } from './spawn'
 
+// --- embodied-base: level (seam: LDtk import -> arena + spawns + tile layers) ---
+export {
+  loadLdtkProject,
+  loadLdtkLevel,
+  assertLdtkVersion,
+  parseLdtkVersion,
+  FixedSpawnProvider,
+  LdtkError,
+  SUPPORTED_LDTK_VERSION,
+  type LdtkLoadOptions,
+  type LdtkProject,
+  type LdtkArena,
+  type LdtkEntity,
+  type LdtkTile,
+  type LdtkTileLayer,
+  type LdtkVersionInfo,
+  type FixedSpawnConfig,
+} from './level/ldtk'
+export type {
+  LdtkRoot,
+  LdtkDefs,
+  LdtkLayerDef,
+  LdtkIntGridValueDef,
+  LdtkTilesetDef,
+  LdtkLevel,
+  LdtkLayerInstance,
+  LdtkTileInstance,
+  LdtkEntityInstance,
+  LdtkFieldInstance,
+} from './level/ldtk-types'
+
 // --- embodied-base: net (seam: PartyKit transport + replicated presence; game payloads ride GameMessage) ---
 // The room server template is intentionally NOT re-exported here: import
 // `createRoomServer` from '@shipshitgames/engine/net/server' in your party/
