@@ -19,7 +19,7 @@ import {
   toSpriteSheetWebp,
   writeBillboardPreview,
 } from "../sprites.ts";
-import { flag, has, intFlag } from "./args.ts";
+import { flag, has, intFlag, numberFlag } from "./args.ts";
 import { defaultRepo } from "./paths.ts";
 
 export async function runGenerate(argv: string[]): Promise<void> {
@@ -205,10 +205,4 @@ function printGenerateUsage(): void {
       `\n  games: ${views}\n` +
       "  Default game repo lookup prefers ./games/<game> or ../games/<game>.",
   );
-}
-
-function numberFlag(argv: string[], name: string, def: number): number {
-  const raw = flag(argv, name);
-  const n = raw === undefined ? def : Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : def;
 }

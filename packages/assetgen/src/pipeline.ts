@@ -369,7 +369,7 @@ export function licenseForGeneration(opts: {
 }
 
 export function assetSubdirForKind(kind: string): string {
-  if (kind === "sprite") return "sprites";
+  if (kind === "sprite" || kind === "sprite-anim") return "sprites";
   if (kind === "texture") return "textures";
   if (kind === "icon") return "icons";
   if (kind === "music" || kind === "sfx" || kind === "voice") return `audio/${kind}`;
