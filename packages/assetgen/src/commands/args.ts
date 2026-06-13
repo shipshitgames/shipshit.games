@@ -13,3 +13,10 @@ export function intFlag(argv: string[], name: string, def: number): number {
   const n = raw === undefined ? def : parseInt(raw, 10);
   return Number.isFinite(n) && n > 0 ? n : def;
 }
+
+// Parse a positive-float flag, falling back to `def` on missing/NaN/<=0.
+export function numberFlag(argv: string[], name: string, def: number): number {
+  const raw = flag(argv, name);
+  const n = raw === undefined ? def : Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : def;
+}
