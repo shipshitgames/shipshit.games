@@ -2,6 +2,7 @@ import { readFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
+import { isAudioKind } from "./audio.ts";
 import { runCodexCli } from "./codex.ts";
 import { DEFAULT_FAL_MODEL, FAL_KEY_CONFIG, FAL_MODELS, generateFalAsset } from "./fal.ts";
 import type { FalModel } from "./fal.ts";
@@ -12,7 +13,7 @@ import type { GeneratedAsset } from "./media.ts";
 export type { GeneratedAsset } from "./media.ts";
 export { extensionForMediaType } from "./media.ts";
 
-export type ProviderId = "codex" | "openai" | "fal" | "replicate" | "suno" | "mock";
+export type ProviderId = "codex" | "openai" | "fal" | "replicate" | "suno" | "elevenlabs" | "beatoven" | "mock";
 export type AssetKind = "sprite" | "texture" | "icon" | "map" | "music" | "sfx" | "voice" | "model" | "3d" | string;
 
 export interface ProviderOptions {
@@ -191,8 +192,93 @@ async function generateSuno(kind: AssetKind, prompt: string, opts: ProviderOptio
   return downloadGeneratedAsset(url, model);
 }
 
-/** Offline placeholder for dry-runs / pipeline tests. */
-async function generateMock(_kind: AssetKind, _prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
+/** Pure builder for the ElevenLabs text-to-sound request (no IO; unit-testable). */
+export function elevenLabsSfxRequest(
+  prompt: string,
+  key: string,
+  _opts: ProviderOptions,
+): { url: string; headers: Record<string, string>; body: string } {
+  return {
+    url: "https://api.elevenlabs.io/v1/sound-generation",
+    headers: { "xi-api-key": key, "content-type": "application/json", accept: "audio/mpeg" },
+    body: JSON.stringify({ text: prompt }),
+  };
+}
+
+/** ElevenLabs SFX (perpetual commercial on a paid plan). Returns audio/mpeg. */
+export async function generateElevenLabs(
+  _kind: AssetKind,
+  prompt: string,
+  opts: ProviderOptions,
+  deps: { fetchImpl?: typeof fetch; getKeyImpl?: typeof getKey } = {},
+): Promise<GeneratedAsset> {
+  const key = (deps.getKeyImpl ?? getKey)("ELEVENLABS_API_KEY", "shipshit-elevenlabs");
+  if (!key) throw missingKeyMessage(assetProviders.elevenlabs);
+  const req = elevenLabsSfxRequest(prompt, key, opts);
+  const res = await (deps.fetchImpl ?? fetch)(req.url, { method: "POST", headers: req.headers, body: req.body });
+  if (!res.ok) throw new Error(`elevenlabs ${res.status}: ${await res.text()}`);
+  return {
+    data: Buffer.from(await res.arrayBuffer()),
+    mediaType: "audio/mpeg",
+    extension: "mp3",
+    model: opts.model ?? assetProviders.elevenlabs.defaultModel,
+  };
+}
+
+/** Beatoven (perpetual-commercial music). Mirrors generateSuno's endpoint guard. */
+export async function generateBeatoven(
+  _kind: AssetKind,
+  prompt: string,
+  opts: ProviderOptions,
+  deps: { fetchImpl?: typeof fetch; getKeyImpl?: typeof getKey } = {},
+): Promise<GeneratedAsset> {
+  const key = (deps.getKeyImpl ?? getKey)("BEATOVEN_API_KEY", "shipshit-beatoven");
+  if (!key) throw missingKeyMessage(assetProviders.beatoven);
+  const endpoint = process.env.BEATOVEN_API_BASE_URL;
+  if (!endpoint) {
+    throw new Error(
+      "Beatoven provider needs BEATOVEN_API_BASE_URL pointing at a licensed perpetual-commercial Beatoven API endpoint. " +
+        "assetgen stores BEATOVEN_API_KEY securely but does not hardcode an unofficial endpoint.",
+    );
+  }
+  const model = opts.model ?? assetProviders.beatoven.defaultModel;
+  const res = await (deps.fetchImpl ?? fetch)(endpoint, {
+    method: "POST",
+    headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+    body: JSON.stringify({ prompt, model }),
+  });
+  if (!res.ok) throw new Error(`beatoven ${res.status}: ${await res.text()}`);
+  const json: any = await res.json();
+  const url = outputUrl(json);
+  if (!url) throw new Error("beatoven: response did not include an audio URL");
+  return downloadGeneratedAsset(url, model, deps.fetchImpl);
+}
+
+/** Deterministic silent 16-bit mono PCM WAV (RIFF/WAVE) — no randomness, no Date. */
+function makeSilentWav(seconds = 1, sampleRate = 8000): Buffer {
+  const dataSize = sampleRate * 2 * seconds; // 16-bit mono => 2 bytes/sample
+  const buf = Buffer.alloc(44 + dataSize); // header + silent (zero) PCM data
+  buf.write("RIFF", 0, "ascii");
+  buf.writeUInt32LE(36 + dataSize, 4);
+  buf.write("WAVE", 8, "ascii");
+  buf.write("fmt ", 12, "ascii");
+  buf.writeUInt32LE(16, 16); // fmt chunk size
+  buf.writeUInt16LE(1, 20); // PCM
+  buf.writeUInt16LE(1, 22); // mono
+  buf.writeUInt32LE(sampleRate, 24);
+  buf.writeUInt32LE(sampleRate * 2, 28); // byteRate
+  buf.writeUInt16LE(2, 32); // blockAlign
+  buf.writeUInt16LE(16, 34); // bits per sample
+  buf.write("data", 36, "ascii");
+  buf.writeUInt32LE(dataSize, 40);
+  return buf;
+}
+
+/** Offline placeholder for dry-runs / pipeline tests. Audio-aware (issue #21). */
+async function generateMock(kind: AssetKind, _prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
+  if (isAudioKind(kind)) {
+    return { data: makeSilentWav(), mediaType: "audio/wav", extension: "wav", model: "mock" };
+  }
   const n = parseInt(opts.size, 10) || 256;
   const data = await sharp({
     create: { width: n, height: n, channels: 4, background: { r: 26, g: 20, b: 20, alpha: 1 } },
@@ -242,6 +328,22 @@ export const assetProviders: Record<ProviderId, AssetProvider> = {
     defaultModel: "suno",
     key: { envName: "SUNO_API_KEY", service: "shipshit-suno", label: "Suno" },
     generate: (kind, prompt, opts) => generateSuno(kind, prompt, opts),
+  },
+  elevenlabs: {
+    id: "elevenlabs",
+    label: "ElevenLabs SFX",
+    supports: ["sfx"],
+    defaultModel: "eleven_text_to_sound_v2",
+    key: { envName: "ELEVENLABS_API_KEY", service: "shipshit-elevenlabs", label: "ElevenLabs" },
+    generate: (kind, prompt, opts) => generateElevenLabs(kind, prompt, opts),
+  },
+  beatoven: {
+    id: "beatoven",
+    label: "Beatoven (perpetual-commercial music)",
+    supports: ["music"],
+    defaultModel: "beatoven",
+    key: { envName: "BEATOVEN_API_KEY", service: "shipshit-beatoven", label: "Beatoven" },
+    generate: (kind, prompt, opts) => generateBeatoven(kind, prompt, opts),
   },
   mock: {
     id: "mock",

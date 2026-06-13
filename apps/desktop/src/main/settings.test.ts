@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 
-import { DEFAULTS, DEFAULT_PROVIDER_BY_KIND, normalizeSettings } from "./settings";
+import { DEFAULTS, DEFAULT_PROVIDER_BY_KIND, normalizeSettings, providerForKind } from "./settings";
 
 test("applies full defaults to an empty settings object", () => {
   expect(normalizeSettings({})).toEqual({
@@ -45,4 +45,20 @@ test("falModelDefaults: keeps only fal image kinds with non-empty trimmed string
     sprite: "fal-ai/flux/schnell",
     texture: "my-org/custom-texture-model",
   });
+});
+
+test("providerForKind falls back to the per-kind default with no explicit override", () => {
+  expect(providerForKind(normalizeSettings({}), "sprite")).toBe("codex");
+  // music/sfx/voice keep defaulting to suno (the pipeline default must not move).
+  expect(providerForKind(normalizeSettings({}), "music")).toBe("suno");
+  expect(providerForKind(normalizeSettings({}), "sfx")).toBe("suno");
+});
+
+test("providerForKind accepts the new audio providers as explicit choices", () => {
+  expect(providerForKind(normalizeSettings({}), "sfx", "elevenlabs")).toBe("elevenlabs");
+  expect(providerForKind(normalizeSettings({}), "music", "beatoven")).toBe("beatoven");
+});
+
+test("providerForKind ignores an unknown explicit provider and uses the per-kind default", () => {
+  expect(providerForKind(normalizeSettings({}), "music", "udio")).toBe("suno");
 });
