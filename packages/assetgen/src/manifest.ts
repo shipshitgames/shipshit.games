@@ -24,6 +24,11 @@ export interface AssetEntry {
     usedColumns: number;
     usedRows: number;
   };
+  /** Audio playback metadata (issue #21); present for music/sfx/voice assets. */
+  category?: string;
+  volume?: number;
+  loop?: boolean;
+  duration?: number;
   /** Relative path to a generated billboard preview, if any. */
   preview?: string;
   /** Required provenance/license record (issue #17): no generator may skip this. */

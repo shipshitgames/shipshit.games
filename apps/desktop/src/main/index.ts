@@ -19,6 +19,7 @@ import { createMapsStore } from "./maps";
 import { createGallery } from "./gallery";
 import { DEFAULT_GAME, DEFAULTS, normalizeSettings } from "./settings";
 import { buildGenerateArgs } from "./generate-args";
+import { parseGenerateResult, dataUrlFor } from "./generate-result";
 // Single, shared manifest writer + license validator (issue #17). The Electron
 // main process is bundled from TypeScript (vite-plugin-electron), so it imports
 // assetgen's register() directly — no CommonJS shim, one writer for both runtimes.
@@ -182,7 +183,7 @@ function resolveProjectTarget(opts: any = {}) {
 }
 
 // ---- keys (macOS keychain, shipcode-style) ----
-const KEY_SERVICES = { openai: "shipshit-openai", fal: "shipshit-fal", replicate: "shipshit-replicate", suno: "shipshit-suno" };
+const KEY_SERVICES = { openai: "shipshit-openai", fal: "shipshit-fal", replicate: "shipshit-replicate", suno: "shipshit-suno", elevenlabs: "shipshit-elevenlabs", beatoven: "shipshit-beatoven" };
 function hasKey(service) {
   try {
     const v = execFileSync("security", ["find-generic-password", "-a", "shipshit", "-s", service, "-w"], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
@@ -374,13 +375,13 @@ ipcMain.handle("studio:generate", async (e, opts) => {
     const killer = setTimeout(() => { try { child.kill("SIGKILL"); send("\n[timed out after 300s]\n"); } catch {} }, 300_000);
     child.on("close", async (code) => {
       clearTimeout(killer);
-      const m = buf.match(/\[wrote\] (.+?\.webp)/);
+      const parsed = parseGenerateResult(buf);
       const p = buf.match(/\[billboard\] (.+?\.html)/);
-      let dataUrl = null, outPath = null, previewPath = null;
-      if (m) { outPath = m[1].trim(); try { dataUrl = `data:image/webp;base64,${(await fs.promises.readFile(outPath)).toString("base64")}`; } catch {} }
+      let dataUrl = null, outPath = null, previewPath = null, mediaType = null;
+      if (parsed) { outPath = parsed.path; mediaType = parsed.mediaType; try { dataUrl = dataUrlFor(parsed, await fs.promises.readFile(outPath)); } catch {} }
       if (p) previewPath = p[1].trim();
       send(`\n[exit ${code}]\n`);
-      resolve({ ok: code === 0 && !!m, log: buf, path: outPath, dataUrl, previewPath });
+      resolve({ ok: code === 0 && !!parsed, log: buf, path: outPath, dataUrl, previewPath, mediaType });
     });
   });
 });

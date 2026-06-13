@@ -69,6 +69,40 @@ test("register upserts entries with license provenance", async () => {
   });
 });
 
+test("register round-trips audio playback metadata (issue #21)", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-manifest-audio-test-"));
+  const manifestPath = join(repo, "assets.json");
+  await register(manifestPath, {
+    id: "dungeon-loop",
+    kind: "music",
+    game: "shared",
+    path: "audio/music/dungeon-loop.webm",
+    provider: "mock",
+    category: "music",
+    volume: 0.8,
+    loop: true,
+    duration: 12.5,
+    license: {
+      tool: "ffmpeg",
+      plan: "libopus-128k",
+      date: "2026-06-13",
+      kind: "music",
+      type: "ai-generated",
+      terms: "review audio license scope before shipping",
+    },
+  });
+
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  assert.equal(manifest.assets.length, 1);
+  const entry = manifest.assets[0];
+  assert.equal(entry.category, "music");
+  assert.equal(entry.volume, 0.8);
+  assert.equal(entry.loop, true);
+  assert.equal(entry.duration, 12.5);
+  assert.equal(entry.license.kind, "music");
+  assert.equal(entry.license.type, "ai-generated");
+});
+
 // Symmetric to the desktop guard in apps/desktop/src/main/index-register.test.ts:
 // every assetgen generator must write the manifest through the shared register(),
 // never via an inline upsert — that is the issue #17 "no generator may skip

@@ -11,7 +11,7 @@ type SectionId = "projects" | "gallery" | "maps" | "sprites" | "music" | "3d" | 
 type Group = "Generators" | "Art Direction" | "Ressources" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
-interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null; previewPath?: string | null }
+interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null; previewPath?: string | null; mediaType?: string | null }
 interface ResearchResult { ok: boolean; log: string; path: string | null; rules: string | null }
 interface ProjectAsset { id: string; kind: string; path: string; game: string | null }
 interface ProjectSummary {
@@ -148,6 +148,11 @@ declare global {
         scale?: number;
         license?: string;
         licenseUrl?: string;
+        category?: string;
+        volume?: number;
+        loop?: boolean;
+        bitrate?: number;
+        normalize?: boolean;
       }) => Promise<GenResult>;
       listGames: () => Promise<string[]>;
       onGenLog: (cb: (chunk: string) => void) => () => void;
@@ -669,9 +674,33 @@ function ResearchPane() {
   );
 }
 
-// Audio transcode tool: any source audio → WebM/Opus (the studio format) straight into
-// a game's src/assets/audio/<category>/, via ffmpeg in the Electron main process.
+// Per-category provider options for the Generate-from-prompt mode. suno stays the
+// pipeline default for all three kinds; named perpetual-commercial providers
+// (ElevenLabs SFX, Beatoven music — issue #21) are offered as selectable choices.
+const AUDIO_PROVIDERS_BY_CATEGORY: Record<"sfx" | "music" | "voice", { id: string; label: string }[]> = {
+  sfx: [
+    { id: "elevenlabs", label: "ElevenLabs (SFX)" },
+    { id: "suno", label: "Suno" },
+    { id: "mock", label: "Mock (offline test)" },
+  ],
+  music: [
+    { id: "beatoven", label: "Beatoven (music loops)" },
+    { id: "suno", label: "Suno" },
+    { id: "mock", label: "Mock (offline test)" },
+  ],
+  voice: [
+    { id: "suno", label: "Suno" },
+    { id: "mock", label: "Mock (offline test)" },
+  ],
+};
+const defaultProviderForCategory = (category: "sfx" | "music" | "voice") => AUDIO_PROVIDERS_BY_CATEGORY[category][0].id;
+
+// Music + SFX pane: two modes. "Generate" drives @shipshitgames/assetgen to make a
+// music loop / SFX / voice clip from a prompt (named perpetual-commercial providers),
+// encodes to WebM/Opus and registers it. "Transcode" brings your own audio file →
+// WebM/Opus via ffmpeg. Both write into a game's src/assets/audio/<category>/.
 function MusicPane() {
+  const [mode, setMode] = useState<"generate" | "transcode">("generate");
   const [files, setFiles] = useState<string[]>([]);
   const [game, setGame] = useState("scourge-survivors");
   const [games, setGames] = useState<string[]>(["scourge-survivors"]);
@@ -683,6 +712,15 @@ function MusicPane() {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState("");
   const [result, setResult] = useState<{ ok: boolean; log: string; outputs: string[] } | null>(null);
+  // Generate-mode state (shares category/bitrate/normalize with transcode).
+  const [genId, setGenId] = useState("impact-hit");
+  const [prompt, setPrompt] = useState("a brutal metallic impact hit, short and punchy");
+  const [provider, setProvider] = useState(() => defaultProviderForCategory("music"));
+  const [loop, setLoop] = useState(true);
+  const [volume, setVolume] = useState(1);
+  const [license, setLicense] = useState("perpetual commercial; review before shipping");
+  const [genBusy, setGenBusy] = useState(false);
+  const [genResult, setGenResult] = useState<GenResult | null>(null);
   const selectedProject = projectState.projects.find((project) => project.id === projectId) || activeProject(projectState);
 
   useEffect(() => {
@@ -698,9 +736,17 @@ function MusicPane() {
     }).catch(() => {
       window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
     });
-    const off = window.studio?.onTranscodeLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
-    return () => { off?.(); };
+    const offTranscode = window.studio?.onTranscodeLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    const offGen = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    return () => { offTranscode?.(); offGen?.(); };
   }, []);
+
+  // Pick a sensible default provider + loop default when the category changes.
+  function changeCategory(next: "sfx" | "music" | "voice") {
+    setCategory(next);
+    setProvider(defaultProviderForCategory(next));
+    setLoop(next === "music");
+  }
 
   async function changeProject(id: string) {
     setProjectId(id);
@@ -738,13 +784,43 @@ function MusicPane() {
     }
   }
 
+  async function generate() {
+    if (!window.studio?.generate) { setLog("studio bridge unavailable — restart the app"); return; }
+    if (selectedProject && !selectedProject.valid) { setLog(selectedProject.error || "invalid project manifest"); return; }
+    setGenBusy(true);
+    setGenResult(null);
+    setLog("");
+    try {
+      setGenResult(await window.studio.generate({
+        id: genId,
+        prompt,
+        game: selectedProject?.slug || game,
+        projectId: selectedProject?.id,
+        kind: category,
+        provider,
+        category,
+        bitrate,
+        normalize,
+        loop,
+        volume,
+        license,
+      }));
+    } catch (e) {
+      setLog(String((e as Error)?.message ?? e));
+    } finally {
+      setGenBusy(false);
+    }
+  }
+
+  const providerOptions = AUDIO_PROVIDERS_BY_CATEGORY[category];
+
   return (
     <div className="gen">
       <div className="gen-form">
-        <button className="set-btn" type="button" onClick={pick}>
-          {files.length ? `${files.length} file(s) selected — change` : "Pick source audio…"}
-        </button>
-        {files.length > 0 && <p className="gen-note">{files.map((f) => f.split("/").pop()).join(", ")}</p>}
+        <div className="gen-row">
+          <button className={"set-btn" + (mode === "generate" ? " is-active" : "")} type="button" onClick={() => setMode("generate")}>Generate from prompt</button>
+          <button className={"set-btn" + (mode === "transcode" ? " is-active" : "")} type="button" onClick={() => setMode("transcode")}>Transcode a file</button>
+        </div>
         <label className="gen-field"><span>Game</span>
           <select value={selectedProject ? selectedProject.id : game} onChange={(e) => {
             if (projectState.projects.length) void changeProject(e.target.value);
@@ -758,7 +834,7 @@ function MusicPane() {
         {selectedProject?.manifestPath && <div className="gen-manifest">manifest {selectedProject.manifestPath}</div>}
         {selectedProject && !selectedProject.valid && <div className="project-error">{selectedProject.error}</div>}
         <label className="gen-field"><span>Category → src/assets/audio/&lt;category&gt;/</span>
-          <select value={category} onChange={(e) => setCategory(e.target.value as "sfx" | "music" | "voice")}>
+          <select value={category} onChange={(e) => changeCategory(e.target.value as "sfx" | "music" | "voice")}>
             <option value="sfx">sfx</option>
             <option value="music">music</option>
             <option value="voice">voice</option>
@@ -768,16 +844,64 @@ function MusicPane() {
           <input type="number" min={32} max={320} value={bitrate} onChange={(e) => setBitrate(Number(e.target.value) || 128)} />
         </label>
         <label className="gen-field"><span><input type="checkbox" checked={normalize} onChange={(e) => setNormalize(e.target.checked)} /> loudnorm (recommended for SFX)</span></label>
-        <button className="gen-btn" type="button" disabled={busy || !files.length || !!(selectedProject && !selectedProject.valid)} onClick={transcode}>
-          {busy ? "Transcoding…" : "Transcode → WebM/Opus"}
-        </button>
-        <p className="gen-note">ffmpeg → opus into the game's audio folder · strips cover art · registers each output in assets.json with a license record. Generate new SFX with ElevenLabs SFX / OptimizerAI; music with Soundraw / Beatoven (avoid Udio/Suno for shipped in-game loops).</p>
+
+        {mode === "generate" ? (
+          <>
+            <label className="gen-field"><span>Asset ID</span>
+              <input value={genId} onChange={(e) => setGenId(e.target.value)} placeholder="impact-hit" />
+            </label>
+            <label className="gen-field gen-grow"><span>Prompt</span>
+              <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
+            </label>
+            <label className="gen-field"><span>Provider</span>
+              <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+                {providerOptions.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </label>
+            <div className="gen-row">
+              <label className="gen-field"><span><input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} /> loop</span></label>
+              <label className="gen-field"><span>Volume (0–1)</span>
+                <input type="number" min={0} max={1} step={0.05} value={volume} onChange={(e) => setVolume(Math.max(0, Math.min(1, Number(e.target.value) || 0)))} />
+              </label>
+            </div>
+            <label className="gen-field"><span>License record</span>
+              <input value={license} onChange={(e) => setLicense(e.target.value)} />
+            </label>
+            <button className="gen-btn" type="button" disabled={genBusy || !genId || !prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
+              {genBusy ? "Generating…" : "Generate"}
+            </button>
+            <p className="gen-note">Generates a {category} clip → encodes to WebM/Opus → registers it in assets.json with category/volume/loop + a license record. Music loops via Soundraw / Beatoven, SFX via ElevenLabs / OptimizerAI (avoid Udio for shipped in-game loops).</p>
+          </>
+        ) : (
+          <>
+            <button className="set-btn" type="button" onClick={pick}>
+              {files.length ? `${files.length} file(s) selected — change` : "Pick source audio…"}
+            </button>
+            {files.length > 0 && <p className="gen-note">{files.map((f) => f.split("/").pop()).join(", ")}</p>}
+            <button className="gen-btn" type="button" disabled={busy || !files.length || !!(selectedProject && !selectedProject.valid)} onClick={transcode}>
+              {busy ? "Transcoding…" : "Transcode → WebM/Opus"}
+            </button>
+            <p className="gen-note">ffmpeg → opus into the game's audio folder · strips cover art · registers each output in assets.json with a license record.</p>
+          </>
+        )}
       </div>
       <div className="gen-preview">
-        {result?.outputs?.length
-          ? <pre className="gen-rules">{result.outputs.map((o) => o.split("/").slice(-2).join("/")).join("\n")}</pre>
-          : <div className="gen-preview-empty">{busy ? "transcoding…" : "outputs"}</div>}
-        {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
+        {mode === "generate" ? (
+          <>
+            {genResult?.dataUrl
+              ? <audio controls src={genResult.dataUrl} aria-label={`${genId} preview`}><track kind="captions" /></audio>
+              : <div className="gen-preview-empty">{genBusy ? "generating…" : "preview"}</div>}
+            {(log || genResult) && <pre className={"gen-log" + (genResult && !genResult.ok ? " is-err" : "")}>{log || "—"}</pre>}
+            {genResult?.path && <div className="gen-path">{genResult.path}</div>}
+          </>
+        ) : (
+          <>
+            {result?.outputs?.length
+              ? <pre className="gen-rules">{result.outputs.map((o) => o.split("/").slice(-2).join("/")).join("\n")}</pre>
+              : <div className="gen-preview-empty">{busy ? "transcoding…" : "outputs"}</div>}
+            {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
+          </>
+        )}
       </div>
     </div>
   );
