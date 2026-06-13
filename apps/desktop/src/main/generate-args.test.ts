@@ -114,3 +114,71 @@ test("non-fal providers never inherit a model from falModelDefaults", () => {
   expect(model).toBe("");
   expect(args).not.toContain("--model");
 });
+
+test("audio opts append --category/--volume/--no-loop/--bitrate/--normalize", () => {
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: {
+      id: "impact-hit",
+      prompt: "a brutal metallic impact",
+      kind: "sfx",
+      provider: "elevenlabs",
+      category: "sfx",
+      volume: 0.8,
+      loop: false,
+      bitrate: 96,
+      normalize: true,
+    },
+    target: TARGET,
+  });
+  expect(args.slice(args.indexOf("--category"))).toEqual([
+    "--category", "sfx",
+    "--volume", "0.8",
+    "--no-loop",
+    "--bitrate", "96",
+    "--normalize",
+  ]);
+});
+
+test("loop:true emits --loop (not --no-loop)", () => {
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: { id: "theme", prompt: "a loop", kind: "music", provider: "beatoven", category: "music", loop: true },
+    target: TARGET,
+  });
+  expect(args).toContain("--loop");
+  expect(args).not.toContain("--no-loop");
+});
+
+test("absent audio opts add none of the audio flags (sprite args stay byte-identical)", () => {
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: { id: "swarm-husk", prompt: "a husk", kind: "sprite" },
+    target: TARGET,
+  });
+  expect(args).toEqual([
+    ASSETGEN,
+    "--provider", "codex",
+    "--game", "scourge-survivors",
+    "--kind", "sprite",
+    "--id", "swarm-husk",
+    "--prompt", "a husk",
+    "--repo", "/games/scourge-survivors",
+  ]);
+  for (const flag of ["--category", "--volume", "--loop", "--no-loop", "--bitrate", "--normalize"]) {
+    expect(args).not.toContain(flag);
+  }
+});
+
+test("volume of 0 is still emitted (only null/empty are skipped)", () => {
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: { kind: "sfx", category: "sfx", volume: 0 },
+    target: TARGET,
+  });
+  expect(args.slice(args.indexOf("--volume"), args.indexOf("--volume") + 2)).toEqual(["--volume", "0"]);
+});

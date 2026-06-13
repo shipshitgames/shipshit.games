@@ -7,7 +7,7 @@ import { uniqueProjects } from "./projects";
 import { FAL_IMAGE_KINDS } from "../../../../packages/assetgen/src/fal.ts";
 
 const DEFAULT_GAME = "scourge-survivors";
-const PROVIDERS = new Set(["codex", "openai", "fal", "replicate", "suno", "mock"]);
+const PROVIDERS = new Set(["codex", "openai", "fal", "replicate", "suno", "elevenlabs", "beatoven", "mock"]);
 const DEFAULT_PROVIDER_BY_KIND = {
   sprite: "codex",
   texture: "openai",
