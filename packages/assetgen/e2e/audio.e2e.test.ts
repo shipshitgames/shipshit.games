@@ -70,6 +70,13 @@ test("e2e: sfx generation encodes a webm and registers audio metadata", { skip }
     assert.equal(entry.license.tool, "mock");
     assert.equal(entry.license.kind, "sfx");
     assert.equal(entry.license.type, "ai-generated");
+    // Regression guard: duration must be populated from a REAL ffmpeg encode + ffprobe
+    // probe (the `-loglevel error` encode emits no "Duration:" banner). The mock
+    // provider yields a ~1s silent WAV, so the encoded webm clocks in around 1.0s.
+    assert.equal(typeof entry.duration, "number", "audio entry should record a duration");
+    assert.equal(Number.isFinite(entry.duration), true);
+    assert.equal(entry.duration > 0, true, `expected positive duration, got ${entry.duration}`);
+    assert.equal(Math.abs(entry.duration - 1) < 0.25, true, `expected ~1s, got ${entry.duration}`);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -121,6 +128,9 @@ test("e2e: music generation defaults loop to true", { skip }, async () => {
     assert.equal(entry.kind, "music");
     assert.equal(entry.category, "music");
     assert.equal(entry.loop, true);
+    // Duration is recorded for the default (no-normalize) encode path too.
+    assert.equal(typeof entry.duration, "number", "music entry should record a duration");
+    assert.equal(entry.duration > 0, true, `expected positive duration, got ${entry.duration}`);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
