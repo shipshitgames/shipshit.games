@@ -32,7 +32,12 @@ export interface ProviderOptions {
   log?: (chunk: string) => void;
   timeoutMs?: number;
   pollIntervalMs?: number;
-  /** Reproducibility seed; only the seedable providers (openai/fal) honor it. */
+  /**
+   * Reproducibility seed; forwarded to the seedable providers (fal/openai).
+   * Reproducible provenance is only claimed when the provider CONFIRMS the seed:
+   * fal echoes it back, OpenAI's image API does not (so it records the requested
+   * seed but stays non-reproducible).
+   */
   seed?: number;
   /**
    * Per-HTTP-request timeout for polled task providers (Meshy/Tripo). The
@@ -108,9 +113,17 @@ export function openAiImageBody(
   return body;
 }
 
-/** Pure builder for OpenAI asset meta: a supplied seed is honored → reproducible. */
-export function openAiAssetMeta(model: string, seed?: number): GeneratedAssetMeta {
-  const meta: GeneratedAssetMeta = { model, reproducible: seed !== undefined };
+/**
+ * Reproducibility meta for an OpenAI image generation. The Images API neither
+ * echoes a seed nor exposes a determinism signal, so — like fal's falAssetMeta —
+ * a request is only marked reproducible when the response actually CONFIRMS the
+ * seed it used. The requested seed is still recorded for provenance/audit, but we
+ * never claim a reproducibility the provider hasn't confirmed.
+ */
+export function openAiAssetMeta(model: string, requestedSeed?: number, json?: any): GeneratedAssetMeta {
+  const confirmedSeed = typeof json?.seed === "number" ? json.seed : undefined;
+  const meta: GeneratedAssetMeta = { model, reproducible: confirmedSeed !== undefined };
+  const seed = confirmedSeed ?? requestedSeed;
   if (seed !== undefined) meta.seed = seed;
   return meta;
 }
@@ -133,7 +146,7 @@ export async function generateOpenAi(
   });
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
   const json: any = await res.json();
-  return imageAsset(Buffer.from(json.data[0].b64_json, "base64"), model, openAiAssetMeta(model, opts.seed));
+  return imageAsset(Buffer.from(json.data[0].b64_json, "base64"), model, openAiAssetMeta(model, opts.seed, json));
 }
 
 /** Local Codex CLI — drives the authed `codex` agent on YOUR subscription (no API key). */

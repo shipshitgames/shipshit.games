@@ -76,13 +76,17 @@ test("openAiImageBody omits the seed key unless one is supplied", () => {
   assert.equal(openAiImageBody("a husk", "gpt-image-2", "1024x1024", 0).seed, 0);
 });
 
-test("openAiAssetMeta marks a seeded request reproducible and keeps seed 0", () => {
+test("openAiAssetMeta records the requested seed but is reproducible only when the response confirms it", () => {
   assert.deepEqual(openAiAssetMeta("gpt-image-2"), { model: "gpt-image-2", reproducible: false });
-  assert.deepEqual(openAiAssetMeta("gpt-image-2", 7), { model: "gpt-image-2", reproducible: true, seed: 7 });
-  assert.deepEqual(openAiAssetMeta("gpt-image-2", 0), { model: "gpt-image-2", reproducible: true, seed: 0 });
+  // A requested seed is recorded for provenance, but unconfirmed by the response → not reproducible.
+  assert.deepEqual(openAiAssetMeta("gpt-image-2", 7), { model: "gpt-image-2", reproducible: false, seed: 7 });
+  assert.deepEqual(openAiAssetMeta("gpt-image-2", 0), { model: "gpt-image-2", reproducible: false, seed: 0 });
+  // Seed 0 is still preserved (only null/undefined are dropped).
+  // When a provider echoes the seed back, the generation is genuinely reproducible.
+  assert.deepEqual(openAiAssetMeta("gpt-image-2", 7, { seed: 7 }), { model: "gpt-image-2", reproducible: true, seed: 7 });
 });
 
-test("generateOpenAi forwards a seed and records the honored seed as reproducible meta", async () => {
+test("generateOpenAi forwards a seed and records it, but stays non-reproducible (OpenAI never confirms the seed)", async () => {
   const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
   let body: any;
   const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
@@ -100,7 +104,9 @@ test("generateOpenAi forwards a seed and records the honored seed as reproducibl
 
   assert.equal(body.seed, 1234);
   assert.equal(body.background, "transparent");
-  assert.deepEqual(asset.meta, { model: "gpt-image-2", reproducible: true, seed: 1234 });
+  // The seed reached the request and is recorded, but the response carries no
+  // seed confirmation, so provenance must NOT claim reproducibility.
+  assert.deepEqual(asset.meta, { model: "gpt-image-2", reproducible: false, seed: 1234 });
   assert.deepEqual(asset.data, pngBytes);
 });
 
