@@ -5,6 +5,7 @@ type CommandLoader = () => Promise<CommandRunner>;
 const COMMANDS: Record<string, CommandLoader> = {
   generate: async () => (await import("./commands/generate.ts")).runGenerate,
   expand: async () => (await import("./commands/expand.ts")).runExpand, // #71
+  "import-aseprite": async () => (await import("./commands/import-aseprite.ts")).runImportAseprite, // #78
 
   games: async () => (await import("./commands/games.ts")).runGamesCommand,
   matrix: async () => (await import("./commands/matrix.ts")).runMatrixCommand,
