@@ -25,12 +25,144 @@ export interface GeneratedAsset {
   };
 }
 
+/** Per-request timeout / overall budget for a download when the caller sets none. */
+const DEFAULT_DOWNLOAD_TIMEOUT_MS = 120_000;
+/** Cap redirect hops so a misbehaving or hostile CDN can't loop the download forever. */
+const MAX_DOWNLOAD_REDIRECTS = 5;
+
+export interface DownloadOptions {
+  /**
+   * Per-request timeout, reused as the overall wall-clock budget across any
+   * redirect hops. Without it a hung CDN connection blocks indefinitely — the
+   * provider task's `timeoutMs` only bounds the poll loop, never this download.
+   */
+  timeoutMs?: number;
+  /**
+   * Host allowlist (suffix-matched on the registrable domain). Supplying it opts
+   * the download into the SSRF guards: the URL — and every redirect hop — must be
+   * https, must not resolve to a private/loopback/link-local host, and must match
+   * one of these domains. Omitted (the default for providers whose download URLs
+   * aren't host-constrained, e.g. fal/replicate) leaves the URL unrestricted.
+   */
+  allowedHosts?: readonly string[];
+  /**
+   * Origins (`scheme://host:port`) that bypass the guards because the operator
+   * explicitly configured them — e.g. a self-hosted or proxied provider endpoint
+   * set via `*_API_BASE_URL`. A download served from the same origin as a
+   * configured endpoint is trusted exactly like the create/poll calls already
+   * are; the default production CDNs go through `allowedHosts`, not this.
+   */
+  trustedOrigins?: readonly string[];
+}
+
+/** RFC1918 / loopback / link-local / CGNAT / unspecified IPv4 — never fetch these. */
+function isPrivateIpv4(host: string): boolean {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!m) return false;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  if ([a, b, Number(m[3]), Number(m[4])].some((n) => n > 255)) return false; // not a valid dotted-quad
+  return (
+    a === 0 || // 0.0.0.0/8 "this host"
+    a === 10 || // 10.0.0.0/8
+    a === 127 || // 127.0.0.0/8 loopback
+    (a === 169 && b === 254) || // 169.254.0.0/16 link-local (incl. cloud metadata 169.254.169.254)
+    (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
+    (a === 192 && b === 168) || // 192.168.0.0/16
+    (a === 100 && b >= 64 && b <= 127) // 100.64.0.0/10 CGNAT
+  );
+}
+
+/** Loopback / unique-local / link-local / unspecified IPv6 (handles [brackets] + IPv4-mapped). */
+function isPrivateIpv6(host: string): boolean {
+  let h = host.toLowerCase();
+  if (h.startsWith("[") && h.endsWith("]")) h = h.slice(1, -1);
+  if (!h.includes(":")) return false;
+  if (h === "::1" || h === "::") return true; // loopback / unspecified
+  if (h.startsWith("fc") || h.startsWith("fd")) return true; // fc00::/7 unique-local
+  if (/^fe[89ab]/.test(h)) return true; // fe80::/10 link-local
+  const mapped = /::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(h); // ::ffff:10.0.0.1
+  return mapped?.[1] ? isPrivateIpv4(mapped[1]) : false;
+}
+
+function hostInAllowlist(host: string, allowed: readonly string[]): boolean {
+  return allowed.some((domain) => {
+    const d = domain.toLowerCase();
+    return host === d || host.endsWith(`.${d}`);
+  });
+}
+
+/**
+ * Guard a download URL before we hit the network: rejects non-https and
+ * private/loopback/link-local hosts (the high-severity SSRF targets: cloud
+ * metadata, internal services) and pins the host to one of `allowedHosts`.
+ * Returns the parsed URL. Callers opt in by passing an allowlist. An origin in
+ * `trustedOrigins` (an operator-configured `*_API_BASE_URL`) bypasses the checks.
+ */
+export function assertSafeDownloadUrl(
+  url: string,
+  allowedHosts?: readonly string[],
+  trustedOrigins?: readonly string[],
+): URL {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`download: malformed URL ${JSON.stringify(url)}`);
+  }
+  if (trustedOrigins && trustedOrigins.includes(parsed.origin)) return parsed; // operator-configured endpoint
+  if (parsed.protocol !== "https:") {
+    throw new Error(`download: refusing non-https URL (${parsed.protocol}) for ${parsed.host || url}`);
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || isPrivateIpv4(host) || isPrivateIpv6(host)) {
+    throw new Error(`download: refusing private/loopback/link-local host ${parsed.hostname}`);
+  }
+  if (allowedHosts && allowedHosts.length > 0 && !hostInAllowlist(host, allowedHosts)) {
+    throw new Error(
+      `download: host ${host} is not an allowed download domain (${allowedHosts.join(", ")}). ` +
+        `If the provider rotated CDNs, extend the provider's *_DOWNLOAD_HOSTS env var.`,
+    );
+  }
+  return parsed;
+}
+
+/**
+ * Fetch a download URL within a timeout budget (always applied — a hung CDN
+ * connection must not block forever), following redirects manually so the SSRF
+ * guards can re-check each hop. When `allowedHosts` is supplied, every hop —
+ * including a CDN 302 to an internal address — is re-validated; otherwise the
+ * URL is fetched unrestricted (only the timeout + redirect cap apply).
+ */
+async function fetchDownload(url: string, fetchImpl: typeof fetch, options: DownloadOptions): Promise<Response> {
+  const { timeoutMs = DEFAULT_DOWNLOAD_TIMEOUT_MS, allowedHosts, trustedOrigins } = options;
+  const guarded = (allowedHosts && allowedHosts.length > 0) || (trustedOrigins && trustedOrigins.length > 0);
+  const guard = (u: string) => {
+    if (guarded) assertSafeDownloadUrl(u, allowedHosts, trustedOrigins);
+  };
+  const deadline = Date.now() + Math.max(1, timeoutMs);
+  let current = url;
+  guard(current);
+  for (let hop = 0; ; hop++) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error(`download: timed out after ${timeoutMs}ms`);
+    const res = await fetchImpl(current, { redirect: "manual", signal: AbortSignal.timeout(remaining) });
+    if (res.status < 300 || res.status >= 400) return res; // not a redirect — hand back to caller
+    const location = res.headers.get("location");
+    if (!location) return res; // 3xx without a Location: let the !ok check surface it
+    if (hop >= MAX_DOWNLOAD_REDIRECTS) throw new Error(`download: exceeded ${MAX_DOWNLOAD_REDIRECTS} redirects`);
+    current = new URL(location, current).toString();
+    guard(current);
+  }
+}
+
 export async function downloadGeneratedAsset(
   url: string,
   model?: string,
   fetchImpl: typeof fetch = fetch,
+  options: DownloadOptions = {},
 ): Promise<GeneratedAsset> {
-  const res = await fetchImpl(url);
+  const res = await fetchDownload(url, fetchImpl, options);
   if (!res.ok) throw new Error(`download ${res.status}: ${await res.text()}`);
   const mediaType = res.headers.get("content-type")?.split(";")[0]?.trim() || mediaTypeFromUrl(url);
   return {
