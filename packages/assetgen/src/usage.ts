@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 
 export interface UsageLogEvent {
   timestamp?: string;
-  command: "generate" | "matrix";
+  command: "generate" | "matrix" | "expand" | "import";
   provider: string;
   kind: string;
   success: boolean;

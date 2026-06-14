@@ -18,6 +18,14 @@ function buildGenerateArgs({ assetgenPath, settings, opts = {}, target = {} }: a
   if (opts?.scale) args.push("--scale", String(opts.scale));
   if (opts?.license) args.push("--license", String(opts.license));
   if (opts?.licenseUrl) args.push("--license-url", String(opts.licenseUrl));
+  // Audio flags (issue #21): only pushed when present so sprite arrays stay
+  // byte-identical to pre-audio tests.
+  if (opts?.category) args.push("--category", String(opts.category));
+  if (opts?.volume != null && opts?.volume !== "") args.push("--volume", String(opts.volume));
+  if (opts?.loop === true) args.push("--loop");
+  if (opts?.loop === false) args.push("--no-loop");
+  if (opts?.bitrate) args.push("--bitrate", String(opts.bitrate));
+  if (opts?.normalize) args.push("--normalize");
   if (model) args.push("--model", String(model));
   return { args, provider, game, kind, repo, model };
 }

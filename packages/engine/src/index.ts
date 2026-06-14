@@ -33,6 +33,35 @@ export {
 // --- engine-core: render seam (scene/renderer lifecycle + map lights/theme) ---
 export { RenderSystem, type RendererLike, type RenderSystemConfig } from './render/RenderSystem'
 
+// --- engine-core: pixel sprite runtime (PNG/WebP → WebGL: texture, billboard, sprite-anim) ---
+export {
+  applyPixelFilters,
+  loadPixelTexture,
+  type PixelTextureOptions,
+  type TextureLoaderLike,
+} from './render/texture'
+export {
+  applyFrame,
+  facingSuffix,
+  frameCell,
+  frameRange,
+  frameUV,
+  gridSheet,
+  type FacingCount,
+  type FrameUV,
+  type GridSheetOptions,
+  type SpriteClip,
+  type SpriteSheet,
+} from './render/sprite-sheet'
+export { Billboard, type BillboardOptions } from './render/Billboard'
+export { AnimatedSprite, type AnimatedSpriteOptions } from './render/AnimatedSprite'
+export {
+  AssetCatalog,
+  deriveSheet,
+  type AssetCatalogOptions,
+  type ManifestSpriteEntry,
+} from './render/AssetCatalog'
+
 // --- engine-core: HUD snapshot fan-out (React stays game-side) ---
 export {
   HudSystem,
@@ -51,6 +80,51 @@ export {
   type Tracer,
   type TransientEntity,
 } from './fx/FxSystem'
+
+// --- engine-core: audio runtime (seam: Howler.js backend; playback side of #21) ---
+// Howler is an optional dependency: browser games call `AudioSystem.withHowler()`,
+// everyone else injects a backend. The bun unit suite uses an in-memory fake.
+export {
+  AudioSystem,
+  DEFAULT_MUSIC_CROSSFADE_MS,
+  type AudioSystemOptions,
+  type MusicOptions,
+  type PlayOptions,
+  type RegisteredSound,
+} from './audio/AudioSystem'
+export {
+  loadHowlerBackend,
+  type AudioBackend,
+  type AudioContextLike,
+  type HowlFactory,
+  type HowlGlobalLike,
+  type HowlLike,
+  type HowlOptions,
+  type HowlSpriteDef,
+} from './audio/howl'
+export {
+  AUDIO_KINDS,
+  defaultLoopForKind,
+  isAudioKind,
+  resolveCategory,
+  selectAudioEntries,
+  toSoundSpec,
+  type AudioAssetEntry,
+  type AudioCueMap,
+  type AudioKind,
+  type AudioManifestLike,
+  type SoundSpec,
+} from './audio/manifest'
+export {
+  computeAttenuation,
+  computePan,
+  spatialize,
+  DEFAULT_MAX_DISTANCE,
+  DEFAULT_REF_DISTANCE,
+  type AttenuationConfig,
+  type AudioListener,
+  type Spatialized,
+} from './audio/spatial-audio'
 
 // --- engine-core: generic data-driven transient gameplay entities ---
 export {
@@ -112,6 +186,10 @@ export {
 export { Agent, type PlanarVec } from './agents/Agent'
 export { type SteeringStrategy, type SteerView } from './agents/steering'
 
+// --- embodied-base: agents (seam: grid A* pathfinding -> waypoints feed existing steering) ---
+export { NavGrid, bakeNavGrid, findPath, hasLineOfSight, smoothPath, PathFollower, steerViewToWaypoint,
+  type NavGridOptions, type GridCell, type FindPathOptions, type PathResult, type PathFollowerOptions } from './agents/pathfinding'
+
 // --- embodied-base: spawn (seam: where the next enemy enters the world) ---
 export {
   RectScatterSpawnProvider,
@@ -120,6 +198,37 @@ export {
   type SpawnPoint,
   type RectScatterConfig,
 } from './spawn'
+
+// --- embodied-base: level (seam: LDtk import -> arena + spawns + tile layers) ---
+export {
+  loadLdtkProject,
+  loadLdtkLevel,
+  assertLdtkVersion,
+  parseLdtkVersion,
+  FixedSpawnProvider,
+  LdtkError,
+  SUPPORTED_LDTK_VERSION,
+  type LdtkLoadOptions,
+  type LdtkProject,
+  type LdtkArena,
+  type LdtkEntity,
+  type LdtkTile,
+  type LdtkTileLayer,
+  type LdtkVersionInfo,
+  type FixedSpawnConfig,
+} from './level/ldtk'
+export type {
+  LdtkRoot,
+  LdtkDefs,
+  LdtkLayerDef,
+  LdtkIntGridValueDef,
+  LdtkTilesetDef,
+  LdtkLevel,
+  LdtkLayerInstance,
+  LdtkTileInstance,
+  LdtkEntityInstance,
+  LdtkFieldInstance,
+} from './level/ldtk-types'
 
 // --- embodied-base: net (seam: PartyKit transport + replicated presence; game payloads ride GameMessage) ---
 // The room server template is intentionally NOT re-exported here: import

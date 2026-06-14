@@ -4,7 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 
-import { buildAtlas, packPages, type PackBox } from "./atlas.ts";
+import { buildAtlas, packFrameBuffers, packPages, type FrameInput, type PackBox } from "./atlas.ts";
+import { isPackedPageImage } from "./asset-index.ts";
+
+async function solidFrame(id: string, w: number, h: number, rgb: { r: number; g: number; b: number }): Promise<FrameInput> {
+  const data = await sharp({ create: { width: w, height: h, channels: 4, background: { ...rgb, alpha: 1 } } }).png().toBuffer();
+  return { id, data };
+}
 
 function overlaps(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -94,5 +100,82 @@ describe("buildAtlas (fixture)", () => {
 
   test("throws when there is nothing to pack", async () => {
     await expect(buildAtlas({ assetsDir: dir, game: "redline" })).rejects.toThrow(/no sprites/);
+  });
+
+  test("walk skips already-packed atlas/anim page images", async () => {
+    const packedDir = await mkdtemp(join(tmpdir(), "assetgen-atlas-packed-"));
+    try {
+      await mkdir(join(packedDir, "games", "scourge-survivors"), { recursive: true });
+      // one real sprite + a packed atlas page + an expanded anim page in the same tree
+      await sharp({ create: { width: 16, height: 16, channels: 4, background: { r: 200, g: 30, b: 30, alpha: 1 } } })
+        .png()
+        .toFile(join(packedDir, "games", "scourge-survivors", "real.png"));
+      for (const name of ["warden.anim0.webp", "all.atlas0.webp"]) {
+        await sharp({ create: { width: 64, height: 64, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+          .webp({ lossless: true })
+          .toFile(join(packedDir, "games", "scourge-survivors", name));
+      }
+      const { map } = await buildAtlas({ assetsDir: packedDir, game: "scourge-survivors", padding: 2 });
+      expect(map.frameCount).toBe(1); // only real.png; the .anim0/.atlas0 pages are skipped
+      expect(map.frames[0]!.id.endsWith("real.png")).toBe(true);
+    } finally {
+      await rm(packedDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("packFrameBuffers", () => {
+  test("packs in-memory frames across multiple pages, preserving input order", async () => {
+    const inputs: FrameInput[] = [
+      await solidFrame("f0", 40, 40, { r: 220, g: 20, b: 20 }),
+      await solidFrame("f1", 40, 40, { r: 20, g: 200, b: 20 }),
+      await solidFrame("f2", 40, 40, { r: 20, g: 20, b: 220 }),
+      await solidFrame("f3", 40, 40, { r: 200, g: 200, b: 20 }),
+      await solidFrame("f4", 40, 40, { r: 200, g: 20, b: 200 }),
+    ];
+    // padded boxes are 44×44; a 100×50 page holds 2 per row, one row per page → 3 pages
+    const packed = await packFrameBuffers(inputs, { padding: 2, maxWidth: 100, maxHeight: 50 });
+
+    expect(packed.pageDims.length).toBeGreaterThan(1);
+    expect(packed.images.length).toBe(packed.pageDims.length);
+    // frames returned in INPUT order so callers can map back by index
+    expect(packed.frames.map((f) => f.id)).toEqual(["f0", "f1", "f2", "f3", "f4"]);
+    // inner rects keep the source size; gutter excluded
+    for (const f of packed.frames) {
+      expect(f.w).toBe(40);
+      expect(f.h).toBe(40);
+    }
+    // every frame lands on a real page, and pages 0..N-1 are all used
+    expect(new Set(packed.frames.map((f) => f.page)).size).toBe(packed.pageDims.length);
+    // no two rects overlap on the same page
+    for (let i = 0; i < packed.frames.length; i++) {
+      for (let j = i + 1; j < packed.frames.length; j++) {
+        if (packed.frames[i]!.page !== packed.frames[j]!.page) continue;
+        expect(overlaps(packed.frames[i]!, packed.frames[j]!)).toBe(false);
+      }
+    }
+  });
+
+  test("throws on duplicate frame ids", async () => {
+    const inputs: FrameInput[] = [
+      await solidFrame("dup", 16, 16, { r: 10, g: 10, b: 10 }),
+      await solidFrame("dup", 16, 16, { r: 20, g: 20, b: 20 }),
+    ];
+    await expect(packFrameBuffers(inputs)).rejects.toThrow(/duplicate frame ids/);
+  });
+
+  test("throws when there are no frames", async () => {
+    await expect(packFrameBuffers([])).rejects.toThrow(/no frames/);
+  });
+});
+
+describe("isPackedPageImage", () => {
+  test("matches generated atlas/anim pages, not source sprites", () => {
+    expect(isPackedPageImage("warden.anim0.webp")).toBe(true);
+    expect(isPackedPageImage("all.atlas0.webp")).toBe(true);
+    expect(isPackedPageImage("scourge-survivors.atlas12.webp")).toBe(true);
+    expect(isPackedPageImage("warden.png")).toBe(false);
+    expect(isPackedPageImage("idle.webp")).toBe(false);
+    expect(isPackedPageImage("anim0.webp")).toBe(false); // needs the dotted suffix
   });
 });

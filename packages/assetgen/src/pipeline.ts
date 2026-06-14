@@ -1,5 +1,6 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { buildAudioPrompt, isAudioKind } from "./audio.ts";
 import { buildPrompt } from "./style.ts";
 import { assetProviders, generateAsset } from "./providers.ts";
 import type { AssetKind, GeneratedAsset, ProviderId } from "./providers.ts";
@@ -164,7 +165,9 @@ export interface GenerateOneResult {
 /** The shared per-asset core: build prompt, generate, post-process. */
 export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOneResult> {
   const fullPrompt = await runStep(opts, "prompt", "build prompt", async () =>
-    buildPrompt({ prompt: opts.promptForBuild ?? opts.prompt, game: opts.game, kind: opts.kind }),
+    isAudioKind(opts.kind)
+      ? buildAudioPrompt({ prompt: opts.promptForBuild ?? opts.prompt, kind: opts.kind })
+      : buildPrompt({ prompt: opts.promptForBuild ?? opts.prompt, game: opts.game, kind: opts.kind }),
   );
 
   const generated = await runStep(opts, "generate", `generate ${opts.kind}`, async () =>
@@ -366,7 +369,7 @@ export function licenseForGeneration(opts: {
 }
 
 export function assetSubdirForKind(kind: string): string {
-  if (kind === "sprite") return "sprites";
+  if (kind === "sprite" || kind === "sprite-anim") return "sprites";
   if (kind === "texture") return "textures";
   if (kind === "icon") return "icons";
   if (kind === "music" || kind === "sfx" || kind === "voice") return `audio/${kind}`;

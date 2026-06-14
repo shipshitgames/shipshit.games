@@ -24,6 +24,17 @@ export interface AssetEntry {
     usedColumns: number;
     usedRows: number;
   };
+  /** Animation clip names for sprite-anim assets (issue #71); e.g. ["idle","run","attack"]. */
+  clips?: string[];
+  /** Relative path to the animation frame map (`<id>.anim.json`) for sprite-anim assets. */
+  animation?: string;
+  /** Origin sprite this animation was expanded from (issue #71 provenance). */
+  origin?: string;
+  /** Audio playback metadata (issue #21); present for music/sfx/voice assets. */
+  category?: string;
+  volume?: number;
+  loop?: boolean;
+  duration?: number;
   /** Relative path to a generated billboard preview, if any. */
   preview?: string;
   /** Required provenance/license record (issue #17): no generator may skip this. */
