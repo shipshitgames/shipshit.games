@@ -1,4 +1,4 @@
-import { STUDIO_PASS } from "@shipshitgames/shared";
+import { STUDIO_PASS, isEnabled } from "@shipshitgames/shared";
 
 import { createAccessToken } from "./access-token";
 import type { StudioPassEntitlement } from "./entitlements";
@@ -59,7 +59,7 @@ async function postJson(url: string, body: unknown, token?: string) {
 }
 
 async function sendSkoolInvite(input: FulfillmentInput) {
-  if (process.env.SKOOL_FULFILLMENT_ENABLED !== "true") return false;
+  if (!isEnabled("skoolFulfillment")) return false;
 
   const webhookUrl = process.env.SKOOL_INVITE_WEBHOOK_URL;
   if (!webhookUrl) return false;
