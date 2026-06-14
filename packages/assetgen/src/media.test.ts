@@ -102,6 +102,10 @@ test("assertSafeDownloadUrl enforces https, blocks internal hosts, and honors an
     "https://[::ffff:169.254.169.254]/latest/meta-data", // cloud metadata via mapped IPv6
     "https://[::ffff:10.0.0.5]/x", // RFC1918 via mapped IPv6
     "https://[::ffff:192.168.1.1]/x", // RFC1918 via mapped IPv6
+    // ...and the literal hex spellings the parser also accepts as-is, asserting the
+    // guard decodes the hex groups directly (not only via dotted->hex normalization).
+    "https://[::ffff:7f00:1]/x", // = 127.0.0.1 loopback, hex-spelled
+    "https://[::ffff:a9fe:a9fe]/latest/meta-data", // = 169.254.169.254 cloud metadata, hex-spelled
     "https://localhost/x",
     "https://2130706433/x", // 127.0.0.1 as a single integer — WHATWG-normalized to dotted-quad
   ]) {
