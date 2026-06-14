@@ -73,6 +73,24 @@ function isPrivateIpv4(host: string): boolean {
   );
 }
 
+/**
+ * Extract the embedded IPv4 of an IPv4-mapped IPv6 address (`::ffff:a.b.c.d`),
+ * as a dotted quad. Handles BOTH the dotted-decimal spelling and the hex form
+ * the WHATWG `URL` parser actually emits: `new URL("https://[::ffff:127.0.0.1]")`
+ * normalizes the host to `[::ffff:7f00:1]`, so the dotted form never survives and
+ * a dotted-only check is dead code. Returns null when `h` is not a mapped address.
+ */
+function mappedIpv4(h: string): string | null {
+  const rest = /^::ffff:(.+)$/.exec(h)?.[1];
+  if (!rest) return null;
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(rest)) return rest; // ::ffff:10.0.0.1
+  const hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(rest); // ::ffff:a00:5  (i.e. 10.0.0.5)
+  if (!hex) return null;
+  const hi = parseInt(hex[1]!, 16);
+  const lo = parseInt(hex[2]!, 16);
+  return `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+}
+
 /** Loopback / unique-local / link-local / unspecified IPv6 (handles [brackets] + IPv4-mapped). */
 function isPrivateIpv6(host: string): boolean {
   let h = host.toLowerCase();
@@ -81,8 +99,8 @@ function isPrivateIpv6(host: string): boolean {
   if (h === "::1" || h === "::") return true; // loopback / unspecified
   if (h.startsWith("fc") || h.startsWith("fd")) return true; // fc00::/7 unique-local
   if (/^fe[89ab]/.test(h)) return true; // fe80::/10 link-local
-  const mapped = /::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(h); // ::ffff:10.0.0.1
-  return mapped?.[1] ? isPrivateIpv4(mapped[1]) : false;
+  const embedded = mappedIpv4(h); // ::ffff:a.b.c.d — dotted or the hex form URL() emits
+  return embedded ? isPrivateIpv4(embedded) : false;
 }
 
 function hostInAllowlist(host: string, allowed: readonly string[]): boolean {

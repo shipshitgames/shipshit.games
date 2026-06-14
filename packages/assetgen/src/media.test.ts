@@ -95,11 +95,21 @@ test("assertSafeDownloadUrl enforces https, blocks internal hosts, and honors an
     "https://169.254.169.254/latest/meta-data", // cloud metadata endpoint
     "https://[::1]/x",
     "https://[fd00::1]/x",
+    // IPv4-mapped IPv6 — new URL() normalizes the embedded IPv4 to hex
+    // (e.g. [::ffff:127.0.0.1] -> [::ffff:7f00:1]), so the guard must decode the
+    // hex form, not just the dotted spelling.
+    "https://[::ffff:127.0.0.1]/x", // loopback via mapped IPv6
+    "https://[::ffff:169.254.169.254]/latest/meta-data", // cloud metadata via mapped IPv6
+    "https://[::ffff:10.0.0.5]/x", // RFC1918 via mapped IPv6
+    "https://[::ffff:192.168.1.1]/x", // RFC1918 via mapped IPv6
     "https://localhost/x",
     "https://2130706433/x", // 127.0.0.1 as a single integer — WHATWG-normalized to dotted-quad
   ]) {
     assert.throws(() => assertSafeDownloadUrl(url), /private\/loopback\/link-local/, url);
   }
+
+  // a PUBLIC IPv4-mapped IPv6 must NOT be over-blocked by the private guard
+  assert.equal(assertSafeDownloadUrl("https://[::ffff:8.8.8.8]/x").protocol, "https:");
 
   // allowlist: off-domain hosts and lookalikes rejected
   assert.throws(() => assertSafeDownloadUrl("https://evil.example.com/x.glb", ["meshy.ai"]), /not an allowed download domain/);
