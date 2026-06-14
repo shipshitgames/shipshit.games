@@ -69,6 +69,13 @@ export async function runGenerate(argv: string[]): Promise<void> {
         ? defaultLoopForCategory(category)
         : false;
   const audioMode = !spriteMode && isAudioKind(generationKind);
+  const modelMode = !spriteMode && (generationKind === "model" || generationKind === "3d");
+
+  // 3D-model knobs (issue #20): Draco geometry is on by default (the mandatory
+  // optimize); KTX2 is encoder-gated; --rig names the rig/retarget provenance.
+  const ktx2 = has(argv, "ktx2");
+  const draco = !has(argv, "no-draco");
+  const rigSource = flag(argv, "rig");
 
   if (!id || !prompt) {
     printGenerateUsage();
@@ -81,7 +88,9 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const which = dryRun ? "mock" : provider;
   const full = audioMode
     ? buildAudioPrompt({ prompt: promptInput, kind: generationKind })
-    : buildPrompt({ prompt: promptInput, game, kind: generationKind });
+    : modelMode
+      ? promptInput
+      : buildPrompt({ prompt: promptInput, game, kind: generationKind });
   console.log(`[assetgen] provider=${which}${model ? ` model=${model}` : ""} game=${game} kind=${kind} id=${id}`);
   console.log(`[prompt] ${full}`);
 
@@ -174,6 +183,45 @@ export async function runGenerate(argv: string[]): Promise<void> {
       }
     : undefined;
 
+  // 3D models pass the raw provider GLB through the mandatory gltf-transform
+  // optimize (Draco geometry, encoder-gated KTX2, else WebP textures) and record
+  // optimized/compression/animations plus a license.rig provenance record.
+  const modelPostprocess: AssetPostprocessHook | undefined = modelMode
+    ? async (asset) => {
+        const { optimizeGlb, MODEL_MEDIA_TYPE, MODEL_EXTENSION } = await import("../model3d.ts");
+        const result = await optimizeGlb(asset.data, { draco, ktx2 });
+        const rigged = result.summary.skins > 0;
+        return {
+          data: result.data,
+          mediaType: MODEL_MEDIA_TYPE,
+          extension: MODEL_EXTENSION,
+          entryFields: {
+            model: asset.model,
+            optimized: true,
+            compression: result.compression,
+            animations: result.animations,
+            meshes: result.summary.meshes,
+            materials: result.summary.materials,
+            textures: result.summary.textures,
+            skins: result.summary.skins,
+            joints: result.summary.joints,
+          },
+          licenseExtra: {
+            type: "ai-generated",
+            terms: licenseTerms ?? "review 3D model + rig license scope before shipping",
+            ...(licenseUrl ? { url: licenseUrl } : {}),
+            generatedAt: new Date().toISOString(),
+            rig: {
+              source: rigSource ?? (rigged ? asset.provider : "none"),
+              rigged,
+              joints: result.summary.joints,
+              animations: result.animations,
+            },
+          },
+        };
+      }
+    : undefined;
+
   await runAssetPipeline({
     id,
     // Manifest records the raw user prompt; generation uses the augmented one.
@@ -188,7 +236,13 @@ export async function runGenerate(argv: string[]): Promise<void> {
     human,
     repo,
     usageLogPath: usageLog,
-    postprocess: spriteMode ? spritePostprocess : audioMode ? audioPostprocess : undefined,
+    postprocess: spriteMode
+      ? spritePostprocess
+      : audioMode
+        ? audioPostprocess
+        : modelMode
+          ? modelPostprocess
+          : undefined,
     log: (chunk) => process.stdout.write(chunk),
   });
 }
@@ -200,13 +254,14 @@ function printGenerateUsage(): void {
   console.error(
     "usage:\n" +
       "  assetgen generate --id <id> --prompt <text> [--game <slug>|shared]\n" +
-      "           [--kind sprite|texture|icon|music|sfx|voice|model] [--provider openai|fal|codex|replicate|suno|elevenlabs|beatoven|mock]\n" +
+      "           [--kind sprite|texture|icon|music|sfx|voice|model|3d] [--provider openai|fal|codex|replicate|meshy|tripo|suno|elevenlabs|beatoven|mock]\n" +
       "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
       "           [--views front,side,back] [--frames 1] [--fps 8] [--anchor 0.5,1] [--scale 1]\n" +
       "           [--category music|sfx|voice] [--volume 1] [--loop|--no-loop] [--bitrate 128] [--normalize]\n" +
+      "           [--ktx2] [--no-draco] [--rig <source>]\n" +
       "           [--license <terms>] [--license-url <url>] [--seed <n>] [--authored] [--edit-kind <label>]\n" +
       "  assetgen --id <id> --prompt <text> [--game <slug>|shared]\n" +
-      "           [--kind sprite|texture|icon|music|sfx|voice|model] [--provider openai|fal|codex|replicate|suno|elevenlabs|beatoven|mock]\n" +
+      "           [--kind sprite|texture|icon|music|sfx|voice|model|3d] [--provider openai|fal|codex|replicate|meshy|tripo|suno|elevenlabs|beatoven|mock]\n" +
       "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
       "  assetgen matrix [--game <slug>] [--id <entity>] [--provider mock|openai|fal|codex|replicate]\n" +
       "           [--size 1024] [--only-missing] [--dry-run] [--sync-games] [--assets-dir <path>] [--usage-log <path|off>]\n" +

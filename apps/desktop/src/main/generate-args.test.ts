@@ -220,6 +220,27 @@ test("absent provenance opts add none of the seed/authored/edit-kind flags", () 
   }
 });
 
+test("model opts append --ktx2/--no-draco/--rig only when present", () => {
+  const { args, provider, kind } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: { id: "golem", prompt: "a stone golem", kind: "model", ktx2: true, draco: false, rig: "mixamo" },
+    target: TARGET,
+  });
+  expect({ provider, kind }).toEqual({ provider: "meshy", kind: "model" });
+  expect(args.slice(args.indexOf("--ktx2"))).toEqual(["--ktx2", "--no-draco", "--rig", "mixamo"]);
+});
+
+test("draco defaults on for models (no --no-draco unless explicitly disabled)", () => {
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: { id: "golem", prompt: "a stone golem", kind: "model" },
+    target: TARGET,
+  });
+  for (const flag of ["--ktx2", "--no-draco", "--rig"]) expect(args).not.toContain(flag);
+});
+
 test("volume of 0 is still emitted (only null/empty are skipped)", () => {
   const { args } = buildGenerateArgs({
     assetgenPath: ASSETGEN,

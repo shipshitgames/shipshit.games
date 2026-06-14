@@ -13,7 +13,17 @@ import type { GeneratedAsset, GeneratedAssetMeta } from "./media.ts";
 export type { GeneratedAsset } from "./media.ts";
 export { extensionForMediaType } from "./media.ts";
 
-export type ProviderId = "codex" | "openai" | "fal" | "replicate" | "suno" | "elevenlabs" | "beatoven" | "mock";
+export type ProviderId =
+  | "codex"
+  | "openai"
+  | "fal"
+  | "replicate"
+  | "meshy"
+  | "tripo"
+  | "suno"
+  | "elevenlabs"
+  | "beatoven"
+  | "mock";
 export type AssetKind = "sprite" | "texture" | "icon" | "map" | "music" | "sfx" | "voice" | "model" | "3d" | string;
 
 export interface ProviderOptions {
@@ -24,6 +34,12 @@ export interface ProviderOptions {
   pollIntervalMs?: number;
   /** Reproducibility seed; only the seedable providers (openai/fal) honor it. */
   seed?: number;
+  /**
+   * Per-HTTP-request timeout for polled task providers (Meshy/Tripo). The
+   * `timeoutMs` deadline only bounds the *whole* task and is checked between
+   * polls, so without this a single hung connection blocks indefinitely.
+   */
+  requestTimeoutMs?: number;
 }
 
 export type Provider = (prompt: string, opts: ProviderOptions) => Promise<Buffer>;
@@ -53,8 +69,8 @@ export const DEFAULT_PROVIDER_BY_KIND: Record<string, ProviderId> = {
   music: "suno",
   sfx: "suno",
   voice: "suno",
-  model: "replicate",
-  "3d": "replicate",
+  model: "meshy",
+  "3d": "meshy",
 };
 
 const IMAGE_KINDS = ["sprite", "sprite-anim", "texture", "icon", "map"] as const;
@@ -189,6 +205,194 @@ async function waitForReplicatePrediction(prediction: any, key: string, opts: Pr
   return current;
 }
 
+// ── Meshy / Tripo: text/image → raw GLB via an async task (issue #20) ────────
+//
+// Both vendors share the same shape: POST to create a generation task, then
+// poll a task endpoint until it carries a downloadable GLB. The request/parse
+// pieces are pure (unit-testable without network); `runModelTask` is the one
+// generic poll loop that drives any client.
+
+export interface ModelTaskRequest {
+  url: string;
+  headers: Record<string, string>;
+  body: string;
+}
+
+export interface ModelPollRequest {
+  url: string;
+  headers: Record<string, string>;
+}
+
+export interface ModelTaskStatus {
+  /** Raw provider status string, surfaced in logs. */
+  state: string;
+  /** Whether the task has reached a terminal state (succeeded or failed). */
+  done: boolean;
+  /** Whether the task finished successfully. */
+  succeeded: boolean;
+  /** Downloadable GLB url, present once `succeeded`. */
+  glbUrl?: string;
+}
+
+/** Pure, per-vendor description of how to start, poll, and read a model task. */
+export interface ModelProviderClient {
+  id: ProviderId;
+  createTask(prompt: string, key: string, opts: ProviderOptions): ModelTaskRequest;
+  parseTaskId(json: unknown): string;
+  pollTask(taskId: string, key: string, opts: ProviderOptions): ModelPollRequest;
+  parseStatus(json: unknown): ModelTaskStatus;
+}
+
+function trimBaseUrl(value: string | undefined, fallback: string): string {
+  return (value ?? fallback).replace(/\/+$/, "");
+}
+
+/**
+ * Meshy text-to-3D (https://docs.meshy.ai). Returns a raw GLB url on success.
+ *
+ * NOTE: this drives Meshy's `preview` mode, which yields a base (geometry-only,
+ * untextured) mesh. Textured PBR output needs a second `refine` task that
+ * references the preview id — a follow-up beyond this issue's scope — so in
+ * practice the optimize's texture-compression path is exercised by Tripo's
+ * `pbr_model`, not by Meshy preview output. The optimize still records the truth
+ * (textureFormat "none" when no textures are present).
+ */
+export const meshyClient: ModelProviderClient = {
+  id: "meshy",
+  createTask(prompt, key, opts) {
+    const base = trimBaseUrl(process.env.MESHY_API_BASE_URL, "https://api.meshy.ai");
+    return {
+      url: `${base}/openapi/v2/text-to-3d`,
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        mode: "preview",
+        prompt,
+        art_style: "realistic",
+        should_remesh: true,
+        ...(opts.model ? { ai_model: opts.model } : {}),
+      }),
+    };
+  },
+  parseTaskId(json) {
+    const obj = json as Record<string, unknown> | null;
+    const id = obj?.result ?? obj?.id;
+    if (typeof id !== "string" || !id) throw new Error("meshy: create response missing task id");
+    return id;
+  },
+  pollTask(taskId, key) {
+    const base = trimBaseUrl(process.env.MESHY_API_BASE_URL, "https://api.meshy.ai");
+    return { url: `${base}/openapi/v2/text-to-3d/${taskId}`, headers: { authorization: `Bearer ${key}` } };
+  },
+  parseStatus(json) {
+    const obj = (json ?? {}) as Record<string, unknown>;
+    const state = String(obj.status ?? "PENDING");
+    const succeeded = state === "SUCCEEDED";
+    const done = succeeded || ["FAILED", "CANCELED", "EXPIRED"].includes(state);
+    const urls = obj.model_urls as Record<string, unknown> | undefined;
+    const glbUrl = typeof urls?.glb === "string" ? urls.glb : undefined;
+    return { state, done, succeeded, glbUrl };
+  },
+};
+
+/** Tripo text-to-model (https://platform.tripo3d.ai). Returns a raw GLB url on success. */
+export const tripoClient: ModelProviderClient = {
+  id: "tripo",
+  createTask(prompt, key, opts) {
+    const base = trimBaseUrl(process.env.TRIPO_API_BASE_URL, "https://api.tripo3d.ai");
+    return {
+      url: `${base}/v2/openapi/task`,
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        type: "text_to_model",
+        prompt,
+        ...(opts.model ? { model_version: opts.model } : {}),
+      }),
+    };
+  },
+  parseTaskId(json) {
+    const data = (json as Record<string, unknown> | null)?.data as Record<string, unknown> | undefined;
+    const id = data?.task_id ?? (json as Record<string, unknown> | null)?.task_id;
+    if (typeof id !== "string" || !id) throw new Error("tripo: create response missing task id");
+    return id;
+  },
+  pollTask(taskId, key) {
+    const base = trimBaseUrl(process.env.TRIPO_API_BASE_URL, "https://api.tripo3d.ai");
+    return { url: `${base}/v2/openapi/task/${taskId}`, headers: { authorization: `Bearer ${key}` } };
+  },
+  parseStatus(json) {
+    const data = ((json as Record<string, unknown> | null)?.data ?? {}) as Record<string, unknown>;
+    const state = String(data.status ?? "queued");
+    const succeeded = state === "success";
+    const done = succeeded || ["failed", "cancelled", "banned", "expired", "unknown"].includes(state);
+    const output = (data.output ?? {}) as Record<string, unknown>;
+    const candidate = output.pbr_model ?? output.model;
+    const glbUrl = typeof candidate === "string" ? candidate : undefined;
+    return { state, done, succeeded, glbUrl };
+  },
+};
+
+const GLB_MAGIC = 0x46546c67; // "glTF" little-endian uint32 at byte 0.
+
+/**
+ * Reject a provider download that returned 200 but is not a GLB (an HTML error
+ * page, a JSON body, a truncated file). Without this the bad bytes fail later
+ * with an opaque gltf-transform parse error far from the cause.
+ */
+function assertGlbBody(data: Buffer, providerId: string): void {
+  if (data.length < 12 || data.readUInt32LE(0) !== GLB_MAGIC) {
+    throw new Error(`${providerId}: downloaded model is not a valid GLB (bad magic, ${data.length} bytes)`);
+  }
+}
+
+/** Drive any {@link ModelProviderClient} create→poll→download cycle to a raw GLB. */
+export async function runModelTask(
+  client: ModelProviderClient,
+  prompt: string,
+  opts: ProviderOptions,
+  deps: { fetchImpl?: typeof fetch; getKeyImpl?: typeof getKey } = {},
+): Promise<GeneratedAsset> {
+  const provider = assetProviders[client.id];
+  const key = (deps.getKeyImpl ?? getKey)(provider.key!.envName, provider.key!.service);
+  if (!key) throw missingKeyMessage(provider);
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  // Bound each HTTP request so a single hung connection can't stall the task —
+  // the overall `timeoutMs` is only checked between polls.
+  const requestTimeoutMs = opts.requestTimeoutMs ?? 120_000;
+
+  const create = client.createTask(prompt, key, opts);
+  const createRes = await fetchImpl(create.url, {
+    method: "POST",
+    headers: create.headers,
+    body: create.body,
+    signal: AbortSignal.timeout(requestTimeoutMs),
+  });
+  if (!createRes.ok) throw new Error(`${client.id} ${createRes.status}: ${await createRes.text()}`);
+  const taskId = client.parseTaskId(await createRes.json());
+  opts.log?.(`[${client.id}] task ${taskId} created\n`);
+
+  const started = Date.now();
+  const timeoutMs = opts.timeoutMs ?? 300_000;
+  const intervalMs = opts.pollIntervalMs ?? 2_000;
+  for (;;) {
+    const poll = client.pollTask(taskId, key, opts);
+    const pollRes = await fetchImpl(poll.url, { headers: poll.headers, signal: AbortSignal.timeout(requestTimeoutMs) });
+    if (!pollRes.ok) throw new Error(`${client.id} poll ${pollRes.status}: ${await pollRes.text()}`);
+    const status = client.parseStatus(await pollRes.json());
+    opts.log?.(`[${client.id}] ${status.state}\n`);
+    if (status.done) {
+      if (!status.succeeded) throw new Error(`${client.id}: task ${status.state}`);
+      if (!status.glbUrl) throw new Error(`${client.id}: task succeeded without a GLB url`);
+      const asset = await downloadGeneratedAsset(status.glbUrl, opts.model ?? provider.defaultModel, deps.fetchImpl);
+      assertGlbBody(asset.data, client.id);
+      return asset;
+    }
+    if (Date.now() - started > timeoutMs) {
+      throw new Error(`${client.id}: timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
 async function generateSuno(kind: AssetKind, prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
   const provider = assetProviders.suno;
   const key = providerKey(provider);
@@ -300,7 +504,7 @@ function makeSilentWav(seconds = 1, sampleRate = 8000): Buffer {
   return buf;
 }
 
-/** Offline placeholder for dry-runs / pipeline tests. Audio-aware (issue #21). */
+/** Offline placeholder for dry-runs / pipeline tests. Audio- and model-aware (issues #20, #21). */
 async function generateMock(kind: AssetKind, _prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
   // The offline placeholder is never a real render, so it is never reproducible
   // — but it echoes any requested seed so tests can assert the seed threaded through.
@@ -308,6 +512,11 @@ async function generateMock(kind: AssetKind, _prompt: string, opts: ProviderOpti
   if (opts.seed !== undefined) meta.seed = opts.seed;
   if (isAudioKind(kind)) {
     return { data: makeSilentWav(), mediaType: "audio/wav", extension: "wav", model: "mock", meta };
+  }
+  if (MODEL_KINDS.includes(kind as (typeof MODEL_KINDS)[number])) {
+    // Lazy import keeps the dependency-free GLB builder out of the mock's hot path.
+    const { buildMinimalGlb } = await import("./glb-fixture.ts");
+    return { data: buildMinimalGlb(), mediaType: "model/gltf-binary", extension: "glb", model: "mock" };
   }
   const n = parseInt(opts.size, 10) || 256;
   const data = await sharp({
@@ -350,6 +559,22 @@ export const assetProviders: Record<ProviderId, AssetProvider> = {
     defaultModel: "black-forest-labs/flux-schnell",
     key: { envName: "REPLICATE_API_TOKEN", service: "shipshit-replicate", label: "Replicate" },
     generate: (kind, prompt, opts) => generateReplicate(kind, prompt, opts),
+  },
+  meshy: {
+    id: "meshy",
+    label: "Meshy (text → 3D)",
+    supports: MODEL_KINDS,
+    defaultModel: "meshy",
+    key: { envName: "MESHY_API_KEY", service: "shipshit-meshy", label: "Meshy" },
+    generate: (_kind, prompt, opts) => runModelTask(meshyClient, prompt, opts),
+  },
+  tripo: {
+    id: "tripo",
+    label: "Tripo (text → 3D)",
+    supports: MODEL_KINDS,
+    defaultModel: "tripo",
+    key: { envName: "TRIPO_API_KEY", service: "shipshit-tripo", label: "Tripo" },
+    generate: (_kind, prompt, opts) => runModelTask(tripoClient, prompt, opts),
   },
   suno: {
     id: "suno",

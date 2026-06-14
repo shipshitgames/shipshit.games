@@ -176,11 +176,14 @@ export interface GenerateOneResult {
 
 /** The shared per-asset core: build prompt, generate, post-process. */
 export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOneResult> {
-  const fullPrompt = await runStep(opts, "prompt", "build prompt", async () =>
-    isAudioKind(opts.kind)
-      ? buildAudioPrompt({ prompt: opts.promptForBuild ?? opts.prompt, kind: opts.kind })
-      : buildPrompt({ prompt: opts.promptForBuild ?? opts.prompt, game: opts.game, kind: opts.kind }),
-  );
+  const fullPrompt = await runStep(opts, "prompt", "build prompt", async () => {
+    const promptText = opts.promptForBuild ?? opts.prompt;
+    if (isAudioKind(opts.kind)) return buildAudioPrompt({ prompt: promptText, kind: opts.kind });
+    // 3D models (issue #20) drive mesh providers (Meshy/Tripo); the 2D pixel-art
+    // style suffix would fight a 3D generator, so feed the raw prompt through.
+    if (opts.kind === "model" || opts.kind === "3d") return promptText;
+    return buildPrompt({ prompt: promptText, game: opts.game, kind: opts.kind });
+  });
 
   const generated = await runStep(opts, "generate", `generate ${opts.kind}`, async () =>
     generateAsset(opts.kind, fullPrompt, {

@@ -402,7 +402,7 @@ export async function expandSprite(opts: ExpandOptions): Promise<ExpandResult> {
   );
 }
 
-function animPreviewHtml(opts: { id: string; game: string; sheet: SpriteAnimSheet; sheetDirHref: string }): string {
+export function animPreviewHtml(opts: { id: string; game: string; sheet: SpriteAnimSheet; sheetDirHref: string }): string {
   const rows = Object.entries(opts.sheet.clips)
     .map(
       ([name, clip]) =>

@@ -72,7 +72,7 @@ The current package already exposes these extraction seams:
 | `data/maps.ts` content | Game content | Authored maps, encounter names, lane meanings, faction framing, and Warline operation context stay in the game. Engine owns only schema and loader contracts. |
 | `constants.ts` tunables | Game content unless geometry-generic | Speeds, damage, cooldowns, health, wave counts, pickup cadence, and UI timings stay game-side. Engine may own neutral defaults for bounds, epsilon values, and lifecycle intervals. |
 | `HUD.tsx` visuals | Game content | React shell and visuals stay game-side. Engine emits typed HUD snapshots and subscribable state changes. |
-| Audio | Game content | Audio assets, mix rules, music, stingers, VO, and lore tone stay in the game. Engine can expose event hooks only. |
+| Audio runtime | Engine audio seam plus game content | Engine owns the generic playback runtime: a sound registry built from `assets.json` audio entries, stereo pan + distance attenuation from a listener, a crossfading music bus, master volume/mute, and unlock-on-gesture — all behind an injectable Howler backend, with `howler` kept an optional dependency. Game still owns the actual audio assets, mix rules (which cue fires when), music choices, stingers, VO, and lore tone. **Extracted in issue #76** as `AudioSystem` (`AudioSystem.withHowler()` for the default backend), the `HowlLike` backend seam, the `assets.json` audio reader, and the pure pan/attenuation math on the root barrel; the shared audio fields (`category`/`volume`/`loop`/`duration`/`sprite`) are documented in `assets-manifest.schema.json`. |
 
 ## Proposed Package Surface
 

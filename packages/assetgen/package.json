@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": { "assetgen": "./src/cli.ts" },
+  "bin": {
+    "assetgen": "./src/cli.ts"
+  },
   "exports": {
     "./style": {
       "types": "./src/style.generated.ts",
@@ -28,6 +30,10 @@
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
+    "@gltf-transform/core": "4.4.0",
+    "@gltf-transform/extensions": "4.4.0",
+    "@gltf-transform/functions": "4.4.0",
+    "draco3dgltf": "1.5.7",
     "node-pty": "1.1.0",
     "sharp": "0.34.5"
   },

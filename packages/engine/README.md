@@ -4,7 +4,7 @@ The open-source embodied 3D game engine behind [Ship Shit Games](https://games.s
 
 Imperative [Three.js](https://threejs.org) for the game, React only for the HUD shell. The boundary axis is **player embodiment** ("is the player a body in a 3D world?"), so an FPS, a tower-defense builder, a platformer, and a runner all share the same core + embodied-base layer and differ only by camera rig and mechanic pack.
 
-> **Status: 0.3.x, early.** Extracted seam-by-seam out of the `scourge-survivors` reference game. Shipping now: world bounds, data-driven arena maps, render lifecycle, swappable camera rig, DOM input binding, agent/spawn seams, HUD snapshots, generic FX/projectile/pickup lifecycles, and the PartyKit multiplayer net seam (client transport, remote avatars, room server template).
+> **Status: 0.3.x, early.** Extracted seam-by-seam out of the `scourge-survivors` reference game. Shipping now: world bounds, data-driven arena maps, render lifecycle, swappable camera rig, DOM input binding, agent/spawn seams, LDtk level import, HUD snapshots, generic FX/projectile/pickup lifecycles, the PartyKit multiplayer net seam (client transport, remote avatars, room server template), and the optional Rapier2D physics seam (fixed-timestep collision + the agent ↔ rigid-body bridge).
 
 ## Extraction Boundary
 
@@ -84,6 +84,39 @@ projectiles.spawn({
 - **`InputSystem` + movement bindings** — DOM event lifecycle and WASD/arrow movement intent; genre verbs stay game-side.
 - **`HudSystem<TState>`** — typed snapshot/listener shell for React HUDs without making React part of the engine loop.
 - **`FxSystem` / `ProjectilesSystem` / `PickupsSystem`** — shared transient entity lifecycles with game-supplied content tables and collision/collection policy.
+- **`loadLdtkProject` + `FixedSpawnProvider`** — the level seam: import an [LDtk](https://ldtk.io) (`deepnight/ldtk`, MIT) export into the native arena model — IntGrid → colliders, entity layer → spawn points, tile/auto layers → render-ready tiles.
+
+## Levels (LDtk import seam)
+
+Author arenas in the [LDtk](https://ldtk.io) editor (MIT, by the Dead Cells lead), vendor the `.ldtk` file alongside the game, and `loadLdtkProject` maps it straight onto the engine's native arena/spawn seams — no bespoke level format. The loader is pure data (no Three.js): IntGrid layers become merged rect colliders, entity layers become spawn points + typed entities, and Tiles/AutoLayer layers become render-ready tiles on the XZ plane for the game's own tile/sprite runtime.
+
+```ts
+import {
+  loadLdtkProject,
+  FixedSpawnProvider,
+  ArenaSystem,
+  type LdtkArena,
+} from '@shipshitgames/engine'
+
+// Pinned to LDtk 1.5 — throws an LdtkError on a mismatched export
+// unless you pass { allowVersionMismatch: true }.
+const project = loadLdtkProject(await fetch('/levels/breach.ldtk').then((r) => r.text()))
+const arena: LdtkArena = project.arenas[0]!
+
+// IntGrid -> colliders + bounds, interpreted by the same ArenaSystem.
+const world = new ArenaSystem(arena.map)
+world.isBlockedXZ(0, 0)
+
+// Entity layer -> spawn points drop into the spawn seam next to RectScatterSpawnProvider.
+const spawns = new FixedSpawnProvider(arena.spawnPoints)
+spawns.next() // round-robins authored entry points; honours an avoid radius
+
+// Tile layers carry render-ready { x, z, size, src, tileId, flipX, flipY, alpha }
+// — the engine stays render-agnostic and the game draws them.
+const tiles = arena.tileLayers.flatMap((layer) => layer.tiles)
+```
+
+`scale`, `center`, `collisionLayers`, `solidValues`, `mergeColliders`, `spawnTag`/`spawnIdentifiers`, and `laneField` tune the mapping; pass an `onWarn` sink to capture non-fatal notices (version drift, unsupported layer types).
 
 ## Multiplayer (PartyKit net seam)
 
@@ -129,6 +162,46 @@ export default createRoomServer({
 ```
 
 Reserved `t` values (`welcome`, `join`, `leave`, `state`, `name`, `hit`) belong to the base transport on both ends. `partysocket` ships as an **`optionalDependencies` entry** — package managers install it by default but tolerate it being absent (e.g. `--omit=optional`). `NetClient`'s default socket factory lazy-imports it and throws a descriptive error when it's missing; pass your own `createSocket` to use a different socket entirely.
+
+## Physics (Rapier2D seam)
+
+The engine's movement (steering, agents, camera, bounds) is collision-free on its
+own. The optional **`@shipshitgames/engine/physics`** seam adds broadphase
+collision and resolution — bodies vs walls, bodies vs bodies, knockback — for the
+top-down XZ ground plane, wrapping [Rapier2D](https://rapier.rs) (Apache-2). It is
+kept off the root barrel (like `./net/server`) so games that never use physics
+never resolve the WASM.
+
+**The WASM-load story, once, for every game.** Rapier is shipped as the
+`@dimforge/rapier2d-compat` build (the WebAssembly is embedded as base64, so there
+is no `.wasm` asset to host and the same build runs in a Vite bundle, in Node, and
+in `bun test`). Initialise it exactly once during async boot with `ensureRapier()`
+— or just call `PhysicsSystem.create()`, which awaits it for you. The init promise
+is memoised, so later scenes share the single initialisation.
+
+```ts
+import { PhysicsSystem } from '@shipshitgames/engine/physics'
+import { RectBounds } from '@shipshitgames/engine'
+
+const physics = await PhysicsSystem.create({ gravity: { x: 0, z: 0 } })
+physics.addBoundsWalls(RectBounds.square(20)) // colliders replace manual clampXZ
+
+const binding = physics.attachAgent(enemy) // enemy: { position, radius } — Agent fits
+// ...each frame, on the imperative game loop:
+binding.drive({ x: dirX * enemy.speed, z: dirZ * enemy.speed }) // steering → velocity
+physics.step(frameDelta) // resolves collisions, then writes enemy.position.x/z
+```
+
+Rapier is a 2D engine; the seam maps world `x → rapier.x` and world `z → rapier.y`,
+so nothing outside `src/physics` deals in Rapier coordinates and `position.y`
+(height) is never touched. `step(frameDelta)` banks elapsed frame time in an
+accumulator and runs whole `fixedTimeStep` (default `1/60`) sub-steps, capped at
+`maxSubSteps` (the spiral-of-death clamp) — so a 30fps and a 144fps client
+integrate identical physics. `@dimforge/rapier2d-compat` ships as an
+**`optionalDependencies` entry** (installed by default, tolerant of `--omit=optional`).
+Like the net seam's `partysocket`, it is never statically imported: `ensureRapier`
+lazily `import()`s it on first use and throws a descriptive error if it was omitted,
+so a game that never touches the physics subpath never needs the dependency.
 
 ## License
 

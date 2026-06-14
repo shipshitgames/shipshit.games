@@ -18,7 +18,37 @@
           "path": { "type": "string", "minLength": 1 },
           "game": { "type": "string" },
           "prompt": { "type": "string" },
-          "provider": { "type": "string" }
+          "provider": { "type": "string" },
+          "category": {
+            "type": "string",
+            "description": "Audio playback category for music/sfx/voice assets (issue #21).",
+            "enum": ["music", "sfx", "voice"]
+          },
+          "volume": {
+            "type": "number",
+            "description": "Authoring volume in [0,1] for audio assets (issue #21).",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "loop": {
+            "type": "boolean",
+            "description": "Whether the audio asset loops by default (issue #21)."
+          },
+          "duration": {
+            "type": "number",
+            "description": "Audio duration in seconds (issue #21).",
+            "minimum": 0
+          },
+          "sprite": {
+            "type": "object",
+            "description": "Audio cue map for one-file-many-cues SFX sheets (issue #76): cue name -> [offsetMs, durationMs] (+ optional loop), as consumed by @shipshitgames/engine's AudioSystem.",
+            "additionalProperties": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 3,
+              "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "boolean" }]
+            }
+          }
         }
       }
     }
