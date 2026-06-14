@@ -233,6 +233,25 @@ test("downloadGeneratedAsset bounds redirect chains", async () => {
   );
 });
 
+test("downloadGeneratedAsset delegates redirect-following to the platform when unguarded (no manual 5-hop cap)", async () => {
+  // fal/replicate/suno/beatoven downloads previously used native fetch
+  // redirect-following (~20 hops). The hardening must not silently cap them at
+  // MAX_DOWNLOAD_REDIRECTS: an unguarded download issues a single fetch with the
+  // platform's default redirect handling, not the manual per-hop loop + cap.
+  let calls = 0;
+  let sawManual = false;
+  const fetchImpl = (async (_input: unknown, init?: { redirect?: string }) => {
+    calls += 1;
+    if (init?.redirect === "manual") sawManual = true;
+    return new Response("glb", { status: 200, headers: { "content-type": "model/gltf-binary" } });
+  }) as unknown as typeof fetch;
+
+  const asset = await downloadGeneratedAsset("https://cdn.example.com/a.glb", undefined, fetchImpl);
+  assert.equal(asset.mediaType, "model/gltf-binary");
+  assert.equal(calls, 1, "unguarded download must issue exactly one fetch, leaving redirects to the platform");
+  assert.equal(sawManual, false, "unguarded download must not force redirect:manual (which caps hops)");
+});
+
 test("downloadGeneratedAsset times out a hung fetch via its timeout budget", async () => {
   const fetchImpl = (async (_input: unknown, init?: { signal?: AbortSignal }) =>
     await new Promise<Response>((_resolve, reject) => {
