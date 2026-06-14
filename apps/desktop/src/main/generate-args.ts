@@ -26,6 +26,12 @@ function buildGenerateArgs({ assetgenPath, settings, opts = {}, target = {} }: a
   if (opts?.loop === false) args.push("--no-loop");
   if (opts?.bitrate) args.push("--bitrate", String(opts.bitrate));
   if (opts?.normalize) args.push("--normalize");
+  // Provenance flags (issue #55): only pushed when present so existing arg
+  // arrays stay byte-identical; seed of 0 is valid (only null/empty skip).
+  if (opts?.seed != null && opts?.seed !== "") args.push("--seed", String(opts.seed));
+  if (opts?.authored) args.push("--authored");
+  if (opts?.editKind) args.push("--edit-kind", String(opts.editKind));
+  // --model stays last so existing slice(-2) assertions hold.
   if (model) args.push("--model", String(model));
   return { args, provider, game, kind, repo, model };
 }

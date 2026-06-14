@@ -67,6 +67,14 @@ test("generate --provider mock writes a sprite webp, preview, and manifest metad
       usedRows: 1,
     },
     preview: "previews/swarm-husk-billboard.html",
+    provenance: {
+      provider: "mock",
+      model: "mock",
+      reproducible: false,
+      promptHash: manifest.assets[0].provenance.promptHash,
+      styleSuffixHash: manifest.assets[0].provenance.styleSuffixHash,
+      date: manifest.assets[0].provenance.date,
+    },
     license: {
       tool: "mock",
       plan: "mock",
@@ -79,6 +87,17 @@ test("generate --provider mock writes a sprite webp, preview, and manifest metad
   });
   assert.match(manifest.assets[0].license.date, /^\d{4}-\d{2}-\d{2}$/);
   assert.match(manifest.assets[0].license.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
+  // Provenance is always captured: 16-hex prompt/style hashes + a calendar date.
+  // The mock provider is never reproducible and no human authorship was claimed.
+  // (deepEqual above narrows manifest.assets[0] to its literal, so read the
+  // seed/human fields — absent from that literal — off an untyped alias.)
+  const registered: any = manifest.assets[0];
+  assert.match(registered.provenance.promptHash, /^[0-9a-f]{16}$/);
+  assert.match(registered.provenance.styleSuffixHash, /^[0-9a-f]{16}$/);
+  assert.match(registered.provenance.date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(registered.provenance.reproducible, false);
+  assert.equal(registered.provenance.seed, undefined);
+  assert.equal(registered.human, undefined);
 
   const usage = JSON.parse(await readFile(usageLog, "utf8"));
   assert.equal(usage.command, "generate");
@@ -88,6 +107,43 @@ test("generate --provider mock writes a sprite webp, preview, and manifest metad
   assert.equal(usage.success, true);
   assert.equal(typeof usage.promptHash, "string");
   assert.equal(usage.prompt, undefined);
+});
+
+test("generate --seed/--authored/--edit-kind records provenance seed + human authorship", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-generate-seed-test-"));
+
+  await runGenerate([
+    "--provider",
+    "mock",
+    "--dry-run",
+    "--id",
+    "warden-husk",
+    "--prompt",
+    "a parasite-taken Scourge host",
+    "--game",
+    "scourge-survivors",
+    "--kind",
+    "sprite",
+    "--size",
+    "128",
+    "--repo",
+    repo,
+    "--seed",
+    "42",
+    "--authored",
+    "--edit-kind",
+    "recolor",
+    "--usage-log",
+    "off",
+  ]);
+
+  const manifest = JSON.parse(await readFile(join(repo, "src/assets/assets.json"), "utf8"));
+  const entry = manifest.assets[0];
+  // The mock provider echoes the requested seed but is never reproducible.
+  assert.equal(entry.provenance.seed, 42);
+  assert.equal(entry.provenance.reproducible, false);
+  // Human-authorship disclosure round-trips through the CLI flags.
+  assert.deepEqual(entry.human, { authored: true, editKind: "recolor" });
 });
 
 test("generate records multi-view animation sheets as sprite-anim entries", async () => {

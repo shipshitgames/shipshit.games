@@ -5,7 +5,9 @@ import {
   DEFAULT_FAL_MODEL,
   DEFAULT_FAL_MODEL_BY_KIND,
   FAL_MODELS,
+  falAssetMeta,
   falImageSize,
+  falRequestBody,
   generateFalAsset,
   resolveFalModel,
 } from "./fal";
@@ -66,6 +68,78 @@ test("falImageSize clamps dimensions to the FLUX-supported range", () => {
   assert.deepEqual(falImageSize("64"), { width: 256, height: 256 });
   assert.deepEqual(falImageSize("4096"), { width: 1440, height: 1440 });
   assert.deepEqual(falImageSize("64x4096"), { width: 256, height: 1440 });
+});
+
+test("falRequestBody omits the seed key unless one is supplied", () => {
+  const imageSize = { width: 512, height: 512 };
+  assert.deepEqual(falRequestBody("a husk", imageSize), {
+    prompt: "a husk",
+    image_size: imageSize,
+    num_images: 1,
+  });
+  assert.deepEqual(falRequestBody("a husk", imageSize, 7), {
+    prompt: "a husk",
+    image_size: imageSize,
+    num_images: 1,
+    seed: 7,
+  });
+  // 0 is a valid seed and must survive into the request body.
+  assert.equal(falRequestBody("a husk", imageSize, 0).seed, 0);
+});
+
+test("falAssetMeta prefers the echoed seed, falls back to the requested one, and reads requestId", () => {
+  // fal echoes the honored seed → reproducible, seed taken from the response.
+  assert.deepEqual(falAssetMeta("fal-ai/flux/dev", 7, { seed: 99, request_id: "req-1" }), {
+    model: "fal-ai/flux/dev",
+    reproducible: true,
+    seed: 99,
+    requestId: "req-1",
+  });
+  // No echoed seed but one was requested → fall back to the requested seed.
+  assert.deepEqual(falAssetMeta("fal-ai/flux/dev", 7, {}), {
+    model: "fal-ai/flux/dev",
+    reproducible: true,
+    seed: 7,
+  });
+  // No seed at all → not reproducible, no seed recorded.
+  assert.deepEqual(falAssetMeta("fal-ai/flux/dev", undefined, {}), {
+    model: "fal-ai/flux/dev",
+    reproducible: false,
+  });
+});
+
+test("generateFalAsset forwards a seed and records the honored seed as reproducible meta", async () => {
+  await withFalApiBase(undefined, async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const { fetchImpl, calls } = fakeFetch((url) => {
+      if (url.endsWith("/output.png")) {
+        return new Response(png, { headers: { "content-type": "image/png" } });
+      }
+      return new Response(
+        JSON.stringify({
+          images: [{ url: "https://cdn.example.test/output.png", content_type: "image/png" }],
+          seed: 1234,
+          request_id: "req-xyz",
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    });
+
+    const asset = await generateFalAsset(
+      "texture",
+      "rusted bone plating",
+      { size: "512x512", seed: 1234 },
+      { fetchImpl, resolveKey: () => "unit-key" },
+    );
+
+    assert.equal(JSON.parse(String(calls[0]?.init?.body)).seed, 1234);
+    assert.deepEqual(asset.meta, {
+      model: "fal-ai/flux/dev",
+      reproducible: true,
+      seed: 1234,
+      requestId: "req-xyz",
+    });
+  });
 });
 
 test("generateFalAsset posts to the per-kind default model and downloads the image", async () => {

@@ -1,12 +1,14 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { buildAudioPrompt, isAudioKind } from "./audio.ts";
-import { buildPrompt } from "./style.ts";
+import { buildPrompt, STYLE_SUFFIX } from "./style.ts";
 import { assetProviders, generateAsset } from "./providers.ts";
 import type { AssetKind, GeneratedAsset, ProviderId } from "./providers.ts";
 import { toWebp } from "./postprocess.ts";
 import { register, REQUIRED_LICENSE_FIELDS } from "./manifest.ts";
 import type { AssetEntry, AssetLicenseRecord } from "./manifest.ts";
+import { buildProvenance } from "./provenance.ts";
+import type { AssetHumanAuthorship, AssetProvenance } from "./provenance.ts";
 import { appendUsageLog } from "./usage.ts";
 import type { UsageLogEvent } from "./usage.ts";
 
@@ -87,6 +89,10 @@ export interface AssetPipelineOptions {
   outputRoot?: string;
   manifestPath?: string;
   model?: string;
+  /** Reproducibility seed forwarded to seedable providers (openai/fal). */
+  seed?: number;
+  /** Human-authorship disclosure recorded alongside provenance. */
+  human?: AssetHumanAuthorship;
   usageLogPath?: string | null;
   usageCommand?: UsageLogEvent["command"];
   includePreviewDataUrl?: boolean;
@@ -148,6 +154,10 @@ export interface GenerateOneOptions {
   provider: string;
   size: number;
   model?: string;
+  /** Reproducibility seed forwarded to seedable providers (openai/fal). */
+  seed?: number;
+  /** Injectable clock so the provenance date matches the caller's license date. */
+  now?: () => Date;
   postprocess?: AssetPostprocessHook;
   /** Fires right after the provider responds, before postprocess, so callers can record the actually-used provider/model even if postprocess fails. */
   onGenerated?: (generated: GeneratedAsset & { provider: ProviderId }) => void;
@@ -160,6 +170,8 @@ export interface GenerateOneResult {
   generated: GeneratedAsset & { provider: ProviderId };
   optimized: OptimizedAsset;
   context: AssetPipelineContext;
+  /** Reproducibility provenance computed from the prompt, style canon, and provider meta. */
+  provenance: AssetProvenance;
 }
 
 /** The shared per-asset core: build prompt, generate, post-process. */
@@ -175,6 +187,7 @@ export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOne
       provider: opts.provider,
       size: `${opts.size}x${opts.size}`,
       model: opts.model,
+      seed: opts.seed,
       log: opts.log ?? (() => {}),
     }),
   );
@@ -194,7 +207,17 @@ export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOne
     (opts.postprocess ?? defaultPostprocess)(generated, context),
   );
 
-  return { fullPrompt, generated, optimized, context };
+  // promptHash always covers the raw user prompt; the style hash is empty for
+  // kinds without a style suffix (audio), and the canon string for image kinds.
+  const provenance = buildProvenance({
+    provider: generated.provider,
+    prompt: opts.prompt,
+    styleSuffix: isAudioKind(opts.kind) ? "" : STYLE_SUFFIX,
+    date: opts.now?.() ?? new Date(),
+    meta: generated.meta,
+  });
+
+  return { fullPrompt, generated, optimized, context, provenance };
 }
 
 export interface UsageAccountingOptions {
@@ -263,7 +286,7 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
       }),
     },
     async () => {
-      const { fullPrompt, generated, optimized } = await generateOne({
+      const { fullPrompt, generated, optimized, provenance } = await generateOne({
         id: opts.id,
         prompt: opts.prompt,
         promptForBuild: opts.promptForBuild,
@@ -272,6 +295,8 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
         provider: opts.provider,
         size: opts.size,
         model: opts.model,
+        seed: opts.seed,
+        now: opts.now,
         postprocess: opts.postprocess,
         onGenerated: (asset) => {
           selectedProvider = asset.provider;
@@ -298,6 +323,8 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
           prompt: opts.prompt,
           provider: generated.provider,
           ...(optimized.entryFields ?? {}),
+          provenance,
+          ...(opts.human ? { human: opts.human } : {}),
           license: {
             ...licenseForGeneration({
               provider: generated.provider,

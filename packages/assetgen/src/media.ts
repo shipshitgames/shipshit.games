@@ -11,11 +11,26 @@ export interface ProviderModel {
   kinds: readonly string[];
 }
 
+/**
+ * Reproducibility hints a provider reports for a single generation (issue #55).
+ * `reproducible` is true only when a seedable provider honored a seed; the
+ * pipeline folds this into the manifest's provenance record.
+ */
+export interface GeneratedAssetMeta {
+  model?: string;
+  modelVersion?: string;
+  seed?: number;
+  requestId?: string;
+  reproducible: boolean;
+}
+
 export interface GeneratedAsset {
   data: Buffer;
   mediaType: string;
   extension: string;
   model?: string;
+  /** Provider reproducibility metadata (model/seed/requestId/reproducible). */
+  meta?: GeneratedAssetMeta;
   /** Provenance for generated media — commercial rights are plan-dependent for some providers. */
   license?: {
     type?: string;

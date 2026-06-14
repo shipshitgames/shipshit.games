@@ -43,6 +43,16 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const licenseTerms = flag(argv, "license");
   const licenseUrl = flag(argv, "license-url");
 
+  // Reproducibility seed (issue #55): only the seedable providers honor it.
+  // Parsed permissively so 0 is a valid seed; negatives/junk fall back to unset.
+  const seedRaw = flag(argv, "seed");
+  const seedParsed = seedRaw === undefined ? Number.NaN : Number.parseInt(seedRaw, 10);
+  const seed = Number.isFinite(seedParsed) && seedParsed >= 0 ? seedParsed : undefined;
+  // Human-authorship disclosure (issue #55): --authored marks a person touched it.
+  const authored = has(argv, "authored");
+  const editKind = flag(argv, "edit-kind");
+  const human = authored ? { authored: true, ...(editKind ? { editKind } : {}) } : undefined;
+
   // Audio knobs (issue #21): category drives loop default + manifest record.
   const category = flag(argv, "category") || (isAudioKind(generationKind) ? generationKind : undefined);
   // volume must accept 0 (muted) — numberFlag rejects non-positives (correct for
@@ -174,6 +184,8 @@ export async function runGenerate(argv: string[]): Promise<void> {
     provider: which,
     model,
     size,
+    seed,
+    human,
     repo,
     usageLogPath: usageLog,
     postprocess: spriteMode ? spritePostprocess : audioMode ? audioPostprocess : undefined,
@@ -192,7 +204,7 @@ function printGenerateUsage(): void {
       "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
       "           [--views front,side,back] [--frames 1] [--fps 8] [--anchor 0.5,1] [--scale 1]\n" +
       "           [--category music|sfx|voice] [--volume 1] [--loop|--no-loop] [--bitrate 128] [--normalize]\n" +
-      "           [--license <terms>] [--license-url <url>]\n" +
+      "           [--license <terms>] [--license-url <url>] [--seed <n>] [--authored] [--edit-kind <label>]\n" +
       "  assetgen --id <id> --prompt <text> [--game <slug>|shared]\n" +
       "           [--kind sprite|texture|icon|music|sfx|voice|model] [--provider openai|fal|codex|replicate|suno|elevenlabs|beatoven|mock]\n" +
       "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
