@@ -4,10 +4,8 @@ on:
   push:
     branches:
       - master
-      - staging
-      - develop
-  # No branch filter: promotion PRs (develop -> staging -> master) must run
-  # the same checks as feature PRs — these are required status checks.
+  # No branch filter: PRs into the master trunk must run the same checks as
+  # any other PR — these are required status checks.
   pull_request:
 
 concurrency:
