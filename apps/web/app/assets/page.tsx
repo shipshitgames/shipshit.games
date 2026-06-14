@@ -257,11 +257,13 @@ export default function AssetsPage() {
               </h3>
               {swarmRender ? (
                 <div className="mt-4 flex flex-1 items-center justify-center rounded-md border border-gunmetal bg-void p-4">
-                  <img
+                  <Image
                     src={swarmRender.publicPath}
                     alt="Swarm Ripper rendered for Scourge Survivors"
-                    loading="lazy"
-                    decoding="async"
+                    width={swarmRender.dimensions?.[0] ?? 256}
+                    height={swarmRender.dimensions?.[1] ?? 256}
+                    sizes="10rem"
+                    unoptimized
                     className="max-h-40 [image-rendering:pixelated]"
                   />
                 </div>
@@ -307,11 +309,13 @@ export default function AssetsPage() {
               </h3>
               {swarmRuntime ? (
                 <div className="mt-4 flex flex-1 items-center justify-center rounded-md border border-gunmetal bg-void p-4">
-                  <img
+                  <Image
                     src={swarmRuntime.publicPath}
                     alt="Swarm Ripper runtime sprite in the Scourge Survivors build"
-                    loading="lazy"
-                    decoding="async"
+                    width={swarmRuntime.dimensions?.[0] ?? 256}
+                    height={swarmRuntime.dimensions?.[1] ?? 256}
+                    sizes="10rem"
+                    unoptimized
                     className="max-h-40 [image-rendering:pixelated]"
                   />
                 </div>

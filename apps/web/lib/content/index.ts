@@ -19,7 +19,6 @@ import type {
   FactionEntry,
   GameLore,
   LoreSnapshot,
-  RoadmapBoard,
   RoadmapSnapshot,
   SiteMeta,
 } from "./types";
@@ -43,7 +42,7 @@ export function getFaction(slug: string): FactionEntry | null {
   return lore.factions.find((f) => f.slug === slug) ?? null;
 }
 
-export function getCharacter(slug: string): CharacterEntry | null {
+function getCharacter(slug: string): CharacterEntry | null {
   return lore.characters.find((c) => c.slug === slug) ?? null;
 }
 
@@ -59,10 +58,6 @@ export function getCreatures(slugs: string[]): BestiaryEntry[] {
   return slugs.map((slug) => getCreature(slug)).filter((b): b is BestiaryEntry => b !== null);
 }
 
-export function getCharactersByFaction(factionSlug: string): CharacterEntry[] {
-  return lore.characters.filter((c) => c.factionSlug === factionSlug);
-}
-
 export function getAssetIndex(): AssetIndexEntry[] {
   return assetIndex;
 }
@@ -74,11 +69,6 @@ export function getAssetsForGame(slug: string): AssetIndexEntry[] {
 /** Committed board snapshot; lib/github.ts may serve a fresher copy via ISR. */
 export function getRoadmapSnapshot(): RoadmapSnapshot {
   return roadmapSnapshot as RoadmapSnapshot;
-}
-
-export function getBoardForGame(slug: string): RoadmapBoard | null {
-  const snapshot = getRoadmapSnapshot();
-  return snapshot.boards.find((b) => b.scope === slug) ?? null;
 }
 
 /** Committed activity snapshot; lib/github.ts may serve a fresher copy via ISR. */

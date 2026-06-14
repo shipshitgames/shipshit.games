@@ -5,7 +5,8 @@
  * rows (game / kind / faction) with live counts, a pixelated card grid, and a
  * provenance lightbox driven by the filtered list.
  */
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 import type { AssetIndexEntry, AssetKind } from "@/lib/content/types";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,20 @@ interface Filters {
   game: string | null;
   kind: AssetKind | null;
   faction: FactionGroup | null;
+}
+
+let browserHydrated = false;
+
+function subscribeHydration(callback: () => void) {
+  if (!browserHydrated) {
+    browserHydrated = true;
+    queueMicrotask(callback);
+  }
+  return () => {};
+}
+
+function getHydrationSnapshot() {
+  return browserHydrated;
 }
 
 function matches(entry: AssetIndexEntry, filters: Filters): boolean {
@@ -58,8 +73,11 @@ export function AssetBrowser({
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   // Flipped after mount so e2e can wait for interactivity deterministically.
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    getHydrationSnapshot,
+    () => false
+  );
 
   const filtered = useMemo(
     () => assets.filter((entry) => matches(entry, filters)),
@@ -149,13 +167,14 @@ export function AssetBrowser({
               onClick={() => setActiveIndex(entryIndex)}
               className="group overflow-hidden rounded-md border border-gunmetal bg-coal text-left transition duration-300 hover:border-hellfire focus-visible:border-hellfire focus-visible:outline-none"
             >
-              <span className="flex aspect-square items-center justify-center bg-void p-4">
-                <img
+              <span className="relative flex aspect-square items-center justify-center bg-void">
+                <Image
                   src={entry.publicPath}
                   alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="max-h-full max-w-full object-contain [image-rendering:pixelated] transition duration-500 group-hover:scale-105"
+                  fill
+                  sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                  unoptimized
+                  className="object-contain p-4 [image-rendering:pixelated] transition duration-500 group-hover:scale-105"
                 />
               </span>
               <span className="block border-t border-gunmetal p-3">

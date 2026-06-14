@@ -1,5 +1,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+// Type-only: keeps node:crypto out of the desktop main bundle that imports register().
+import type { AssetProvenance, AssetHumanAuthorship } from "./provenance.ts";
 
 export interface AssetEntry {
   id: string;
@@ -24,10 +26,63 @@ export interface AssetEntry {
     usedColumns: number;
     usedRows: number;
   };
+  /** Animation clip names for sprite-anim assets (issue #71); e.g. ["idle","run","attack"]. */
+  clips?: string[];
+  /** Relative path to the animation frame map (`<id>.anim.json`) for sprite-anim assets. */
+  animation?: string;
+  /** Origin sprite this animation was expanded from (issue #71 provenance). */
+  origin?: string;
+  /** Audio playback metadata (issue #21); present for music/sfx/voice assets. */
+  category?: string;
+  volume?: number;
+  loop?: boolean;
+  duration?: number;
   /** Relative path to a generated billboard preview, if any. */
   preview?: string;
+  /** Reproducibility provenance (issue #55): provider/model/seed + prompt & style hashes. */
+  provenance?: AssetProvenance;
+  /** Human-authorship disclosure (issue #55), present when a person authored/edited the asset. */
+  human?: AssetHumanAuthorship;
+  /** 3D-model post-optimize flag (issue #20): true once the mandatory gltf-transform optimize has run. */
+  optimized?: boolean;
+  /** 3D-model compression provenance (issue #20): records exactly what optimize applied. */
+  compression?: ModelCompression;
+  /** Animation clip names bundled in a 3D model (issue #20); e.g. ["idle"]. */
+  animations?: string[];
+  /** glTF tallies for 3D models (issue #20), mirroring the asset index. */
+  meshes?: number;
+  materials?: number;
+  textures?: number;
+  skins?: number;
+  joints?: number;
   /** Required provenance/license record (issue #17): no generator may skip this. */
   license: AssetLicenseRecord;
+}
+
+/** What the mandatory gltf-transform optimize actually applied to a 3D model (issue #20). */
+export interface ModelCompression {
+  /** Draco geometry compression (KHR_draco_mesh_compression) applied. */
+  draco: boolean;
+  /** KTX2 / Basis texture supercompression applied (encoder-gated; see model3d). */
+  ktx2: boolean;
+  /** Final embedded-texture container: "ktx2", "webp", or "none" when the model has no textures. */
+  textureFormat: "ktx2" | "webp" | "none";
+  /** Raw GLB byte size as produced by the provider, before optimize. */
+  rawBytes: number;
+  /** Optimized GLB byte size written to disk. */
+  optimizedBytes: number;
+}
+
+/** Rig/skeleton provenance for a generated 3D model (issue #20 `license.rig`). */
+export interface AssetRigLicense {
+  /** Where the rig came from, e.g. a provider auto-rig, "mixamo", or "none" for a static mesh. */
+  source: string;
+  /** Whether the model carries a skin/skeleton. */
+  rigged: boolean;
+  /** Joint count in the skeleton. */
+  joints: number;
+  /** Animation clip names bundled with the rig. */
+  animations: string[];
 }
 
 export interface AssetLicenseRecord {
@@ -44,6 +99,8 @@ export interface AssetLicenseRecord {
   terms?: string;
   url?: string;
   generatedAt?: string;
+  /** Rig/skeleton provenance for generated 3D models (issue #20). */
+  rig?: AssetRigLicense;
 }
 
 /** Required provenance fields; every registered asset must carry all four. */

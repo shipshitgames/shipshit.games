@@ -1,7 +1,23 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
+import { Inter, Oswald } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+const oswald = Oswald({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  display: "swap",
+  variable: "--font-oswald",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://app.shipshit.games"),
@@ -20,19 +36,17 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
-        <head>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link
-            rel="preconnect"
-            href="https://fonts.gstatic.com"
-            crossOrigin="anonymous"
-          />
-          <link
-            href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"
-            rel="stylesheet"
-          />
-        </head>
+      <html
+        lang="en"
+        className={`${inter.variable} ${oswald.variable}`}
+        style={
+          {
+            "--font-body": 'var(--font-inter), system-ui, sans-serif',
+            "--font-display":
+              'var(--font-oswald), "Arial Narrow", "Helvetica Neue", sans-serif',
+          } as CSSProperties
+        }
+      >
         <body className="min-h-screen bg-void font-body text-ash antialiased">
           <div aria-hidden="true" className="grain pointer-events-none fixed inset-0 z-50" />
           {children}

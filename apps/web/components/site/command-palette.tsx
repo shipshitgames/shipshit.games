@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import {
@@ -58,6 +58,8 @@ export function CommandPalette() {
       return true;
     });
   }, []);
+  const openPaletteRef = useRef(openPalette);
+  openPaletteRef.current = openPalette;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -69,16 +71,17 @@ export function CommandPalette() {
         });
       }
     };
+    const onOpenPalette = () => openPaletteRef.current();
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener(PALETTE_OPEN_EVENT, openPalette);
+    window.addEventListener(PALETTE_OPEN_EVENT, onOpenPalette);
     // Hydration marker so tests (and the ⌘K hint) know the listener is live.
     document.body.dataset.paletteReady = "true";
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener(PALETTE_OPEN_EVENT, openPalette);
+      window.removeEventListener(PALETTE_OPEN_EVENT, onOpenPalette);
       delete document.body.dataset.paletteReady;
     };
-  }, [openPalette]);
+  }, []);
 
   const go = useCallback(
     (href: string) => {

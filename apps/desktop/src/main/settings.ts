@@ -7,7 +7,7 @@ import { uniqueProjects } from "./projects";
 import { FAL_IMAGE_KINDS } from "../../../../packages/assetgen/src/fal.ts";
 
 const DEFAULT_GAME = "scourge-survivors";
-const PROVIDERS = new Set(["codex", "openai", "fal", "replicate", "suno", "mock"]);
+const PROVIDERS = new Set(["codex", "openai", "fal", "replicate", "meshy", "tripo", "suno", "elevenlabs", "beatoven", "mock"]);
 const DEFAULT_PROVIDER_BY_KIND = {
   sprite: "codex",
   texture: "openai",
@@ -16,8 +16,9 @@ const DEFAULT_PROVIDER_BY_KIND = {
   music: "suno",
   sfx: "suno",
   voice: "suno",
-  model: "replicate",
-  "3d": "replicate",
+  // issue #20 names Meshy/Tripo as the 3D drivers; Meshy is the default.
+  model: "meshy",
+  "3d": "meshy",
 };
 const DEFAULTS = {
   defaultProvider: "codex",

@@ -16,6 +16,15 @@ export const ASSET_INDEX_FILE = "assets.index.json";
 const IMAGE_EXTS = new Set([".png", ".webp", ".jpg", ".jpeg", ".gif"]);
 const MODEL_EXTS = new Set([".glb", ".gltf"]);
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".turbo", "sources"]);
+
+/**
+ * True for already-packed atlas page images (`<base>.atlas0.webp`) and expanded
+ * sprite-anim pages (`<id>.anim0.webp`). Asset walkers must skip these so a
+ * second `assetgen atlas`/`index` run never re-packs an already-packed sheet.
+ */
+export function isPackedPageImage(name: string): boolean {
+  return /\.(atlas|anim)\d*\.webp$/i.test(name);
+}
 /** Above this frame count we skip per-frame blank scanning to stay fast. */
 const MAX_SHEET_FRAMES = 256;
 
@@ -155,7 +164,11 @@ function animationDuration(animation: GltfAnimation, accessors: GltfAccessor[]):
   return Number(max.toFixed(4));
 }
 
-function summarizeModel(doc: GltfDocument): Pick<ModelAsset, "meshes" | "materials" | "textures" | "skins" | "joints" | "animations"> {
+/** Mesh/material/skin/animation tallies derived from a glTF document. */
+export type ModelSummary = Pick<ModelAsset, "meshes" | "materials" | "textures" | "skins" | "joints" | "animations">;
+
+/** Summarize a parsed glTF document into manifest/index model metadata. Shared with the 3D generator (issue #20). */
+export function summarizeModel(doc: GltfDocument): ModelSummary {
   const accessors = doc.accessors ?? [];
   const skins = doc.skins ?? [];
   return {
@@ -329,6 +342,7 @@ async function walk(dir: string, out: string[]): Promise<void> {
       await walk(full, out);
     } else if (entry.isFile()) {
       const ext = extname(entry.name).toLowerCase();
+      if (isPackedPageImage(entry.name)) continue; // skip already-packed atlas/anim pages
       if (IMAGE_EXTS.has(ext) || MODEL_EXTS.has(ext)) out.push(full);
     }
   }

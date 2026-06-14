@@ -18,6 +18,26 @@ function buildGenerateArgs({ assetgenPath, settings, opts = {}, target = {} }: a
   if (opts?.scale) args.push("--scale", String(opts.scale));
   if (opts?.license) args.push("--license", String(opts.license));
   if (opts?.licenseUrl) args.push("--license-url", String(opts.licenseUrl));
+  // Audio flags (issue #21): only pushed when present so sprite arrays stay
+  // byte-identical to pre-audio tests.
+  if (opts?.category) args.push("--category", String(opts.category));
+  if (opts?.volume != null && opts?.volume !== "") args.push("--volume", String(opts.volume));
+  if (opts?.loop === true) args.push("--loop");
+  if (opts?.loop === false) args.push("--no-loop");
+  if (opts?.bitrate) args.push("--bitrate", String(opts.bitrate));
+  if (opts?.normalize) args.push("--normalize");
+  // Provenance flags (issue #55): only pushed when present so existing arg
+  // arrays stay byte-identical; seed of 0 is valid (only null/empty skip).
+  if (opts?.seed != null && opts?.seed !== "") args.push("--seed", String(opts.seed));
+  if (opts?.authored) args.push("--authored");
+  if (opts?.editKind) args.push("--edit-kind", String(opts.editKind));
+  // 3D-model flags (issue #20): only pushed when present so other kinds' arg
+  // arrays stay byte-identical. Draco is on by default, so emit --no-draco only
+  // when explicitly disabled; --ktx2 opts into the encoder-gated texture path.
+  if (opts?.ktx2) args.push("--ktx2");
+  if (opts?.draco === false) args.push("--no-draco");
+  if (opts?.rig) args.push("--rig", String(opts.rig));
+  // --model stays last so existing slice(-2) assertions hold.
   if (model) args.push("--model", String(model));
   return { args, provider, game, kind, repo, model };
 }

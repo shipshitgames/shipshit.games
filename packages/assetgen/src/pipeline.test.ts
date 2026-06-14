@@ -13,6 +13,8 @@ import {
   runAssetPipeline,
   withUsageAccounting,
 } from "./pipeline";
+import { promptHash, styleSuffixHash } from "./provenance";
+import { STYLE_SUFFIX } from "./style";
 
 test("runAssetPipeline enforces the five-step contract and returns a hot preview", async () => {
   const repo = await mkdtemp(join(tmpdir(), "assetgen-pipeline-test-"));
@@ -82,6 +84,15 @@ test("generateOne reports the selected provider/model before postprocess runs", 
   assert.equal(result.optimized.mediaType, "image/webp");
   assert.match(result.fullPrompt, /parasite-taken Scourge host/);
   assert.equal(result.context.kind, "sprite");
+
+  // Constraint #6: provenance hashes the RAW user prompt, never the sprite/style-
+  // augmented fullPrompt. The two diverge (fullPrompt wraps the raw prompt in the
+  // STYLE canon), so pinning exact values makes feeding fullPrompt here fail loudly
+  // instead of passing a bare 16-hex shape check.
+  assert.equal(result.provenance.promptHash, promptHash("a parasite-taken Scourge host"));
+  assert.notEqual(result.provenance.promptHash, promptHash(result.fullPrompt));
+  // styleSuffixHash is the canon style string for image kinds (empty only for audio).
+  assert.equal(result.provenance.styleSuffixHash, styleSuffixHash(STYLE_SUFFIX));
 });
 
 test("withUsageAccounting writes a success event with settle-time mutations applied", async () => {

@@ -15,9 +15,11 @@ import {
   uniqueProjects,
 } from "./projects";
 import { createMoodboardStore } from "./moodboards";
+import { createMapsStore } from "./maps";
 import { createGallery } from "./gallery";
 import { DEFAULT_GAME, DEFAULTS, normalizeSettings } from "./settings";
 import { buildGenerateArgs } from "./generate-args";
+import { parseGenerateResult, dataUrlFor } from "./generate-result";
 // Single, shared manifest writer + license validator (issue #17). The Electron
 // main process is bundled from TypeScript (vite-plugin-electron), so it imports
 // assetgen's register() directly — no CommonJS shim, one writer for both runtimes.
@@ -74,6 +76,12 @@ const terminalManager = createTerminalManager({
 });
 const moodboards = createMoodboardStore({
   rootDir: () => path.join(app.getPath("userData"), "moodboards"),
+});
+// Maps generator (#18): seeds engine-schema ArenaMap layouts in-process via the
+// pure assetgen core. Generated modules land in a Studio-owned maps dir; a human
+// copies them into the target game's data/maps.ts (shipped games live out-of-repo).
+const maps = createMapsStore({
+  rootDir: () => path.join(app.getPath("userData"), "maps"),
 });
 
 // Asset gallery reads the shared Deadrot @shipshitgames/assets package — the source
@@ -175,7 +183,7 @@ function resolveProjectTarget(opts: any = {}) {
 }
 
 // ---- keys (macOS keychain, shipcode-style) ----
-const KEY_SERVICES = { openai: "shipshit-openai", fal: "shipshit-fal", replicate: "shipshit-replicate", suno: "shipshit-suno" };
+const KEY_SERVICES = { openai: "shipshit-openai", fal: "shipshit-fal", replicate: "shipshit-replicate", meshy: "shipshit-meshy", tripo: "shipshit-tripo", suno: "shipshit-suno", elevenlabs: "shipshit-elevenlabs", beatoven: "shipshit-beatoven" };
 function hasKey(service) {
   try {
     const v = execFileSync("security", ["find-generic-password", "-a", "shipshit", "-s", service, "-w"], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
@@ -249,6 +257,12 @@ ipcMain.handle("moodboard:importImages", async (_e, game) => {
   });
   return r.canceled ? moodboards.readBoard(game || readSettings().defaultGame) : moodboards.importImages(game || readSettings().defaultGame, r.filePaths);
 });
+
+// ---- maps generator (#18): seed/validate/preview/write ArenaMap layouts ----
+// Same game source of truth as the rest of the app so the picker matches.
+ipcMain.handle("maps:listGames", () => listProjectState().projects.map((project) => project.slug));
+ipcMain.handle("maps:preview", (_e, opts = {}) => maps.preview(opts));
+ipcMain.handle("maps:write", (_e, opts = {}) => maps.write(opts));
 
 // ---- asset gallery (read-only review of the shared Deadrot assets package) ----
 ipcMain.handle("gallery:listGames", () => gallery.listGames());
@@ -361,13 +375,13 @@ ipcMain.handle("studio:generate", async (e, opts) => {
     const killer = setTimeout(() => { try { child.kill("SIGKILL"); send("\n[timed out after 300s]\n"); } catch {} }, 300_000);
     child.on("close", async (code) => {
       clearTimeout(killer);
-      const m = buf.match(/\[wrote\] (.+?\.webp)/);
+      const parsed = parseGenerateResult(buf);
       const p = buf.match(/\[billboard\] (.+?\.html)/);
-      let dataUrl = null, outPath = null, previewPath = null;
-      if (m) { outPath = m[1].trim(); try { dataUrl = `data:image/webp;base64,${(await fs.promises.readFile(outPath)).toString("base64")}`; } catch {} }
+      let dataUrl = null, outPath = null, previewPath = null, mediaType = null;
+      if (parsed) { outPath = parsed.path; mediaType = parsed.mediaType; try { dataUrl = dataUrlFor(parsed, await fs.promises.readFile(outPath)); } catch {} }
       if (p) previewPath = p[1].trim();
       send(`\n[exit ${code}]\n`);
-      resolve({ ok: code === 0 && !!m, log: buf, path: outPath, dataUrl, previewPath });
+      resolve({ ok: code === 0 && !!parsed, log: buf, path: outPath, dataUrl, previewPath, mediaType });
     });
   });
 });

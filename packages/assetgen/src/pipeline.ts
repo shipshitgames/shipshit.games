@@ -1,11 +1,14 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { buildPrompt } from "./style.ts";
+import { buildAudioPrompt, isAudioKind } from "./audio.ts";
+import { buildPrompt, STYLE_SUFFIX } from "./style.ts";
 import { assetProviders, generateAsset } from "./providers.ts";
 import type { AssetKind, GeneratedAsset, ProviderId } from "./providers.ts";
 import { toWebp } from "./postprocess.ts";
 import { register, REQUIRED_LICENSE_FIELDS } from "./manifest.ts";
 import type { AssetEntry, AssetLicenseRecord } from "./manifest.ts";
+import { buildProvenance } from "./provenance.ts";
+import type { AssetHumanAuthorship, AssetProvenance } from "./provenance.ts";
 import { appendUsageLog } from "./usage.ts";
 import type { UsageLogEvent } from "./usage.ts";
 
@@ -86,6 +89,10 @@ export interface AssetPipelineOptions {
   outputRoot?: string;
   manifestPath?: string;
   model?: string;
+  /** Reproducibility seed forwarded to seedable providers (openai/fal). */
+  seed?: number;
+  /** Human-authorship disclosure recorded alongside provenance. */
+  human?: AssetHumanAuthorship;
   usageLogPath?: string | null;
   usageCommand?: UsageLogEvent["command"];
   includePreviewDataUrl?: boolean;
@@ -147,6 +154,10 @@ export interface GenerateOneOptions {
   provider: string;
   size: number;
   model?: string;
+  /** Reproducibility seed forwarded to seedable providers (openai/fal). */
+  seed?: number;
+  /** Injectable clock so the provenance date matches the caller's license date. */
+  now?: () => Date;
   postprocess?: AssetPostprocessHook;
   /** Fires right after the provider responds, before postprocess, so callers can record the actually-used provider/model even if postprocess fails. */
   onGenerated?: (generated: GeneratedAsset & { provider: ProviderId }) => void;
@@ -159,19 +170,27 @@ export interface GenerateOneResult {
   generated: GeneratedAsset & { provider: ProviderId };
   optimized: OptimizedAsset;
   context: AssetPipelineContext;
+  /** Reproducibility provenance computed from the prompt, style canon, and provider meta. */
+  provenance: AssetProvenance;
 }
 
 /** The shared per-asset core: build prompt, generate, post-process. */
 export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOneResult> {
-  const fullPrompt = await runStep(opts, "prompt", "build prompt", async () =>
-    buildPrompt({ prompt: opts.promptForBuild ?? opts.prompt, game: opts.game, kind: opts.kind }),
-  );
+  const fullPrompt = await runStep(opts, "prompt", "build prompt", async () => {
+    const promptText = opts.promptForBuild ?? opts.prompt;
+    if (isAudioKind(opts.kind)) return buildAudioPrompt({ prompt: promptText, kind: opts.kind });
+    // 3D models (issue #20) drive mesh providers (Meshy/Tripo); the 2D pixel-art
+    // style suffix would fight a 3D generator, so feed the raw prompt through.
+    if (opts.kind === "model" || opts.kind === "3d") return promptText;
+    return buildPrompt({ prompt: promptText, game: opts.game, kind: opts.kind });
+  });
 
   const generated = await runStep(opts, "generate", `generate ${opts.kind}`, async () =>
     generateAsset(opts.kind, fullPrompt, {
       provider: opts.provider,
       size: `${opts.size}x${opts.size}`,
       model: opts.model,
+      seed: opts.seed,
       log: opts.log ?? (() => {}),
     }),
   );
@@ -191,7 +210,17 @@ export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOne
     (opts.postprocess ?? defaultPostprocess)(generated, context),
   );
 
-  return { fullPrompt, generated, optimized, context };
+  // promptHash always covers the raw user prompt; the style hash is empty for
+  // kinds without a style suffix (audio), and the canon string for image kinds.
+  const provenance = buildProvenance({
+    provider: generated.provider,
+    prompt: opts.prompt,
+    styleSuffix: isAudioKind(opts.kind) ? "" : STYLE_SUFFIX,
+    date: opts.now?.() ?? new Date(),
+    meta: generated.meta,
+  });
+
+  return { fullPrompt, generated, optimized, context, provenance };
 }
 
 export interface UsageAccountingOptions {
@@ -260,7 +289,7 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
       }),
     },
     async () => {
-      const { fullPrompt, generated, optimized } = await generateOne({
+      const { fullPrompt, generated, optimized, provenance } = await generateOne({
         id: opts.id,
         prompt: opts.prompt,
         promptForBuild: opts.promptForBuild,
@@ -269,6 +298,8 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
         provider: opts.provider,
         size: opts.size,
         model: opts.model,
+        seed: opts.seed,
+        now: opts.now,
         postprocess: opts.postprocess,
         onGenerated: (asset) => {
           selectedProvider = asset.provider;
@@ -295,6 +326,8 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
           prompt: opts.prompt,
           provider: generated.provider,
           ...(optimized.entryFields ?? {}),
+          provenance,
+          ...(opts.human ? { human: opts.human } : {}),
           license: {
             ...licenseForGeneration({
               provider: generated.provider,
@@ -366,7 +399,7 @@ export function licenseForGeneration(opts: {
 }
 
 export function assetSubdirForKind(kind: string): string {
-  if (kind === "sprite") return "sprites";
+  if (kind === "sprite" || kind === "sprite-anim") return "sprites";
   if (kind === "texture") return "textures";
   if (kind === "icon") return "icons";
   if (kind === "music" || kind === "sfx" || kind === "voice") return `audio/${kind}`;

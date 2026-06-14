@@ -76,10 +76,9 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
 
   return (
     <main>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdString(videoGameJsonLd(game, lore)) }}
-      />
+      <script type="application/ld+json">
+        {jsonLdString(videoGameJsonLd(game, lore))}
+      </script>
 
       <GameHero game={game} lore={lore} />
       {lore ? <GameFeatures features={lore.features} accent={accent} /> : null}

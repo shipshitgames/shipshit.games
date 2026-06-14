@@ -11,7 +11,8 @@ import { Backdrop, EmberParticles } from "@/components/site/atmosphere";
 import { Signup } from "@/components/site/signup";
 import { GameRailCard } from "@/components/home/game-rail-card";
 import { GamesRail } from "@/components/home/games-rail";
-import { EventGlyph, utcDay } from "@/components/log/event-feed";
+import { EventGlyph } from "@/components/log/event-feed";
+import { utcDay } from "@/components/log/event-feed-utils";
 import { CONTENT_MANIFEST, getActivitySnapshot } from "@/lib/content";
 import { formatUsd, SKILLS_PRO_EARLY_PRICE_USD } from "@/lib/skills-pro";
 

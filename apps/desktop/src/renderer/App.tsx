@@ -3,6 +3,9 @@ import { Terminal } from "@xterm/xterm";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import "@xterm/xterm/css/xterm.css";
 
+import { ModelPreview } from "./ModelPreview";
+import { isModelResult } from "./model-preview-config";
+
 // Studio cockpit. Sprites is wired to @shipshitgames/assetgen via the studio IPC bridge with a
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
 // Default provider = codex CLI (your subscription — no API key).
@@ -11,7 +14,7 @@ type SectionId = "projects" | "gallery" | "maps" | "sprites" | "music" | "3d" | 
 type Group = "Generators" | "Art Direction" | "Ressources" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
-interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null; previewPath?: string | null }
+interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null; previewPath?: string | null; mediaType?: string | null }
 interface ResearchResult { ok: boolean; log: string; path: string | null; rules: string | null }
 interface ProjectAsset { id: string; kind: string; path: string; game: string | null }
 interface ProjectSummary {
@@ -88,6 +91,45 @@ interface GalleryResult {
   assets: GalleryAsset[];
   embeddedBytes?: number;
 }
+interface MapValidationIssue { code: string; message: string; obstacleId?: string }
+interface MapValidationResult { ok: boolean; issues: MapValidationIssue[] }
+interface MapSummary {
+  id: string;
+  name: string;
+  rooms: number;
+  levels: number;
+  obstacles: number;
+  lights: number;
+  bounds: { kind: "square"; half: number } | { kind: "rect"; minX: number; maxX: number; minZ: number; maxZ: number };
+}
+interface MapsGenOptions {
+  id: string;
+  game?: string;
+  name?: string;
+  seed?: number;
+  rooms?: number;
+  levels?: number;
+  half?: number;
+  coverPerRoom?: number;
+  spawnRadius?: number;
+  spawn?: { x: number; z: number };
+}
+interface MapPreviewResult {
+  ok: boolean;
+  dataUrl: string;
+  svg: string;
+  moduleText: string;
+  summary: MapSummary;
+  validation: MapValidationResult;
+}
+interface MapWriteResult {
+  ok: boolean;
+  path?: string;
+  svgPath?: string;
+  game?: string;
+  summary: MapSummary;
+  validation: MapValidationResult;
+}
 
 declare global {
   interface Window {
@@ -109,6 +151,14 @@ declare global {
         scale?: number;
         license?: string;
         licenseUrl?: string;
+        category?: string;
+        volume?: number;
+        loop?: boolean;
+        bitrate?: number;
+        normalize?: boolean;
+        ktx2?: boolean;
+        draco?: boolean;
+        rig?: string;
       }) => Promise<GenResult>;
       listGames: () => Promise<string[]>;
       onGenLog: (cb: (chunk: string) => void) => () => void;
@@ -148,6 +198,11 @@ declare global {
         setVisualTarget: (game: string, id: string, visualTarget: boolean) => Promise<Moodboard>;
         removeItem: (game: string, id: string) => Promise<Moodboard>;
       };
+      maps: {
+        listGames: () => Promise<string[]>;
+        preview: (opts: MapsGenOptions) => Promise<MapPreviewResult>;
+        write: (opts: MapsGenOptions) => Promise<MapWriteResult>;
+      };
     };
   }
 }
@@ -177,6 +232,8 @@ const KEYED = [
   { id: "openai", label: "OpenAI" },
   { id: "fal", label: "fal.ai" },
   { id: "replicate", label: "Replicate" },
+  { id: "meshy", label: "Meshy" },
+  { id: "tripo", label: "Tripo" },
   { id: "suno", label: "Suno" },
 ];
 const DEFAULT_PROVIDER_BY_KIND: Record<string, string> = {
@@ -187,8 +244,8 @@ const DEFAULT_PROVIDER_BY_KIND: Record<string, string> = {
   music: "suno",
   sfx: "suno",
   voice: "suno",
-  model: "replicate",
-  "3d": "replicate",
+  model: "meshy",
+  "3d": "meshy",
 };
 const ASSET_DEFAULTS = [
   { kind: "sprite", label: "Sprites" },
@@ -290,9 +347,10 @@ function SettingsPane() {
       </div>
       <div className="set-group">
         <div className="set-group-title">fal.ai model by asset type</div>
-        {ASSET_DEFAULTS.filter((item) => FAL_MODEL_KINDS.has(item.kind)).map((item) => {
+        {ASSET_DEFAULTS.flatMap((item) => {
+          if (!FAL_MODEL_KINDS.has(item.kind)) return [];
           const chosen = settings.falModelDefaults[item.kind] || "";
-          return (
+          return [(
             <label className="set-provider-row" key={item.kind}>
               <span>{item.label}</span>
               <select value={chosen} onChange={(e) => updateKindFalModel(item.kind, e.target.value)}>
@@ -301,7 +359,7 @@ function SettingsPane() {
                 {chosen && !falModels.some((m) => m.id === chosen) && <option value={chosen}>{chosen} (custom)</option>}
               </select>
             </label>
-          );
+          )];
         })}
       </div>
       <div className="set-group">
@@ -562,6 +620,142 @@ function SpritesPane() {
   );
 }
 
+// 3D pane (issue #20): drives @shipshitgames/assetgen's model pipeline — provider
+// GLB → mandatory gltf-transform optimize (Draco geometry, encoder-gated KTX2 else
+// WebP textures) → manifest entry — then previews the optimized GLB in-process with
+// the Draco+KTX2-wired three.js loader (ModelPreview).
+const MODEL_PROVIDERS = ["meshy", "tripo", "mock"];
+
+function ModelPane() {
+  const [id, setId] = useState("stone-golem");
+  const [prompt, setPrompt] = useState("a hulking moss-covered stone golem, game-ready, neutral T-pose");
+  const [game, setGame] = useState("scourge-survivors");
+  const [games, setGames] = useState<string[]>(["scourge-survivors"]);
+  const [projectState, setProjectState] = useState<ProjectState>(EMPTY_PROJECT_STATE);
+  const [projectId, setProjectId] = useState("");
+  const [provider, setProvider] = useState("meshy");
+  const [rig, setRig] = useState("");
+  const [draco, setDraco] = useState(true);
+  const [ktx2, setKtx2] = useState(false);
+  const [license, setLicense] = useState("ai-generated; review 3D + rig license before shipping");
+  const [busy, setBusy] = useState(false);
+  const [log, setLog] = useState("");
+  const [result, setResult] = useState<GenResult | null>(null);
+  const selectedProject = projectState.projects.find((project) => project.id === projectId) || activeProject(projectState);
+
+  useEffect(() => {
+    window.studio?.settings.get().then((s) => {
+      const next = withSettingsDefaults(s);
+      setProvider(next.providerDefaults.model || next.providerDefaults["3d"] || "meshy");
+      setGame(next.defaultGame);
+    }).catch(() => {});
+    window.studio?.projects.list().then((state) => {
+      setProjectState(state);
+      const current = activeProject(state);
+      if (current) {
+        setProjectId(current.id);
+        setGame(current.slug);
+        setGames(state.projects.map((project) => project.slug));
+      }
+    }).catch(() => {
+      window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
+    });
+    const off = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    return () => { off?.(); };
+  }, []);
+
+  async function changeProject(id: string) {
+    setProjectId(id);
+    const next = await window.studio?.projects.setActive(id);
+    if (!next) return;
+    setProjectState(next);
+    const current = activeProject(next);
+    if (current) setGame(current.slug);
+  }
+
+  async function generate() {
+    if (!window.studio?.generate) { setLog("studio bridge unavailable — restart the app"); return; }
+    if (selectedProject && !selectedProject.valid) { setLog(selectedProject.error || "invalid project manifest"); return; }
+    setBusy(true);
+    setResult(null);
+    setLog("");
+    try {
+      setResult(await window.studio.generate({
+        id,
+        prompt,
+        game: selectedProject?.slug || game,
+        projectId: selectedProject?.id,
+        kind: "model",
+        provider,
+        draco,
+        ktx2,
+        rig: rig.trim() || undefined,
+        license,
+      }));
+    } catch (e) {
+      setLog(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const showPreview = !!result?.dataUrl && isModelResult(result?.mediaType);
+
+  return (
+    <div className="gen">
+      <div className="gen-form">
+        <label className="gen-field"><span>Asset ID</span>
+          <input value={id} onChange={(e) => setId(e.target.value)} placeholder="stone-golem" />
+        </label>
+        <label className="gen-field gen-grow"><span>Prompt</span>
+          <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
+        </label>
+        <label className="gen-field"><span>Game</span>
+          <select value={selectedProject ? selectedProject.id : game} onChange={(e) => {
+            if (projectState.projects.length) void changeProject(e.target.value);
+            else setGame(e.target.value);
+          }}>
+            {projectState.projects.length
+              ? projectState.projects.map((project) => <option key={project.id} value={project.id}>{project.name} · {project.slug}</option>)
+              : games.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+        <div className="gen-row">
+          <label className="gen-field"><span>Provider</span>
+            <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+              {MODEL_PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
+          <label className="gen-field"><span>Rig source</span>
+            <input value={rig} onChange={(e) => setRig(e.target.value)} placeholder="provider default" />
+          </label>
+        </div>
+        <div className="gen-row">
+          <label className="gen-check"><input type="checkbox" checked={draco} onChange={(e) => setDraco(e.target.checked)} /><span>Draco geometry</span></label>
+          <label className="gen-check"><input type="checkbox" checked={ktx2} onChange={(e) => setKtx2(e.target.checked)} /><span>KTX2 textures (else WebP)</span></label>
+        </div>
+        <label className="gen-field"><span>License record</span>
+          <input value={license} onChange={(e) => setLicense(e.target.value)} />
+        </label>
+        <div className="gen-active">3D provider <b>{provider}</b> · optimize: Draco {draco ? "on" : "off"} · textures {ktx2 ? "KTX2→WebP fallback" : "WebP"} · change defaults in Settings (topbar ⚙)</div>
+        {selectedProject?.manifestPath && <div className="gen-manifest">manifest {selectedProject.manifestPath}</div>}
+        {selectedProject && !selectedProject.valid && <div className="project-error">{selectedProject.error}</div>}
+        <button className="gen-btn" type="button" disabled={busy || !id || !prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
+          {busy ? "Sculpting…" : "Generate"}
+        </button>
+        <p className="gen-note">Drives Meshy/Tripo (or mock), runs the mandatory gltf-transform optimize, writes the .glb + records optimized/compression/animations + a license.rig entry. KTX2 needs a KTX-Software encoder; without one, textures fall back to WebP.</p>
+      </div>
+      <div className="gen-preview">
+        {showPreview ? (
+          <ModelPreview src={result!.dataUrl!} label={id} />
+        ) : <div className="gen-preview-empty">{busy ? "sculpting…" : "preview"}</div>}
+        {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
+        {result?.path && <div className="gen-path">{result.path}</div>}
+      </div>
+    </div>
+  );
+}
+
 function slugFromUrl(url: string): string {
   const m = url.match(/(?:v=|youtu\.be\/|\/embed\/|\/shorts\/)([A-Za-z0-9_-]{11})/);
   return m ? m[1].toLowerCase() : "ruleset";
@@ -624,9 +818,33 @@ function ResearchPane() {
   );
 }
 
-// Audio transcode tool: any source audio → WebM/Opus (the studio format) straight into
-// a game's src/assets/audio/<category>/, via ffmpeg in the Electron main process.
+// Per-category provider options for the Generate-from-prompt mode. suno stays the
+// pipeline default for all three kinds; named perpetual-commercial providers
+// (ElevenLabs SFX, Beatoven music — issue #21) are offered as selectable choices.
+const AUDIO_PROVIDERS_BY_CATEGORY: Record<"sfx" | "music" | "voice", { id: string; label: string }[]> = {
+  sfx: [
+    { id: "elevenlabs", label: "ElevenLabs (SFX)" },
+    { id: "suno", label: "Suno" },
+    { id: "mock", label: "Mock (offline test)" },
+  ],
+  music: [
+    { id: "beatoven", label: "Beatoven (music loops)" },
+    { id: "suno", label: "Suno" },
+    { id: "mock", label: "Mock (offline test)" },
+  ],
+  voice: [
+    { id: "suno", label: "Suno" },
+    { id: "mock", label: "Mock (offline test)" },
+  ],
+};
+const defaultProviderForCategory = (category: "sfx" | "music" | "voice") => AUDIO_PROVIDERS_BY_CATEGORY[category][0].id;
+
+// Music + SFX pane: two modes. "Generate" drives @shipshitgames/assetgen to make a
+// music loop / SFX / voice clip from a prompt (named perpetual-commercial providers),
+// encodes to WebM/Opus and registers it. "Transcode" brings your own audio file →
+// WebM/Opus via ffmpeg. Both write into a game's src/assets/audio/<category>/.
 function MusicPane() {
+  const [mode, setMode] = useState<"generate" | "transcode">("generate");
   const [files, setFiles] = useState<string[]>([]);
   const [game, setGame] = useState("scourge-survivors");
   const [games, setGames] = useState<string[]>(["scourge-survivors"]);
@@ -638,6 +856,15 @@ function MusicPane() {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState("");
   const [result, setResult] = useState<{ ok: boolean; log: string; outputs: string[] } | null>(null);
+  // Generate-mode state (shares category/bitrate/normalize with transcode).
+  const [genId, setGenId] = useState("impact-hit");
+  const [prompt, setPrompt] = useState("a brutal metallic impact hit, short and punchy");
+  const [provider, setProvider] = useState(() => defaultProviderForCategory("music"));
+  const [loop, setLoop] = useState(true);
+  const [volume, setVolume] = useState(1);
+  const [license, setLicense] = useState("perpetual commercial; review before shipping");
+  const [genBusy, setGenBusy] = useState(false);
+  const [genResult, setGenResult] = useState<GenResult | null>(null);
   const selectedProject = projectState.projects.find((project) => project.id === projectId) || activeProject(projectState);
 
   useEffect(() => {
@@ -653,9 +880,17 @@ function MusicPane() {
     }).catch(() => {
       window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
     });
-    const off = window.studio?.onTranscodeLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
-    return () => { off?.(); };
+    const offTranscode = window.studio?.onTranscodeLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    const offGen = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    return () => { offTranscode?.(); offGen?.(); };
   }, []);
+
+  // Pick a sensible default provider + loop default when the category changes.
+  function changeCategory(next: "sfx" | "music" | "voice") {
+    setCategory(next);
+    setProvider(defaultProviderForCategory(next));
+    setLoop(next === "music");
+  }
 
   async function changeProject(id: string) {
     setProjectId(id);
@@ -693,13 +928,43 @@ function MusicPane() {
     }
   }
 
+  async function generate() {
+    if (!window.studio?.generate) { setLog("studio bridge unavailable — restart the app"); return; }
+    if (selectedProject && !selectedProject.valid) { setLog(selectedProject.error || "invalid project manifest"); return; }
+    setGenBusy(true);
+    setGenResult(null);
+    setLog("");
+    try {
+      setGenResult(await window.studio.generate({
+        id: genId,
+        prompt,
+        game: selectedProject?.slug || game,
+        projectId: selectedProject?.id,
+        kind: category,
+        provider,
+        category,
+        bitrate,
+        normalize,
+        loop,
+        volume,
+        license,
+      }));
+    } catch (e) {
+      setLog(String((e as Error)?.message ?? e));
+    } finally {
+      setGenBusy(false);
+    }
+  }
+
+  const providerOptions = AUDIO_PROVIDERS_BY_CATEGORY[category];
+
   return (
     <div className="gen">
       <div className="gen-form">
-        <button className="set-btn" type="button" onClick={pick}>
-          {files.length ? `${files.length} file(s) selected — change` : "Pick source audio…"}
-        </button>
-        {files.length > 0 && <p className="gen-note">{files.map((f) => f.split("/").pop()).join(", ")}</p>}
+        <div className="gen-row">
+          <button className={"set-btn" + (mode === "generate" ? " is-active" : "")} type="button" onClick={() => setMode("generate")}>Generate from prompt</button>
+          <button className={"set-btn" + (mode === "transcode" ? " is-active" : "")} type="button" onClick={() => setMode("transcode")}>Transcode a file</button>
+        </div>
         <label className="gen-field"><span>Game</span>
           <select value={selectedProject ? selectedProject.id : game} onChange={(e) => {
             if (projectState.projects.length) void changeProject(e.target.value);
@@ -713,7 +978,7 @@ function MusicPane() {
         {selectedProject?.manifestPath && <div className="gen-manifest">manifest {selectedProject.manifestPath}</div>}
         {selectedProject && !selectedProject.valid && <div className="project-error">{selectedProject.error}</div>}
         <label className="gen-field"><span>Category → src/assets/audio/&lt;category&gt;/</span>
-          <select value={category} onChange={(e) => setCategory(e.target.value as "sfx" | "music" | "voice")}>
+          <select value={category} onChange={(e) => changeCategory(e.target.value as "sfx" | "music" | "voice")}>
             <option value="sfx">sfx</option>
             <option value="music">music</option>
             <option value="voice">voice</option>
@@ -723,16 +988,64 @@ function MusicPane() {
           <input type="number" min={32} max={320} value={bitrate} onChange={(e) => setBitrate(Number(e.target.value) || 128)} />
         </label>
         <label className="gen-field"><span><input type="checkbox" checked={normalize} onChange={(e) => setNormalize(e.target.checked)} /> loudnorm (recommended for SFX)</span></label>
-        <button className="gen-btn" type="button" disabled={busy || !files.length || !!(selectedProject && !selectedProject.valid)} onClick={transcode}>
-          {busy ? "Transcoding…" : "Transcode → WebM/Opus"}
-        </button>
-        <p className="gen-note">ffmpeg → opus into the game's audio folder · strips cover art · registers each output in assets.json with a license record. Generate new SFX with ElevenLabs SFX / OptimizerAI; music with Soundraw / Beatoven (avoid Udio/Suno for shipped in-game loops).</p>
+
+        {mode === "generate" ? (
+          <>
+            <label className="gen-field"><span>Asset ID</span>
+              <input value={genId} onChange={(e) => setGenId(e.target.value)} placeholder="impact-hit" />
+            </label>
+            <label className="gen-field gen-grow"><span>Prompt</span>
+              <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
+            </label>
+            <label className="gen-field"><span>Provider</span>
+              <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+                {providerOptions.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </label>
+            <div className="gen-row">
+              <label className="gen-field"><span><input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} /> loop</span></label>
+              <label className="gen-field"><span>Volume (0–1)</span>
+                <input type="number" min={0} max={1} step={0.05} value={volume} onChange={(e) => setVolume(Math.max(0, Math.min(1, Number(e.target.value) || 0)))} />
+              </label>
+            </div>
+            <label className="gen-field"><span>License record</span>
+              <input value={license} onChange={(e) => setLicense(e.target.value)} />
+            </label>
+            <button className="gen-btn" type="button" disabled={genBusy || !genId || !prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
+              {genBusy ? "Generating…" : "Generate"}
+            </button>
+            <p className="gen-note">Generates a {category} clip → encodes to WebM/Opus → registers it in assets.json with category/volume/loop + a license record. Music loops via Soundraw / Beatoven, SFX via ElevenLabs / OptimizerAI (avoid Udio for shipped in-game loops).</p>
+          </>
+        ) : (
+          <>
+            <button className="set-btn" type="button" onClick={pick}>
+              {files.length ? `${files.length} file(s) selected — change` : "Pick source audio…"}
+            </button>
+            {files.length > 0 && <p className="gen-note">{files.map((f) => f.split("/").pop()).join(", ")}</p>}
+            <button className="gen-btn" type="button" disabled={busy || !files.length || !!(selectedProject && !selectedProject.valid)} onClick={transcode}>
+              {busy ? "Transcoding…" : "Transcode → WebM/Opus"}
+            </button>
+            <p className="gen-note">ffmpeg → opus into the game's audio folder · strips cover art · registers each output in assets.json with a license record.</p>
+          </>
+        )}
       </div>
       <div className="gen-preview">
-        {result?.outputs?.length
-          ? <pre className="gen-rules">{result.outputs.map((o) => o.split("/").slice(-2).join("/")).join("\n")}</pre>
-          : <div className="gen-preview-empty">{busy ? "transcoding…" : "outputs"}</div>}
-        {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
+        {mode === "generate" ? (
+          <>
+            {genResult?.dataUrl
+              ? <audio controls src={genResult.dataUrl} aria-label={`${genId} preview`}><track kind="captions" /></audio>
+              : <div className="gen-preview-empty">{genBusy ? "generating…" : "preview"}</div>}
+            {(log || genResult) && <pre className={"gen-log" + (genResult && !genResult.ok ? " is-err" : "")}>{log || "—"}</pre>}
+            {genResult?.path && <div className="gen-path">{genResult.path}</div>}
+          </>
+        ) : (
+          <>
+            {result?.outputs?.length
+              ? <pre className="gen-rules">{result.outputs.map((o) => o.split("/").slice(-2).join("/")).join("\n")}</pre>
+              : <div className="gen-preview-empty">{busy ? "transcoding…" : "outputs"}</div>}
+            {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
+          </>
+        )}
       </div>
     </div>
   );
@@ -1324,6 +1637,127 @@ function GalleryPane() {
   );
 }
 
+function MapsPane() {
+  const [id, setId] = useState("breach-alpha");
+  const [name, setName] = useState("");
+  const [game, setGame] = useState("scourge-survivors");
+  const [games, setGames] = useState<string[]>(["scourge-survivors"]);
+  const [seed, setSeed] = useState(1);
+  const [rooms, setRooms] = useState(6);
+  const [levels, setLevels] = useState(2);
+  const [half, setHalf] = useState(24);
+  const [coverPerRoom, setCoverPerRoom] = useState(3);
+  const [spawnRadius, setSpawnRadius] = useState(2.5);
+  const [preview, setPreview] = useState<MapPreviewResult | null>(null);
+  const [written, setWritten] = useState<MapWriteResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const options: MapsGenOptions = useMemo(
+    () => ({ id, name: name.trim() || undefined, game, seed, rooms, levels, half, coverPerRoom, spawnRadius }),
+    [id, name, game, seed, rooms, levels, half, coverPerRoom, spawnRadius],
+  );
+
+  useEffect(() => {
+    window.studio?.settings.get().then((s) => s.defaultGame && setGame(s.defaultGame)).catch(() => {});
+    window.studio?.maps.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
+  }, []);
+
+  // Live preview — the generator is pure + in-process, so it is cheap to re-seed
+  // on every input change. Failures surface in the validation panel, not a throw.
+  useEffect(() => {
+    if (!window.studio?.maps || !id.trim()) { setPreview(null); return; }
+    let live = true;
+    setError("");
+    window.studio.maps.preview(options)
+      .then((next) => { if (live) { setPreview(next); setWritten(null); } })
+      .catch((e) => { if (live) setError(String((e as Error)?.message ?? e)); });
+    return () => { live = false; };
+  }, [options, id]);
+
+  async function write() {
+    if (!window.studio?.maps) { setError("studio bridge unavailable — restart the app"); return; }
+    if (!id.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await window.studio.maps.write(options);
+      setWritten(result);
+      if (!result.ok) setError("layout failed validation — fix the issues above before writing");
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const summary = preview?.summary;
+  const issues = preview && !preview.ok ? preview.validation.issues : [];
+
+  return (
+    <div className="gen">
+      <div className="gen-form">
+        <label className="gen-field"><span>Map ID</span>
+          <input value={id} onChange={(e) => setId(e.target.value)} placeholder="breach-alpha" />
+        </label>
+        <label className="gen-field"><span>Display name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="(defaults to “<id> breach arena”)" />
+        </label>
+        <label className="gen-field"><span>Game</span>
+          <select value={game} onChange={(e) => setGame(e.target.value)}>
+            {games.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+        <div className="gen-row">
+          <label className="gen-field"><span>Seed</span>
+            <input type="number" min={0} value={seed} onChange={(e) => setSeed(Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
+          </label>
+          <label className="gen-field"><span>Rooms</span>
+            <input type="number" min={1} max={64} value={rooms} onChange={(e) => setRooms(Math.max(1, Math.min(64, Number(e.target.value) || 1)))} />
+          </label>
+        </div>
+        <div className="gen-row">
+          <label className="gen-field"><span>Levels</span>
+            <input type="number" min={1} max={8} value={levels} onChange={(e) => setLevels(Math.max(1, Math.min(8, Number(e.target.value) || 1)))} />
+          </label>
+          <label className="gen-field"><span>Arena half-extent (m)</span>
+            <input type="number" min={8} max={200} value={half} onChange={(e) => setHalf(Math.max(8, Math.min(200, Number(e.target.value) || 24)))} />
+          </label>
+        </div>
+        <div className="gen-row">
+          <label className="gen-field"><span>Cover / room</span>
+            <input type="number" min={0} max={20} value={coverPerRoom} onChange={(e) => setCoverPerRoom(Math.max(0, Math.min(20, Number(e.target.value) || 0)))} />
+          </label>
+          <label className="gen-field"><span>Spawn radius (m)</span>
+            <input type="number" min={0.5} max={20} step={0.5} value={spawnRadius} onChange={(e) => setSpawnRadius(Math.max(0.5, Math.min(20, Number(e.target.value) || 2.5)))} />
+          </label>
+        </div>
+        <div className="gen-active">preset <b>breach-arena</b> · seeded engine ArenaMap · validated geometry</div>
+        <button className="gen-btn" type="button" disabled={busy || !id.trim() || !!(preview && !preview.ok)} onClick={write}>
+          {busy ? "Writing…" : "Write map module"}
+        </button>
+        <p className="gen-note">Writes a typed <code>{`${id || "<id>"}.maps.ts`}</code> (+ SVG) into the Studio maps folder — copy it into the target game’s <code>data/maps.ts</code>. Layout is deterministic per seed.</p>
+      </div>
+      <div className="gen-preview">
+        {preview?.dataUrl ? (
+          <img className="map-preview" src={preview.dataUrl} alt={`${id} top-down preview`} />
+        ) : <div className="gen-preview-empty">preview</div>}
+        {summary && (
+          <div className="gen-active">
+            {summary.rooms} rooms · {summary.levels} levels · {summary.obstacles} obstacles · {summary.lights} lights
+          </div>
+        )}
+        {issues.length > 0 && (
+          <pre className="gen-log is-err">{issues.map((i) => `[${i.code}] ${i.message}`).join("\n")}</pre>
+        )}
+        {error && <pre className="gen-log is-err">{error}</pre>}
+        {written?.ok && written.path && <div className="gen-path">{written.path}</div>}
+        {written?.ok && written.svgPath && <div className="gen-path">{written.svgPath}</div>}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState<SectionId>("sprites");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1365,7 +1799,7 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "projects" ? <ProjectsPane /> : active === "gallery" ? <GalleryPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "moodboard" ? <MoodboardPane /> : active === "research" ? <ResearchPane /> : (
+            {active === "projects" ? <ProjectsPane /> : active === "gallery" ? <GalleryPane /> : active === "maps" ? <MapsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "3d" ? <ModelPane /> : active === "moodboard" ? <MoodboardPane /> : active === "research" ? <ResearchPane /> : (
               <div className="placeholder-card">
                 <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
                 <p><strong>{section.label}</strong> workspace coming online.</p>

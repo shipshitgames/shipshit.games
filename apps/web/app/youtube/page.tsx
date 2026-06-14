@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { ArrowRight, MonitorPlay, Radio, Terminal } from "lucide-react";
 
 import { Backdrop } from "@/components/site/atmosphere";
@@ -13,6 +14,12 @@ const CHANNEL_URL = "https://youtube.com/@ShipShitShow";
 
 const FEATURED_ICONS = [Terminal, Radio] as const;
 const FEATURED_LABELS = ["Latest build video", "Latest livestream"] as const;
+const PUBLISHED_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 export const metadata: Metadata = {
   title: "Ship Shit Show",
@@ -47,12 +54,7 @@ function formatPublished(published: string): string {
   if (!published.includes("T")) return published;
   const date = new Date(published);
   if (Number.isNaN(date.getTime())) return published;
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
+  return PUBLISHED_DATE_FORMAT.format(date);
 }
 
 export default async function YoutubePage() {
@@ -102,7 +104,7 @@ export default async function YoutubePage() {
                       className="h-full w-full"
                       src={`https://www.youtube.com/embed/${video.videoId}`}
                       title={video.title}
-                      sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                      sandbox="allow-scripts allow-presentation allow-popups allow-popups-to-escape-sandbox"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       referrerPolicy="strict-origin-when-cross-origin"
                       allowFullScreen
@@ -167,13 +169,13 @@ export default async function YoutubePage() {
                 rel="noreferrer"
                 className="group overflow-hidden rounded-md border border-gunmetal bg-coal transition-colors duration-300 hover:border-hellfire"
               >
-                <div className="aspect-video overflow-hidden bg-void">
-                  {/* External host — next/image has no remotePatterns for ytimg. */}
-                  <img
+                <div className="relative aspect-video overflow-hidden bg-void">
+                  <Image
                     src={`https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`}
                     alt={`${video.title} thumbnail`}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    fill
+                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                    className="object-cover transition duration-500 group-hover:scale-105"
                   />
                 </div>
                 <div className="p-4">

@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Loader2, Sparkles, Download, Gamepad2, RefreshCw, ImageIcon } from "lucide-react";
 import { GAMES } from "@shipshitgames/shared";
 
 const POSES = ["idle", "attacking", "running", "jumping", "side view", "back view"] as const;
 const BATCH_SIZES = [1, 2, 3, 4] as const;
+const chip = (active: boolean) =>
+  `rounded-md border px-3 py-1.5 text-xs font-bold uppercase tracking-widest ${
+    active
+      ? "border-hellfire text-hellfire"
+      : "border-gunmetal text-ash hover:border-hellfire/50 hover:text-bone"
+  }`;
 
 interface AssetRecord {
   id: string;
@@ -98,13 +105,6 @@ export default function AssetsPage() {
       setRegeneratingId(null);
     }
   }
-
-  const chip = (active: boolean) =>
-    `rounded-md border px-3 py-1.5 text-xs font-bold uppercase tracking-widest ${
-      active
-        ? "border-hellfire text-hellfire"
-        : "border-gunmetal text-ash hover:border-hellfire/50 hover:text-bone"
-    }`;
 
   return (
     <main className="min-h-[calc(100vh-4rem)] px-6 py-16">
@@ -259,12 +259,20 @@ export default function AssetsPage() {
                 key={asset.id}
                 className="flex flex-col overflow-hidden rounded-md border border-gunmetal bg-coal"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={asset.url}
-                  alt={asset.subject}
-                  className={`w-full bg-void object-contain ${asset.sheetPoses ? "aspect-[21/9]" : "aspect-square"}`}
-                />
+                <div
+                  className={`relative w-full bg-void ${
+                    asset.sheetPoses ? "aspect-[21/9]" : "aspect-square"
+                  }`}
+                >
+                  <Image
+                    src={asset.url}
+                    alt={asset.subject}
+                    fill
+                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                    unoptimized
+                    className="object-contain"
+                  />
+                </div>
                 <figcaption className="flex flex-1 flex-col gap-3 p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     {asset.sheetPoses && (

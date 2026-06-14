@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,7 +7,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const WEB_ROOT = path.resolve(HERE, "../..");
 
 /** shipshitgames repo root. */
-export const REPO_ROOT = path.resolve(WEB_ROOT, "../..");
+const REPO_ROOT = path.resolve(WEB_ROOT, "../..");
 
 /** Committed JSON snapshots. */
 export const CONTENT_DIR = path.join(WEB_ROOT, "content");
@@ -24,8 +23,4 @@ export function defaultAssetsDir(): string {
 /** The deadrot.com web lore dataset (games/factions/characters/bestiary/universe). */
 export function defaultLoreDataPath(): string {
   return path.resolve(REPO_ROOT, "../deadrotcom/apps/web/lib/content/data.json");
-}
-
-export function sourcesAvailable(assetsDir: string, loreDataPath: string): boolean {
-  return existsSync(assetsDir) && existsSync(loreDataPath);
 }

@@ -4,6 +4,9 @@ type CommandLoader = () => Promise<CommandRunner>;
 
 const COMMANDS: Record<string, CommandLoader> = {
   generate: async () => (await import("./commands/generate.ts")).runGenerate,
+  expand: async () => (await import("./commands/expand.ts")).runExpand, // #71
+  "import-aseprite": async () => (await import("./commands/import-aseprite.ts")).runImportAseprite, // #78
+
   games: async () => (await import("./commands/games.ts")).runGamesCommand,
   matrix: async () => (await import("./commands/matrix.ts")).runMatrixCommand,
   tokens: async () => (await import("./commands/tokens.ts")).runTokensCommand,
@@ -15,6 +18,8 @@ const COMMANDS: Record<string, CommandLoader> = {
   index: async () => (await import("./commands/index-assets.ts")).runIndexCommand,
   atlas: async () => (await import("./commands/atlas.ts")).runAtlasCommand,
   "clean-sprites": async () => (await import("./commands/clean-sprites.ts")).runCleanSpritesCommand,
+  maps: async () => (await import("./commands/maps.ts")).runMapsCommand, // #18
+
 };
 
 const argv = process.argv.slice(2);

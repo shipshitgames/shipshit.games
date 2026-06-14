@@ -21,9 +21,14 @@ export function MenuStack({ className, ...props }: DivProps) {
 
 export function MenuTitle({
   className,
+  children,
   ...props
-}: HTMLAttributes<HTMLHeadingElement>) {
-  return <h1 className={cn("ssg-menu-title", className)} {...props} />;
+}: HTMLAttributes<HTMLHeadingElement> & { children: ReactNode }) {
+  return (
+    <h1 className={cn("ssg-menu-title", className)} {...props}>
+      {children}
+    </h1>
+  );
 }
 
 export function MenuKicker({ className, ...props }: DivProps) {

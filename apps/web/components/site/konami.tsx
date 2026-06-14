@@ -29,9 +29,9 @@ const BODY_CLASS = "scourge-takeover";
 export function Konami() {
   const [active, setActive] = useState(false);
   const progress = useRef(0);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const onKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
       if (key === SEQUENCE[progress.current]) {
@@ -41,8 +41,8 @@ export function Konami() {
           trackEvent("konami");
           setActive(true);
           document.body.classList.add(BODY_CLASS);
-          if (timer.current) clearTimeout(timer.current);
-          timer.current = setTimeout(() => {
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(() => {
             setActive(false);
             document.body.classList.remove(BODY_CLASS);
           }, TAKEOVER_MS);
@@ -57,7 +57,7 @@ export function Konami() {
     document.body.dataset.konamiReady = "true";
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      if (timer.current) clearTimeout(timer.current);
+      if (timer) clearTimeout(timer);
       document.body.classList.remove(BODY_CLASS);
       delete document.body.dataset.konamiReady;
     };
@@ -66,15 +66,14 @@ export function Konami() {
   if (!active) return null;
 
   return (
-    <div
+    <output
       data-testid="scourge-takeover"
-      role="status"
       aria-live="polite"
       className="scourge-takeover-overlay scanlines fixed inset-0 z-[90] flex items-center justify-center"
     >
       <p className="scourge-takeover-text px-6 text-center font-display text-3xl font-bold uppercase tracking-[0.3em] text-toxic sm:text-5xl">
         The Scourge sees you
       </p>
-    </div>
+    </output>
   );
 }

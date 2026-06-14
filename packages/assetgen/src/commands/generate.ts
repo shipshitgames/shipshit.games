@@ -4,6 +4,14 @@ import { defaultProviderForKind } from "../providers.ts";
 import { runAssetPipeline } from "../pipeline.ts";
 import type { AssetPostprocessHook } from "../pipeline.ts";
 import {
+  audioMetadata,
+  buildAudioPrompt,
+  clampVolume,
+  defaultLoopForCategory,
+  encodeAudioWebm,
+  isAudioKind,
+} from "../audio.ts";
+import {
   manifestKindForSprite,
   parseAnchor,
   parseViews,
@@ -11,7 +19,7 @@ import {
   toSpriteSheetWebp,
   writeBillboardPreview,
 } from "../sprites.ts";
-import { flag, has, intFlag } from "./args.ts";
+import { flag, has, intFlag, numberFlag } from "./args.ts";
 import { defaultRepo } from "./paths.ts";
 
 export async function runGenerate(argv: string[]): Promise<void> {
@@ -35,6 +43,40 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const licenseTerms = flag(argv, "license");
   const licenseUrl = flag(argv, "license-url");
 
+  // Reproducibility seed (issue #55): only the seedable providers honor it.
+  // Parsed permissively so 0 is a valid seed; negatives/junk fall back to unset.
+  const seedRaw = flag(argv, "seed");
+  const seedParsed = seedRaw === undefined ? Number.NaN : Number.parseInt(seedRaw, 10);
+  const seed = Number.isFinite(seedParsed) && seedParsed >= 0 ? seedParsed : undefined;
+  // Human-authorship disclosure (issue #55): --authored marks a person touched it.
+  const authored = has(argv, "authored");
+  const editKind = flag(argv, "edit-kind");
+  const human = authored ? { authored: true, ...(editKind ? { editKind } : {}) } : undefined;
+
+  // Audio knobs (issue #21): category drives loop default + manifest record.
+  const category = flag(argv, "category") || (isAudioKind(generationKind) ? generationKind : undefined);
+  // volume must accept 0 (muted) — numberFlag rejects non-positives (correct for
+  // scale), so parse through clampVolume which preserves 0 and defaults junk to 1.
+  const volumeRaw = flag(argv, "volume");
+  const volume = volumeRaw === undefined ? 1 : clampVolume(Number(volumeRaw));
+  const bitrate = intFlag(argv, "bitrate", 128);
+  const normalize = has(argv, "normalize");
+  const loop = has(argv, "no-loop")
+    ? false
+    : has(argv, "loop")
+      ? true
+      : category
+        ? defaultLoopForCategory(category)
+        : false;
+  const audioMode = !spriteMode && isAudioKind(generationKind);
+  const modelMode = !spriteMode && (generationKind === "model" || generationKind === "3d");
+
+  // 3D-model knobs (issue #20): Draco geometry is on by default (the mandatory
+  // optimize); KTX2 is encoder-gated; --rig names the rig/retarget provenance.
+  const ktx2 = has(argv, "ktx2");
+  const draco = !has(argv, "no-draco");
+  const rigSource = flag(argv, "rig");
+
   if (!id || !prompt) {
     printGenerateUsage();
     process.exit(1);
@@ -44,7 +86,11 @@ export async function runGenerate(argv: string[]): Promise<void> {
   // views/frames, then go through the shared pipeline like every other asset.
   const promptInput = spriteMode ? `${prompt}. ${spritePromptDirective(views, frameCount)}` : prompt;
   const which = dryRun ? "mock" : provider;
-  const full = buildPrompt({ prompt: promptInput, game, kind: generationKind });
+  const full = audioMode
+    ? buildAudioPrompt({ prompt: promptInput, kind: generationKind })
+    : modelMode
+      ? promptInput
+      : buildPrompt({ prompt: promptInput, game, kind: generationKind });
   console.log(`[assetgen] provider=${which}${model ? ` model=${model}` : ""} game=${game} kind=${kind} id=${id}`);
   console.log(`[prompt] ${full}`);
 
@@ -109,6 +155,73 @@ export async function runGenerate(argv: string[]): Promise<void> {
       }
     : undefined;
 
+  // Audio finals are normalized + encoded to .webm/opus by ffmpeg, then recorded
+  // with category/volume/loop and a reviewable license scope (issue #21).
+  const audioPostprocess: AssetPostprocessHook | undefined = audioMode
+    ? async (asset) => {
+        // Defensive: anything non-audio falls through untouched.
+        if (!asset.mediaType.startsWith("audio/")) {
+          return { data: asset.data, mediaType: asset.mediaType, extension: asset.extension };
+        }
+        const encoded = await encodeAudioWebm(
+          asset.data,
+          { bitrateKbps: bitrate, normalize },
+          { inputExt: asset.extension },
+        );
+        return {
+          data: encoded.data,
+          mediaType: "audio/webm",
+          extension: "webm",
+          entryFields: audioMetadata({ category: category!, volume, loop, duration: encoded.duration }),
+          licenseExtra: {
+            type: "ai-generated",
+            terms: licenseTerms ?? "review audio license scope before shipping",
+            ...(licenseUrl ? { url: licenseUrl } : {}),
+            generatedAt: new Date().toISOString(),
+          },
+        };
+      }
+    : undefined;
+
+  // 3D models pass the raw provider GLB through the mandatory gltf-transform
+  // optimize (Draco geometry, encoder-gated KTX2, else WebP textures) and record
+  // optimized/compression/animations plus a license.rig provenance record.
+  const modelPostprocess: AssetPostprocessHook | undefined = modelMode
+    ? async (asset) => {
+        const { optimizeGlb, MODEL_MEDIA_TYPE, MODEL_EXTENSION } = await import("../model3d.ts");
+        const result = await optimizeGlb(asset.data, { draco, ktx2 });
+        const rigged = result.summary.skins > 0;
+        return {
+          data: result.data,
+          mediaType: MODEL_MEDIA_TYPE,
+          extension: MODEL_EXTENSION,
+          entryFields: {
+            model: asset.model,
+            optimized: true,
+            compression: result.compression,
+            animations: result.animations,
+            meshes: result.summary.meshes,
+            materials: result.summary.materials,
+            textures: result.summary.textures,
+            skins: result.summary.skins,
+            joints: result.summary.joints,
+          },
+          licenseExtra: {
+            type: "ai-generated",
+            terms: licenseTerms ?? "review 3D model + rig license scope before shipping",
+            ...(licenseUrl ? { url: licenseUrl } : {}),
+            generatedAt: new Date().toISOString(),
+            rig: {
+              source: rigSource ?? (rigged ? asset.provider : "none"),
+              rigged,
+              joints: result.summary.joints,
+              animations: result.animations,
+            },
+          },
+        };
+      }
+    : undefined;
+
   await runAssetPipeline({
     id,
     // Manifest records the raw user prompt; generation uses the augmented one.
@@ -119,9 +232,17 @@ export async function runGenerate(argv: string[]): Promise<void> {
     provider: which,
     model,
     size,
+    seed,
+    human,
     repo,
     usageLogPath: usageLog,
-    postprocess: spritePostprocess,
+    postprocess: spriteMode
+      ? spritePostprocess
+      : audioMode
+        ? audioPostprocess
+        : modelMode
+          ? modelPostprocess
+          : undefined,
     log: (chunk) => process.stdout.write(chunk),
   });
 }
@@ -133,12 +254,14 @@ function printGenerateUsage(): void {
   console.error(
     "usage:\n" +
       "  assetgen generate --id <id> --prompt <text> [--game <slug>|shared]\n" +
-      "           [--kind sprite|texture|icon|music|sfx|voice|model] [--provider openai|fal|codex|replicate|suno|mock]\n" +
+      "           [--kind sprite|texture|icon|music|sfx|voice|model|3d] [--provider openai|fal|codex|replicate|meshy|tripo|suno|elevenlabs|beatoven|mock]\n" +
       "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
       "           [--views front,side,back] [--frames 1] [--fps 8] [--anchor 0.5,1] [--scale 1]\n" +
-      "           [--license <terms>] [--license-url <url>]\n" +
+      "           [--category music|sfx|voice] [--volume 1] [--loop|--no-loop] [--bitrate 128] [--normalize]\n" +
+      "           [--ktx2] [--no-draco] [--rig <source>]\n" +
+      "           [--license <terms>] [--license-url <url>] [--seed <n>] [--authored] [--edit-kind <label>]\n" +
       "  assetgen --id <id> --prompt <text> [--game <slug>|shared]\n" +
-      "           [--kind sprite|texture|icon|music|sfx|voice|model] [--provider openai|fal|codex|replicate|suno|mock]\n" +
+      "           [--kind sprite|texture|icon|music|sfx|voice|model|3d] [--provider openai|fal|codex|replicate|meshy|tripo|suno|elevenlabs|beatoven|mock]\n" +
       "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
       "  assetgen matrix [--game <slug>] [--id <entity>] [--provider mock|openai|fal|codex|replicate]\n" +
       "           [--size 1024] [--only-missing] [--dry-run] [--sync-games] [--assets-dir <path>] [--usage-log <path|off>]\n" +
@@ -149,10 +272,4 @@ function printGenerateUsage(): void {
       `\n  games: ${views}\n` +
       "  Default game repo lookup prefers ./games/<game> or ../games/<game>.",
   );
-}
-
-function numberFlag(argv: string[], name: string, def: number): number {
-  const raw = flag(argv, name);
-  const n = raw === undefined ? def : Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : def;
 }

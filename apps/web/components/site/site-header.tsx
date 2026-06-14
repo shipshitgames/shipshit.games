@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Menu, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -28,17 +28,23 @@ function openPalette() {
   window.dispatchEvent(new Event(PALETTE_OPEN_EVENT));
 }
 
+function subscribeToScroll(callback: () => void) {
+  window.addEventListener("scroll", callback, { passive: true });
+  return () => window.removeEventListener("scroll", callback);
+}
+
+function getScrolledSnapshot() {
+  return window.scrollY > 24;
+}
+
 export function SiteHeader() {
   const pathname = usePathname();
-  const [scrolled, setScrolled] = useState(false);
+  const scrolled = useSyncExternalStore(
+    subscribeToScroll,
+    getScrolledSnapshot,
+    () => false
+  );
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   return (
     <header
