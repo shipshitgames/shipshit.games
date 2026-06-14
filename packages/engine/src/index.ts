@@ -186,6 +186,10 @@ export {
 export { Agent, type PlanarVec } from './agents/Agent'
 export { type SteeringStrategy, type SteerView } from './agents/steering'
 
+// --- embodied-base: agents (seam: grid A* pathfinding -> waypoints feed existing steering) ---
+export { NavGrid, bakeNavGrid, findPath, hasLineOfSight, smoothPath, PathFollower, steerViewToWaypoint,
+  type NavGridOptions, type GridCell, type FindPathOptions, type PathResult, type PathFollowerOptions } from './agents/pathfinding'
+
 // --- embodied-base: spawn (seam: where the next enemy enters the world) ---
 export {
   RectScatterSpawnProvider,
