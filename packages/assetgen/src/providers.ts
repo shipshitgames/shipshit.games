@@ -254,6 +254,12 @@ export interface ModelProviderClient {
   parseTaskId(json: unknown): string;
   pollTask(taskId: string, key: string, opts: ProviderOptions): ModelPollRequest;
   parseStatus(json: unknown): ModelTaskStatus;
+  /**
+   * Expected CDN domains the finished GLB is served from (suffix-matched). The
+   * `glbUrl` is provider-supplied, so we pin the download host as defense-in-depth
+   * against SSRF. Extendable at runtime via `<PROVIDER>_DOWNLOAD_HOSTS` env.
+   */
+  downloadHosts?: readonly string[];
 }
 
 function trimBaseUrl(value: string | undefined, fallback: string): string {
@@ -272,6 +278,8 @@ function trimBaseUrl(value: string | undefined, fallback: string): string {
  */
 export const meshyClient: ModelProviderClient = {
   id: "meshy",
+  // Meshy serves task output from assets.meshy.ai / cdn.meshy.ai (signed, expiring URLs).
+  downloadHosts: ["meshy.ai"],
   createTask(prompt, key, opts) {
     const base = trimBaseUrl(process.env.MESHY_API_BASE_URL, "https://api.meshy.ai");
     return {
@@ -310,6 +318,8 @@ export const meshyClient: ModelProviderClient = {
 /** Tripo text-to-model (https://platform.tripo3d.ai). Returns a raw GLB url on success. */
 export const tripoClient: ModelProviderClient = {
   id: "tripo",
+  // Tripo serves finished models from its own tripo3d.ai CDN (signed, expiring URLs).
+  downloadHosts: ["tripo3d.ai"],
   createTask(prompt, key, opts) {
     const base = trimBaseUrl(process.env.TRIPO_API_BASE_URL, "https://api.tripo3d.ai");
     return {
@@ -357,6 +367,40 @@ function assertGlbBody(data: Buffer, providerId: string): void {
   }
 }
 
+/**
+ * Resolve the download-host allowlist for a model client: the client's known CDN
+ * domains plus any added via `<PROVIDER>_DOWNLOAD_HOSTS` (comma-separated), so a
+ * vendor rotating CDNs is a config change, not a code change. `undefined` means
+ * "no allowlist" (the https + private-host guards still apply).
+ */
+function resolveDownloadHosts(client: ModelProviderClient): readonly string[] | undefined {
+  const fromEnv = process.env[`${client.id.toUpperCase()}_DOWNLOAD_HOSTS`];
+  const extra = fromEnv
+    ? fromEnv
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+  const hosts = [...(client.downloadHosts ?? []), ...extra];
+  return hosts.length ? hosts : undefined;
+}
+
+/**
+ * When the operator points a client at a custom endpoint via `<PROVIDER>_API_BASE_URL`
+ * (self-hosted, proxy, or the e2e mock server), trust downloads served from that
+ * same origin — the create/poll calls already do. Unset → production defaults,
+ * where the download must satisfy {@link resolveDownloadHosts} instead.
+ */
+function resolveTrustedOrigins(client: ModelProviderClient): readonly string[] | undefined {
+  const base = process.env[`${client.id.toUpperCase()}_API_BASE_URL`];
+  if (!base) return undefined;
+  try {
+    return [new URL(base).origin];
+  } catch {
+    return undefined;
+  }
+}
+
 /** Drive any {@link ModelProviderClient} create→poll→download cycle to a raw GLB. */
 export async function runModelTask(
   client: ModelProviderClient,
@@ -395,7 +439,13 @@ export async function runModelTask(
     if (status.done) {
       if (!status.succeeded) throw new Error(`${client.id}: task ${status.state}`);
       if (!status.glbUrl) throw new Error(`${client.id}: task succeeded without a GLB url`);
-      const asset = await downloadGeneratedAsset(status.glbUrl, opts.model ?? provider.defaultModel, deps.fetchImpl);
+      // Bound the final download like the create/poll requests, and constrain it
+      // to https + the vendor's CDN — the glbUrl is provider-supplied (SSRF).
+      const asset = await downloadGeneratedAsset(status.glbUrl, opts.model ?? provider.defaultModel, deps.fetchImpl, {
+        timeoutMs: requestTimeoutMs,
+        allowedHosts: resolveDownloadHosts(client),
+        trustedOrigins: resolveTrustedOrigins(client),
+      });
       assertGlbBody(asset.data, client.id);
       return asset;
     }

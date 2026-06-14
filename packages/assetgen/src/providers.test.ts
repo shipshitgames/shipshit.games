@@ -212,10 +212,12 @@ test("runModelTask drives create → poll → download to a GLB", async () => {
     if (url.endsWith("/text-to-3d/task-123")) {
       polls += 1;
       const body =
-        polls < 2 ? { status: "IN_PROGRESS" } : { status: "SUCCEEDED", model_urls: { glb: "https://cdn/test.glb" } };
+        polls < 2
+          ? { status: "IN_PROGRESS" }
+          : { status: "SUCCEEDED", model_urls: { glb: "https://assets.meshy.ai/test.glb" } };
       return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
     }
-    if (url === "https://cdn/test.glb") {
+    if (url === "https://assets.meshy.ai/test.glb") {
       return new Response(new Uint8Array(glb), { status: 200, headers: { "content-type": "model/gltf-binary" } });
     }
     throw new Error(`unexpected fetch ${url}`);
@@ -240,12 +242,12 @@ test("runModelTask rejects a 200 download whose body is not a GLB", async () => 
       return new Response(JSON.stringify({ result: "task-x" }), { status: 200, headers: { "content-type": "application/json" } });
     }
     if (url.endsWith("/text-to-3d/task-x")) {
-      return new Response(JSON.stringify({ status: "SUCCEEDED", model_urls: { glb: "https://cdn/bad.glb" } }), {
+      return new Response(JSON.stringify({ status: "SUCCEEDED", model_urls: { glb: "https://assets.meshy.ai/bad.glb" } }), {
         status: 200,
         headers: { "content-type": "application/json" },
       });
     }
-    if (url === "https://cdn/bad.glb") {
+    if (url === "https://assets.meshy.ai/bad.glb") {
       return new Response("<!doctype html><html>nope</html>", { status: 200, headers: { "content-type": "text/html" } });
     }
     throw new Error(`unexpected fetch ${url}`);
@@ -266,5 +268,80 @@ test("runModelTask surfaces a missing-key error before any request", async () =>
       getKeyImpl: () => undefined,
     }),
     /Tripo key/,
+  );
+});
+
+test("runModelTask aborts a hung GLB download instead of blocking forever", async () => {
+  // The final download must honor the same per-request timeout as create/poll: a
+  // CDN that accepts the connection but never sends bytes can't stall the task.
+  let downloadAttempts = 0;
+  const fetchImpl = (async (input: unknown, init?: { method?: string; signal?: AbortSignal }) => {
+    const url = String(input);
+    if (init?.method === "POST") {
+      return new Response(JSON.stringify({ result: "task-hang" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (url.endsWith("/text-to-3d/task-hang")) {
+      return new Response(
+        JSON.stringify({ status: "SUCCEEDED", model_urls: { glb: "https://assets.meshy.ai/slow.glb" } }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    if (url === "https://assets.meshy.ai/slow.glb") {
+      downloadAttempts += 1;
+      // Resolve only when the abort signal fires — if the timeout weren't wired,
+      // this promise (and the test) would hang forever, which is the bug guarded.
+      return await new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        assert.ok(signal, "download fetch was not given an AbortSignal");
+        if (signal.aborted) return reject(signal.reason);
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+    }
+    throw new Error(`unexpected fetch ${url}`);
+  }) as unknown as typeof fetch;
+
+  await assert.rejects(
+    runModelTask(
+      meshyClient,
+      "a golem",
+      { ...MODEL_OPTS, model: "meshy", requestTimeoutMs: 25 },
+      { fetchImpl, getKeyImpl: () => "fake-key" },
+    ),
+    (err: unknown) =>
+      err instanceof Error &&
+      ((err as { name?: string }).name === "TimeoutError" || /timed out|abort/i.test(err.message)),
+  );
+  assert.equal(downloadAttempts, 1);
+});
+
+test("runModelTask rejects a GLB url outside the provider CDN allowlist (SSRF guard)", async () => {
+  // glbUrl is provider-supplied; a host off the Meshy CDN must be refused before
+  // any bytes are fetched, not blindly downloaded.
+  const fetchImpl = (async (input: unknown, init?: { method?: string }) => {
+    const url = String(input);
+    if (init?.method === "POST") {
+      return new Response(JSON.stringify({ result: "task-evil" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (url.endsWith("/text-to-3d/task-evil")) {
+      return new Response(
+        JSON.stringify({ status: "SUCCEEDED", model_urls: { glb: "https://evil.example.com/x.glb" } }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    if (url === "https://evil.example.com/x.glb") {
+      throw new Error("download must not be attempted for a disallowed host");
+    }
+    throw new Error(`unexpected fetch ${url}`);
+  }) as unknown as typeof fetch;
+
+  await assert.rejects(
+    runModelTask(meshyClient, "a golem", { ...MODEL_OPTS, model: "meshy" }, { fetchImpl, getKeyImpl: () => "fake-key" }),
+    /not an allowed download domain/,
   );
 });
