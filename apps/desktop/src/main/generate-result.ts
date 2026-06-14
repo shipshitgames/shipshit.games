@@ -20,6 +20,7 @@ const MEDIA_TYPE_BY_EXTENSION: Record<string, string> = {
   ogg: "audio/ogg",
   mp3: "audio/mpeg",
   wav: "audio/wav",
+  glb: "model/gltf-binary",
 };
 
 // `[wrote] <path>` with an optional ` (<NN.N> kb, <media type>)` suffix; the
@@ -39,10 +40,20 @@ function parseGenerateResult(buf: string): GenerateResult | null {
   return { path, mediaType: last[2] || mediaTypeForPath(path) };
 }
 
-// Data URL for the renderer preview — images render in an <img>, audio plays in
-// an <audio>; anything else (html billboards, glb models) has no inline preview.
+// Media types the renderer can preview inline: images in an <img>, audio in an
+// <audio>, and GLB models in the three.js viewer (decoded from the data URL).
+// Anything else (e.g. html billboards) has no inline preview.
+const PREVIEWABLE_PREFIXES = ["image/", "audio/"];
+const PREVIEWABLE_EXACT = new Set(["model/gltf-binary"]);
+
+function isPreviewable(mediaType: string): boolean {
+  return PREVIEWABLE_PREFIXES.some((prefix) => mediaType.startsWith(prefix)) || PREVIEWABLE_EXACT.has(mediaType);
+}
+
+// Data URL for the renderer preview. GLB bytes ride the same base64 data URL so
+// the three.js GLTFLoader can fetch them without a file:// round-trip.
 function dataUrlFor(result: GenerateResult, bytes: Buffer): string | null {
-  if (!result.mediaType.startsWith("image/") && !result.mediaType.startsWith("audio/")) return null;
+  if (!isPreviewable(result.mediaType)) return null;
   return `data:${result.mediaType};base64,${bytes.toString("base64")}`;
 }
 
