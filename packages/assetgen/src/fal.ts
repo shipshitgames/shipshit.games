@@ -1,6 +1,6 @@
 import { getKey } from "./keys.ts";
 import { downloadGeneratedAsset } from "./media.ts";
-import type { GeneratedAsset } from "./media.ts";
+import type { GeneratedAsset, GeneratedAssetMeta } from "./media.ts";
 
 /**
  * fal.ai image generation client (FLUX family) with a per-asset-kind model
@@ -71,11 +71,42 @@ export interface FalRequestOptions {
   model?: string;
   timeoutMs?: number;
   log?: (chunk: string) => void;
+  /** When set, FLUX runs deterministically and echoes the honored seed back. */
+  seed?: number;
 }
 
 export interface FalDeps {
   fetchImpl?: typeof fetch;
   resolveKey?: () => string | undefined;
+}
+
+/**
+ * Pure builder for the FLUX request body (no IO; unit-testable). The seed key is
+ * only added when supplied, so the unseeded body stays byte-identical to the
+ * pre-#55 contract.
+ */
+export function falRequestBody(
+  prompt: string,
+  imageSize: { width: number; height: number },
+  seed?: number,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = { prompt, image_size: imageSize, num_images: 1 };
+  if (seed !== undefined) body.seed = seed;
+  return body;
+}
+
+/**
+ * Reproducibility meta for a fal generation: prefer the seed fal echoes back,
+ * fall back to the requested seed, and mark reproducible only when a seed was
+ * actually honored.
+ */
+export function falAssetMeta(model: string, requestedSeed: number | undefined, json: any): GeneratedAssetMeta {
+  const honored = typeof json?.seed === "number" ? json.seed : requestedSeed;
+  const requestId = typeof json?.request_id === "string" ? json.request_id : undefined;
+  const meta: GeneratedAssetMeta = { model, reproducible: honored !== undefined };
+  if (honored !== undefined) meta.seed = honored;
+  if (requestId) meta.requestId = requestId;
+  return meta;
 }
 
 export async function generateFalAsset(
@@ -103,7 +134,7 @@ export async function generateFalAsset(
     res = await fetchImpl(`${falApiBase()}/${model}`, {
       method: "POST",
       headers: { authorization: `Key ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({ prompt, image_size: imageSize, num_images: 1 }),
+      body: JSON.stringify(falRequestBody(prompt, imageSize, opts.seed)),
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
@@ -121,10 +152,11 @@ export async function generateFalAsset(
   if (!url) throw new Error(`fal: no image in ${model} response`);
 
   const asset = await downloadGeneratedAsset(url, model, fetchImpl);
+  const meta = falAssetMeta(model, opts.seed, json);
   // The response's declared content type beats extension sniffing on the URL.
   const declared = typeof image === "object" ? image?.content_type?.split(";")[0]?.trim() : undefined;
   if (declared && declared !== asset.mediaType) {
-    return { ...asset, mediaType: declared };
+    return { ...asset, mediaType: declared, meta };
   }
-  return asset;
+  return { ...asset, meta };
 }

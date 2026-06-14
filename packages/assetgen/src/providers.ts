@@ -8,7 +8,7 @@ import { DEFAULT_FAL_MODEL, FAL_KEY_CONFIG, FAL_MODELS, generateFalAsset } from 
 import type { FalModel } from "./fal.ts";
 import { getKey } from "./keys.ts";
 import { downloadGeneratedAsset, outputUrl } from "./media.ts";
-import type { GeneratedAsset } from "./media.ts";
+import type { GeneratedAsset, GeneratedAssetMeta } from "./media.ts";
 
 export type { GeneratedAsset } from "./media.ts";
 export { extensionForMediaType } from "./media.ts";
@@ -32,6 +32,13 @@ export interface ProviderOptions {
   log?: (chunk: string) => void;
   timeoutMs?: number;
   pollIntervalMs?: number;
+  /**
+   * Reproducibility seed; forwarded to the seedable providers (fal/openai).
+   * Reproducible provenance is only claimed when the provider CONFIRMS the seed:
+   * fal echoes it back, OpenAI's image API does not (so it records the requested
+   * seed but stays non-reproducible).
+   */
+  seed?: number;
   /**
    * Per-HTTP-request timeout for polled task providers (Meshy/Tripo). The
    * `timeoutMs` deadline only bounds the *whole* task and is checked between
@@ -75,8 +82,8 @@ const IMAGE_KINDS = ["sprite", "sprite-anim", "texture", "icon", "map"] as const
 const AUDIO_KINDS = ["music", "sfx", "voice"] as const;
 const MODEL_KINDS = ["model", "3d"] as const;
 
-function imageAsset(data: Buffer, model?: string): GeneratedAsset {
-  return { data, mediaType: "image/png", extension: "png", model };
+function imageAsset(data: Buffer, model?: string, meta?: GeneratedAssetMeta): GeneratedAsset {
+  return { data, mediaType: "image/png", extension: "png", model, meta };
 }
 
 function providerKey(provider: AssetProvider): string | undefined {
@@ -93,34 +100,66 @@ function missingKeyMessage(provider: AssetProvider): Error {
   );
 }
 
+/** Pure builder for the OpenAI Images request body (no IO; unit-testable). */
+export function openAiImageBody(
+  prompt: string,
+  model: string,
+  size: string,
+  seed?: number,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = { model, prompt, size, background: "transparent", n: 1 };
+  // Only sent when supplied, so the default (seedless) request stays byte-identical.
+  if (seed !== undefined) body.seed = seed;
+  return body;
+}
+
+/**
+ * Reproducibility meta for an OpenAI image generation. The Images API neither
+ * echoes a seed nor exposes a determinism signal, so — like fal's falAssetMeta —
+ * a request is only marked reproducible when the response actually CONFIRMS the
+ * seed it used. The requested seed is still recorded for provenance/audit, but we
+ * never claim a reproducibility the provider hasn't confirmed.
+ */
+export function openAiAssetMeta(model: string, requestedSeed?: number, json?: any): GeneratedAssetMeta {
+  const confirmedSeed = typeof json?.seed === "number" ? json.seed : undefined;
+  const meta: GeneratedAssetMeta = { model, reproducible: confirmedSeed !== undefined };
+  const seed = confirmedSeed ?? requestedSeed;
+  if (seed !== undefined) meta.seed = seed;
+  return meta;
+}
+
 /** OpenAI Images (gpt-image-2 by default) — transparent PNG. Key via env or keychain. */
-async function generateOpenAi(prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
+export async function generateOpenAi(
+  prompt: string,
+  opts: ProviderOptions,
+  deps: { fetchImpl?: typeof fetch; getKeyImpl?: typeof getKey } = {},
+): Promise<GeneratedAsset> {
   const provider = assetProviders.openai;
-  const key = providerKey(provider);
+  const keyCfg = provider.key!;
+  const key = (deps.getKeyImpl ?? getKey)(keyCfg.envName, keyCfg.service);
   if (!key) throw missingKeyMessage(provider);
   const model = opts.model ?? provider.defaultModel ?? "gpt-image-2";
-  const res = await fetch("https://api.openai.com/v1/images/generations", {
+  const res = await (deps.fetchImpl ?? fetch)("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model,
-      prompt,
-      size: opts.size,
-      background: "transparent",
-      n: 1,
-    }),
+    body: JSON.stringify(openAiImageBody(prompt, model, opts.size, opts.seed)),
   });
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
   const json: any = await res.json();
-  return imageAsset(Buffer.from(json.data[0].b64_json, "base64"), model);
+  return imageAsset(Buffer.from(json.data[0].b64_json, "base64"), model, openAiAssetMeta(model, opts.seed, json));
 }
 
 /** Local Codex CLI — drives the authed `codex` agent on YOUR subscription (no API key). */
-async function generateCodex(prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
+export async function generateCodex(
+  prompt: string,
+  opts: ProviderOptions,
+  deps: { runCodexCliImpl?: typeof runCodexCli } = {},
+): Promise<GeneratedAsset> {
   const dir = await mkdtemp(join(tmpdir(), "assetgen-"));
   const out = join(dir, "out.png");
-  await runCodexCli({ prompt, outPath: out, cwd: dir, log: opts.log });
-  return imageAsset(await readFile(out), "codex-cli");
+  await (deps.runCodexCliImpl ?? runCodexCli)({ prompt, outPath: out, cwd: dir, log: opts.log });
+  // The local Codex agent isn't seed-driven, so a render is never reproducible.
+  return imageAsset(await readFile(out), "codex-cli", { model: "codex-cli", reproducible: false });
 }
 
 async function generateReplicate(kind: AssetKind, prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
@@ -480,8 +519,12 @@ function makeSilentWav(seconds = 1, sampleRate = 8000): Buffer {
 
 /** Offline placeholder for dry-runs / pipeline tests. Audio- and model-aware (issues #20, #21). */
 async function generateMock(kind: AssetKind, _prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
+  // The offline placeholder is never a real render, so it is never reproducible
+  // — but it echoes any requested seed so tests can assert the seed threaded through.
+  const meta: GeneratedAssetMeta = { model: "mock", reproducible: false };
+  if (opts.seed !== undefined) meta.seed = opts.seed;
   if (isAudioKind(kind)) {
-    return { data: makeSilentWav(), mediaType: "audio/wav", extension: "wav", model: "mock" };
+    return { data: makeSilentWav(), mediaType: "audio/wav", extension: "wav", model: "mock", meta };
   }
   if (MODEL_KINDS.includes(kind as (typeof MODEL_KINDS)[number])) {
     // Lazy import keeps the dependency-free GLB builder out of the mock's hot path.
@@ -494,7 +537,7 @@ async function generateMock(kind: AssetKind, _prompt: string, opts: ProviderOpti
   })
     .png()
     .toBuffer();
-  return imageAsset(data, "mock");
+  return imageAsset(data, "mock", meta);
 }
 
 export const assetProviders: Record<ProviderId, AssetProvider> = {
@@ -601,10 +644,17 @@ export async function generateAsset(
   kind: AssetKind,
   prompt: string,
   opts: ProviderOptions & { provider?: string },
-): Promise<GeneratedAsset & { provider: ProviderId }> {
+): Promise<GeneratedAsset & { provider: ProviderId; meta: GeneratedAssetMeta }> {
   const provider = resolveProvider(kind, opts.provider);
   const asset = await provider.generate(kind, prompt, opts);
-  return { ...asset, provider: provider.id, model: asset.model ?? opts.model ?? provider.defaultModel };
+  const model = asset.model ?? opts.model ?? provider.defaultModel;
+  // Every asset carries a meta: providers that opt out still record reproducible:false.
+  const meta: GeneratedAssetMeta = {
+    reproducible: false,
+    ...asset.meta,
+    model: asset.meta?.model ?? model,
+  };
+  return { ...asset, provider: provider.id, model, meta };
 }
 
 export const openai: Provider = async (prompt, opts) => (await generateAsset("sprite", prompt, { ...opts, provider: "openai" })).data;

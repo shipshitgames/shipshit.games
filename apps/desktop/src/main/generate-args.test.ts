@@ -173,6 +173,53 @@ test("absent audio opts add none of the audio flags (sprite args stay byte-ident
   }
 });
 
+test("provenance opts append --seed/--authored/--edit-kind (issue #55)", () => {
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: { id: "warden-husk", prompt: "a husk", kind: "sprite", seed: 42, authored: true, editKind: "recolor" },
+    target: TARGET,
+  });
+  expect(args.slice(args.indexOf("--seed"))).toEqual([
+    "--seed", "42",
+    "--authored",
+    "--edit-kind", "recolor",
+  ]);
+});
+
+test("a seed of 0 is still emitted (only null/empty are skipped)", () => {
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: { kind: "sprite", seed: 0 },
+    target: TARGET,
+  });
+  expect(args.slice(args.indexOf("--seed"), args.indexOf("--seed") + 2)).toEqual(["--seed", "0"]);
+});
+
+test("--model stays last even when provenance flags are present", () => {
+  const settings = normalizeSettings({ providerDefaults: { sprite: "fal" }, falModelDefaults: { sprite: "fal-ai/flux/dev" } });
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings,
+    opts: { kind: "sprite", seed: 7, authored: true },
+    target: TARGET,
+  });
+  expect(args.slice(-2)).toEqual(["--model", "fal-ai/flux/dev"]);
+});
+
+test("absent provenance opts add none of the seed/authored/edit-kind flags", () => {
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: { id: "swarm-husk", prompt: "a husk", kind: "sprite" },
+    target: TARGET,
+  });
+  for (const flag of ["--seed", "--authored", "--edit-kind"]) {
+    expect(args).not.toContain(flag);
+  }
+});
+
 test("model opts append --ktx2/--no-draco/--rig only when present", () => {
   const { args, provider, kind } = buildGenerateArgs({
     assetgenPath: ASSETGEN,

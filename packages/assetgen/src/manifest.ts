@@ -1,5 +1,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+// Type-only: keeps node:crypto out of the desktop main bundle that imports register().
+import type { AssetProvenance, AssetHumanAuthorship } from "./provenance.ts";
 
 export interface AssetEntry {
   id: string;
@@ -37,6 +39,10 @@ export interface AssetEntry {
   duration?: number;
   /** Relative path to a generated billboard preview, if any. */
   preview?: string;
+  /** Reproducibility provenance (issue #55): provider/model/seed + prompt & style hashes. */
+  provenance?: AssetProvenance;
+  /** Human-authorship disclosure (issue #55), present when a person authored/edited the asset. */
+  human?: AssetHumanAuthorship;
   /** 3D-model post-optimize flag (issue #20): true once the mandatory gltf-transform optimize has run. */
   optimized?: boolean;
   /** 3D-model compression provenance (issue #20): records exactly what optimize applied. */
