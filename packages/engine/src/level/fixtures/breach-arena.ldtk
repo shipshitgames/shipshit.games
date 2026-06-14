@@ -1,0 +1,137 @@
+{
+  "__header__": {
+    "fileType": "LDtk Project JSON",
+    "app": "LDtk",
+    "appAuthor": "Sebastien Benard",
+    "appVersion": "1.5.3",
+    "url": "https://ldtk.io"
+  },
+  "jsonVersion": "1.5.3",
+  "defaultGridSize": 16,
+  "defs": {
+    "layers": [
+      {
+        "uid": 1,
+        "identifier": "Entities",
+        "type": "Entities",
+        "gridSize": 16
+      },
+      {
+        "uid": 2,
+        "identifier": "Collision",
+        "type": "IntGrid",
+        "gridSize": 16,
+        "intGridValues": [{ "value": 1, "identifier": "Wall", "color": "#5a3a3a" }]
+      },
+      {
+        "uid": 3,
+        "identifier": "Floor",
+        "type": "Tiles",
+        "gridSize": 16
+      }
+    ],
+    "tilesets": [
+      {
+        "uid": 10,
+        "identifier": "FloorTiles",
+        "relPath": "tiles/floor.png",
+        "pxWid": 64,
+        "pxHei": 16,
+        "tileGridSize": 16
+      }
+    ]
+  },
+  "levels": [
+    {
+      "identifier": "BreachArena",
+      "iid": "breach-arena-0001",
+      "uid": 100,
+      "pxWid": 128,
+      "pxHei": 96,
+      "worldX": 0,
+      "worldY": 0,
+      "bgColor": "#0d0a0a",
+      "layerInstances": [
+        {
+          "__identifier": "Entities",
+          "__type": "Entities",
+          "__cWid": 8,
+          "__cHei": 6,
+          "__gridSize": 16,
+          "layerDefUid": 1,
+          "entityInstances": [
+            {
+              "__identifier": "PlayerSpawn",
+              "__grid": [1, 1],
+              "__pivot": [0.5, 0.5],
+              "__tags": ["spawn"],
+              "width": 16,
+              "height": 16,
+              "px": [24, 24],
+              "iid": "ent-player-spawn",
+              "defUid": 20,
+              "fieldInstances": []
+            },
+            {
+              "__identifier": "EnemySpawn",
+              "__grid": [6, 4],
+              "__pivot": [0.5, 0.5],
+              "__tags": ["spawn"],
+              "width": 16,
+              "height": 16,
+              "px": [104, 72],
+              "iid": "ent-enemy-spawn",
+              "defUid": 21,
+              "fieldInstances": [{ "__identifier": "lane", "__type": "Int", "__value": 2 }]
+            },
+            {
+              "__identifier": "AmmoPickup",
+              "__grid": [5, 1],
+              "__pivot": [0.5, 0.5],
+              "__tags": ["pickup"],
+              "width": 16,
+              "height": 16,
+              "px": [88, 24],
+              "iid": "ent-ammo-pickup",
+              "defUid": 22,
+              "fieldInstances": [{ "__identifier": "amount", "__type": "Int", "__value": 12 }]
+            }
+          ]
+        },
+        {
+          "__identifier": "Collision",
+          "__type": "IntGrid",
+          "__cWid": 8,
+          "__cHei": 6,
+          "__gridSize": 16,
+          "layerDefUid": 2,
+          "intGridCsv": [
+            1, 1, 1, 1, 1, 1, 1, 1,
+            1, 0, 0, 0, 0, 0, 0, 1,
+            1, 0, 0, 1, 1, 0, 0, 1,
+            1, 0, 0, 1, 1, 0, 0, 1,
+            1, 0, 0, 0, 0, 0, 0, 1,
+            1, 1, 1, 1, 1, 1, 1, 1
+          ],
+          "autoLayerTiles": []
+        },
+        {
+          "__identifier": "Floor",
+          "__type": "Tiles",
+          "__cWid": 8,
+          "__cHei": 6,
+          "__gridSize": 16,
+          "__tilesetDefUid": 10,
+          "__tilesetRelPath": "tiles/floor.png",
+          "layerDefUid": 3,
+          "gridTiles": [
+            { "px": [16, 16], "src": [0, 0], "f": 0, "t": 0, "a": 1 },
+            { "px": [32, 16], "src": [16, 0], "f": 1, "t": 1, "a": 1 },
+            { "px": [16, 32], "src": [32, 0], "f": 2, "t": 2, "a": 0.5 }
+          ]
+        }
+      ],
+      "fieldInstances": []
+    }
+  ]
+}

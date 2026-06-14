@@ -4,7 +4,7 @@ The open-source embodied 3D game engine behind [Ship Shit Games](https://games.s
 
 Imperative [Three.js](https://threejs.org) for the game, React only for the HUD shell. The boundary axis is **player embodiment** ("is the player a body in a 3D world?"), so an FPS, a tower-defense builder, a platformer, and a runner all share the same core + embodied-base layer and differ only by camera rig and mechanic pack.
 
-> **Status: 0.3.x, early.** Extracted seam-by-seam out of the `scourge-survivors` reference game. Shipping now: world bounds, data-driven arena maps, render lifecycle, swappable camera rig, DOM input binding, agent/spawn seams, HUD snapshots, generic FX/projectile/pickup lifecycles, and the PartyKit multiplayer net seam (client transport, remote avatars, room server template).
+> **Status: 0.3.x, early.** Extracted seam-by-seam out of the `scourge-survivors` reference game. Shipping now: world bounds, data-driven arena maps, render lifecycle, swappable camera rig, DOM input binding, agent/spawn seams, LDtk level import, HUD snapshots, generic FX/projectile/pickup lifecycles, and the PartyKit multiplayer net seam (client transport, remote avatars, room server template).
 
 ## Extraction Boundary
 
@@ -84,6 +84,39 @@ projectiles.spawn({
 - **`InputSystem` + movement bindings** — DOM event lifecycle and WASD/arrow movement intent; genre verbs stay game-side.
 - **`HudSystem<TState>`** — typed snapshot/listener shell for React HUDs without making React part of the engine loop.
 - **`FxSystem` / `ProjectilesSystem` / `PickupsSystem`** — shared transient entity lifecycles with game-supplied content tables and collision/collection policy.
+- **`loadLdtkProject` + `FixedSpawnProvider`** — the level seam: import an [LDtk](https://ldtk.io) (`deepnight/ldtk`, MIT) export into the native arena model — IntGrid → colliders, entity layer → spawn points, tile/auto layers → render-ready tiles.
+
+## Levels (LDtk import seam)
+
+Author arenas in the [LDtk](https://ldtk.io) editor (MIT, by the Dead Cells lead), vendor the `.ldtk` file alongside the game, and `loadLdtkProject` maps it straight onto the engine's native arena/spawn seams — no bespoke level format. The loader is pure data (no Three.js): IntGrid layers become merged rect colliders, entity layers become spawn points + typed entities, and Tiles/AutoLayer layers become render-ready tiles on the XZ plane for the game's own tile/sprite runtime.
+
+```ts
+import {
+  loadLdtkProject,
+  FixedSpawnProvider,
+  ArenaSystem,
+  type LdtkArena,
+} from '@shipshitgames/engine'
+
+// Pinned to LDtk 1.5 — throws an LdtkError on a mismatched export
+// unless you pass { allowVersionMismatch: true }.
+const project = loadLdtkProject(await fetch('/levels/breach.ldtk').then((r) => r.text()))
+const arena: LdtkArena = project.arenas[0]!
+
+// IntGrid -> colliders + bounds, interpreted by the same ArenaSystem.
+const world = new ArenaSystem(arena.map)
+world.isBlockedXZ(0, 0)
+
+// Entity layer -> spawn points drop into the spawn seam next to RectScatterSpawnProvider.
+const spawns = new FixedSpawnProvider(arena.spawnPoints)
+spawns.next() // round-robins authored entry points; honours an avoid radius
+
+// Tile layers carry render-ready { x, z, size, src, tileId, flipX, flipY, alpha }
+// — the engine stays render-agnostic and the game draws them.
+const tiles = arena.tileLayers.flatMap((layer) => layer.tiles)
+```
+
+`scale`, `center`, `collisionLayers`, `solidValues`, `mergeColliders`, `spawnTag`/`spawnIdentifiers`, and `laneField` tune the mapping; pass an `onWarn` sink to capture non-fatal notices (version drift, unsupported layer types).
 
 ## Multiplayer (PartyKit net seam)
 
