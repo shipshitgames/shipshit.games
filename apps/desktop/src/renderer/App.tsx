@@ -3,6 +3,9 @@ import { Terminal } from "@xterm/xterm";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import "@xterm/xterm/css/xterm.css";
 
+import { ModelPreview } from "./ModelPreview";
+import { isModelResult } from "./model-preview-config";
+
 // Studio cockpit. Sprites is wired to @shipshitgames/assetgen via the studio IPC bridge with a
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
 // Default provider = codex CLI (your subscription — no API key).
@@ -153,6 +156,9 @@ declare global {
         loop?: boolean;
         bitrate?: number;
         normalize?: boolean;
+        ktx2?: boolean;
+        draco?: boolean;
+        rig?: string;
       }) => Promise<GenResult>;
       listGames: () => Promise<string[]>;
       onGenLog: (cb: (chunk: string) => void) => () => void;
@@ -226,6 +232,8 @@ const KEYED = [
   { id: "openai", label: "OpenAI" },
   { id: "fal", label: "fal.ai" },
   { id: "replicate", label: "Replicate" },
+  { id: "meshy", label: "Meshy" },
+  { id: "tripo", label: "Tripo" },
   { id: "suno", label: "Suno" },
 ];
 const DEFAULT_PROVIDER_BY_KIND: Record<string, string> = {
@@ -236,8 +244,8 @@ const DEFAULT_PROVIDER_BY_KIND: Record<string, string> = {
   music: "suno",
   sfx: "suno",
   voice: "suno",
-  model: "replicate",
-  "3d": "replicate",
+  model: "meshy",
+  "3d": "meshy",
 };
 const ASSET_DEFAULTS = [
   { kind: "sprite", label: "Sprites" },
@@ -607,6 +615,142 @@ function SpritesPane() {
         {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
         {result?.path && <div className="gen-path">{result.path}</div>}
         {result?.previewPath && <div className="gen-path">{result.previewPath}</div>}
+      </div>
+    </div>
+  );
+}
+
+// 3D pane (issue #20): drives @shipshitgames/assetgen's model pipeline — provider
+// GLB → mandatory gltf-transform optimize (Draco geometry, encoder-gated KTX2 else
+// WebP textures) → manifest entry — then previews the optimized GLB in-process with
+// the Draco+KTX2-wired three.js loader (ModelPreview).
+const MODEL_PROVIDERS = ["meshy", "tripo", "mock"];
+
+function ModelPane() {
+  const [id, setId] = useState("stone-golem");
+  const [prompt, setPrompt] = useState("a hulking moss-covered stone golem, game-ready, neutral T-pose");
+  const [game, setGame] = useState("scourge-survivors");
+  const [games, setGames] = useState<string[]>(["scourge-survivors"]);
+  const [projectState, setProjectState] = useState<ProjectState>(EMPTY_PROJECT_STATE);
+  const [projectId, setProjectId] = useState("");
+  const [provider, setProvider] = useState("meshy");
+  const [rig, setRig] = useState("");
+  const [draco, setDraco] = useState(true);
+  const [ktx2, setKtx2] = useState(false);
+  const [license, setLicense] = useState("ai-generated; review 3D + rig license before shipping");
+  const [busy, setBusy] = useState(false);
+  const [log, setLog] = useState("");
+  const [result, setResult] = useState<GenResult | null>(null);
+  const selectedProject = projectState.projects.find((project) => project.id === projectId) || activeProject(projectState);
+
+  useEffect(() => {
+    window.studio?.settings.get().then((s) => {
+      const next = withSettingsDefaults(s);
+      setProvider(next.providerDefaults.model || next.providerDefaults["3d"] || "meshy");
+      setGame(next.defaultGame);
+    }).catch(() => {});
+    window.studio?.projects.list().then((state) => {
+      setProjectState(state);
+      const current = activeProject(state);
+      if (current) {
+        setProjectId(current.id);
+        setGame(current.slug);
+        setGames(state.projects.map((project) => project.slug));
+      }
+    }).catch(() => {
+      window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
+    });
+    const off = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    return () => { off?.(); };
+  }, []);
+
+  async function changeProject(id: string) {
+    setProjectId(id);
+    const next = await window.studio?.projects.setActive(id);
+    if (!next) return;
+    setProjectState(next);
+    const current = activeProject(next);
+    if (current) setGame(current.slug);
+  }
+
+  async function generate() {
+    if (!window.studio?.generate) { setLog("studio bridge unavailable — restart the app"); return; }
+    if (selectedProject && !selectedProject.valid) { setLog(selectedProject.error || "invalid project manifest"); return; }
+    setBusy(true);
+    setResult(null);
+    setLog("");
+    try {
+      setResult(await window.studio.generate({
+        id,
+        prompt,
+        game: selectedProject?.slug || game,
+        projectId: selectedProject?.id,
+        kind: "model",
+        provider,
+        draco,
+        ktx2,
+        rig: rig.trim() || undefined,
+        license,
+      }));
+    } catch (e) {
+      setLog(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const showPreview = !!result?.dataUrl && isModelResult(result?.mediaType);
+
+  return (
+    <div className="gen">
+      <div className="gen-form">
+        <label className="gen-field"><span>Asset ID</span>
+          <input value={id} onChange={(e) => setId(e.target.value)} placeholder="stone-golem" />
+        </label>
+        <label className="gen-field gen-grow"><span>Prompt</span>
+          <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
+        </label>
+        <label className="gen-field"><span>Game</span>
+          <select value={selectedProject ? selectedProject.id : game} onChange={(e) => {
+            if (projectState.projects.length) void changeProject(e.target.value);
+            else setGame(e.target.value);
+          }}>
+            {projectState.projects.length
+              ? projectState.projects.map((project) => <option key={project.id} value={project.id}>{project.name} · {project.slug}</option>)
+              : games.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+        <div className="gen-row">
+          <label className="gen-field"><span>Provider</span>
+            <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+              {MODEL_PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
+          <label className="gen-field"><span>Rig source</span>
+            <input value={rig} onChange={(e) => setRig(e.target.value)} placeholder="provider default" />
+          </label>
+        </div>
+        <div className="gen-row">
+          <label className="gen-check"><input type="checkbox" checked={draco} onChange={(e) => setDraco(e.target.checked)} /><span>Draco geometry</span></label>
+          <label className="gen-check"><input type="checkbox" checked={ktx2} onChange={(e) => setKtx2(e.target.checked)} /><span>KTX2 textures (else WebP)</span></label>
+        </div>
+        <label className="gen-field"><span>License record</span>
+          <input value={license} onChange={(e) => setLicense(e.target.value)} />
+        </label>
+        <div className="gen-active">3D provider <b>{provider}</b> · optimize: Draco {draco ? "on" : "off"} · textures {ktx2 ? "KTX2→WebP fallback" : "WebP"} · change defaults in Settings (topbar ⚙)</div>
+        {selectedProject?.manifestPath && <div className="gen-manifest">manifest {selectedProject.manifestPath}</div>}
+        {selectedProject && !selectedProject.valid && <div className="project-error">{selectedProject.error}</div>}
+        <button className="gen-btn" type="button" disabled={busy || !id || !prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
+          {busy ? "Sculpting…" : "Generate"}
+        </button>
+        <p className="gen-note">Drives Meshy/Tripo (or mock), runs the mandatory gltf-transform optimize, writes the .glb + records optimized/compression/animations + a license.rig entry. KTX2 needs a KTX-Software encoder; without one, textures fall back to WebP.</p>
+      </div>
+      <div className="gen-preview">
+        {showPreview ? (
+          <ModelPreview src={result!.dataUrl!} label={id} />
+        ) : <div className="gen-preview-empty">{busy ? "sculpting…" : "preview"}</div>}
+        {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
+        {result?.path && <div className="gen-path">{result.path}</div>}
       </div>
     </div>
   );
@@ -1655,7 +1799,7 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "projects" ? <ProjectsPane /> : active === "gallery" ? <GalleryPane /> : active === "maps" ? <MapsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "moodboard" ? <MoodboardPane /> : active === "research" ? <ResearchPane /> : (
+            {active === "projects" ? <ProjectsPane /> : active === "gallery" ? <GalleryPane /> : active === "maps" ? <MapsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "3d" ? <ModelPane /> : active === "moodboard" ? <MoodboardPane /> : active === "research" ? <ResearchPane /> : (
               <div className="placeholder-card">
                 <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
                 <p><strong>{section.label}</strong> workspace coming online.</p>

@@ -22,5 +22,7 @@
 
     "types": ["vite/client", "node"]
   },
-  "include": ["src/renderer", "vite.config.ts"]
+  "include": ["src/renderer", "vite.config.ts"],
+  // Tests run under `bun test` (which provides bun:test + bun globals), not tsc.
+  "exclude": ["src/renderer/**/*.test.ts"]
 }

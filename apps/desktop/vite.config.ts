@@ -1,7 +1,53 @@
-import { builtinModules } from "node:module";
-import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
+import { builtinModules, createRequire } from "node:module";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import electron from "vite-plugin-electron";
+
+// three.js ships its DRACO decoder + KTX2 (basis) transcoder as separate worker
+// assets that DRACOLoader/KTX2Loader fetch at runtime from a configured path.
+// The 3D preview pane wires them to `./decoders/<draco|basis>/` (see
+// src/renderer/model-preview-config.ts), so this plugin makes those files
+// available there — served from node_modules in dev, emitted into the bundle for
+// the packaged file:// app — without committing vendored binaries to the repo.
+const require = createRequire(import.meta.url);
+const THREE_DECODERS = [
+  { route: "draco", dir: "three/examples/jsm/libs/draco/", files: ["draco_wasm_wrapper.js", "draco_decoder.wasm", "draco_decoder.js"] },
+  { route: "basis", dir: "three/examples/jsm/libs/basis/", files: ["basis_transcoder.js", "basis_transcoder.wasm"] },
+] as const;
+
+// Map a `/decoders/<route>/<file>` request path back to its on-disk three asset,
+// or null when the path isn't a known decoder file.
+function resolveDecoderRequest(pathname: string): string | null {
+  for (const { route, dir, files } of THREE_DECODERS) {
+    for (const file of files) {
+      if (pathname === `/decoders/${route}/${file}`) return require.resolve(`${dir}${file}`);
+    }
+  }
+  return null;
+}
+
+function bundleThreeDecoders(): Plugin {
+  return {
+    name: "bundle-three-decoders",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const pathname = (req.url ?? "").split("?")[0]!;
+        const file = resolveDecoderRequest(pathname);
+        if (!file) return next();
+        res.setHeader("Content-Type", pathname.endsWith(".wasm") ? "application/wasm" : "text/javascript");
+        res.end(readFileSync(file));
+      });
+    },
+    generateBundle() {
+      for (const { route, dir, files } of THREE_DECODERS) {
+        for (const name of files) {
+          this.emitFile({ type: "asset", fileName: `decoders/${route}/${name}`, source: readFileSync(require.resolve(`${dir}${name}`)) });
+        }
+      }
+    },
+  };
+}
 
 // Native addons + node builtins must stay external from the main/preload bundles:
 // node-pty is a compiled .node addon (rebuilt against Electron's ABI, asar-unpacked),
@@ -21,6 +67,7 @@ const NATIVE_EXTERNALS = [
 export default defineConfig({
   plugins: [
     react(),
+    bundleThreeDecoders(),
     electron([
       {
         entry: "src/main/index.ts",

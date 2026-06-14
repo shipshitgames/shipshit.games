@@ -38,6 +38,7 @@ test("falls back to extension sniffing when the suffix is absent", () => {
   expect(parseGenerateResult(wroteLine("/g/sheet.png"))).toEqual({ path: "/g/sheet.png", mediaType: "image/png" });
   expect(parseGenerateResult(wroteLine("/g/theme.webm"))).toEqual({ path: "/g/theme.webm", mediaType: "audio/webm" });
   expect(parseGenerateResult(wroteLine("/g/stinger.wav"))).toEqual({ path: "/g/stinger.wav", mediaType: "audio/wav" });
+  expect(parseGenerateResult(wroteLine("/g/golem.glb"))).toEqual({ path: "/g/golem.glb", mediaType: "model/gltf-binary" });
 });
 
 test("the last wrote-line wins when the run writes multiple files", () => {
@@ -56,15 +57,18 @@ test("returns null when the log has no wrote-line", () => {
   expect(parseGenerateResult("[exit 1]\nprovider error: missing key\n")).toBeNull();
 });
 
-test("dataUrlFor encodes image and audio media types", () => {
+test("dataUrlFor encodes image, audio, and GLB model media types", () => {
   const bytes = Buffer.from("shipshit");
   const b64 = bytes.toString("base64");
   expect(dataUrlFor({ path: "/g/a.webp", mediaType: "image/webp" }, bytes)).toBe(`data:image/webp;base64,${b64}`);
   expect(dataUrlFor({ path: "/g/a.webm", mediaType: "audio/webm" }, bytes)).toBe(`data:audio/webm;base64,${b64}`);
+  expect(dataUrlFor({ path: "/g/a.glb", mediaType: "model/gltf-binary" }, bytes)).toBe(
+    `data:model/gltf-binary;base64,${b64}`,
+  );
 });
 
-test("dataUrlFor returns null for non image/audio media types", () => {
+test("dataUrlFor returns null for media types with no inline preview", () => {
   const bytes = Buffer.from("shipshit");
-  expect(dataUrlFor({ path: "/g/a.glb", mediaType: "model/gltf-binary" }, bytes)).toBeNull();
+  expect(dataUrlFor({ path: "/g/a.html", mediaType: "text/html" }, bytes)).toBeNull();
   expect(dataUrlFor({ path: "/g/a.bin", mediaType: "application/octet-stream" }, bytes)).toBeNull();
 });

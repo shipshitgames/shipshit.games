@@ -164,7 +164,11 @@ function animationDuration(animation: GltfAnimation, accessors: GltfAccessor[]):
   return Number(max.toFixed(4));
 }
 
-function summarizeModel(doc: GltfDocument): Pick<ModelAsset, "meshes" | "materials" | "textures" | "skins" | "joints" | "animations"> {
+/** Mesh/material/skin/animation tallies derived from a glTF document. */
+export type ModelSummary = Pick<ModelAsset, "meshes" | "materials" | "textures" | "skins" | "joints" | "animations">;
+
+/** Summarize a parsed glTF document into manifest/index model metadata. Shared with the 3D generator (issue #20). */
+export function summarizeModel(doc: GltfDocument): ModelSummary {
   const accessors = doc.accessors ?? [];
   const skins = doc.skins ?? [];
   return {

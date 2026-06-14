@@ -137,6 +137,21 @@ body {
   filter: drop-shadow(0 0 20px color-mix(in srgb, var(--blood) 45%, transparent));
 }
 .gen-preview .map-preview { max-width: 460px; }
+.gen-check { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ash); cursor: pointer; }
+.gen-check input { accent-color: var(--blood); }
+/* ---- 3D model preview (three.js viewer) ---- */
+.model-stage {
+  position: relative; width: 100%; max-width: 520px; aspect-ratio: 16 / 10; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); border-radius: 2px;
+  background: radial-gradient(circle at 50% 38%, #15151b 0%, #0a0a0d 70%);
+}
+.model-canvas { position: absolute; inset: 0; }
+.model-status {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--ash) 72%, var(--void)); pointer-events: none;
+}
+.model-status.is-err { color: color-mix(in srgb, var(--blood-hot) 70%, var(--bone)); letter-spacing: 0.04em; text-transform: none; }
 .gen-preview-empty {
   display: flex; align-items: center; justify-content: center; width: 100%; max-width: 420px; aspect-ratio: 1;
   border: 1px dashed color-mix(in srgb, var(--gunmetal) 76%, var(--bone)); border-radius: 2px; color: color-mix(in srgb, var(--ash) 68%, var(--void));

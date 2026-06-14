@@ -62,3 +62,10 @@ test("providerForKind accepts the new audio providers as explicit choices", () =
 test("providerForKind ignores an unknown explicit provider and uses the per-kind default", () => {
   expect(providerForKind(normalizeSettings({}), "music", "udio")).toBe("suno");
 });
+
+test("3D model kinds default to meshy and accept meshy/tripo as explicit choices", () => {
+  expect(providerForKind(normalizeSettings({}), "model")).toBe("meshy");
+  expect(providerForKind(normalizeSettings({}), "3d")).toBe("meshy");
+  expect(providerForKind(normalizeSettings({}), "model", "tripo")).toBe("tripo");
+  expect(providerForKind(normalizeSettings({}), "model", "meshy")).toBe("meshy");
+});

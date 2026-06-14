@@ -26,6 +26,12 @@ function buildGenerateArgs({ assetgenPath, settings, opts = {}, target = {} }: a
   if (opts?.loop === false) args.push("--no-loop");
   if (opts?.bitrate) args.push("--bitrate", String(opts.bitrate));
   if (opts?.normalize) args.push("--normalize");
+  // 3D-model flags (issue #20): only pushed when present so other kinds' arg
+  // arrays stay byte-identical. Draco is on by default, so emit --no-draco only
+  // when explicitly disabled; --ktx2 opts into the encoder-gated texture path.
+  if (opts?.ktx2) args.push("--ktx2");
+  if (opts?.draco === false) args.push("--no-draco");
+  if (opts?.rig) args.push("--rig", String(opts.rig));
   if (model) args.push("--model", String(model));
   return { args, provider, game, kind, repo, model };
 }
