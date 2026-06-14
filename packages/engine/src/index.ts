@@ -81,6 +81,51 @@ export {
   type TransientEntity,
 } from './fx/FxSystem'
 
+// --- engine-core: audio runtime (seam: Howler.js backend; playback side of #21) ---
+// Howler is an optional dependency: browser games call `AudioSystem.withHowler()`,
+// everyone else injects a backend. The bun unit suite uses an in-memory fake.
+export {
+  AudioSystem,
+  DEFAULT_MUSIC_CROSSFADE_MS,
+  type AudioSystemOptions,
+  type MusicOptions,
+  type PlayOptions,
+  type RegisteredSound,
+} from './audio/AudioSystem'
+export {
+  loadHowlerBackend,
+  type AudioBackend,
+  type AudioContextLike,
+  type HowlFactory,
+  type HowlGlobalLike,
+  type HowlLike,
+  type HowlOptions,
+  type HowlSpriteDef,
+} from './audio/howl'
+export {
+  AUDIO_KINDS,
+  defaultLoopForKind,
+  isAudioKind,
+  resolveCategory,
+  selectAudioEntries,
+  toSoundSpec,
+  type AudioAssetEntry,
+  type AudioCueMap,
+  type AudioKind,
+  type AudioManifestLike,
+  type SoundSpec,
+} from './audio/manifest'
+export {
+  computeAttenuation,
+  computePan,
+  spatialize,
+  DEFAULT_MAX_DISTANCE,
+  DEFAULT_REF_DISTANCE,
+  type AttenuationConfig,
+  type AudioListener,
+  type Spatialized,
+} from './audio/spatial-audio'
+
 // --- engine-core: generic data-driven transient gameplay entities ---
 export {
   ProjectilesSystem,
