@@ -33,6 +33,35 @@ export {
 // --- engine-core: render seam (scene/renderer lifecycle + map lights/theme) ---
 export { RenderSystem, type RendererLike, type RenderSystemConfig } from './render/RenderSystem'
 
+// --- engine-core: pixel sprite runtime (PNG/WebP → WebGL: texture, billboard, sprite-anim) ---
+export {
+  applyPixelFilters,
+  loadPixelTexture,
+  type PixelTextureOptions,
+  type TextureLoaderLike,
+} from './render/texture'
+export {
+  applyFrame,
+  facingSuffix,
+  frameCell,
+  frameRange,
+  frameUV,
+  gridSheet,
+  type FacingCount,
+  type FrameUV,
+  type GridSheetOptions,
+  type SpriteClip,
+  type SpriteSheet,
+} from './render/sprite-sheet'
+export { Billboard, type BillboardOptions } from './render/Billboard'
+export { AnimatedSprite, type AnimatedSpriteOptions } from './render/AnimatedSprite'
+export {
+  AssetCatalog,
+  deriveSheet,
+  type AssetCatalogOptions,
+  type ManifestSpriteEntry,
+} from './render/AssetCatalog'
+
 // --- engine-core: HUD snapshot fan-out (React stays game-side) ---
 export {
   HudSystem,
