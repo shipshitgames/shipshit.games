@@ -147,24 +147,37 @@ export function assertSafeDownloadUrl(
 
 /**
  * Fetch a download URL within a timeout budget (always applied — a hung CDN
- * connection must not block forever), following redirects manually so the SSRF
- * guards can re-check each hop. When `allowedHosts` is supplied, every hop —
- * including a CDN 302 to an internal address — is re-validated; otherwise the
- * URL is fetched unrestricted (only the timeout + redirect cap apply).
+ * connection must not block forever). Two redirect strategies:
+ *
+ * - Unguarded callers (no allowlist/trusted origin — fal/replicate/suno/beatoven)
+ *   keep the platform's native redirect-following, exactly as the pre-hardening
+ *   `fetch(url)` did, so a vendor CDN that legitimately chains several hops is not
+ *   silently capped at {@link MAX_DOWNLOAD_REDIRECTS}; only the timeout is added.
+ * - Guarded callers (meshy/tripo) follow redirects manually so the SSRF guard
+ *   re-checks every hop — including a CDN 302 to an internal address — and the
+ *   chain is capped so a hostile CDN can't loop the download forever.
  */
 async function fetchDownload(url: string, fetchImpl: typeof fetch, options: DownloadOptions): Promise<Response> {
   const { timeoutMs = DEFAULT_DOWNLOAD_TIMEOUT_MS, allowedHosts, trustedOrigins } = options;
   const guarded = (allowedHosts && allowedHosts.length > 0) || (trustedOrigins && trustedOrigins.length > 0);
-  const guard = (u: string) => {
-    if (guarded) assertSafeDownloadUrl(u, allowedHosts, trustedOrigins);
-  };
   const deadline = Date.now() + Math.max(1, timeoutMs);
+  const budget = (): number => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error(`download: timed out after ${timeoutMs}ms`);
+    return remaining;
+  };
+
+  if (!guarded) {
+    // Native redirect-following (default), preserving the unguarded providers'
+    // prior behavior; the single signal still bounds the whole chain + body read.
+    return fetchImpl(url, { signal: AbortSignal.timeout(budget()) });
+  }
+
+  const guard = (u: string) => assertSafeDownloadUrl(u, allowedHosts, trustedOrigins);
   let current = url;
   guard(current);
   for (let hop = 0; ; hop++) {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) throw new Error(`download: timed out after ${timeoutMs}ms`);
-    const res = await fetchImpl(current, { redirect: "manual", signal: AbortSignal.timeout(remaining) });
+    const res = await fetchImpl(current, { redirect: "manual", signal: AbortSignal.timeout(budget()) });
     if (res.status < 300 || res.status >= 400) return res; // not a redirect — hand back to caller
     const location = res.headers.get("location");
     if (!location) return res; // 3xx without a Location: let the !ok check surface it
