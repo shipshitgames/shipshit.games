@@ -194,6 +194,48 @@ Flags: `--game <slug>` (required), `--out <path>`, `--atlas <path>`,
 `--frame-size <WxH>`, `--assets-dir`, `--check`. Colliding ids (e.g. `x.png` +
 `x.webp`) keep their extension so no asset is dropped.
 
+## `import-aseprite` — hand-authored frames back into the pipeline (issue #78)
+
+The round-trip seam for the `expand` path: AI synthesizes frames, an artist
+hand-edits them in [Aseprite](https://www.aseprite.org/) / [LibreSprite](https://github.com/LibreSprite/LibreSprite)
+(fix a stray pixel, retime a frame, clean a facing), and `import-aseprite` reads
+the exported sheet **back into the identical `sprite-anim` format** the `expand`
+path produces — same `assets.json` entry, frame map, and preview. AI-first and
+hand-first land in the same runtime format.
+
+Export from Aseprite with **File > Export Sprite Sheet > Output > JSON Data** (a
+PNG + a `.json`). Frame **tags** become clip names (`idle`, `run`, `attack`); an
+optional facing suffix splits direction (`run_west`, `idle_se`). Tag direction
+(forward / reverse / pingpong) and per-frame durations are honored.
+
+```bash
+# Import a tagged sheet into the shared sprite-anim format:
+bun packages/assetgen/src/cli.ts import-aseprite \
+  --in warden.png --json warden.json --id warden --game scourge-survivors
+
+# Re-lock every frame onto the DOOM grid + palette on the way in:
+bun packages/assetgen/src/cli.ts import-aseprite \
+  --in warden.png --json warden.json --id warden --pixelize --height 110
+
+# No tags? Treat the whole sheet as one clip; force a uniform fps:
+bun packages/assetgen/src/cli.ts import-aseprite \
+  --in torch.png --json torch.json --clip flicker --fps 12
+```
+
+Flags: `--in <sheet.png>` + `--json <sheet.json>` (required), `--id`, `--game`,
+`--clip <name>` (clip name when untagged), `--pixelize` (+ `--height`), `--fps`
+(omit to honor Aseprite per-frame timing), `--anchor`, `--scale`, `--provider`
+(default `aseprite`), `--model`, `--repo`, `--out`, `--usage-log`,
+`--license-type`/`--license`/`--license-url`, `--dry-run`.
+
+**DOOM palette for hand-edits.** So edits stay on-palette by construction, the
+fixed DOOM ramp ships as a GIMP palette at
+[`packages/assets/palettes/doom.gpl`](../assets/palettes/doom.gpl) — load it in
+Aseprite via **Palette > Load Palette File**. It is generated from `pixelize.ts`'s
+`DOOM_RAMP` (the single source of truth) by `paletteToGpl`; a drift test keeps the
+two in lockstep, so regenerate the `.gpl` whenever the ramp changes rather than
+hand-editing it.
+
 ## Design tokens
 
 `assetgen tokens` compiles the reviewed `DESIGN.md` frontmatter into generated
