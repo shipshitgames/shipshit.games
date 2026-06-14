@@ -88,6 +88,16 @@ export function buildFfmpegAudioArgs(input: string, output: string, opts: AudioE
   return args;
 }
 
+/**
+ * ffprobe argv reading a media file's container duration as a bare seconds float.
+ * `-of default=nk=1:nw=1` strips the key= and section wrapper, leaving just the
+ * number. This is how duration is recovered: the encode runs at `-loglevel error`
+ * (mirroring desktop), which suppresses ffmpeg's own "Duration:" stderr banner.
+ */
+export function buildFfprobeDurationArgs(file: string): string[] {
+  return ["-v", "error", "-show_entries", "format=duration", "-of", "default=nk=1:nw=1", file];
+}
+
 /** Parse the first "Duration: HH:MM:SS.ss" out of ffmpeg stderr → total seconds (2dp). */
 export function parseFfmpegDuration(stderr: string): number | undefined {
   const m = stderr.match(/Duration:\s*(\d+):(\d{2}):(\d{2})(?:\.(\d+))?/);
@@ -98,6 +108,15 @@ export function parseFfmpegDuration(stderr: string): number | undefined {
   const frac = m[4] ? Number(`0.${m[4]}`) : 0;
   const total = hours * 3600 + minutes * 60 + seconds + frac;
   return Math.round(total * 100) / 100;
+}
+
+/** Parse ffprobe's bare `format=duration` stdout (a seconds float) → seconds (2dp). */
+export function parseFfprobeDuration(stdout: string): number | undefined {
+  const trimmed = stdout.trim();
+  if (!trimmed || trimmed === "N/A") return undefined;
+  const seconds = Number(trimmed);
+  if (!Number.isFinite(seconds) || seconds < 0) return undefined;
+  return Math.round(seconds * 100) / 100;
 }
 
 /** Resolve ffmpeg the desktop way: env, common installs, `command -v`, else "ffmpeg". */
@@ -113,6 +132,21 @@ export function resolveFfmpeg(): string {
     /* not on PATH */
   }
   return "ffmpeg";
+}
+
+/** Resolve ffprobe the same way as ffmpeg: env, common installs, `command -v`, else "ffprobe". */
+export function resolveFfprobe(): string {
+  const cands = [process.env.FFPROBE, "/opt/homebrew/bin/ffprobe", "/usr/local/bin/ffprobe", "/usr/bin/ffprobe"];
+  for (const c of cands) {
+    if (c && existsSync(c)) return c;
+  }
+  try {
+    const w = execFileSync("/bin/sh", ["-lc", "command -v ffprobe"]).toString().trim();
+    if (w) return w;
+  } catch {
+    /* not on PATH */
+  }
+  return "ffprobe";
 }
 
 export function ffmpegAvailable(): boolean {
@@ -159,15 +193,73 @@ function defaultFfmpegRunner(cmd: string, args: string[]): Promise<FfmpegRunResu
   });
 }
 
+export interface FfprobeRunResult {
+  code: number;
+  stdout: string;
+}
+
+/** Runs ffprobe and returns its exit code + stdout; injectable so the unit suite needs no binary. */
+export type FfprobeRunner = (cmd: string, args: string[]) => Promise<FfprobeRunResult>;
+
+function defaultFfprobeRunner(cmd: string, args: string[]): Promise<FfprobeRunResult> {
+  return new Promise((resolve) => {
+    let stdout = "";
+    let child;
+    try {
+      child = spawn(cmd, args);
+    } catch {
+      resolve({ code: -1, stdout: "" });
+      return;
+    }
+    child.stdout.on("data", (d) => {
+      stdout += d.toString();
+    });
+    child.on("error", () => {
+      /* ENOENT etc. — 'close' still fires and we fall back to no duration */
+    });
+    child.on("close", (code) => resolve({ code: code ?? -1, stdout }));
+  });
+}
+
 /**
- * Encode a source audio buffer to .webm/opus. The runner abstraction means the
- * full orchestration (temp dir, argv, error path, duration parse) is covered by
- * a unit test that injects a fake runner — no ffmpeg binary required.
+ * Probe a media file's duration (seconds) with ffprobe. Returns undefined — never
+ * throws — when ffprobe is missing or the file has no readable duration, so a failed
+ * probe leaves the manifest `duration` optional rather than failing the encode.
+ */
+export async function probeAudioDuration(
+  file: string,
+  deps: { runner?: FfprobeRunner; ffprobePath?: string } = {},
+): Promise<number | undefined> {
+  const runner = deps.runner ?? ((cmd, a) => defaultFfprobeRunner(cmd, a));
+  try {
+    const result = await runner(deps.ffprobePath ?? resolveFfprobe(), buildFfprobeDurationArgs(file));
+    if (result.code !== 0) return undefined;
+    return parseFfprobeDuration(result.stdout);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Encode a source audio buffer to .webm/opus. The runner abstraction means the full
+ * orchestration (temp dir, argv, error path, duration probe) is covered by a unit
+ * test that injects fake ffmpeg/ffprobe runners — no real binaries required.
+ *
+ * Duration comes from ffprobe on the encoded output (the actual shipped asset), not
+ * from ffmpeg stderr: the encode runs at `-loglevel error`, which prints no
+ * "Duration:" banner. The stderr parse remains a best-effort fallback for runners
+ * that do emit one.
  */
 export async function encodeAudioWebm(
   input: Buffer,
   opts: AudioEncodeOptions = {},
-  deps: { runner?: FfmpegRunner; ffmpegPath?: string; inputExt?: string } = {},
+  deps: {
+    runner?: FfmpegRunner;
+    ffmpegPath?: string;
+    inputExt?: string;
+    probeRunner?: FfprobeRunner;
+    ffprobePath?: string;
+  } = {},
 ): Promise<EncodeAudioResult> {
   const dir = await mkdtemp(join(tmpdir(), "assetgen-audio-"));
   const inPath = join(dir, `in.${deps.inputExt || "wav"}`);
@@ -181,7 +273,11 @@ export async function encodeAudioWebm(
       throw new Error(`ffmpeg exited ${result.code}: ${result.stderr.slice(-500)}`);
     }
     const data = await readFile(outPath);
-    const duration = parseFfmpegDuration(result.stderr);
+    const probed = await probeAudioDuration(outPath, {
+      runner: deps.probeRunner,
+      ffprobePath: deps.ffprobePath,
+    });
+    const duration = probed ?? parseFfmpegDuration(result.stderr);
     return {
       data,
       mediaType: "audio/webm",

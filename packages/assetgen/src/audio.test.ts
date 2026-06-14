@@ -6,6 +6,7 @@ import {
   audioMetadata,
   buildAudioPrompt,
   buildFfmpegAudioArgs,
+  buildFfprobeDurationArgs,
   clampBitrate,
   clampVolume,
   DEFAULT_AUDIO_BITRATE,
@@ -13,6 +14,7 @@ import {
   encodeAudioWebm,
   isAudioKind,
   parseFfmpegDuration,
+  parseFfprobeDuration,
 } from "./audio.ts";
 
 test("buildFfmpegAudioArgs mirrors the desktop transcode argv (default)", () => {
@@ -54,6 +56,28 @@ test("parseFfmpegDuration parses HH:MM:SS.ss to seconds, undefined when absent",
   assert.equal(parseFfmpegDuration("  Duration: 00:00:01.50, start: 0.0\n"), 1.5);
   assert.equal(parseFfmpegDuration("  Duration: 00:01:02.25, bitrate: 1k"), 62.25);
   assert.equal(parseFfmpegDuration("no duration here"), undefined);
+});
+
+test("parseFfprobeDuration parses bare seconds (2dp), undefined for N/A/empty/junk", () => {
+  assert.equal(parseFfprobeDuration("1.508000\n"), 1.51);
+  assert.equal(parseFfprobeDuration("62.25"), 62.25);
+  assert.equal(parseFfprobeDuration("  0  "), 0);
+  assert.equal(parseFfprobeDuration("N/A"), undefined);
+  assert.equal(parseFfprobeDuration(""), undefined);
+  assert.equal(parseFfprobeDuration("not-a-number"), undefined);
+  assert.equal(parseFfprobeDuration("-3"), undefined);
+});
+
+test("buildFfprobeDurationArgs requests format=duration as a bare number", () => {
+  assert.deepEqual(buildFfprobeDurationArgs("/out.webm"), [
+    "-v",
+    "error",
+    "-show_entries",
+    "format=duration",
+    "-of",
+    "default=nk=1:nw=1",
+    "/out.webm",
+  ]);
 });
 
 test("clampBitrate clamps and defaults", () => {
@@ -123,30 +147,75 @@ test("buildAudioPrompt produces clean audio direction with no visual vocabulary"
   }
 });
 
-test("encodeAudioWebm runs the injected runner, returns webm + parsed duration", async () => {
+test("encodeAudioWebm runs the injected runner, probes the encoded output for duration", async () => {
   let seenCmd: string | undefined;
   let seenArgs: string[] = [];
+  let probeCmd: string | undefined;
+  let probeArgs: string[] = [];
   const result = await encodeAudioWebm(
     Buffer.from("fake-input"),
     { bitrateKbps: 96, normalize: true },
     {
       ffmpegPath: "/fake/ffmpeg",
+      ffprobePath: "/fake/ffprobe",
       inputExt: "wav",
       runner: async (cmd, args) => {
         seenCmd = cmd;
         seenArgs = args;
         // The runner is responsible for producing the output file at args[last].
         await writeFile(args[args.length - 1]!, Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3]));
-        return { code: 0, stderr: "  Duration: 00:00:01.50, start: 0.0\n" };
+        // NOTE: empty stderr — a real `-loglevel error` encode prints no "Duration:" banner.
+        return { code: 0, stderr: "" };
+      },
+      probeRunner: async (cmd, args) => {
+        probeCmd = cmd;
+        probeArgs = args;
+        return { code: 0, stdout: "1.508000\n" };
       },
     },
   );
   assert.equal(seenCmd, "/fake/ffmpeg");
   assert.equal(seenArgs.includes("loudnorm"), true);
+  assert.equal(probeCmd, "/fake/ffprobe");
+  // ffprobe probes the encoded OUTPUT (args[last] of the encode), not the input.
+  assert.equal(probeArgs[probeArgs.length - 1], seenArgs[seenArgs.length - 1]);
   assert.equal(result.mediaType, "audio/webm");
   assert.equal(result.extension, "webm");
-  assert.equal(result.duration, 1.5);
+  assert.equal(result.duration, 1.51);
   assert.ok(result.data.length > 0);
+});
+
+test("encodeAudioWebm falls back to the ffmpeg stderr Duration banner when ffprobe yields nothing", async () => {
+  const result = await encodeAudioWebm(
+    Buffer.from("fake-input"),
+    {},
+    {
+      ffmpegPath: "/fake/ffmpeg",
+      ffprobePath: "/fake/ffprobe",
+      runner: async (_cmd, args) => {
+        await writeFile(args[args.length - 1]!, Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3]));
+        return { code: 0, stderr: "  Duration: 00:00:02.50, start: 0.0\n" };
+      },
+      // Simulate ffprobe missing/unreadable → no duration from the probe.
+      probeRunner: async () => ({ code: 1, stdout: "" }),
+    },
+  );
+  assert.equal(result.duration, 2.5);
+});
+
+test("encodeAudioWebm omits duration when neither ffprobe nor stderr provides one", async () => {
+  const result = await encodeAudioWebm(
+    Buffer.from("fake-input"),
+    {},
+    {
+      runner: async (_cmd, args) => {
+        await writeFile(args[args.length - 1]!, Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3]));
+        return { code: 0, stderr: "" };
+      },
+      probeRunner: async () => ({ code: 0, stdout: "N/A\n" }),
+    },
+  );
+  assert.equal("duration" in result, false);
 });
 
 test("encodeAudioWebm rejects when the runner reports a non-zero exit", async () => {
