@@ -163,11 +163,64 @@ bun packages/assetgen/src/cli.ts atlas --game scourge-survivors --check
 ```
 
 Flags: `--game <slug>`, `--padding <px>` (default 2), `--max-width` / `--max-height`
-(default 4096), `--out-dir`, `--name`, `--assets-dir`, `--check`.
+(default 4096), `--out-dir`, `--name`, `--assets-dir`, `--check`,
+`--no-geometry-check` (skip the pre-pack sprite frame-set gate below).
 
 The map records each frame's `page`, `x`, `y`, `w`, `h`, `id`, and `game`, plus a
 `pages` list with each page image's filename and dimensions — feed it to a
 runtime loader / `codegen` (#22) for type-safe sprite lookups.
+
+Before packing, `atlas` runs the sprite frame-set geometry gate (below) so a
+malformed `<id>.anim.json` never gets baked into an atlas; pass
+`--no-geometry-check` to skip it.
+
+## `check-sprites` — sprite frame-set geometry gate (issue #166)
+
+`assetgen check-sprites` verifies every `<id>.anim.json` sprite-anim sheet is
+geometrically sane before it reaches the slicer/atlas or the runtime. It is the
+same core `atlas` runs as a pre-pack gate, exposed standalone for CI and
+pre-commit. Every sheet is checked for a **structural contract** (always on):
+
+- **Canonical direction set** — `directions` is exactly a 1/4/8 facing set in the
+  load-bearing order, and every clip covers exactly those facings (no missing, no
+  extra).
+- **Frame-count integrity** — `clip.frames` matches every facing's frame-array
+  length, so no clip has a short or long direction.
+- **In-bounds rects** — every frame rect is non-degenerate and lies fully inside
+  its declared atlas page (an overflowing rect is a clipped frame).
+- **No blank frames** (pixel pass, default on) — each frame's region on its page
+  carries visible (non-transparent) pixels; pass `--no-pixels` to skip the scan.
+  The scan is capped at 1024 frames per sheet (a perf guard); past that it warns
+  on stderr that the tail was not checked rather than silently passing it.
+
+A per-game **contract** adds opt-in rules, declared either in
+`<assets-dir>/sprite-contract.json` (repo-wide) overlaid by
+`<assets-dir>/<game>/sprite-contract.json` (per-game wins), or via CLI flags
+(which override the file). Contract checks only run when declared, so the gate is
+additive — it never fails a sheet for a rule the game never opted into:
+
+```bash
+# Check every sheet (structural + pixel pass):
+bun packages/assetgen/src/cli.ts check-sprites
+
+# One game, require 8 facings + idle/walk/attack states:
+bun packages/assetgen/src/cli.ts check-sprites --game scourge-survivors \
+  --dirs 8 --states idle,walk,attack
+
+# Grid sheets: demand uniform frame size, cap dims + aspect band:
+bun packages/assetgen/src/cli.ts check-sprites --uniform-frames \
+  --max-frame-dims 128x128 --aspect 0.5,2
+
+# Fast structural-only pass (skip the per-frame pixel scan); machine-readable:
+bun packages/assetgen/src/cli.ts check-sprites --no-pixels --json
+```
+
+Flags: `--assets-dir`, `--game <slug>`, `--dirs <n>`, `--states <a,b,c>`,
+`--uniform-frames`, `--max-frame-dims <WxH>`, `--aspect <min,max>`,
+`--no-pixels`, `--json`. Exit code is the failure signal: **1** when any sheet
+violates the contract, **0** when all sheets pass (or none are found). `--json`
+prints the full report (`{ ok, assetsDir, game, reports }`) to stdout and keeps
+stderr clean for machine consumers — it does **not** change the exit code.
 
 ## `codegen` — typed per-game asset bindings (issue #22)
 
