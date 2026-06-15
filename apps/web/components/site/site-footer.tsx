@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { FlaggedPromo } from "@/components/site/flagged-promo";
+
 const LINKS: { label: string; href: string; ext?: boolean }[] = [
   { label: "Games", href: "/games" },
   { label: "Factions", href: "/factions" },
@@ -51,6 +53,7 @@ export function SiteFooter() {
             )
           )}
         </div>
+        <FlaggedPromo />
         <p className="mt-8 text-[0.65rem] uppercase tracking-widest text-gunmetal">
           © Ship Shit Games · Building in public · MIT where noted
         </p>

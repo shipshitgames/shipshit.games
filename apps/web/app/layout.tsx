@@ -16,7 +16,7 @@ const oswald = Oswald({
   variable: "--font-oswald",
 });
 
-import { Analytics } from "@vercel/analytics/next";
+import { PostHogAnalytics } from "@/components/site/posthog-analytics";
 
 import { SiteHeader } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -95,7 +95,7 @@ export default function RootLayout({
         <SiteFooter />
         <CommandPalette />
         <Konami />
-        {process.env.VERCEL ? <Analytics /> : null}
+        {process.env.VERCEL ? <PostHogAnalytics /> : null}
       </body>
     </html>
   );
