@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,6 +6,7 @@ import { GAMES } from "@shipshitgames/shared";
 
 import { Backdrop } from "@/components/site/atmosphere";
 import { Eyebrow } from "@/components/site/eyebrow";
+import { pageAccent } from "@/components/games/accent";
 import { Button } from "@/components/ui/button";
 import { AssetBrowser, type GameOption } from "@/components/assets/asset-browser";
 import { VariantMatrix } from "@/components/assets/variant-matrix";
@@ -40,11 +40,6 @@ export const metadata: Metadata = {
     images: ["/images/og/assets.jpg"],
   },
 };
-
-const accent = (hex: string): CSSProperties => ({ "--page-accent": hex }) as CSSProperties;
-const HELLFIRE = "#ff6a00";
-const BLOOD = "#c1121f";
-const RUST = "#a35a33";
 
 const GAME_OPTIONS: GameOption[] = GAMES.map((game) => ({
   slug: game.slug,
@@ -80,7 +75,7 @@ export default function AssetsPage() {
     <main>
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section
-        style={accent(HELLFIRE)}
+        style={pageAccent("hellfire")}
         className="relative overflow-hidden border-b border-gunmetal/40 px-6 pb-20 pt-32"
       >
         <Backdrop />
@@ -162,7 +157,7 @@ export default function AssetsPage() {
       </section>
 
       {/* ── BROWSER ──────────────────────────────────────────────────────── */}
-      <section style={accent(BLOOD)} className="border-b border-gunmetal/40 px-6 py-20">
+      <section style={pageAccent("blood")} className="border-b border-gunmetal/40 px-6 py-20">
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
             <div>
@@ -186,7 +181,7 @@ export default function AssetsPage() {
 
       {/* ── VARIANT MATRIX ───────────────────────────────────────────────── */}
       <section
-        style={accent(RUST)}
+        style={pageAccent("rust")}
         className="relative overflow-hidden border-b border-gunmetal/40 px-6 py-20"
       >
         <Backdrop />
@@ -212,7 +207,7 @@ export default function AssetsPage() {
       </section>
 
       {/* ── PROCESS: PROMPT → RENDER → GRADE → SHIP ─────────────────────── */}
-      <section style={accent(HELLFIRE)} className="px-6 py-20">
+      <section style={pageAccent("hellfire")} className="px-6 py-20">
         <div className="mx-auto max-w-7xl">
           <Eyebrow>The pipeline</Eyebrow>
           <h2 className="mt-3 font-display text-4xl font-bold uppercase tracking-tight text-bone sm:text-5xl">
