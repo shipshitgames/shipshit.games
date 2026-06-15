@@ -1,0 +1,43 @@
+# Production compose for api.shipshit.games — a single stateless Next.js API in
+# front of the managed RDS Postgres. There is no in-compose Postgres: the DB is
+# the AWS RDS instance `shipshit-api`, reached privately because this host sits
+# in the VPC and is allow-listed on the RDS security group.
+#
+# Env is hydrated from AWS SSM into ../.env.production by render-ssm-env.sh on
+# every deploy; the container reads it via env_file. The image is built in CI
+# from apps/api/Dockerfile and pulled from ghcr by deploy-production.sh.
+#
+# Run indirectly: docker/deploy-production.sh api  (which sets IMAGE_TAG etc).
+services:
+  api:
+    image: ${API_IMAGE:-ghcr.io/shipshitgames/shipshitgames/api:${IMAGE_TAG:-latest}}
+    container_name: shipshit-api
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - '${API_PORT:-3003}:3003'
+    env_file:
+      # Rendered from SSM by render-ssm-env.sh — carries DATABASE_URL plus every
+      # api runtime secret (CLERK_*, STRIPE_WEBHOOK_SECRET, REPLICATE_API_TOKEN,
+      # GITHUB_WEBHOOK_SECRET, GENERATE_HOURLY_LIMIT, ...).
+      - ../.env.production
+    environment:
+      # Non-secret runtime metadata + network binding; secrets come from env_file.
+      - NODE_ENV=production
+      - PORT=3003
+      - HOSTNAME=0.0.0.0
+      - SERVICE_NAME=${SERVICE_NAME:-api.shipshit.games}
+    healthcheck:
+      # The runner image ships node (no curl/wget), so poll /health with fetch.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
