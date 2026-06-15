@@ -92,3 +92,28 @@ Planning epic: GitHub issue #108.
 
 ## Infra
 Studio web/app surfaces deploy separately from the Deadrot player-facing hub.
+
+### Production deploy pipeline
+Full runbook: `RELEASING.md` (repo root). Mirrors genfeed.ai's architecture.
+
+- Trigger: a **GitHub Release** with a semver `v*` tag on `master`. **Nothing**
+  deploys on merge/push to `master` — Vercel git auto-deploy is disabled via
+  `vercel.json` (`git.deploymentEnabled.master = false`) at the repo root and in
+  `apps/{web,app,docs,api}`. Workflow: `.github/workflows/deploy-production.yml`.
+- Change-detection deploys only surfaces changed since the previous `v*` tag
+  (`git diff prev..HEAD`); infra files (`bun.lock`/root manifests) → all;
+  pre-releases deploy nothing.
+- `api` (api.shipshit.games) runs as **Docker on a single EC2 host inside the
+  RDS VPC** (allow-listed on the RDS SG) — the fix for "Vercel build can't reach
+  RDS". CI ships the image to ghcr, then SSHes over **Tailscale** (`tag:ci`) and
+  runs `docker/deploy-production.sh`; the host reads secrets from **AWS SSM**
+  (`/shipshit/production/*`) via its **instance role**. CI holds zero AWS creds.
+- Two images from `apps/api/Dockerfile`: runtime (`api:<sha>`, node-slim) and
+  migrate (`api-migrate:<sha>`, the `builder` target with bun+Prisma CLI) that
+  runs `prisma migrate deploy` once per deploy.
+- web/app/docs deploy via `vercel deploy --prod` (run from repo root, project
+  selected by `VERCEL_PROJECT_ID` env). The old api Vercel project
+  `prj_Q4af…` is being retired once the EC2 host serves api DNS.
+- Vercel projects: web `prj_rgAwd…` (root `.`), app `prj_g7It…` (`apps/app`),
+  docs `prj_Kcgl…` (`apps/docs`), api `prj_Q4af…` (`apps/api`); org
+  `team_hFVCbNU4RnfEpQOeSWRxmhEJ`.

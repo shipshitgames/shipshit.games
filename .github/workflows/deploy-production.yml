@@ -1,0 +1,376 @@
+name: Deploy Production
+
+# Production deploys fire on a GitHub Release whose tag is semver `v*` and whose
+# released commit is on master. NOTHING deploys on a plain push/merge to master
+# (Vercel git auto-deploy is disabled via vercel.json; there is no push trigger
+# here). Only the surfaces that actually changed since the previous release are
+# deployed:
+#   - api   -> Docker image built + pushed to ghcr, deployed to the EC2 host over
+#              Tailscale (env from SSM, prisma migrate, health-checked, rollback).
+#   - web/app/docs -> Vercel CLI deploy (--prod) per project.
+#
+# Manual hotfixes: workflow_dispatch from master with force_* inputs.
+#
+# Mirrors genfeed.ai's deploy-production.yml + _deploy.yml, collapsed to
+# shipshit's four surfaces and a single backend service.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: 'Force deploy every surface (web/api/app/docs)'
+        type: boolean
+        default: false
+      force_api:
+        description: 'Force deploy the api container'
+        type: boolean
+        default: false
+      force_web:
+        description: 'Force deploy web (shipshit.games)'
+        type: boolean
+        default: false
+      force_app:
+        description: 'Force deploy app (app.shipshit.games)'
+        type: boolean
+        default: false
+      force_docs:
+        description: 'Force deploy docs'
+        type: boolean
+        default: false
+
+# Serialize production deploys; never cancel an in-flight one (cancel == lost deploy).
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  # ghcr image base: ghcr.io/shipshitgames/shipshitgames/{api,api-migrate}
+  IMAGE_BASE: ghcr.io/${{ github.repository }}
+
+jobs:
+  # ── Validate the release ref + decide which surfaces changed ──────────────
+  setup:
+    name: Validate ref + detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      web: ${{ steps.detect.outputs.web }}
+      api: ${{ steps.detect.outputs.api }}
+      app: ${{ steps.detect.outputs.app }}
+      docs: ${{ steps.detect.outputs.docs }}
+    steps:
+      - name: Checkout (full history + tags)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate production ref
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT" = "release" ]; then
+            case "$TAG_NAME" in
+              v*) ;;
+              *) echo "::error::Production releases must use a semver v* tag. Got: '$TAG_NAME'"; exit 1 ;;
+            esac
+          fi
+
+          if [ "$EVENT" = "workflow_dispatch" ] && [ "$REF_NAME" != "master" ]; then
+            echo "::error::Manual production deploys must run from master. Ref: '$REF_NAME'"
+            exit 1
+          fi
+
+          # target_commitish is unreliable (can be any branch/SHA at creation time);
+          # assert the released commit is genuinely on master instead.
+          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master
+          if ! git merge-base --is-ancestor HEAD origin/master; then
+            echo "::error::Released commit ${GITHUB_SHA} is not on master — refusing to deploy."
+            exit 1
+          fi
+          echo "Validated: ${GITHUB_SHA} is on master."
+
+      - name: Detect changed surfaces since the previous release
+        id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+          FORCE_ALL: ${{ inputs.force_all }}
+          FORCE_API: ${{ inputs.force_api }}
+          FORCE_WEB: ${{ inputs.force_web }}
+          FORCE_APP: ${{ inputs.force_app }}
+          FORCE_DOCS: ${{ inputs.force_docs }}
+        run: |
+          set -euo pipefail
+
+          # Pre-releases (v1.2.0-rc1, ...) are not production: deploy nothing and
+          # finish green so cutting an rc never accidentally ships to prod.
+          if [ "$EVENT" = "release" ] && [ "${PRERELEASE:-false}" = "true" ]; then
+            echo "Pre-release ${TAG_NAME} — skipping production deploy."
+            { echo "web=false"; echo "api=false"; echo "app=false"; echo "docs=false"; } >> "$GITHUB_OUTPUT"
+            echo "## Pre-release — no production deploy (${TAG_NAME})" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Pick the base to diff against:
+          #   release  -> the highest existing v* tag OTHER than the one being
+          #               released (positional `sed 2p` breaks on out-of-order
+          #               hotfix tags; excluding TAG_NAME by value is robust).
+          #   dispatch -> the latest existing v* tag (what shipped last)
+          if [ "$EVENT" = "release" ]; then
+            BASE=$(git tag --list 'v*' --sort=-version:refname | grep -vxF "$TAG_NAME" | head -n1 || true)
+          else
+            BASE=$(git tag --list 'v*' --sort=-version:refname | head -n1 || true)
+          fi
+
+          if [ -z "$BASE" ]; then
+            # No previous tag (first release): diff against the empty tree so
+            # every file counts as added -> deploy everything.
+            BASE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+            echo "No previous release tag found — treating as first release (deploy all)."
+          fi
+          echo "Diffing ${BASE}..HEAD"
+
+          changed=$(git diff --name-only "$BASE" HEAD || true)
+          echo "Changed files:"; echo "$changed" | sed 's/^/  /'
+
+          matches() { echo "$changed" | grep -qE "$1"; }
+
+          web=false; api=false; app=false; docs=false
+
+          # Repo-wide infra (lockfile / root manifests / tooling) can affect any
+          # build -> redeploy everything to avoid shipping a stale surface.
+          if matches '^(bun\.lock|package\.json|turbo\.json|tsconfig[^/]*\.json)$'; then
+            web=true; api=true; app=true; docs=true
+          fi
+
+          # Shared workspace packages fan out to their consumers. The mapping is
+          # intentionally OVER-broad (a redundant build is cheap; shipping a
+          # stale bundle is not). `assets` has no package.json — it's consumed by
+          # relative-path import, which never touches bun.lock — so it MUST be
+          # listed explicitly or a token change would silently skip the frontends.
+          matches '^packages/shared/' && { web=true; api=true; app=true; docs=true; }
+          matches '^packages/(ui|engine|ressources|game-tester|assets)/' && { web=true; app=true; }
+          matches '^packages/assetgen/' && api=true
+
+          # Per-surface sources.
+          matches '^apps/web/' && web=true
+          matches '^apps/app/' && app=true
+          matches '^apps/docs/' && docs=true
+          matches '^(apps/api/|docker/)' && api=true
+
+          # Force inputs (workflow_dispatch) override detection.
+          [ "${FORCE_ALL:-false}" = "true" ] && { web=true; api=true; app=true; docs=true; }
+          [ "${FORCE_API:-false}" = "true" ] && api=true
+          [ "${FORCE_WEB:-false}" = "true" ] && web=true
+          [ "${FORCE_APP:-false}" = "true" ] && app=true
+          [ "${FORCE_DOCS:-false}" = "true" ] && docs=true
+
+          {
+            echo "web=$web"
+            echo "api=$api"
+            echo "app=$app"
+            echo "docs=$docs"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Surfaces to deploy"
+            echo ""
+            echo "| Surface | Deploy |"
+            echo "|---------|--------|"
+            echo "| web  | $web |"
+            echo "| api  | $api |"
+            echo "| app  | $app |"
+            echo "| docs | $docs |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Build + push the api images (runtime + migrate) ───────────────────────
+  build-api-image:
+    name: Build api image
+    needs: setup
+    if: ${{ needs.setup.outputs.api == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Runtime image (node:24-slim standalone) — what actually serves traffic.
+      - name: Build + push runtime image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}/api:${{ github.sha }}
+            ${{ env.IMAGE_BASE }}/api:latest
+          cache-from: type=registry,ref=${{ env.IMAGE_BASE }}/api:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_BASE }}/api:buildcache,mode=max
+          platforms: linux/amd64
+          provenance: false
+
+      # Migrate image (Dockerfile `builder` target) — carries bun + prisma CLI +
+      # schema + migrations so the host can run `prisma migrate deploy`. The
+      # runtime image cannot (no bun, pruned standalone bundle).
+      - name: Build + push migrate image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          target: builder
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}/api-migrate:${{ github.sha }}
+            ${{ env.IMAGE_BASE }}/api-migrate:latest
+          cache-from: type=registry,ref=${{ env.IMAGE_BASE }}/api:buildcache
+          platforms: linux/amd64
+          provenance: false
+
+  # ── Deploy the api container to the EC2 host over Tailscale ───────────────
+  deploy-api:
+    name: Deploy api -> EC2
+    needs: [setup, build-api-image]
+    if: ${{ needs.setup.outputs.api == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # packages:read so the GITHUB_TOKEN forwarded to the host can pull the
+    # private ghcr image (the top-level default is contents:read only).
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
+          tags: tag:ci
+
+      - name: Verify host reachability
+        env:
+          HOST_IP: ${{ vars.TAILSCALE_INSTANCE_API_IP }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOST_IP:-}" ]; then
+            echo "::error::TAILSCALE_INSTANCE_API_IP variable is not set"; exit 1
+          fi
+          timeout 30 bash -c 'until tailscale status >/dev/null 2>&1; do sleep 1; done'
+          tailscale ping -c 1 --timeout 10s "$HOST_IP" >/dev/null || {
+            echo "::error::Cannot reach EC2 host at $HOST_IP via Tailscale"; tailscale status; exit 1;
+          }
+          echo "Host $HOST_IP reachable."
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+
+      - name: Copy deploy assets to host
+        env:
+          HOST_IP: ${{ vars.TAILSCALE_INSTANCE_API_IP }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          set -euo pipefail
+          SSH_OPTS=(-o StrictHostKeyChecking=accept-new -i ~/.ssh/ec2_key)
+          ssh "${SSH_OPTS[@]}" "${EC2_USER}@${HOST_IP}" "mkdir -p ./cloud/docker"
+          scp "${SSH_OPTS[@]}" docker/docker-compose.production.yml "${EC2_USER}@${HOST_IP}:./cloud/docker/"
+          scp "${SSH_OPTS[@]}" docker/deploy-production.sh          "${EC2_USER}@${HOST_IP}:./cloud/docker/"
+          scp "${SSH_OPTS[@]}" docker/deploy-common.sh              "${EC2_USER}@${HOST_IP}:./cloud/docker/"
+          scp "${SSH_OPTS[@]}" docker/render-ssm-env.sh             "${EC2_USER}@${HOST_IP}:./cloud/docker/"
+          ssh "${SSH_OPTS[@]}" "${EC2_USER}@${HOST_IP}" "chmod +x ./cloud/docker/deploy-production.sh ./cloud/docker/render-ssm-env.sh"
+
+      - name: Deploy on host
+        env:
+          HOST_IP: ${{ vars.TAILSCALE_INSTANCE_API_IP }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          set -euo pipefail
+          SSH_OPTS=(-o StrictHostKeyChecking=accept-new -i ~/.ssh/ec2_key)
+          ssh "${SSH_OPTS[@]}" "${EC2_USER}@${HOST_IP}" bash -s <<DEPLOY_EOF
+            set -euo pipefail
+            cd ./cloud
+            export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+            export GITHUB_ACTOR="${{ github.actor }}"
+            export GITHUB_SHA="${{ github.sha }}"
+            export GITHUB_STEP_SUMMARY="/dev/null"
+            export IMAGE_TAG="${{ github.sha }}"
+            export SSM_PARAMETER_PATH_PREFIX="${{ vars.SSM_PARAMETER_PATH_PREFIX }}"
+            export AWS_REGION="${{ vars.AWS_REGION }}"
+            ./docker/deploy-production.sh api
+          DEPLOY_EOF
+
+  # ── Vercel frontends — deploy only the surfaces that changed ──────────────
+  # Each waits on deploy-api so a failed backend (e.g. bad migration) blocks the
+  # frontends; a SKIPPED api (unchanged) still lets them through.
+  deploy-web:
+    name: Deploy web (shipshit.games)
+    needs: [setup, deploy-api]
+    # Deploy web iff web changed AND (api was not part of this release OR the api
+    # deploy actually succeeded). The second clause blocks the frontend when api
+    # was meant to ship but its build/deploy failed (deploy-api == skipped/failure).
+    if: ${{ always() && needs.setup.outputs.web == 'true' && (needs.setup.outputs.api != 'true' || needs.deploy-api.result == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Deploy to Vercel (prod)
+        run: npx vercel deploy --cwd . --archive=tgz --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_WEB }}
+
+  deploy-app:
+    name: Deploy app (app.shipshit.games)
+    needs: [setup, deploy-api]
+    if: ${{ always() && needs.setup.outputs.app == 'true' && (needs.setup.outputs.api != 'true' || needs.deploy-api.result == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Deploy to Vercel (prod)
+        run: npx vercel deploy --cwd . --archive=tgz --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_APP }}
+
+  deploy-docs:
+    name: Deploy docs
+    needs: [setup, deploy-api]
+    if: ${{ always() && needs.setup.outputs.docs == 'true' && (needs.setup.outputs.api != 'true' || needs.deploy-api.result == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Deploy to Vercel (prod)
+        run: npx vercel deploy --cwd . --archive=tgz --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_DOCS }}
