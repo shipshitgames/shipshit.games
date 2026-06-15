@@ -1,0 +1,13 @@
+# Codex Instructions — {{PROJECT_NAME}}
+
+Read `AGENTS.md` at the repo root first; it is the shared entry point for every
+agent (Codex, Claude Code, Cursor).
+
+Durable project memory lives in `.agents/memory/` (symlinked here as
+`.codex/memory`). Read `.agents/memory/MEMORY.md` and
+`.agents/memory/repo-boundary.md` before moving apps, packages, or assets.
+
+Curated skills live in `.agents/skills/` (symlinked here as `.codex/skills`).
+
+This file exists so Codex uses the same project rules as Claude Code and other
+agents. Update it only when Codex-specific bootstrapping changes.

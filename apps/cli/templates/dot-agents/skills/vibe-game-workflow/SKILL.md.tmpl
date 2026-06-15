@@ -1,0 +1,39 @@
+---
+name: vibe-game-workflow
+description: "The Ship Shit Games build loop for a single title: scope an idea, wire it onto the engine seams, generate assets with the studio assetgen pipeline, playtest, and ship. Use to plan or sequence game-dev work in this repo."
+license: MIT
+metadata:
+  version: "1.0.0"
+  tags: "workflow, gamedev, engine, assets, playtest"
+  author: Ship Shit Games
+when_to_use: "plan a feature, start a game-dev loop, decide build order, go from idea to playable, sequence engine + asset + playtest work"
+---
+
+# Vibe Game Workflow
+
+A repeatable loop for building this {{GENRE_TITLE}} title. Keep slices small and
+playable; prefer one vertical slice over many half-wired systems.
+
+## Loop
+
+1. **Scope** — write the slice as one playable change. Open or pick up an issue
+   and move it to `In Progress`.
+2. **Branch** — use the `worktree` skill to create `feat/<number>-<slug>` in an
+   isolated worktree.
+3. **Wire the engine** — implement gameplay against `{{ENGINE_PACKAGE}}` seams
+   (see the `shipshit-engine` skill). Game content stays in this repo as data or
+   callbacks; never edit the engine to add canon.
+4. **Assets** — request game assets from the studio asset pipeline upstream
+   (`shipshitgames/shipshit.games` assetgen). This repo consumes the produced
+   assets; it does not host the generation tooling.
+5. **Playtest** — run the game, verify the slice end to end, and capture issues
+   as linked follow-ups rather than expanding scope silently.
+6. **Ship** — run the repo's checks (lint, typecheck, tests, build), open a PR,
+   and close the issue.
+
+## Guardrails
+
+- Respect the repo boundary (`.agents/memory/repo-boundary.md`): engine and
+  studio tooling are upstream; this repo ships *this game*.
+- Keep gameplay imperative and Three.js-centered; React for overlays only.
+- Bookend sessions with `session-start` and `session-end` to keep memory fresh.
