@@ -175,7 +175,7 @@ declare global {
         setActive: (id: string) => Promise<ProjectState>;
       };
       keys: { status: () => Promise<Record<string, boolean>>; set: (provider: string, key: string) => Promise<Record<string, boolean>> };
-      models: { list: () => Promise<{ fal: FalModelInfo[] }> };
+      models: { list: () => Promise<{ fal: FalModelInfo[]; defaultProviderByKind?: Record<string, string>; falImageKinds?: string[] }> };
       terminal: {
         start: (opts?: { cols?: number; rows?: number; cwd?: string }) => Promise<TerminalStartResult>;
         write: (id: string, data: string) => Promise<boolean>;
@@ -236,17 +236,6 @@ const KEYED = [
   { id: "tripo", label: "Tripo" },
   { id: "suno", label: "Suno" },
 ];
-const DEFAULT_PROVIDER_BY_KIND: Record<string, string> = {
-  sprite: "codex",
-  texture: "openai",
-  icon: "openai",
-  map: "codex",
-  music: "suno",
-  sfx: "suno",
-  voice: "suno",
-  model: "meshy",
-  "3d": "meshy",
-};
 const ASSET_DEFAULTS = [
   { kind: "sprite", label: "Sprites" },
   { kind: "texture", label: "Textures" },
@@ -257,15 +246,16 @@ const ASSET_DEFAULTS = [
   { kind: "voice", label: "Voice" },
   { kind: "model", label: "Models" },
 ];
-// ASSET_DEFAULTS kinds that fal can render (assetgen's FAL_IMAGE_KINDS); the
-// model catalog itself comes over studio:models, only this filter is local.
-const FAL_MODEL_KINDS = new Set(["sprite", "texture", "icon", "map"]);
-
 function withSettingsDefaults(settings: Partial<Settings>): Settings {
   return {
     defaultProvider: settings.defaultProvider || "codex",
     defaultGame: settings.defaultGame || "scourge-survivors",
-    providerDefaults: { ...DEFAULT_PROVIDER_BY_KIND, ...(settings.providerDefaults || {}) },
+    // providerDefaults passes through: settings:get/set already normalize it
+    // against assetgen's catalog (DEFAULT_PROVIDER_BY_KIND) in the main process,
+    // so the renderer no longer keeps its own drifted routing copy (#194). The
+    // dropdowns below fall back to the catalog (over studio:models) then
+    // defaultProvider for any kind not yet present.
+    providerDefaults: { ...(settings.providerDefaults || {}) },
     falModelDefaults: settings.falModelDefaults || {},
     activeProjectId: settings.activeProjectId || "",
     projects: settings.projects || [],
@@ -289,11 +279,20 @@ function SettingsPane() {
   const [status, setStatus] = useState<Record<string, boolean>>({});
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [falModels, setFalModels] = useState<FalModelInfo[]>([]);
+  // Catalog facts sourced from assetgen over studio:models (the single source of
+  // truth), not local copies: the per-kind routing defaults and the set of kinds
+  // fal can render. Both seed UI fallbacks; settings:get/set stay authoritative.
+  const [catalogDefaults, setCatalogDefaults] = useState<Record<string, string>>({});
+  const [falModelKinds, setFalModelKinds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     window.studio?.settings.get().then((s) => setSettings(withSettingsDefaults(s))).catch(() => {});
     window.studio?.keys.status().then(setStatus).catch(() => {});
-    window.studio?.models?.list().then((m) => setFalModels(m?.fal || [])).catch(() => {});
+    window.studio?.models?.list().then((m) => {
+      setFalModels(m?.fal || []);
+      setCatalogDefaults(m?.defaultProviderByKind || {});
+      setFalModelKinds(new Set(m?.falImageKinds || []));
+    }).catch(() => {});
     window.studio?.projects.list().then((state) => {
       const slugs = state.projects.map((project) => project.slug);
       if (slugs.length) setGames(slugs);
@@ -339,7 +338,7 @@ function SettingsPane() {
         {ASSET_DEFAULTS.map((item) => (
           <label className="set-provider-row" key={item.kind}>
             <span>{item.label}</span>
-            <select value={settings.providerDefaults[item.kind] || settings.defaultProvider} onChange={(e) => updateKindProvider(item.kind, e.target.value)}>
+            <select value={settings.providerDefaults[item.kind] || catalogDefaults[item.kind] || settings.defaultProvider} onChange={(e) => updateKindProvider(item.kind, e.target.value)}>
               {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </label>
@@ -348,7 +347,7 @@ function SettingsPane() {
       <div className="set-group">
         <div className="set-group-title">fal.ai model by asset type</div>
         {ASSET_DEFAULTS.flatMap((item) => {
-          if (!FAL_MODEL_KINDS.has(item.kind)) return [];
+          if (!falModelKinds.has(item.kind)) return [];
           const chosen = settings.falModelDefaults[item.kind] || "";
           return [(
             <label className="set-provider-row" key={item.kind}>

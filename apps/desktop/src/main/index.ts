@@ -24,9 +24,10 @@ import { parseGenerateResult, dataUrlFor } from "./generate-result";
 // main process is bundled from TypeScript (vite-plugin-electron), so it imports
 // assetgen's register() directly — no CommonJS shim, one writer for both runtimes.
 import { register } from "../../../../packages/assetgen/src/manifest.ts";
-// fal model catalog for the renderer's model picker (studio:models). fal.ts is
-// bundle-safe for the main process — no sharp/node-pty imports (see its header).
-import { FAL_MODELS } from "../../../../packages/assetgen/src/fal.ts";
+// Model catalogs + canonical kind→provider routing for the renderer's pickers,
+// served over studio:models so the renderer no longer keeps drifted copies (#194).
+// Pure + bundle-safe (no sharp/node-pty); the payload builder is unit-tested.
+import { studioModelsPayload } from "./models-catalog";
 
 // node-pty is a native addon kept external from the bundle; load it through a
 // runtime require so an ABI/load failure degrades gracefully instead of crashing.
@@ -204,8 +205,9 @@ ipcMain.handle("settings:get", () => readSettings());
 ipcMain.handle("settings:set", (_e, partial) => mergeSettings(partial));
 ipcMain.handle("keys:status", () => keyStatus());
 ipcMain.handle("keys:set", (_e, { provider, key }) => { const s = KEY_SERVICES[provider]; if (s && key) setKey(s, key); return keyStatus(); });
-// Model catalogs for the renderer's per-kind pickers — single source: assetgen.
-ipcMain.handle("studio:models", () => ({ fal: FAL_MODELS }));
+// Model catalogs + canonical routing for the renderer's per-kind pickers —
+// single source: assetgen, via the pure (unit-tested) studioModelsPayload builder.
+ipcMain.handle("studio:models", () => studioModelsPayload());
 ipcMain.handle("studio:listGames", () => listProjectState().projects.map((project) => project.slug));
 ipcMain.handle("projects:list", () => listProjectState());
 ipcMain.handle("projects:add", async () => {
