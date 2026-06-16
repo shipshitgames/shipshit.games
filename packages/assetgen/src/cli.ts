@@ -11,6 +11,8 @@ const COMMANDS: Record<string, CommandLoader> = {
   matrix: async () => (await import("./commands/matrix.ts")).runMatrixCommand,
   tokens: async () => (await import("./commands/tokens.ts")).runTokensCommand,
   "check-design": async () => (await import("./commands/check-design.ts")).runCheckDesignCommand,
+  "check-token-staleness": async () =>
+    (await import("./commands/check-token-staleness.ts")).runCheckTokenStalenessCommand, // #47
   pixelize: async () => (await import("./commands/pixelize.ts")).runPixelizeCommand,
   promote: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("promote"),
   codegen: async () => (await import("./commands/codegen.ts")).runCodegenCommand, // #22
