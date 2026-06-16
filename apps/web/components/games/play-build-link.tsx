@@ -8,11 +8,14 @@ import { trackEvent } from "@/lib/analytics";
 export function PlayBuildLink({
   href,
   game,
+  location,
   className,
   children,
 }: {
   href: string;
   game: string;
+  /** Where the click originated (e.g. `gallery`, `game_detail`) for funnel attribution. */
+  location?: string;
   className?: string;
   children: ReactNode;
 }) {
@@ -22,7 +25,12 @@ export function PlayBuildLink({
       target="_blank"
       rel="noreferrer"
       className={className}
-      onClick={() => trackEvent("demo_click", { game })}
+      onClick={() =>
+        trackEvent("demo_click", {
+          game,
+          ...(location ? { location } : {}),
+        })
+      }
     >
       {children}
     </a>

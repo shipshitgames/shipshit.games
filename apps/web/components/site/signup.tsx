@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
 
 const SUBSTACK_URL = process.env.NEXT_PUBLIC_SUBSTACK_URL?.replace(/\/+$/, "") ?? "";
 const FORMSPREE_ID = process.env.NEXT_PUBLIC_FORMSPREE_ID ?? "";
@@ -23,11 +24,20 @@ export function Signup({
 }) {
   const [status, setStatus] = useState<Status>("idle");
 
+  /** Newsletter capture funnel event (#32), tagged with the section topic. */
+  function reportSignup(outcome: "intent" | "success" | "error") {
+    trackEvent("newsletter_signup", {
+      status: outcome,
+      ...(topic ? { topic } : {}),
+    });
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     if (!FORMSPREE_ID) {
       setStatus("error");
+      reportSignup("error");
       return;
     }
     setStatus("submitting");
@@ -40,8 +50,10 @@ export function Signup({
       if (!res.ok) throw new Error("failed");
       form.reset();
       setStatus("success");
+      reportSignup("success");
     } catch {
       setStatus("error");
+      reportSignup("error");
     }
   }
 
@@ -74,7 +86,12 @@ export function Signup({
             size="lg"
             className="font-display uppercase tracking-widest shadow-ember"
           >
-            <a href={`${SUBSTACK_URL}/subscribe`} target="_blank" rel="noreferrer">
+            <a
+              href={`${SUBSTACK_URL}/subscribe`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => reportSignup("intent")}
+            >
               {cta}
               <ExternalLink aria-hidden="true" />
             </a>
