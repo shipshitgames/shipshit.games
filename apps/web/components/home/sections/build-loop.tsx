@@ -17,15 +17,19 @@ const SOLUTION_STEPS = [
   },
 ] as const;
 
+// Hoisted so the prop is a stable element reference rather than fresh JSX each
+// render (react-doctor/jsx-no-jsx-as-prop).
+const ILLUSTRATION = (
+  <SectionIllustration src="/images/games/pactfall.webp" objectPosition="center 48%" opacity={0.2} />
+);
+
 export function BuildLoop() {
   return (
     <PageSection
       accent="hellfire"
       id="loop"
       className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
-      illustration={
-        <SectionIllustration src="/images/games/pactfall.webp" objectPosition="center 48%" opacity={0.2} />
-      }
+      illustration={ILLUSTRATION}
       backdrop
     >
       <div className="relative z-10 mx-auto max-w-7xl">

@@ -10,12 +10,18 @@ import { SectionIllustration } from "@/components/site/section-illustration";
 
 const PLAY = "https://deadrot.com";
 
+// Hoisted so the prop is a stable element reference rather than fresh JSX each
+// render (react-doctor/jsx-no-jsx-as-prop).
+const ILLUSTRATION = (
+  <SectionIllustration src="/images/hero.webp" opacity={0.28} />
+);
+
 export function Hero() {
   return (
     <PageSection
       accent="hellfire"
       className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pb-16 pt-24 text-center"
-      illustration={<SectionIllustration src="/images/hero.webp" opacity={0.28} />}
+      illustration={ILLUSTRATION}
       backdrop
     >
       <EmberParticles />

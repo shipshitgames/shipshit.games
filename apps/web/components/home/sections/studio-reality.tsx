@@ -17,15 +17,19 @@ const PROBLEMS = [
   },
 ] as const;
 
+// Hoisted so the prop is a stable element reference rather than fresh JSX each
+// render (react-doctor/jsx-no-jsx-as-prop).
+const ILLUSTRATION = (
+  <SectionIllustration src="/images/games/deadlane.webp" objectPosition="center 42%" />
+);
+
 export function StudioReality() {
   return (
     <PageSection
       accent="blood"
       id="studio"
       className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
-      illustration={
-        <SectionIllustration src="/images/games/deadlane.webp" objectPosition="center 42%" />
-      }
+      illustration={ILLUSTRATION}
     >
       <div className="relative z-10 mx-auto max-w-7xl">
         <Eyebrow>Studio reality</Eyebrow>

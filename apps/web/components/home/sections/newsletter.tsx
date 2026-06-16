@@ -5,15 +5,19 @@ import { PageSection } from "@/components/site/page-section";
 import { SectionIllustration } from "@/components/site/section-illustration";
 import { Signup } from "@/components/site/signup";
 
+// Hoisted so the prop is a stable element reference rather than fresh JSX each
+// render (react-doctor/jsx-no-jsx-as-prop).
+const ILLUSTRATION = (
+  <SectionIllustration src="/images/games/rothulk.webp" objectPosition="center 42%" opacity={0.2} />
+);
+
 export function Newsletter() {
   return (
     <PageSection
       accent="hellfire"
       id="newsletter"
       className="relative scroll-mt-16 overflow-hidden border-t border-gunmetal/40 px-6 py-24"
-      illustration={
-        <SectionIllustration src="/images/games/rothulk.webp" objectPosition="center 42%" opacity={0.2} />
-      }
+      illustration={ILLUSTRATION}
     >
       <div className="relative z-10 mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] lg:items-start">
         <div>
