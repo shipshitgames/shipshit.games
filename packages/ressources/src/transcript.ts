@@ -3,13 +3,10 @@
 // flatten them to prose. The legacy dependency-free watch-page scrape stays as
 // a last-ditch fallback, but YouTube now returns an EMPTY timedtext body
 // without a player-generated `pot` token, so it rarely works — install yt-dlp.
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { mkdtemp, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
-const pexec = promisify(execFile);
+import { execYtDlp, parseVideoId, ytDlpAvailable } from "./ytdlp";
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
@@ -23,10 +20,8 @@ export interface TranscriptResult {
 }
 
 export function parseYouTubeVideoId(input: string): string {
-  const match = input.match(/(?:v=|youtu\.be\/|\/embed\/|\/shorts\/)([A-Za-z0-9_-]{11})/);
-  if (match?.[1]) return match[1];
-  const trimmed = input.trim();
-  if (/^[A-Za-z0-9_-]{11}$/.test(trimmed)) return trimmed;
+  const id = parseVideoId(input);
+  if (id) return id;
   throw new Error(`could not parse a YouTube video id from: ${input}`);
 }
 
@@ -111,17 +106,6 @@ async function viaWatchPage(videoId: string): Promise<TranscriptResult> {
   return { videoId, title, transcript, source: "watch-page" };
 }
 
-const ytDlpBin = () => process.env.RESSOURCES_YT_DLP || "yt-dlp";
-
-async function ytDlpAvailable(): Promise<boolean> {
-  try {
-    await pexec(ytDlpBin(), ["--version"], { timeout: 10_000 });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function rankCaptionFile(file: string): number {
   if (file.includes(".en-orig.json3")) return 0;
   if (/\.en\.json3$/.test(file)) return 1;
@@ -130,11 +114,10 @@ function rankCaptionFile(file: string): number {
 }
 
 async function viaYtDlp(videoId: string): Promise<TranscriptResult> {
-  const bin = ytDlpBin();
   const url = `https://www.youtube.com/watch?v=${videoId}`;
   let title = videoId;
   try {
-    const { stdout } = await pexec(bin, ["--skip-download", "--print", "%(title)s", url], {
+    const { stdout } = await execYtDlp(["--skip-download", "--print", "%(title)s", url], {
       timeout: 60_000,
     });
     const candidate = stdout.trim().split("\n").pop();
@@ -149,8 +132,7 @@ async function viaYtDlp(videoId: string): Promise<TranscriptResult> {
   // that has creator-uploaded EN subs still works even when the auto-caption
   // endpoint is rate-limited (HTTP 429). yt-dlp prefers the manual track when
   // both exist, which also bumps transcript quality on translated videos.
-  await pexec(
-    bin,
+  await execYtDlp(
     [
       "--skip-download",
       "--write-subs",
