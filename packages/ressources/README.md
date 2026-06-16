@@ -72,9 +72,11 @@ brew install yt-dlp   # or: pipx install yt-dlp
 `fetchTranscript` requests both **manual** (`--write-subs`) and **auto**
 (`--write-auto-subs`) English captions and prefers the manual track — higher
 quality, and it sidesteps the auto-caption endpoint's HTTP 429 rate limiting.
-Point `RESSOURCES_YT_DLP` at a custom binary if it is not on `PATH`. The only
-true no-network path is `distill --transcript-file <path>` with text you already
-have.
+Point `RESSOURCES_YT_DLP` at a custom binary if it is not on `PATH`; every
+yt-dlp call (`fetchTranscript` and `sync-channel`) honors it. Note that
+`distill` shells out to `codex`, not yt-dlp, so it is unaffected — and its
+`distill --transcript-file <path>` form is a separate no-network path that
+distills text you already have.
 
 ## Commands
 

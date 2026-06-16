@@ -1,7 +1,5 @@
 import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import type {
   DerivativeKind,
   DerivativeManifest,
@@ -12,8 +10,8 @@ import type {
   TranscriptRightsStatus,
 } from "./types";
 import { derivativesDir, packageRoot, relativeToPackage, sourcesDir, transcriptsDir } from "./paths";
+import { execYtDlp, parseVideoId, parseYtDlpVideo, ytDlpAvailable } from "./ytdlp";
 
-const pexec = promisify(execFile);
 const TRANSCRIPT_RIGHTS_STATUSES = new Set<TranscriptRightsStatus>([
   "user-provided",
   "public-captions",
@@ -41,13 +39,6 @@ export function slugify(input: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
-}
-
-export function parseVideoId(input: string): string | undefined {
-  const match = input.match(/(?:v=|youtu\.be\/|\/embed\/|\/shorts\/)([A-Za-z0-9_-]{11})/);
-  if (match?.[1]) return match[1];
-  const trimmed = input.trim();
-  return /^[A-Za-z0-9_-]{11}$/.test(trimmed) ? trimmed : undefined;
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -375,26 +366,6 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
   return manifest;
 }
 
-async function ytDlpAvailable(): Promise<boolean> {
-  try {
-    await pexec("yt-dlp", ["--version"], { timeout: 10_000 });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function parseYtDlpVideo(entry: Record<string, unknown>): SyncedVideo | undefined {
-  const id = typeof entry.id === "string" ? entry.id : undefined;
-  const title = typeof entry.title === "string" ? entry.title : undefined;
-  const rawUrl = typeof entry.url === "string" ? entry.url : undefined;
-  if (!id || !title) return undefined;
-  const url = rawUrl?.startsWith("http") ? rawUrl : `https://www.youtube.com/watch?v=${id}`;
-  const durationSeconds = typeof entry.duration === "number" ? entry.duration : undefined;
-  const uploadDate = typeof entry.upload_date === "string" ? entry.upload_date : undefined;
-  return { videoId: id, title, url, durationSeconds, uploadDate };
-}
-
 export async function syncChannelVideos(sourceSlug: string, limit: number): Promise<SyncedChannelVideos> {
   const source = await findSource(sourceSlug);
   if (!source) throw new Error(`unknown source: ${sourceSlug}`);
@@ -408,7 +379,7 @@ export async function syncChannelVideos(sourceSlug: string, limit: number): Prom
   if (Number.isFinite(limit) && limit > 0) args.push("--playlist-end", String(limit));
   args.push(sourceUrl);
 
-  const { stdout } = await pexec("yt-dlp", args, {
+  const { stdout } = await execYtDlp(args, {
     timeout: 180_000,
     maxBuffer: 64 * 1024 * 1024,
   });
