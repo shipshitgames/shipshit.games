@@ -195,6 +195,10 @@ print_summary() {
   log_header "Deployment Summary"
   [ ${#DEPLOYED_SERVICES[@]} -gt 0 ] && log "Deployed: ${DEPLOYED_SERVICES[*]}"
   [ ${#FAILED_SERVICES[@]} -gt 0 ] && log "FAILED (rolled back): ${FAILED_SERVICES[*]}"
+  # The trailing `[ ... ] && log` returns 1 whenever FAILED_SERVICES is empty
+  # (the success path), making this function return 1. Called standalone under
+  # `set -e`, that would abort a perfectly healthy deploy — return 0 explicitly.
+  return 0
 }
 
 write_github_step_summary() {
