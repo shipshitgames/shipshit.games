@@ -15,6 +15,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   promote: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("promote"),
   codegen: async () => (await import("./commands/codegen.ts")).runCodegenCommand, // #22
   check: async () => (await import("./commands/check.ts")).runCheckCommand,
+  "check-sprites": async () => (await import("./commands/check-sprites.ts")).runCheckSpritesCommand, // #166
   index: async () => (await import("./commands/index-assets.ts")).runIndexCommand,
   atlas: async () => (await import("./commands/atlas.ts")).runAtlasCommand,
   "clean-sprites": async () => (await import("./commands/clean-sprites.ts")).runCleanSpritesCommand,
