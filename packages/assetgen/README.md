@@ -289,6 +289,31 @@ Aseprite via **Palette > Load Palette File**. It is generated from `pixelize.ts`
 two in lockstep, so regenerate the `.gpl` whenever the ramp changes rather than
 hand-editing it.
 
+### Upscale pre-pass (Real-ESRGAN, optional)
+
+Both `pixelize` and `expand` accept an optional restore/upscale pre-pass:
+
+```bash
+# Restore the raw provider image with Real-ESRGAN before pixelize snaps it to the grid:
+bun packages/assetgen/src/cli.ts pixelize --in raw.png --out sprite.webp \
+  --upscale --upscale-scale 4 --upscale-model realesrgan-x4plus
+
+# Same pre-pass, applied per frame, on the expand path:
+bun packages/assetgen/src/cli.ts expand --in origin.png --upscale --upscale-scale 2
+```
+
+It runs [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) (the
+`realesrgan-ncnn-vulkan` portable binary) on the raw provider output **before**
+pixelize box-downscales it: soft, sub-grid AI output muddies into bleed once
+snapped to the grid, so a clean ×2/×4 restore gives pixelize high-frequency
+input. Flags: `--upscale` (enable), `--upscale-scale 2|4` (default 4),
+`--upscale-model <name>` (default `realesrgan-x4plus`).
+
+Install once via the `realesrgan-ncnn-vulkan` portable binary (set `REALESRGAN_BIN`
+to override the resolved path). It is **off by default** and a silent **no-op when
+the binary is not installed** — a missing or failed upscaler never fails a
+generation.
+
 ## Design tokens
 
 `assetgen tokens` compiles the reviewed `DESIGN.md` frontmatter into generated

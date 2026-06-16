@@ -20,6 +20,8 @@ import type { AssetEntry, AssetLicenseRecord } from "./manifest.ts";
 import { licenseForGeneration, withUsageAccounting } from "./pipeline.ts";
 import { pixelize } from "./pixelize.ts";
 import { generateAsset } from "./providers.ts";
+import { maybeUpscale } from "./upscale.ts";
+import type { UpscaleFactor } from "./upscale.ts";
 import { frameId } from "./sprite-frames.ts";
 
 export const SPRITE_ANIM_VERSION = 1;
@@ -111,6 +113,8 @@ export interface ExpandOptions {
   size: number;
   /** Target grid height for each graded frame (pixelize). */
   height: number;
+  /** Optional Real-ESRGAN restore/upscale pre-pass run on each raw frame BEFORE grading (issue #73). */
+  upscale?: { scale: UpscaleFactor; model?: string };
   anchor: Anchor;
   scale: number;
   outputRoot: string;
@@ -267,7 +271,10 @@ export async function expandSprite(opts: ExpandOptions): Promise<ExpandResult> {
               usedModel = generated.model;
               providerSeen = true;
             }
-            const graded = await gradeFrame(generated.data, opts.height);
+            const pre = opts.upscale
+              ? (await maybeUpscale(generated.data, { scale: opts.upscale.scale, model: opts.upscale.model, log })).data
+              : generated.data;
+            const graded = await gradeFrame(pre, opts.height);
             frameInputs.push({ id: frameId(action.name, facing, i), data: graded });
           }
         }

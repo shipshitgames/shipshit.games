@@ -1,6 +1,7 @@
 import { basename, extname, join } from "node:path";
 import { expandSprite, parseActions, resolveDirections } from "../expand.ts";
 import { parseAnchor } from "../sprites.ts";
+import { normalizeScale } from "../upscale.ts";
 import { flag, has, intFlag, numberFlag } from "./args.ts";
 import { defaultRepo } from "./paths.ts";
 
@@ -40,6 +41,9 @@ export async function runExpand(argv: string[]): Promise<void> {
   const usageLog = flag(argv, "usage-log");
   const licenseTerms = flag(argv, "license");
   const licenseUrl = flag(argv, "license-url");
+  const upscale = has(argv, "upscale")
+    ? { scale: normalizeScale(intFlag(argv, "upscale-scale", 4)), model: flag(argv, "upscale-model") }
+    : undefined;
 
   const totalFrames = actions.reduce((sum, a) => sum + a.frames, 0) * directions.length;
   console.log(
@@ -48,6 +52,9 @@ export async function runExpand(argv: string[]): Promise<void> {
   console.log(
     `[expand] origin=${origin} actions=${actions.map((a) => `${a.name}:${a.frames}`).join(",")} dirs=${dirs} → ${totalFrames} frame(s)`,
   );
+  if (upscale) {
+    console.log(`[expand] upscale ×${upscale.scale} pre-pass enabled (per frame; needs realesrgan-ncnn-vulkan)`);
+  }
 
   await expandSprite({
     id,
@@ -63,6 +70,7 @@ export async function runExpand(argv: string[]): Promise<void> {
     height,
     anchor,
     scale,
+    upscale,
     outputRoot,
     usageLogPath: usageLog,
     licenseTerms,
@@ -83,9 +91,12 @@ function printExpandUsage(): void {
       "           [--id <id>] [--game <slug>|shared] [--provider mock|openai|fal|codex|replicate]\n" +
       "           [--model <model>] [--method controlnet|pixellab|animdrawings]\n" +
       "           [--frames 4] [--fps 8] [--size 256] [--height 110] [--anchor 0.5,1] [--scale 1]\n" +
+      "           [--upscale] [--upscale-scale 2|4] [--upscale-model <name>]\n" +
       "           [--repo <game-repo-path>] [--out <assets-root>] [--usage-log <path|off>]\n" +
       "           [--license <terms>] [--license-url <url>] [--dry-run]\n" +
       "\n  Expands ONE origin sprite into a directional sprite-anim sheet + frame map.\n" +
-      "  Per-action frame counts: --actions idle:2,run:6,attack:4 (falls back to --frames).",
+      "  Per-action frame counts: --actions idle:2,run:6,attack:4 (falls back to --frames).\n" +
+      "  --upscale runs Real-ESRGAN on each raw frame BEFORE pixelize downscales it;\n" +
+      "  a no-op (never fails) when realesrgan-ncnn-vulkan is not installed.",
   );
 }
