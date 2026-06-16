@@ -30,6 +30,25 @@ WAIT_INTERVAL="${WAIT_INTERVAL:-3}"
 WAIT_START_DELAY="${WAIT_START_DELAY:-5}"
 API_PORT="${API_PORT:-3003}"
 
+# Optional per-service container-name overrides. A caller may populate this
+# before sourcing (e.g. CONTAINER_NAMES[api]=api-shipshit-games) to name a
+# container independently of the ${CONTAINER_PREFIX}-<service> convention.
+# Declared defensively so container_name_for can reference it under `set -u`.
+if ! declare -p CONTAINER_NAMES >/dev/null 2>&1; then
+  declare -A CONTAINER_NAMES=()
+fi
+
+# Resolve a service's container name: an explicit override if present, else the
+# ${CONTAINER_PREFIX}-<service> default.
+container_name_for() {
+  local service="$1"
+  if [ -n "${CONTAINER_NAMES[$service]:-}" ]; then
+    printf '%s' "${CONTAINER_NAMES[$service]}"
+  else
+    printf '%s' "${CONTAINER_PREFIX}-${service}"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -63,7 +82,8 @@ is_changed() {
 }
 
 remove_conflicting_container() {
-  local container="${CONTAINER_PREFIX}-$1"
+  local container
+  container="$(container_name_for "$1")"
   if docker container inspect "$container" >/dev/null 2>&1; then
     log "Removing pre-existing container ${container} to avoid name conflicts..."
     docker rm -f "$container" >/dev/null 2>&1 || {
@@ -74,13 +94,14 @@ remove_conflicting_container() {
 }
 
 get_previous_image() {
-  docker inspect --format='{{.Config.Image}}' "${CONTAINER_PREFIX}-$1" 2>/dev/null || echo ""
+  docker inspect --format='{{.Config.Image}}' "$(container_name_for "$1")" 2>/dev/null || echo ""
 }
 
 # wait_healthy: poll the container's healthcheck; fast-fail on unhealthy/exited.
 wait_healthy() {
   local service="$1"
-  local container="${CONTAINER_PREFIX}-${service}"
+  local container
+  container="$(container_name_for "$service")"
 
   log "Waiting ${WAIT_START_DELAY}s for ${service} to initialize..."
   sleep "$WAIT_START_DELAY"

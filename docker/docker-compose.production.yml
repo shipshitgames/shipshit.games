@@ -11,7 +11,7 @@
 services:
   api:
     image: ${API_IMAGE:-ghcr.io/shipshitgames/shipshitgames/api:${IMAGE_TAG:-latest}}
-    container_name: shipshit-api
+    container_name: api-shipshit-games
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
