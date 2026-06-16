@@ -1,5 +1,10 @@
 import sharp from "sharp";
 
+/** Round to the nearest integer and clamp into a valid 0-255 RGBA channel byte. */
+function toByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
 export interface ToWebpOptions {
   size?: number;
   /**
@@ -18,6 +23,37 @@ export interface ToWebpOptions {
   defringe?: boolean;
   /** How many pixel rings to bleed outward (default 4). */
   defringePasses?: number;
+  /**
+   * Tint hard black outline pixels (opaque near-black pixels that touch the
+   * transparent margin) toward the fill colour they enclose, so a deliberate
+   * 1px silhouette line stops reading as a harsh cutout once the sprite is
+   * composited over a stylised background. Complementary to `defringe`/
+   * `bleedAlphaEdges` — that pass only repaints the *invisible* RGB of
+   * transparent pixels; this one repaints the *visible* opaque outline itself.
+   * Opt-in — default false (no behaviour change unless enabled).
+   */
+  outlineTint?: boolean;
+  /** Lerp strength (0..1) from the outline colour toward the fill colour when `outlineTint` is on. Default 0.5. */
+  outlineTintStrength?: number;
+  /** Max value any RGB channel may have for a pixel to count as a "black" outline. Default 32. */
+  outlineTintThreshold?: number;
+}
+
+export interface OutlineTintOptions {
+  /**
+   * A pixel counts as a near-black outline when `max(r,g,b) <= threshold`
+   * (0-255). Default 32 — catches deliberate black silhouette lines while
+   * ignoring merely dark fill.
+   */
+  threshold?: number;
+  /**
+   * Lerp factor (0..1) from the outline's own colour toward the sampled fill
+   * colour. 0 leaves the outline untouched; 1 replaces it with the neighbour
+   * fill. Clamped into range. Default 0.5.
+   */
+  strength?: number;
+  /** Alpha at/above which a pixel is treated as opaque sprite body. Default 250. */
+  solidAlpha?: number;
 }
 
 /**
@@ -68,11 +104,113 @@ export function bleedAlphaEdges(
 }
 
 /**
- * Trim transparent edges, optionally fit into a square, defringe the alpha
- * edge, and encode an optimized (lossless by default) `.webp`.
+ * Tint hard black outline pixels toward the colour of the fill they enclose, in
+ * place. A 1px black silhouette line that touches transparent pixels reads as a
+ * harsh cutout once the sprite is composited over a stylised background; nudging
+ * those outline pixels toward the adjacent fill softens the seam without
+ * dissolving the silhouette. Orthogonal to `bleedAlphaEdges`: that pass repaints
+ * the (invisible) RGB of transparent margin pixels, while this one repaints the
+ * visible opaque outline itself.
+ *
+ * Only opaque, near-black pixels that are 8-adjacent to a fully transparent
+ * pixel are candidates; each is lerped toward the average colour of its opaque,
+ * non-black neighbours. Candidates with no fill neighbour are left untouched
+ * (nothing to sample). Alpha is never modified, so the silhouette shape and
+ * anti-aliasing survive. Pure over the raw RGBA buffer — reads every original
+ * value before writing any, so the result is order-independent and unit-testable.
+ */
+export function tintHardOutline(
+  data: Uint8Array | Buffer,
+  width: number,
+  height: number,
+  opts: OutlineTintOptions = {},
+): void {
+  const threshold = Math.max(0, Math.min(255, opts.threshold ?? 32));
+  const strength = Math.max(0, Math.min(1, opts.strength ?? 0.5));
+  const solidAlpha = opts.solidAlpha ?? 250;
+  if (strength === 0) return;
+
+  const count = width * height;
+  const opaque = new Uint8Array(count);
+  const nearBlack = new Uint8Array(count);
+  for (let i = 0; i < count; i++) {
+    const op = data[i * 4 + 3]! >= solidAlpha ? 1 : 0;
+    opaque[i] = op;
+    if (op) {
+      const r = data[i * 4]!;
+      const g = data[i * 4 + 1]!;
+      const b = data[i * 4 + 2]!;
+      nearBlack[i] = Math.max(r, g, b) <= threshold ? 1 : 0;
+    }
+  }
+
+  const neighbors = [
+    [-1, 0], [1, 0], [0, -1], [0, 1],
+    [-1, -1], [1, -1], [-1, 1], [1, 1],
+  ];
+
+  // Collect the new colours first and apply them after the full scan, so a
+  // freshly tinted outline pixel never feeds the sampling of an adjacent one.
+  const updates: Array<[number, number, number, number]> = [];
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const s = y * width + x;
+      if (!opaque[s] || !nearBlack[s]) continue;
+
+      let touchesTransparent = false;
+      let fr = 0, fg = 0, fb = 0, fills = 0;
+      for (const [dx, dy] of neighbors) {
+        const nx = x + dx!;
+        const ny = y + dy!;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        const ni = ny * width + nx;
+        if (data[ni * 4 + 3]! === 0) touchesTransparent = true;
+        if (opaque[ni] && !nearBlack[ni]) {
+          fr += data[ni * 4]!;
+          fg += data[ni * 4 + 1]!;
+          fb += data[ni * 4 + 2]!;
+          fills++;
+        }
+      }
+      if (!touchesTransparent || fills === 0) continue;
+
+      const r0 = data[s * 4]!;
+      const g0 = data[s * 4 + 1]!;
+      const b0 = data[s * 4 + 2]!;
+      // A lerp of two in-range channels stays in [0,255]; clamp anyway so the
+      // pass can never write an out-of-range byte if fed unusual fill values.
+      updates.push([
+        s,
+        toByte(r0 + (fr / fills - r0) * strength),
+        toByte(g0 + (fg / fills - g0) * strength),
+        toByte(b0 + (fb / fills - b0) * strength),
+      ]);
+    }
+  }
+
+  for (const [s, r, g, b] of updates) {
+    data[s * 4] = r;
+    data[s * 4 + 1] = g;
+    data[s * 4 + 2] = b;
+    // alpha (s*4 + 3) deliberately untouched
+  }
+}
+
+/**
+ * Trim transparent edges, optionally fit into a square, tint hard outlines,
+ * defringe the alpha edge, and encode an optimized (lossless by default) `.webp`.
  */
 export async function toWebp(buf: Buffer, opts: ToWebpOptions = {}): Promise<Buffer> {
-  const { size, lossless = true, quality = 90, defringe = true, defringePasses = 4 } = opts;
+  const {
+    size,
+    lossless = true,
+    quality = 90,
+    defringe = true,
+    defringePasses = 4,
+    outlineTint = false,
+    outlineTintStrength = 0.5,
+    outlineTintThreshold = 32,
+  } = opts;
 
   let img = sharp(buf).trim();
   if (size) {
@@ -82,9 +220,17 @@ export async function toWebp(buf: Buffer, opts: ToWebpOptions = {}): Promise<Buf
     });
   }
 
-  if (defringe) {
+  if (defringe || outlineTint) {
     const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    bleedAlphaEdges(data, info.width, info.height, defringePasses);
+    // Tint the outline first so the recoloured silhouette — not raw black — is
+    // what `bleedAlphaEdges` then dilates outward into the transparent margin.
+    if (outlineTint) {
+      tintHardOutline(data, info.width, info.height, {
+        strength: outlineTintStrength,
+        threshold: outlineTintThreshold,
+      });
+    }
+    if (defringe) bleedAlphaEdges(data, info.width, info.height, defringePasses);
     img = sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } });
   }
 

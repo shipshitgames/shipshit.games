@@ -69,6 +69,10 @@ export interface AssetPipelineContext {
   size: number;
   provider: ProviderId;
   model?: string;
+  /** Opt-in outline-tint postprocess (see `ToWebpOptions.outlineTint`). Default off. */
+  outlineTint?: boolean;
+  outlineTintStrength?: number;
+  outlineTintThreshold?: number;
 }
 
 export type AssetPostprocessHook = (
@@ -91,6 +95,10 @@ export interface AssetPipelineOptions {
   model?: string;
   /** Reproducibility seed forwarded to seedable providers (openai/fal). */
   seed?: number;
+  /** Opt-in outline-tint postprocess (see `ToWebpOptions.outlineTint`). Default off. */
+  outlineTint?: boolean;
+  outlineTintStrength?: number;
+  outlineTintThreshold?: number;
   /** Human-authorship disclosure recorded alongside provenance. */
   human?: AssetHumanAuthorship;
   usageLogPath?: string | null;
@@ -156,6 +164,10 @@ export interface GenerateOneOptions {
   model?: string;
   /** Reproducibility seed forwarded to seedable providers (openai/fal). */
   seed?: number;
+  /** Opt-in outline-tint postprocess (see `ToWebpOptions.outlineTint`). Default off. */
+  outlineTint?: boolean;
+  outlineTintStrength?: number;
+  outlineTintThreshold?: number;
   /** Injectable clock so the provenance date matches the caller's license date. */
   now?: () => Date;
   postprocess?: AssetPostprocessHook;
@@ -205,6 +217,9 @@ export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOne
     size: opts.size,
     provider: generated.provider,
     model: generated.model,
+    outlineTint: opts.outlineTint,
+    outlineTintStrength: opts.outlineTintStrength,
+    outlineTintThreshold: opts.outlineTintThreshold,
   };
   const optimized = await runStep(opts, "postprocess", "post-process output", async () =>
     (opts.postprocess ?? defaultPostprocess)(generated, context),
@@ -299,6 +314,9 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
         size: opts.size,
         model: opts.model,
         seed: opts.seed,
+        outlineTint: opts.outlineTint,
+        outlineTintStrength: opts.outlineTintStrength,
+        outlineTintThreshold: opts.outlineTintThreshold,
         now: opts.now,
         postprocess: opts.postprocess,
         onGenerated: (asset) => {
@@ -378,7 +396,12 @@ export async function defaultPostprocess(asset: GeneratedAsset, context: AssetPi
     };
   }
   return {
-    data: await toWebp(asset.data, { size: context.size }),
+    data: await toWebp(asset.data, {
+      size: context.size,
+      outlineTint: context.outlineTint,
+      outlineTintStrength: context.outlineTintStrength,
+      outlineTintThreshold: context.outlineTintThreshold,
+    }),
     mediaType: "image/webp",
     extension: "webp",
   };

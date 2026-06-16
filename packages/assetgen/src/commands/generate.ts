@@ -77,6 +77,13 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const draco = !has(argv, "no-draco");
   const rigSource = flag(argv, "rig");
 
+  // Outline-tint postprocess (issue #167): opt-in softening of hard black
+  // silhouette lines toward the fill they enclose. Off unless --outline-tint;
+  // only affects the toWebp path (textures/icons), not sprite-sheet assembly.
+  const outlineTint = has(argv, "outline-tint");
+  const outlineTintStrength = numberFlag(argv, "outline-tint-strength", 0.5);
+  const outlineTintThreshold = intFlag(argv, "outline-tint-threshold", 32);
+
   if (!id || !prompt) {
     printGenerateUsage();
     process.exit(1);
@@ -233,6 +240,9 @@ export async function runGenerate(argv: string[]): Promise<void> {
     model,
     size,
     seed,
+    outlineTint,
+    outlineTintStrength,
+    outlineTintThreshold,
     human,
     repo,
     usageLogPath: usageLog,
@@ -259,6 +269,7 @@ function printGenerateUsage(): void {
       "           [--views front,side,back] [--frames 1] [--fps 8] [--anchor 0.5,1] [--scale 1]\n" +
       "           [--category music|sfx|voice] [--volume 1] [--loop|--no-loop] [--bitrate 128] [--normalize]\n" +
       "           [--ktx2] [--no-draco] [--rig <source>]\n" +
+      "           [--outline-tint] [--outline-tint-strength 0.5] [--outline-tint-threshold 32]\n" +
       "           [--license <terms>] [--license-url <url>] [--seed <n>] [--authored] [--edit-kind <label>]\n" +
       "  assetgen --id <id> --prompt <text> [--game <slug>|shared]\n" +
       "           [--kind sprite|texture|icon|music|sfx|voice|model|3d] [--provider openai|fal|codex|replicate|meshy|tripo|suno|elevenlabs|beatoven|mock]\n" +
