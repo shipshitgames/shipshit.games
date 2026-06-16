@@ -166,6 +166,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
 
             <form action="/api/checkout" method="post" className="mt-7">
               <CheckoutButton
+                plan="skills_pro"
                 size="xl"
                 className="w-full font-display uppercase tracking-widest shadow-ember"
               >

@@ -1,0 +1,12 @@
+{
+  "name": "vibe-game-workflow",
+  "version": "1.0.0",
+  "description": "The Ship Shit Games build loop: scope, branch, wire the engine, generate assets, playtest, ship",
+  "author": {
+    "name": "Ship Shit Games",
+    "email": "hello@shipshit.games",
+    "url": "https://github.com/shipshitgames"
+  },
+  "license": "MIT",
+  "skills": "."
+}

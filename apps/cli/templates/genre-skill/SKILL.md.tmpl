@@ -1,0 +1,46 @@
+---
+name: {{GENRE}}
+description: "{{GENRE_TITLE}} game conventions for {{PROJECT_NAME}}: how this genre maps onto {{ENGINE_PACKAGE}} seams, the loops and content tables it needs, and the playtest signals that matter. Use when designing or tuning {{GENRE_TITLE}} systems."
+license: MIT
+metadata:
+  version: "1.0.0"
+  tags: "genre, {{GENRE}}, gameplay, design"
+  author: Ship Shit Games
+when_to_use: "design a {{GENRE}} system, tune the {{GENRE}} loop, decide what content tables this game needs, map {{GENRE}} mechanics onto engine seams"
+---
+
+# {{GENRE_TITLE}} Conventions — {{PROJECT_NAME}}
+
+Genre-specific guidance for building {{PROJECT_NAME}} as a {{GENRE_TITLE}} title
+on `{{ENGINE_PACKAGE}}`. This skill captures *how this genre uses the engine*;
+fill in the specifics as the game takes shape.
+
+## Core loop
+
+Define the moment-to-moment loop for a {{GENRE_TITLE}} game and keep it readable
+in one paragraph. Every system below should serve that loop.
+
+## Mapping to engine seams
+
+- **Movement / camera** — choose the `CameraRig` and input bindings that fit a
+  {{GENRE_TITLE}} feel; the engine owns the rig, the game owns the verbs.
+- **Agents** — model {{GENRE_TITLE}} actors as engine `Agent`s with a
+  `SteeringStrategy`; keep stats/behavior tables in this repo.
+- **Spawning / pacing** — drive encounters via the spawn + wave-director seams,
+  reading this game's content tables. Pacing is game data, not engine code.
+- **HUD** — surface {{GENRE_TITLE}} state through the engine HUD snapshot shell,
+  rendered by a React overlay in this repo.
+- **Multiplayer (if any)** — ride the engine `net` seam; supply game-defined
+  avatar skins and payloads.
+
+## Content this game owns
+
+List the data tables a {{GENRE_TITLE}} game needs (e.g. abilities, encounters,
+progression, economy) and keep them in this repo as typed data, not in the
+engine.
+
+## Playtest signals
+
+Capture the {{GENRE_TITLE}}-specific signals worth watching (e.g. session
+length, difficulty curve, readability) and turn regressions into linked
+follow-up issues rather than silent scope changes.

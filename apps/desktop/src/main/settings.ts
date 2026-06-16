@@ -5,21 +5,17 @@ import { uniqueProjects } from "./projects";
 // Same direct-from-TS-source import shape as index.ts's manifest.ts import —
 // fal.ts is bundle-safe for the Electron main process (no sharp/node-pty).
 import { FAL_IMAGE_KINDS } from "../../../../packages/assetgen/src/fal.ts";
+// The provider catalog (ids + kind→provider routing) is the single source of
+// truth in assetgen; it's bundle-safe (same contract as fal.ts), so the main
+// process imports it directly instead of hand-copying it here — the local copies
+// had drifted (they were missing the sprite-anim → codex routing, #194).
+import {
+  DEFAULT_PROVIDER_BY_KIND,
+  PROVIDER_CATALOG,
+} from "../../../../packages/assetgen/src/provider-catalog.ts";
 
 const DEFAULT_GAME = "scourge-survivors";
-const PROVIDERS = new Set(["codex", "openai", "fal", "replicate", "meshy", "tripo", "suno", "elevenlabs", "beatoven", "mock"]);
-const DEFAULT_PROVIDER_BY_KIND = {
-  sprite: "codex",
-  texture: "openai",
-  icon: "openai",
-  map: "codex",
-  music: "suno",
-  sfx: "suno",
-  voice: "suno",
-  // issue #20 names Meshy/Tripo as the 3D drivers; Meshy is the default.
-  model: "meshy",
-  "3d": "meshy",
-};
+const PROVIDERS = new Set(Object.keys(PROVIDER_CATALOG));
 const DEFAULTS = {
   defaultProvider: "codex",
   defaultGame: DEFAULT_GAME,

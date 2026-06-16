@@ -1,4 +1,4 @@
-import { getKey } from "./keys.ts";
+import { getKey, missingKeyMessage } from "./keys.ts";
 import { downloadGeneratedAsset } from "./media.ts";
 import type { GeneratedAsset, GeneratedAssetMeta } from "./media.ts";
 
@@ -117,12 +117,7 @@ export async function generateFalAsset(
 ): Promise<GeneratedAsset> {
   const resolveKey = deps.resolveKey ?? (() => getKey(FAL_KEY_CONFIG.envName, FAL_KEY_CONFIG.service));
   const key = resolveKey();
-  if (!key) {
-    throw new Error(
-      `No ${FAL_KEY_CONFIG.label} key. Set ${FAL_KEY_CONFIG.envName}, or store it the shipcode way:\n` +
-        `  security add-generic-password -a shipshit -s ${FAL_KEY_CONFIG.service} -w <KEY>`,
-    );
-  }
+  if (!key) throw missingKeyMessage(FAL_KEY_CONFIG);
   const fetchImpl = deps.fetchImpl ?? fetch;
   const model = resolveFalModel(kind, opts.model);
   const imageSize = falImageSize(opts.size);

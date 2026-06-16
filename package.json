@@ -12,8 +12,9 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "prebuild": "bun run check:token-staleness",
     "build": "turbo run build",
-    "lint": "bun run check:design && bun run check:tokens && bun run check:content && turbo run lint",
+    "lint": "bun run check:design && bun run check:tokens && bun run check:token-staleness && bun run check:content && turbo run lint",
     "lint:react": "react-doctor -y --project web,app,@shipshitgames/desktop,@shipshitgames/ui --no-score --no-telemetry",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
@@ -23,6 +24,7 @@
     "ci:engine": "bun run --cwd packages/engine build && bun run --cwd packages/engine typecheck && bun run --cwd packages/engine e2e",
     "ci:scaffold": "bun scripts/scaffold-smoke.mjs",
     "check:design": "bun packages/assetgen/src/cli.ts check-design",
+    "check:token-staleness": "bun packages/assetgen/src/cli.ts check-token-staleness",
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:tokens": "turbo run check:tokens",
     "check:content": "bun apps/web/scripts/sync-content.ts --check",

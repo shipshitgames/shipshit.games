@@ -50,7 +50,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  # ghcr image base: ghcr.io/shipshitgames/shipshitgames/{api,api-migrate}
+  # ghcr image base: ghcr.io/shipshitgames/shipshit.games/{api,api-migrate}
   IMAGE_BASE: ghcr.io/${{ github.repository }}
 
 jobs:
@@ -282,10 +282,22 @@ jobs:
             echo "::error::TAILSCALE_INSTANCE_API_IP variable is not set"; exit 1
           fi
           timeout 30 bash -c 'until tailscale status >/dev/null 2>&1; do sleep 1; done'
-          tailscale ping -c 1 --timeout 10s "$HOST_IP" >/dev/null || {
-            echo "::error::Cannot reach EC2 host at $HOST_IP via Tailscale"; tailscale status; exit 1;
-          }
-          echo "Host $HOST_IP reachable."
+          # The deploy below only needs ssh/scp, which ride the DERP relay fine.
+          # Plain `tailscale ping` waits for a *direct* path and gives up after one
+          # probe, so a host that is up but relay-only (cold NAT traversal right
+          # after tailscaled starts) false-fails the gate. Accept a relayed reply
+          # (--until-direct=false) and retry briefly to absorb that startup window.
+          for attempt in $(seq 1 6); do
+            if tailscale ping --until-direct=false -c 1 --timeout 5s "$HOST_IP" >/dev/null 2>&1; then
+              echo "Host $HOST_IP reachable (attempt ${attempt})."
+              exit 0
+            fi
+            echo "Attempt ${attempt}: $HOST_IP not reachable yet; retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::Cannot reach EC2 host at $HOST_IP via Tailscale after 6 attempts"
+          tailscale status
+          exit 1
 
       - name: Setup SSH key
         run: |
@@ -322,6 +334,7 @@ jobs:
             export GITHUB_SHA="${{ github.sha }}"
             export GITHUB_STEP_SUMMARY="/dev/null"
             export IMAGE_TAG="${{ github.sha }}"
+            export IMAGE_REPO="${{ github.repository }}"
             export SSM_PARAMETER_PATH_PREFIX="${{ vars.SSM_PARAMETER_PATH_PREFIX }}"
             export AWS_REGION="${{ vars.AWS_REGION }}"
             ./docker/deploy-production.sh api

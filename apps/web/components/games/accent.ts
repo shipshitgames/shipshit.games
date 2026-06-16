@@ -26,3 +26,16 @@ export function accentStyle(accent: AccentToken): CSSProperties {
     "--page-accent": accentVar(accent),
   } as CSSProperties;
 }
+
+/**
+ * Page-level accent: sets ONLY `--page-accent` (Eyebrow, text-glow, and the
+ * marketing sections read this), deliberately NOT `--accent`. Game and faction
+ * descendants — game-card.tsx, the bestiary, sprite-gallery — consume
+ * `var(--accent)` and must keep theming themselves even when rendered inside an
+ * accented home/assets section, so leaving `--accent` untouched keeps this
+ * inert for them. Resolves to the same hex as the old raw-literal helpers
+ * because `var(--color-${accent})` mirrors theme.css.
+ */
+export function pageAccent(accent: AccentToken): CSSProperties {
+  return { "--page-accent": accentVar(accent) } as CSSProperties;
+}

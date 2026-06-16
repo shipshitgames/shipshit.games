@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { buildAtlas, serializeAtlasMap } from "../atlas.ts";
 import { GAME_SLUGS } from "../assets-package.ts";
+import { formatReports, gateSpriteGeometry, loadSpriteContract } from "../sprite-geometry.ts";
 import { flag, has, intFlag } from "./args.ts";
 import { defaultAssetsDir } from "./paths.ts";
 
@@ -24,6 +25,20 @@ export async function runAtlasCommand(argv: string[]): Promise<void> {
   if (game && !GAME_SLUGS.includes(game as (typeof GAME_SLUGS)[number])) {
     console.warn(`[atlas] warning: "${game}" is not a known game slug (${GAME_SLUGS.join(", ")})`);
   }
+
+  // Enforce the sprite frame-set geometry contract BEFORE packing (issue #166):
+  // a malformed `<id>.anim.json` would otherwise be baked into the atlas. Fast
+  // structural+contract pass (no per-frame pixel scan); `--no-geometry-check` skips it.
+  if (!has(argv, "no-geometry-check")) {
+    const contract = await loadSpriteContract(assetsDir, game);
+    const { ok, reports } = await gateSpriteGeometry({ assetsDir, game, contract, readPixels: false });
+    if (reports.length > 0 && !ok) {
+      console.error(formatReports(reports));
+      console.error("[atlas] sprite-anim frame-set geometry check failed — fix the frame-set(s) above or pass --no-geometry-check");
+      process.exit(1);
+    }
+  }
+
   const padding = intFlag(argv, "padding", 2);
   const maxWidth = intFlag(argv, "max-width", 4096);
   const maxHeight = intFlag(argv, "max-height", 4096);

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Eyebrow } from "@/components/site/eyebrow";
+import { TrackedLink } from "@/components/site/tracked-link";
 import { accentStyle } from "@/components/games/accent";
 import type { AccentToken, LatestVideo } from "@/lib/content/types";
 
@@ -45,11 +46,11 @@ export function WatchTheBuild({
 
         <div className="mt-10 grid gap-5 md:grid-cols-3">
           {videos.map((video) => (
-            <a
+            <TrackedLink
               key={video.videoId}
               href={`https://www.youtube.com/watch?v=${video.videoId}`}
-              target="_blank"
-              rel="noreferrer"
+              event="video_click"
+              eventProps={{ videoId: video.videoId, location: "game_watch_build" }}
               className="group overflow-hidden rounded-md border border-gunmetal bg-coal transition-all duration-300 hover:border-[var(--accent)] hover:shadow-[0_0_36px_-14px_var(--accent)]"
             >
               <div className="relative aspect-video overflow-hidden border-b border-gunmetal/60 bg-void">
@@ -74,7 +75,7 @@ export function WatchTheBuild({
                   {dateFormat.format(new Date(video.published))}
                 </p>
               </div>
-            </a>
+            </TrackedLink>
           ))}
         </div>
       </div>

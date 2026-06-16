@@ -16,12 +16,21 @@
   },
   "files": [
     "src",
+    "templates",
     "README.md",
     "package.json"
   ],
   "scripts": {
     "build": "node ./src/cli.js --version",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "e2e": "bun test e2e",
+    "typecheck": "tsc --noEmit",
     "pack:check": "npm pack --dry-run",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "typescript": "6.0.3"
   }
 }

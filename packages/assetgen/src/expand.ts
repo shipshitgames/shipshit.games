@@ -22,15 +22,14 @@ import { pixelize } from "./pixelize.ts";
 import { generateAsset } from "./providers.ts";
 import { maybeUpscale } from "./upscale.ts";
 import type { UpscaleFactor } from "./upscale.ts";
+import { frameId } from "./sprite-frames.ts";
 
 export const SPRITE_ANIM_VERSION = 1;
 
-/** Directional facings keyed by direction count. Order is load-bearing (frame map order). */
-export const DIRECTIONS: Record<number, string[]> = {
-  1: ["south"],
-  4: ["south", "west", "north", "east"],
-  8: ["south", "southwest", "west", "northwest", "north", "northeast", "east", "southeast"],
-};
+// Canonical facings, the `--dirs` resolver, and the per-cell frame id now live in
+// ./sprite-frames.ts (shared with the #166 geometry checker). Re-exported here so
+// existing importers keep their `from "./expand.ts"` paths.
+export { DIRECTIONS, frameId, resolveDirections } from "./sprite-frames.ts";
 
 /** One-shot actions that should NOT loop (everything else loops by default). */
 const ONE_SHOT_ACTIONS = new Set(["attack", "death", "die", "hurt", "hit", "cast", "jump", "spawn", "shoot"]);
@@ -164,22 +163,8 @@ export function parseActions(raw: string | undefined, defaultFrames: number): Ex
   return actions.length ? actions : [{ name: "idle", frames: defaultFrames }];
 }
 
-/** Resolve a direction-count flag to its ordered facing names. */
-export function resolveDirections(dirs: number): string[] {
-  const facings = DIRECTIONS[dirs];
-  if (!facings) {
-    throw new Error(`unsupported --dirs ${dirs}; expected one of ${Object.keys(DIRECTIONS).join(", ")}`);
-  }
-  return facings;
-}
-
 export function clipLoops(action: string): boolean {
   return !ONE_SHOT_ACTIONS.has(action);
-}
-
-/** Stable, unique frame id for an (action, facing, index) cell. */
-export function frameId(action: string, facing: string, index: number): string {
-  return `${action}__${facing}__${index}`;
 }
 
 /**

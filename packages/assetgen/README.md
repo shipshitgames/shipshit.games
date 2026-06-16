@@ -163,11 +163,64 @@ bun packages/assetgen/src/cli.ts atlas --game scourge-survivors --check
 ```
 
 Flags: `--game <slug>`, `--padding <px>` (default 2), `--max-width` / `--max-height`
-(default 4096), `--out-dir`, `--name`, `--assets-dir`, `--check`.
+(default 4096), `--out-dir`, `--name`, `--assets-dir`, `--check`,
+`--no-geometry-check` (skip the pre-pack sprite frame-set gate below).
 
 The map records each frame's `page`, `x`, `y`, `w`, `h`, `id`, and `game`, plus a
 `pages` list with each page image's filename and dimensions — feed it to a
 runtime loader / `codegen` (#22) for type-safe sprite lookups.
+
+Before packing, `atlas` runs the sprite frame-set geometry gate (below) so a
+malformed `<id>.anim.json` never gets baked into an atlas; pass
+`--no-geometry-check` to skip it.
+
+## `check-sprites` — sprite frame-set geometry gate (issue #166)
+
+`assetgen check-sprites` verifies every `<id>.anim.json` sprite-anim sheet is
+geometrically sane before it reaches the slicer/atlas or the runtime. It is the
+same core `atlas` runs as a pre-pack gate, exposed standalone for CI and
+pre-commit. Every sheet is checked for a **structural contract** (always on):
+
+- **Canonical direction set** — `directions` is exactly a 1/4/8 facing set in the
+  load-bearing order, and every clip covers exactly those facings (no missing, no
+  extra).
+- **Frame-count integrity** — `clip.frames` matches every facing's frame-array
+  length, so no clip has a short or long direction.
+- **In-bounds rects** — every frame rect is non-degenerate and lies fully inside
+  its declared atlas page (an overflowing rect is a clipped frame).
+- **No blank frames** (pixel pass, default on) — each frame's region on its page
+  carries visible (non-transparent) pixels; pass `--no-pixels` to skip the scan.
+  The scan is capped at 1024 frames per sheet (a perf guard); past that it warns
+  on stderr that the tail was not checked rather than silently passing it.
+
+A per-game **contract** adds opt-in rules, declared either in
+`<assets-dir>/sprite-contract.json` (repo-wide) overlaid by
+`<assets-dir>/<game>/sprite-contract.json` (per-game wins), or via CLI flags
+(which override the file). Contract checks only run when declared, so the gate is
+additive — it never fails a sheet for a rule the game never opted into:
+
+```bash
+# Check every sheet (structural + pixel pass):
+bun packages/assetgen/src/cli.ts check-sprites
+
+# One game, require 8 facings + idle/walk/attack states:
+bun packages/assetgen/src/cli.ts check-sprites --game scourge-survivors \
+  --dirs 8 --states idle,walk,attack
+
+# Grid sheets: demand uniform frame size, cap dims + aspect band:
+bun packages/assetgen/src/cli.ts check-sprites --uniform-frames \
+  --max-frame-dims 128x128 --aspect 0.5,2
+
+# Fast structural-only pass (skip the per-frame pixel scan); machine-readable:
+bun packages/assetgen/src/cli.ts check-sprites --no-pixels --json
+```
+
+Flags: `--assets-dir`, `--game <slug>`, `--dirs <n>`, `--states <a,b,c>`,
+`--uniform-frames`, `--max-frame-dims <WxH>`, `--aspect <min,max>`,
+`--no-pixels`, `--json`. Exit code is the failure signal: **1** when any sheet
+violates the contract, **0** when all sheets pass (or none are found). `--json`
+prints the full report (`{ ok, assetsDir, game, reports }`) to stdout and keeps
+stderr clean for machine consumers — it does **not** change the exit code.
 
 ## `codegen` — typed per-game asset bindings (issue #22)
 
@@ -300,6 +353,35 @@ bun packages/assetgen/src/cli.ts tokens --check --assets-dir ../deadrotcom/packa
 # Regenerate committed artifacts.
 bun packages/assetgen/src/cli.ts tokens --assets-dir ../deadrotcom/packages/assets
 ```
+
+## Game prebuild staleness gate (issue #47)
+
+`tokens --check` needs `DESIGN.md` + the generator to regenerate and byte-diff,
+so it only works inside the monorepo. The **separate game repos** vendor the
+token files in (`tokens.ts`/`tokens.css`/`fonts.css`, banner-stamped + committed)
+and have neither `DESIGN.md` nor `assetgen` at build time. `check-token-staleness`
+is the no-npm equivalent of an installed-version check: it reads the `vX.Y.Z`
+banner version out of each vendored consumer and **fails the build** when one is
+behind the canon `DESIGN.md` version — so a stale vendored copy cannot ship.
+
+```bash
+# Default: the committed app token forks vs the resolved DESIGN.md.
+bun packages/assetgen/src/cli.ts check-token-staleness
+
+# Explicit files (positional or --files); machine output with --json.
+bun packages/assetgen/src/cli.ts check-token-staleness src/tokens.css --json
+
+# A vendored repo with no DESIGN.md pins the canon version directly.
+bun packages/assetgen/src/cli.ts check-token-staleness --canon 0.2.0 src/tokens.css
+```
+
+Relative file paths resolve against the directory you run it from (the vendored
+repo), so the command works unchanged in a separate game repo. A consumer behind
+canon (`stale`), missing, or banner-less fails the gate
+(exit 1); `current`/`ahead` pass. Wire it into a repo's `prebuild` so it runs on
+every `bun run build` and cannot be silently skipped. In this monorepo the root
+`prebuild` script runs it before `turbo run build`, and `bun run lint` runs it
+alongside the other token gates.
 
 ## Providers
 - `codex` — delegates to the local authed `codex` CLI via node-pty (no key wiring needed)

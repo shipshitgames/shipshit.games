@@ -54,6 +54,20 @@ test("providerForKind falls back to the per-kind default with no explicit overri
   expect(providerForKind(normalizeSettings({}), "sfx")).toBe("suno");
 });
 
+// #194: the desktop tables had drifted from assetgen's canonical catalog and
+// were missing sprite-anim, so it fell through to the generic codex fallback by
+// accident. Now that the catalog is the single source of truth, sprite-anim is
+// an explicit codex route — pin it so the reconciliation can't silently regress.
+test("sprite-anim routes to codex from the shared catalog (was missing from the drifted copy)", () => {
+  // Load-bearing guards: both were `undefined` on the old drifted copy and would fail it.
+  expect(DEFAULT_PROVIDER_BY_KIND["sprite-anim"]).toBe("codex");
+  expect(normalizeSettings({}).providerDefaults["sprite-anim"]).toBe("codex");
+  // Documents the resolved routing. (Bug-invariant on its own — the old code also
+  // returned "codex" here, via the defaultProvider fallback rather than an explicit
+  // route — so it's the two assertions above that actually catch the regression.)
+  expect(providerForKind(normalizeSettings({}), "sprite-anim")).toBe("codex");
+});
+
 test("providerForKind accepts the new audio providers as explicit choices", () => {
   expect(providerForKind(normalizeSettings({}), "sfx", "elevenlabs")).toBe("elevenlabs");
   expect(providerForKind(normalizeSettings({}), "music", "beatoven")).toBe("beatoven");

@@ -4,6 +4,7 @@ import { ArrowRight, MonitorPlay, Radio, Terminal } from "lucide-react";
 
 import { Backdrop } from "@/components/site/atmosphere";
 import { Eyebrow } from "@/components/site/eyebrow";
+import { TrackedLink } from "@/components/site/tracked-link";
 import { Button } from "@/components/ui/button";
 import { SITE_META } from "@/lib/content";
 import { fetchLatestVideos } from "@/lib/youtube";
@@ -80,10 +81,14 @@ export default async function YoutubePage() {
               </p>
               <div className="mt-7">
                 <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-                  <a href={CHANNEL_URL} target="_blank" rel="noreferrer">
+                  <TrackedLink
+                    href={CHANNEL_URL}
+                    event="channel_click"
+                    eventProps={{ location: "youtube_page", action: "subscribe" }}
+                  >
                     <MonitorPlay aria-hidden="true" />
                     Subscribe on YouTube
-                  </a>
+                  </TrackedLink>
                 </Button>
               </div>
             </div>
@@ -122,15 +127,15 @@ export default async function YoutubePage() {
                   <p className="mt-3 text-sm leading-relaxed text-ash">
                     {video.summary}
                   </p>
-                  <a
+                  <TrackedLink
                     href={watchUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                    event="video_click"
+                    eventProps={{ videoId: video.videoId, location: "youtube_featured" }}
                     className="mt-5 inline-flex items-center gap-2 font-display text-xs font-bold uppercase tracking-widest text-hellfire transition-colors hover:text-blood"
                   >
                     Watch on YouTube
                     <ArrowRight className="size-4" aria-hidden="true" />
-                  </a>
+                  </TrackedLink>
                 </article>
               );
             })}
@@ -147,14 +152,14 @@ export default async function YoutubePage() {
                 Latest uploads
               </h2>
             </div>
-            <a
+            <TrackedLink
               href={CHANNEL_URL}
-              target="_blank"
-              rel="noreferrer"
+              event="channel_click"
+              eventProps={{ location: "youtube_page", action: "all_videos" }}
               className="font-display text-xs font-bold uppercase tracking-widest text-hellfire transition-colors hover:text-blood"
             >
               All videos →
-            </a>
+            </TrackedLink>
           </div>
 
           <div
@@ -162,11 +167,11 @@ export default async function YoutubePage() {
             className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
           >
             {latest.map((video) => (
-              <a
+              <TrackedLink
                 key={video.videoId}
                 href={`https://www.youtube.com/watch?v=${video.videoId}`}
-                target="_blank"
-                rel="noreferrer"
+                event="video_click"
+                eventProps={{ videoId: video.videoId, location: "youtube_latest" }}
                 className="group overflow-hidden rounded-md border border-gunmetal bg-coal transition-colors duration-300 hover:border-hellfire"
               >
                 <div className="relative aspect-video overflow-hidden bg-void">
@@ -186,7 +191,7 @@ export default async function YoutubePage() {
                     {video.title}
                   </h3>
                 </div>
-              </a>
+              </TrackedLink>
             ))}
           </div>
         </div>

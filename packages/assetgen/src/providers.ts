@@ -4,27 +4,30 @@ import { join } from "node:path";
 import sharp from "sharp";
 import { isAudioKind } from "./audio.ts";
 import { runCodexCli } from "./codex.ts";
-import { DEFAULT_FAL_MODEL, FAL_KEY_CONFIG, FAL_MODELS, generateFalAsset } from "./fal.ts";
+import { generateFalAsset } from "./fal.ts";
 import type { FalModel } from "./fal.ts";
-import { getKey } from "./keys.ts";
+import { getKey, missingKeyMessage } from "./keys.ts";
 import { downloadGeneratedAsset, outputUrl } from "./media.ts";
 import type { GeneratedAsset, GeneratedAssetMeta } from "./media.ts";
+import {
+  DEFAULT_PROVIDER_BY_KIND,
+  MODEL_KINDS,
+  PROVIDER_CATALOG,
+  defaultProviderForKind,
+  providerSupportsKind,
+} from "./provider-catalog.ts";
+import type { AssetKind, ProviderDescriptor, ProviderId, ProviderKeyConfig } from "./provider-catalog.ts";
 
 export type { GeneratedAsset } from "./media.ts";
 export { extensionForMediaType } from "./media.ts";
 
-export type ProviderId =
-  | "codex"
-  | "openai"
-  | "fal"
-  | "replicate"
-  | "meshy"
-  | "tripo"
-  | "suno"
-  | "elevenlabs"
-  | "beatoven"
-  | "mock";
-export type AssetKind = "sprite" | "texture" | "icon" | "map" | "music" | "sfx" | "voice" | "model" | "3d" | string;
+// The provider catalog (ids, labels, supported kinds, key configs, default
+// models, kind→provider routing) lives in the dependency-free provider-catalog.ts
+// so the Electron main process and renderer can use it without this module's
+// sharp/codex import chain. Re-exported here so every existing `./providers.ts`
+// import site keeps resolving these symbols unchanged.
+export { DEFAULT_PROVIDER_BY_KIND, PROVIDER_CATALOG, defaultProviderForKind, providerSupportsKind };
+export type { AssetKind, ProviderDescriptor, ProviderId, ProviderKeyConfig };
 
 export interface ProviderOptions {
   size: string;
@@ -47,14 +50,6 @@ export interface ProviderOptions {
   requestTimeoutMs?: number;
 }
 
-export type Provider = (prompt: string, opts: ProviderOptions) => Promise<Buffer>;
-
-export interface ProviderKeyConfig {
-  envName: string;
-  service: string;
-  label: string;
-}
-
 export interface AssetProvider {
   id: ProviderId;
   label: string;
@@ -65,23 +60,6 @@ export interface AssetProvider {
   generate(kind: AssetKind, prompt: string, opts: ProviderOptions): Promise<GeneratedAsset>;
 }
 
-export const DEFAULT_PROVIDER_BY_KIND: Record<string, ProviderId> = {
-  sprite: "codex",
-  "sprite-anim": "codex",
-  texture: "openai",
-  icon: "openai",
-  map: "codex",
-  music: "suno",
-  sfx: "suno",
-  voice: "suno",
-  model: "meshy",
-  "3d": "meshy",
-};
-
-const IMAGE_KINDS = ["sprite", "sprite-anim", "texture", "icon", "map"] as const;
-const AUDIO_KINDS = ["music", "sfx", "voice"] as const;
-const MODEL_KINDS = ["model", "3d"] as const;
-
 function imageAsset(data: Buffer, model?: string, meta?: GeneratedAssetMeta): GeneratedAsset {
   return { data, mediaType: "image/png", extension: "png", model, meta };
 }
@@ -89,15 +67,6 @@ function imageAsset(data: Buffer, model?: string, meta?: GeneratedAssetMeta): Ge
 function providerKey(provider: AssetProvider): string | undefined {
   if (!provider.key) return undefined;
   return getKey(provider.key.envName, provider.key.service);
-}
-
-function missingKeyMessage(provider: AssetProvider): Error {
-  const key = provider.key;
-  if (!key) return new Error(`${provider.id} does not use an assetgen API key`);
-  return new Error(
-    `No ${key.label} key. Set ${key.envName}, or store it the shipcode way:\n` +
-      `  security add-generic-password -a shipshit -s ${key.service} -w <KEY>`,
-  );
 }
 
 /** Pure builder for the OpenAI Images request body (no IO; unit-testable). */
@@ -137,7 +106,7 @@ export async function generateOpenAi(
   const provider = assetProviders.openai;
   const keyCfg = provider.key!;
   const key = (deps.getKeyImpl ?? getKey)(keyCfg.envName, keyCfg.service);
-  if (!key) throw missingKeyMessage(provider);
+  if (!key) throw missingKeyMessage(keyCfg);
   const model = opts.model ?? provider.defaultModel ?? "gpt-image-2";
   const res = await (deps.fetchImpl ?? fetch)("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -165,7 +134,7 @@ export async function generateCodex(
 async function generateReplicate(kind: AssetKind, prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
   const provider = assetProviders.replicate;
   const key = providerKey(provider);
-  if (!key) throw missingKeyMessage(provider);
+  if (!key) throw missingKeyMessage(provider.key!);
   const model = opts.model ?? (MODEL_KINDS.includes(kind as any) ? undefined : provider.defaultModel);
   if (!model) throw new Error("Replicate model assets require --model <owner/model> or a configured model id");
   const prediction = await createReplicatePrediction(model, key, prompt, opts);
@@ -410,7 +379,7 @@ export async function runModelTask(
 ): Promise<GeneratedAsset> {
   const provider = assetProviders[client.id];
   const key = (deps.getKeyImpl ?? getKey)(provider.key!.envName, provider.key!.service);
-  if (!key) throw missingKeyMessage(provider);
+  if (!key) throw missingKeyMessage(provider.key!);
   const fetchImpl = deps.fetchImpl ?? fetch;
   // Bound each HTTP request so a single hung connection can't stall the task —
   // the overall `timeoutMs` is only checked between polls.
@@ -459,7 +428,7 @@ export async function runModelTask(
 async function generateSuno(kind: AssetKind, prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
   const provider = assetProviders.suno;
   const key = providerKey(provider);
-  if (!key) throw missingKeyMessage(provider);
+  if (!key) throw missingKeyMessage(provider.key!);
   const endpoint = process.env.SUNO_API_BASE_URL;
   if (!endpoint) {
     throw new Error(
@@ -506,7 +475,7 @@ export async function generateElevenLabs(
   deps: { fetchImpl?: typeof fetch; getKeyImpl?: typeof getKey } = {},
 ): Promise<GeneratedAsset> {
   const key = (deps.getKeyImpl ?? getKey)("ELEVENLABS_API_KEY", "shipshit-elevenlabs");
-  if (!key) throw missingKeyMessage(assetProviders.elevenlabs);
+  if (!key) throw missingKeyMessage(assetProviders.elevenlabs.key!);
   const req = elevenLabsSfxRequest(prompt, key, opts);
   const res = await (deps.fetchImpl ?? fetch)(req.url, { method: "POST", headers: req.headers, body: req.body });
   if (!res.ok) throw new Error(`elevenlabs ${res.status}: ${await res.text()}`);
@@ -526,7 +495,7 @@ export async function generateBeatoven(
   deps: { fetchImpl?: typeof fetch; getKeyImpl?: typeof getKey } = {},
 ): Promise<GeneratedAsset> {
   const key = (deps.getKeyImpl ?? getKey)("BEATOVEN_API_KEY", "shipshit-beatoven");
-  if (!key) throw missingKeyMessage(assetProviders.beatoven);
+  if (!key) throw missingKeyMessage(assetProviders.beatoven.key!);
   const endpoint = process.env.BEATOVEN_API_BASE_URL;
   if (!endpoint) {
     throw new Error(
@@ -590,95 +559,34 @@ async function generateMock(kind: AssetKind, _prompt: string, opts: ProviderOpti
   return imageAsset(data, "mock", meta);
 }
 
-export const assetProviders: Record<ProviderId, AssetProvider> = {
-  codex: {
-    id: "codex",
-    label: "Codex CLI",
-    supports: IMAGE_KINDS,
-    defaultModel: "codex-cli",
-    generate: (_kind, prompt, opts) => generateCodex(prompt, opts),
-  },
-  openai: {
-    id: "openai",
-    label: "OpenAI API",
-    supports: IMAGE_KINDS,
-    defaultModel: "gpt-image-2",
-    key: { envName: "OPENAI_API_KEY", service: "shipshit-openai", label: "OpenAI" },
-    generate: (_kind, prompt, opts) => generateOpenAi(prompt, opts),
-  },
-  fal: {
-    id: "fal",
-    label: "fal.ai",
-    supports: IMAGE_KINDS,
-    defaultModel: DEFAULT_FAL_MODEL,
-    models: FAL_MODELS,
-    key: FAL_KEY_CONFIG,
-    generate: (kind, prompt, opts) => generateFalAsset(kind, prompt, opts),
-  },
-  replicate: {
-    id: "replicate",
-    label: "Replicate",
-    supports: [...IMAGE_KINDS, ...MODEL_KINDS],
-    defaultModel: "black-forest-labs/flux-schnell",
-    key: { envName: "REPLICATE_API_TOKEN", service: "shipshit-replicate", label: "Replicate" },
-    generate: (kind, prompt, opts) => generateReplicate(kind, prompt, opts),
-  },
-  meshy: {
-    id: "meshy",
-    label: "Meshy (text → 3D)",
-    supports: MODEL_KINDS,
-    defaultModel: "meshy",
-    key: { envName: "MESHY_API_KEY", service: "shipshit-meshy", label: "Meshy" },
-    generate: (_kind, prompt, opts) => runModelTask(meshyClient, prompt, opts),
-  },
-  tripo: {
-    id: "tripo",
-    label: "Tripo (text → 3D)",
-    supports: MODEL_KINDS,
-    defaultModel: "tripo",
-    key: { envName: "TRIPO_API_KEY", service: "shipshit-tripo", label: "Tripo" },
-    generate: (_kind, prompt, opts) => runModelTask(tripoClient, prompt, opts),
-  },
-  suno: {
-    id: "suno",
-    label: "Suno-compatible audio",
-    supports: AUDIO_KINDS,
-    defaultModel: "suno",
-    key: { envName: "SUNO_API_KEY", service: "shipshit-suno", label: "Suno" },
-    generate: (kind, prompt, opts) => generateSuno(kind, prompt, opts),
-  },
-  elevenlabs: {
-    id: "elevenlabs",
-    label: "ElevenLabs SFX",
-    supports: ["sfx"],
-    defaultModel: "eleven_text_to_sound_v2",
-    key: { envName: "ELEVENLABS_API_KEY", service: "shipshit-elevenlabs", label: "ElevenLabs" },
-    generate: (kind, prompt, opts) => generateElevenLabs(kind, prompt, opts),
-  },
-  beatoven: {
-    id: "beatoven",
-    label: "Beatoven (perpetual-commercial music)",
-    supports: ["music"],
-    defaultModel: "beatoven",
-    key: { envName: "BEATOVEN_API_KEY", service: "shipshit-beatoven", label: "Beatoven" },
-    generate: (kind, prompt, opts) => generateBeatoven(kind, prompt, opts),
-  },
-  mock: {
-    id: "mock",
-    label: "Mock",
-    supports: ["*"],
-    defaultModel: "mock",
-    generate: generateMock,
-  },
+/** The runnable half of a provider — the function the pure catalog can't carry. */
+type GenerateFn = (kind: AssetKind, prompt: string, opts: ProviderOptions) => Promise<GeneratedAsset>;
+
+const GENERATORS: Record<ProviderId, GenerateFn> = {
+  codex: (_kind, prompt, opts) => generateCodex(prompt, opts),
+  openai: (_kind, prompt, opts) => generateOpenAi(prompt, opts),
+  fal: (kind, prompt, opts) => generateFalAsset(kind, prompt, opts),
+  replicate: (kind, prompt, opts) => generateReplicate(kind, prompt, opts),
+  meshy: (_kind, prompt, opts) => runModelTask(meshyClient, prompt, opts),
+  tripo: (_kind, prompt, opts) => runModelTask(tripoClient, prompt, opts),
+  suno: (kind, prompt, opts) => generateSuno(kind, prompt, opts),
+  elevenlabs: (kind, prompt, opts) => generateElevenLabs(kind, prompt, opts),
+  beatoven: (kind, prompt, opts) => generateBeatoven(kind, prompt, opts),
+  mock: generateMock,
 };
 
-export function providerSupportsKind(provider: AssetProvider, kind: AssetKind): boolean {
-  return provider.supports.includes("*") || provider.supports.includes(kind);
-}
-
-export function defaultProviderForKind(kind: AssetKind): ProviderId {
-  return DEFAULT_PROVIDER_BY_KIND[kind] ?? "codex";
-}
+/**
+ * The runnable provider registry: the pure {@link PROVIDER_CATALOG} descriptor for
+ * each provider zipped with its generate function. Single source of truth — the
+ * descriptor half is shared verbatim with the Electron main process and renderer
+ * (which can't bundle the generators), so the two can no longer drift apart.
+ */
+export const assetProviders: Record<ProviderId, AssetProvider> = Object.fromEntries(
+  (Object.keys(PROVIDER_CATALOG) as ProviderId[]).map((id) => {
+    const descriptor: ProviderDescriptor = PROVIDER_CATALOG[id];
+    return [id, { ...descriptor, generate: GENERATORS[id] }];
+  }),
+) as Record<ProviderId, AssetProvider>;
 
 export function resolveProvider(kind: AssetKind, providerId?: string): AssetProvider {
   const id = (providerId || defaultProviderForKind(kind)) as ProviderId;
@@ -706,15 +614,3 @@ export async function generateAsset(
   };
   return { ...asset, provider: provider.id, model, meta };
 }
-
-export const openai: Provider = async (prompt, opts) => (await generateAsset("sprite", prompt, { ...opts, provider: "openai" })).data;
-export const fal: Provider = async (prompt, opts) => (await generateAsset("sprite", prompt, { ...opts, provider: "fal" })).data;
-export const codex: Provider = async (prompt, opts) => (await generateAsset("sprite", prompt, { ...opts, provider: "codex" })).data;
-export const mock: Provider = async (prompt, opts) => (await generateAsset("sprite", prompt, { ...opts, provider: "mock" })).data;
-
-export const providers: Record<string, Provider> = Object.fromEntries(
-  Object.entries(assetProviders).map(([id]) => [
-    id,
-    async (prompt: string, opts: ProviderOptions) => (await generateAsset("sprite", prompt, { ...opts, provider: id })).data,
-  ]),
-);

@@ -1,0 +1,27 @@
+# Repo Boundary
+
+last_verified: {{DATE}}
+
+`{{PROJECT_SLUG}}` is a shipped-game repo in the Ship Shit Games portfolio.
+
+## Owns
+
+- The shipped **{{PROJECT_NAME}}** game and its scenes, gameplay, and UI.
+- Game-specific runtime assets, audio, soundtrack, sprites, and art.
+- {{GENRE_TITLE}}-specific content, data tables, and tuning.
+
+## Does Not Own
+
+- The reusable engine. Consume `{{ENGINE_PACKAGE}}` from its published package
+  (or a temporary local `bun link` bridge for unpublished engine changes).
+  Engine features and fixes belong upstream in `shipshitgames/shipshit.games`.
+- Studio tooling: asset generation, the studio web/app/desktop surfaces, and
+  the CLI. Those live in `shipshitgames/shipshit.games`.
+- Canon. Lore is read-only, vendored as the `{{LORE_PATH}}` submodule.
+
+## Rule
+
+If it is *this game* — its levels, content, art, audio, or UI — it belongs here.
+If it is reusable engine infrastructure, it belongs in `{{ENGINE_PACKAGE}}`
+upstream. If it is studio tooling, it belongs in `shipshitgames/shipshit.games`.
+Do not fork or rename the engine into a game-local package.

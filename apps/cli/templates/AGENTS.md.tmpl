@@ -1,0 +1,54 @@
+# {{PROJECT_NAME}} — Agent Instructions
+
+Scope: this entire `{{PROJECT_SLUG}}` game repository.
+
+This repo was stamped by the Ship Shit Games new-repo scaffolder
+(`shipshitgames new`). It ships a single {{GENRE_TITLE}} game built on the
+canonical org engine.
+
+## Agent Entry Point
+
+- Read `.agents/memory/MEMORY.md` first.
+- Read `.agents/memory/repo-boundary.md` before moving apps, packages, or assets.
+- Claude Code and Codex both follow this `AGENTS.md`; `.codex/instructions.md`
+  points back here.
+- Durable project memory lives in `.agents/memory/`. The `.claude/` and
+  `.codex/` directories symlink their `memory/` and `skills/` into `.agents/`,
+  so every agent shares one source of truth.
+
+## Project Role
+
+- This repo ships **{{PROJECT_NAME}}**, a {{GENRE_TITLE}} title.
+- It consumes the canonical engine from `{{ENGINE_PACKAGE}}` — it does **not**
+  fork or vendor a divergent engine. Engine changes belong upstream in
+  `shipshitgames/shipshit.games`.
+- Deadrot canon is vendored as the lore git submodule at `{{LORE_PATH}}`.
+  Run `git submodule update --init {{LORE_PATH}}` after cloning.
+
+## Engineering Rules
+
+- Use Bun for package management unless a subproject explicitly requires npm.
+- Keep gameplay loops imperative and Three.js-centered; keep React for UI
+  overlays and shells only.
+- Engine code must never encode game canon. Pass game content into
+  `{{ENGINE_PACKAGE}}` seams as data or callbacks (see the `shipshit-engine`
+  skill).
+- Do not commit secrets, `.env` files, generated `dist`, `node_modules`, or
+  local editor state.
+- Inspect `git status` before edits and commit only the requested scope.
+
+## GitHub Workflow
+
+- When picking up an issue or board item, move it to `In Progress` before
+  starting implementation.
+- Use the `worktree` skill to branch off an issue (`feat/<number>-<slug>`).
+
+## Skills
+
+Curated skills live in `.agents/skills/`:
+
+- `session-start` / `session-end` — load and persist context per session.
+- `worktree` — branch off a GitHub issue/PR into an isolated worktree.
+- `shipshit-engine` — how to consume `{{ENGINE_PACKAGE}}`.
+- `vibe-game-workflow` — the build loop from idea to playable.
+- `{{GENRE}}` — {{GENRE_TITLE}}-specific conventions for this game.
