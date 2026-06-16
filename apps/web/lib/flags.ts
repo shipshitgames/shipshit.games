@@ -43,6 +43,26 @@ export function isFeatureEnabled(
 }
 
 /**
+ * Subscribe to PostHog feature-flag changes, for use as the `subscribe` arg of
+ * `useSyncExternalStore`. Registers `callback` to run whenever PostHog (re)loads
+ * flags — including the initial async load after `init()` — and returns the
+ * matching unsubscribe function.
+ *
+ * Fails closed and never throws: when PostHog is unavailable (SSR, local dev,
+ * e2e, or no `NEXT_PUBLIC_POSTHOG_KEY`) it is an inert no-op, so the paired
+ * snapshot simply stays at its fallback and the flagged UI defaults off.
+ */
+export function onFeatureFlagsChange(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  try {
+    const unsubscribe = posthog.onFeatureFlags(callback);
+    return typeof unsubscribe === "function" ? unsubscribe : () => {};
+  } catch {
+    return () => {};
+  }
+}
+
+/**
  * The raw value of a (possibly multivariate) flag — `true`/`false` for boolean
  * flags or the variant string for multivariate ones. Returns `fallback`
  * (default `undefined`) when PostHog is unavailable.

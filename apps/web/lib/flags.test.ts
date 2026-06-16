@@ -16,12 +16,15 @@ const posthog = {
   getFeatureFlag: mock(
     (_flag: string): boolean | string | undefined => undefined
   ),
+  onFeatureFlags: mock((_cb: () => void): (() => void) => () => {}),
 };
 
 mock.module("posthog-js", () => ({ default: posthog }));
 
 // Import after the mock is registered so the module binds to our fake PostHog.
-const { isFeatureEnabled, getFeatureFlag } = await import("./flags");
+const { isFeatureEnabled, getFeatureFlag, onFeatureFlagsChange } = await import(
+  "./flags"
+);
 
 // bun:test has no DOM; `analyticsReady()` requires a `window`, so provide one.
 beforeAll(() => {
@@ -36,6 +39,7 @@ afterEach(() => {
   posthog.__loaded = false;
   posthog.isFeatureEnabled.mockClear();
   posthog.getFeatureFlag.mockClear();
+  posthog.onFeatureFlags.mockClear();
 });
 
 describe("isFeatureEnabled", () => {
@@ -109,5 +113,43 @@ describe("getFeatureFlag", () => {
       throw new Error("boom");
     });
     expect(getFeatureFlag("studio-pass-promo", "control")).toBe("control");
+  });
+});
+
+describe("onFeatureFlagsChange", () => {
+  test("registers the callback and returns PostHog's unsubscribe", () => {
+    const unsubscribe = mock(() => {});
+    posthog.onFeatureFlags.mockReturnValueOnce(unsubscribe);
+    const callback = () => {};
+
+    const returned = onFeatureFlagsChange(callback);
+
+    expect(posthog.onFeatureFlags).toHaveBeenCalledWith(callback);
+    expect(returned).toBe(unsubscribe);
+  });
+
+  test("returns a safe no-op when PostHog returns no unsubscribe", () => {
+    posthog.onFeatureFlags.mockReturnValueOnce(
+      undefined as unknown as () => void
+    );
+    expect(() => onFeatureFlagsChange(() => {})()).not.toThrow();
+  });
+
+  test("never throws — returns a no-op if PostHog throws", () => {
+    posthog.onFeatureFlags.mockImplementationOnce(() => {
+      throw new Error("boom");
+    });
+    expect(() => onFeatureFlagsChange(() => {})()).not.toThrow();
+  });
+
+  test("no-ops during SSR (no window) without touching PostHog", () => {
+    const saved = (globalThis as { window?: unknown }).window;
+    delete (globalThis as { window?: unknown }).window;
+    try {
+      expect(() => onFeatureFlagsChange(() => {})()).not.toThrow();
+      expect(posthog.onFeatureFlags).not.toHaveBeenCalled();
+    } finally {
+      (globalThis as { window?: unknown }).window = saved;
+    }
   });
 });

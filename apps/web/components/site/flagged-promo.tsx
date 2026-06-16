@@ -1,24 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 
-import { isFeatureEnabled } from "@/lib/flags";
+import { isFeatureEnabled, onFeatureFlagsChange } from "@/lib/flags";
 
 /**
  * Footer Studio Pass promo pill, gated on the PostHog `studio-pass-promo` flag.
  *
- * Demonstrates the runtime feature-flag seam end to end: the flag is evaluated
- * after mount (so server and first client render agree — no hydration
- * mismatch) and the element renders only when PostHog reports the flag on.
- * Defaults closed, so it is absent in dev/e2e where PostHog never initializes.
+ * Demonstrates the runtime feature-flag seam end to end. The flag is read
+ * through `useSyncExternalStore`, so the server snapshot and first client render
+ * agree on the off state (no hydration mismatch or post-paint flicker) and the
+ * pill appears the moment PostHog reports the flag on — including when flags
+ * resolve asynchronously after mount. Defaults closed, so it is absent in
+ * dev/e2e where PostHog never initializes.
  */
 export function FlaggedPromo() {
-  const [enabled, setEnabled] = useState(false);
-
-  useEffect(() => {
-    setEnabled(isFeatureEnabled("studio-pass-promo"));
-  }, []);
+  const enabled = useSyncExternalStore(
+    onFeatureFlagsChange,
+    () => isFeatureEnabled("studio-pass-promo"),
+    () => false
+  );
 
   if (!enabled) return null;
 
