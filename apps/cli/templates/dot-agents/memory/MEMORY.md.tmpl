@@ -1,0 +1,42 @@
+# {{PROJECT_NAME}} — Repo Memory
+
+last_verified: {{DATE}}
+
+## What this is
+
+The **{{PROJECT_NAME}}** game repository — a single shipped {{GENRE_TITLE}}
+title in the Ship Shit Games portfolio. Scaffolded with `shipshitgames new`.
+
+This repo owns:
+
+- The shipped game (gameplay, scenes, UI overlays, content/data tables).
+- Game-specific runtime assets, audio, and art that this title ships.
+
+This repo does **not** own:
+
+- The reusable engine. It consumes `{{ENGINE_PACKAGE}}` as a published package
+  (or a temporary local `bun link` bridge for unpublished engine work). See
+  `repo-boundary.md`.
+- Studio tooling (asset generation, the studio site/app/desktop). That lives in
+  `shipshitgames/shipshit.games`.
+
+## Engine
+
+`{{ENGINE_PACKAGE}}` is the canonical org-level engine: the Game/Context/Systems
+spine, swappable camera rig, embodied movement + collision + world bounds, the
+agent/steering + spawn + wave-director seams, the HUD snapshot shell, input
+bindings, and replicated presence. This game wires its {{GENRE_TITLE}} content
+into those seams; it never edits the engine in place.
+
+## Lore
+
+Deadrot canon is vendored as a git submodule at `{{LORE_PATH}}`
+(`git submodule update --init {{LORE_PATH}}`). Treat it as read-only canon;
+do not author canon here.
+
+## Conventions
+
+- Bun + Turborepo conventions, mirroring the studio monorepo.
+- Keep gameplay imperative and Three.js-centered; React for overlays only.
+- Use the `worktree` skill to start issues; `session-start`/`session-end` to
+  bookend work.

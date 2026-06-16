@@ -1,0 +1,12 @@
+{
+  "name": "shipshit-engine",
+  "version": "1.0.0",
+  "description": "Consume the canonical @shipshitgames/engine: spine, camera, movement, seams, HUD, and presence",
+  "author": {
+    "name": "Ship Shit Games",
+    "email": "hello@shipshit.games",
+    "url": "https://github.com/shipshitgames"
+  },
+  "license": "MIT",
+  "skills": "."
+}

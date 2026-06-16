@@ -1,0 +1,55 @@
+---
+name: shipshit-engine
+description: "Consume the canonical {{ENGINE_PACKAGE}} game engine: the Game/Context/Systems spine, camera rig, embodied movement, agent/steering + spawn + wave seams, HUD snapshot shell, input, and replicated presence. Use when wiring gameplay onto the engine in a Ship Shit Games title."
+license: MIT
+metadata:
+  version: "1.0.0"
+  tags: "engine, three.js, gameplay, seams, multiplayer"
+  author: Ship Shit Games
+when_to_use: "wire a game onto the engine, add a system, use a camera rig, spawn agents, drive waves, render a HUD, add multiplayer presence"
+---
+
+# Ship Shit Engine
+
+`{{ENGINE_PACKAGE}}` is the canonical org-level engine. This game consumes it as
+a published package (or a temporary local `bun link` bridge for unpublished
+engine work). **Never** fork or vendor a divergent engine, and never edit the
+engine in place to add game content.
+
+## Boundary Rule
+
+The engine owns reusable embodied-3D infrastructure:
+
+- lifecycle orchestration, rAF timing, disposal, and system registration
+- Three.js renderer, scene, camera rig, world bounds, and input bindings
+- typed seams: HUD snapshots, spawn points, map/theme data, agent/steering,
+  wave director, transport, and replicated presence
+
+The game owns product and canon:
+
+- weapons, enemies, factions, names, stats, ability rules, wave tables,
+  scoring, pickups, authored maps, audio, and React HUD visuals
+- all {{GENRE_TITLE}} content and Deadrot canon details
+
+Engine code must never encode canon. Pass game content into engine seams as
+**data or callbacks**, never by editing the engine.
+
+## How to wire a game
+
+1. Construct the engine `Game`, register the core systems you need, and pass a
+   `Context` carrying renderer/scene/camera.
+2. Provide game content through seams:
+   - spawn locations via a `SpawnPointProvider`
+   - enemies/allies as `Agent`s with a `SteeringStrategy`
+   - waves via the wave-director seam reading your wave tables
+   - HUD via the snapshot shell, rendered by your React overlay
+   - camera via the swappable `CameraRig` (e.g. `firstPersonPointerLock`)
+3. For multiplayer, use the `net` seam (`NetClient`, room server) and supply a
+   game-defined skin factory for `RemoteAvatar` visuals. Game payloads ride
+   non-reserved message values.
+
+## Checklist before merging engine-facing changes
+
+- No engine source was edited in this repo to add game content.
+- All game-specific behavior rides a seam (data or callback), not an engine fork.
+- The engine version is pinned; bumps come from upstream releases.
