@@ -14,6 +14,10 @@ COMPOSE_FILE="docker/docker-compose.production.yml"
 ENV_FILE=".env.production"
 DEPLOY_ENV="production"
 CONTAINER_PREFIX="shipshit"
+# Name the api container after its domain (api-shipshit-games) instead of the
+# default ${CONTAINER_PREFIX}-api, so it reads clearly on the shared host next to
+# api-deadrot-com. Must match container_name in docker-compose.production.yml.
+declare -A CONTAINER_NAMES=([api]="api-shipshit-games")
 DEPLOY_HEADER="Production Deployment — api.shipshit.games"
 
 REGISTRY="ghcr.io"
