@@ -5,6 +5,7 @@ import { test } from "node:test";
 import { FAL_MODELS } from "./fal";
 import { buildMinimalGlb } from "./glb-fixture";
 import {
+  PROVIDER_CATALOG,
   assetProviders,
   defaultProviderForKind,
   generateAsset,
@@ -38,6 +39,25 @@ test("fal provider resolves for image kinds and exposes the model catalog", () =
   assert.equal(resolveProvider("sprite", "fal").id, "fal");
   assert.equal(assetProviders.fal.models, FAL_MODELS);
   assert.throws(() => resolveProvider("music", "fal"), /fal does not support music assets/);
+});
+
+test("assetProviders zips every catalog descriptor with a runnable generate fn", () => {
+  // assetProviders is now PROVIDER_CATALOG zipped with GENERATORS via Object.fromEntries
+  // + an `as` cast, so the cast — not the compiler — guards completeness. Pin at runtime
+  // that every catalog id survived the zip with both its descriptor fields and a callable
+  // generate, so a GENERATORS omission can't ship a `generate: undefined` provider.
+  for (const [id, descriptor] of Object.entries(PROVIDER_CATALOG)) {
+    const provider = assetProviders[id as keyof typeof assetProviders];
+    assert.ok(provider, `${id} missing from assetProviders`);
+    assert.equal(typeof provider.generate, "function", `${id} has no generate fn`);
+    // Descriptor half is shared verbatim with the bundle-safe catalog.
+    assert.equal(provider.id, descriptor.id);
+    assert.equal(provider.label, descriptor.label);
+    assert.equal(provider.defaultModel, descriptor.defaultModel);
+    assert.equal(provider.key, descriptor.key);
+    assert.deepEqual(provider.supports, descriptor.supports);
+  }
+  assert.deepEqual(Object.keys(assetProviders).sort(), Object.keys(PROVIDER_CATALOG).sort());
 });
 
 test("provider interface generates an asset for the requested kind", async () => {
