@@ -15,6 +15,7 @@ import {
   uniqueProjects,
 } from "./projects";
 import { createMoodboardStore } from "./moodboards";
+import { createArtLabStore } from "./art-lab";
 import { createMapsStore } from "./maps";
 import { createGallery } from "./gallery";
 import { DEFAULT_GAME, DEFAULTS, normalizeSettings } from "./settings";
@@ -77,6 +78,13 @@ const terminalManager = createTerminalManager({
 });
 const moodboards = createMoodboardStore({
   rootDir: () => path.join(app.getPath("userData"), "moodboards"),
+});
+// Art Direction Lab (#82): per-game look-dev — generate styled variants of one
+// subject, score/tag/annotate them, then lock the winner into a pipeline-readable
+// style-target contract (lock.json). Studio-owned userData storage, like the
+// moodboard; consuming the lock in the pipeline is a separate card (#56).
+const artLab = createArtLabStore({
+  rootDir: () => path.join(app.getPath("userData"), "art-lab"),
 });
 // Maps generator (#18): seeds engine-schema ArenaMap layouts in-process via the
 // pure assetgen core. Generated modules land in a Studio-owned maps dir; a human
@@ -259,6 +267,22 @@ ipcMain.handle("moodboard:importImages", async (_e, game) => {
   });
   return r.canceled ? moodboards.readBoard(game || readSettings().defaultGame) : moodboards.importImages(game || readSettings().defaultGame, r.filePaths);
 });
+
+// ---- art-direction lab (#82): subject → styled variants → locked style target ----
+// Same game source of truth as the rest of the app so the picker matches. The
+// renderer generates each variant via studio:generate and hands the resulting
+// inline data URL straight to lab:addVariant, so the store stays Electron-free.
+const labGame = (game) => game || readSettings().defaultGame;
+ipcMain.handle("lab:listGames", () => listProjectState().projects.map((project) => project.slug));
+ipcMain.handle("lab:get", (_e, game) => artLab.readLab(labGame(game)));
+ipcMain.handle("lab:setSubject", (_e, payload = {}) => artLab.setSubject(labGame(payload.game), payload.subject, payload.kind));
+ipcMain.handle("lab:addVariant", (_e, payload = {}) => artLab.addVariant(labGame(payload.game), payload.variant));
+ipcMain.handle("lab:scoreVariant", (_e, payload = {}) => artLab.scoreVariant(labGame(payload.game), payload.id, payload.score));
+ipcMain.handle("lab:tagVariant", (_e, payload = {}) => artLab.tagVariant(labGame(payload.game), payload.id, payload.tags));
+ipcMain.handle("lab:annotateVariant", (_e, payload = {}) => artLab.annotateVariant(labGame(payload.game), payload.id, payload.note));
+ipcMain.handle("lab:removeVariant", (_e, payload = {}) => artLab.removeVariant(labGame(payload.game), payload.id));
+ipcMain.handle("lab:lockVariant", (_e, payload = {}) => artLab.lockVariant(labGame(payload.game), payload.id));
+ipcMain.handle("lab:clearLock", (_e, payload = {}) => artLab.clearLock(labGame(payload.game)));
 
 // ---- maps generator (#18): seed/validate/preview/write ArenaMap layouts ----
 // Same game source of truth as the rest of the app so the picker matches.

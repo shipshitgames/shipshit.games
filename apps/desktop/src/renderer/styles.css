@@ -235,6 +235,65 @@ body {
 .moodboard-item textarea:focus { outline: 1px solid var(--blood); outline-offset: -1px; }
 .moodboard-missing { display: flex; align-items: center; justify-content: center; color: color-mix(in srgb, var(--ash) 68%, var(--void)); font-family: var(--font-mono); font-size: 11px; }
 
+/* ---- Art Direction Lab (#82) ---- */
+.lab { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; width: 100%; min-height: 520px; align-items: start; }
+.lab-tools { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.lab-tools .gen-log { max-height: 160px; }
+.lab-tools .set-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.lab-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 2px;
+  font-family: var(--font-mono); font-size: 11px; color: color-mix(in srgb, var(--ash) 68%, var(--void)); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.lab-stats span { border: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); background: var(--coal); border-radius: 2px; padding: 8px; text-align: center; }
+.lab-stage { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.lab-empty {
+  display: flex; flex-direction: column; gap: 4px; padding: 22px; min-height: 200px; justify-content: center; align-items: flex-start;
+  color: color-mix(in srgb, var(--ash) 68%, var(--void)); background: #07070b; border: 1px dashed var(--gunmetal); border-radius: 2px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.lab-empty b { color: var(--hellfire); font-family: var(--font-mono); font-size: 12px; letter-spacing: 0; text-transform: none; }
+.lab-lock {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px;
+  background: var(--coal); border: 1px solid var(--hellfire); border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 106, 0, 0.28), 0 0 32px -16px color-mix(in srgb, var(--hellfire) 50%, transparent);
+}
+.lab-lock-thumb { width: 96px; height: 96px; background: #0c0c0e; border: 1px solid var(--gunmetal); border-radius: 2px; overflow: hidden; }
+.lab-lock-thumb img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.lab-lock-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.lab-lock-tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--hellfire); }
+.lab-lock-body strong { font-family: var(--font-display); font-size: 15px; letter-spacing: 0.03em; }
+.lab-lock-prompt {
+  font-family: var(--font-mono); font-size: 11px; color: color-mix(in srgb, var(--ash) 78%, var(--void)); word-break: break-word;
+  max-height: 48px; overflow: hidden;
+}
+.lab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.lab-card {
+  display: flex; flex-direction: column; background: var(--coal); border: 1px solid var(--gunmetal); border-radius: 2px;
+  overflow: hidden; box-shadow: 0 18px 46px -36px #000;
+}
+.lab-card.is-locked { border-color: var(--hellfire); box-shadow: 0 0 0 1px rgba(255, 106, 0, 0.38), 0 0 28px -12px color-mix(in srgb, var(--hellfire) 40%, transparent); }
+.lab-card-img { aspect-ratio: 1 / 1; background: #0c0c0e; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); }
+.lab-card-img img { width: 100%; height: 100%; object-fit: contain; padding: 8px; image-rendering: pixelated; }
+.lab-card-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+.lab-direction { font-size: 12px; color: var(--text); min-height: 18px; word-break: break-word; }
+.lab-direction em { color: color-mix(in srgb, var(--ash) 68%, var(--void)); }
+.lab-score { display: flex; gap: 2px; }
+.lab-star {
+  width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;
+  color: var(--gunmetal); background: transparent; border: 0; cursor: pointer;
+}
+.lab-star.is-on { color: var(--hellfire); }
+.lab-star:hover { color: color-mix(in srgb, var(--hellfire) 70%, var(--ash)); }
+.lab-tags, .lab-note {
+  width: 100%; padding: 6px 8px; color: var(--text); background: #07070b;
+  border: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); border-radius: 2px; font: 11px/1.45 var(--font-mono);
+}
+.lab-note { resize: vertical; min-height: 38px; }
+.lab-tags:focus, .lab-note:focus { outline: 1px solid var(--blood); outline-offset: -1px; }
+.lab-card-actions { display: flex; gap: 8px; align-items: center; }
+.lab-card-actions .set-btn { flex: 1; }
+.lab-missing { display: flex; align-items: center; justify-content: center; color: color-mix(in srgb, var(--ash) 68%, var(--void)); font-family: var(--font-mono); font-size: 11px; }
+
 /* ---- generator active-provider hint ---- */
 .gen-active { font-family: var(--font-mono); font-size: 12px; color: var(--ash); }
 .gen-active b { color: var(--hellfire); text-transform: uppercase; }
