@@ -329,6 +329,35 @@ bun packages/assetgen/src/cli.ts tokens --check --assets-dir ../deadrotcom/packa
 bun packages/assetgen/src/cli.ts tokens --assets-dir ../deadrotcom/packages/assets
 ```
 
+## Game prebuild staleness gate (issue #47)
+
+`tokens --check` needs `DESIGN.md` + the generator to regenerate and byte-diff,
+so it only works inside the monorepo. The **separate game repos** vendor the
+token files in (`tokens.ts`/`tokens.css`/`fonts.css`, banner-stamped + committed)
+and have neither `DESIGN.md` nor `assetgen` at build time. `check-token-staleness`
+is the no-npm equivalent of an installed-version check: it reads the `vX.Y.Z`
+banner version out of each vendored consumer and **fails the build** when one is
+behind the canon `DESIGN.md` version — so a stale vendored copy cannot ship.
+
+```bash
+# Default: the committed app token forks vs the resolved DESIGN.md.
+bun packages/assetgen/src/cli.ts check-token-staleness
+
+# Explicit files (positional or --files); machine output with --json.
+bun packages/assetgen/src/cli.ts check-token-staleness src/tokens.css --json
+
+# A vendored repo with no DESIGN.md pins the canon version directly.
+bun packages/assetgen/src/cli.ts check-token-staleness --canon 0.2.0 src/tokens.css
+```
+
+Relative file paths resolve against the directory you run it from (the vendored
+repo), so the command works unchanged in a separate game repo. A consumer behind
+canon (`stale`), missing, or banner-less fails the gate
+(exit 1); `current`/`ahead` pass. Wire it into a repo's `prebuild` so it runs on
+every `bun run build` and cannot be silently skipped. In this monorepo the root
+`prebuild` script runs it before `turbo run build`, and `bun run lint` runs it
+alongside the other token gates.
+
 ## Providers
 - `codex` — delegates to the local authed `codex` CLI via node-pty (no key wiring needed)
 - `openai` — **gpt-image-2** (`--model` to override), transparent PNG
