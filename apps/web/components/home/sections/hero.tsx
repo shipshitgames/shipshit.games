@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import { ArrowRight, Play } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Eyebrow } from "@/components/site/eyebrow";
 import { EmberParticles } from "@/components/site/atmosphere";
 import { PageSection } from "@/components/site/page-section";
 import { SectionIllustration } from "@/components/site/section-illustration";
+import { TrackedLink } from "@/components/site/tracked-link";
 
 const PLAY = "https://deadrot.com";
 
@@ -45,10 +45,14 @@ export function Hero() {
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button asChild size="xl" className="font-display uppercase tracking-widest shadow-ember">
-            <Link href="/pricing">
+            <TrackedLink
+              href="/pricing"
+              event="pricing_cta_click"
+              eventProps={{ location: "home_hero" }}
+            >
               Buy Skills Pro
               <ArrowRight aria-hidden="true" />
-            </Link>
+            </TrackedLink>
           </Button>
           <Button
             asChild

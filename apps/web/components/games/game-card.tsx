@@ -70,7 +70,7 @@ function CardActions({ game }: { game: GalleryGame }) {
       </Button>
       {game.demoUrl ? (
         <Button asChild size="sm" variant="outline" className="font-display uppercase tracking-widest">
-          <PlayBuildLink href={game.playUrl} game={game.slug}>
+          <PlayBuildLink href={game.playUrl} game={game.slug} location="gallery">
             <Gamepad2 aria-hidden="true" />
             Play
           </PlayBuildLink>

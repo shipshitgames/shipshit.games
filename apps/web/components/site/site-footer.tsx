@@ -1,8 +1,21 @@
 import Link from "next/link";
 
 import { FlaggedPromo } from "@/components/site/flagged-promo";
+import { TrackedLink } from "@/components/site/tracked-link";
+import type { AnalyticsEventName } from "@/lib/analytics";
 
-const LINKS: { label: string; href: string; ext?: boolean }[] = [
+/**
+ * External footer links carry a `platform` tag and fire a funnel event (#32):
+ * the channel link reports `channel_click`, the rest `community_click`, all
+ * tagged `location: "footer"` so outbound clicks are attributable per platform.
+ */
+const LINKS: {
+  label: string;
+  href: string;
+  ext?: boolean;
+  event?: AnalyticsEventName;
+  platform?: string;
+}[] = [
   { label: "Games", href: "/games" },
   { label: "Factions", href: "/factions" },
   { label: "Build Log", href: "/log" },
@@ -10,13 +23,13 @@ const LINKS: { label: string; href: string; ext?: boolean }[] = [
   { label: "Assets", href: "/assets" },
   { label: "YouTube", href: "/youtube" },
   { label: "Newsletter", href: "/#newsletter" },
-  { label: "Docs ↗", href: "https://docs.shipshit.games", ext: true },
+  { label: "Docs ↗", href: "https://docs.shipshit.games", ext: true, event: "community_click", platform: "docs" },
   { label: "Legal", href: "/legal" },
-  { label: "Play (DEADROT) ↗", href: "https://deadrot.com", ext: true },
-  { label: "GitHub ↗", href: "https://github.com/shipshitgames", ext: true },
-  { label: "v0 scaffolder ↗", href: "https://github.com/shipshitdev/v0", ext: true },
-  { label: "Skills ↗", href: "https://github.com/shipshitgames/skills", ext: true },
-  { label: "shipshitshow ↗", href: "https://youtube.com/@shipshitshow", ext: true },
+  { label: "Play (DEADROT) ↗", href: "https://deadrot.com", ext: true, event: "community_click", platform: "deadrot" },
+  { label: "GitHub ↗", href: "https://github.com/shipshitgames", ext: true, event: "community_click", platform: "github" },
+  { label: "v0 scaffolder ↗", href: "https://github.com/shipshitdev/v0", ext: true, event: "community_click", platform: "v0" },
+  { label: "Skills ↗", href: "https://github.com/shipshitgames/skills", ext: true, event: "community_click", platform: "skills" },
+  { label: "shipshitshow ↗", href: "https://youtube.com/@shipshitshow", ext: true, event: "channel_click", platform: "youtube" },
 ];
 
 export function SiteFooter() {
@@ -33,15 +46,15 @@ export function SiteFooter() {
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs font-bold uppercase tracking-widest">
           {LINKS.map((l) =>
             l.ext ? (
-              <a
+              <TrackedLink
                 key={l.label}
                 href={l.href}
-                target="_blank"
-                rel="noreferrer"
+                event={l.event ?? "community_click"}
+                eventProps={{ location: "footer", ...(l.platform ? { platform: l.platform } : {}) }}
                 className="text-hellfire transition-colors hover:text-blood"
               >
                 {l.label}
-              </a>
+              </TrackedLink>
             ) : (
               <Link
                 key={l.label}
