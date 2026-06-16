@@ -50,7 +50,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  # ghcr image base: ghcr.io/shipshitgames/shipshitgames/{api,api-migrate}
+  # ghcr image base: ghcr.io/shipshitgames/shipshit.games/{api,api-migrate}
   IMAGE_BASE: ghcr.io/${{ github.repository }}
 
 jobs:
@@ -334,6 +334,7 @@ jobs:
             export GITHUB_SHA="${{ github.sha }}"
             export GITHUB_STEP_SUMMARY="/dev/null"
             export IMAGE_TAG="${{ github.sha }}"
+            export IMAGE_REPO="${{ github.repository }}"
             export SSM_PARAMETER_PATH_PREFIX="${{ vars.SSM_PARAMETER_PATH_PREFIX }}"
             export AWS_REGION="${{ vars.AWS_REGION }}"
             ./docker/deploy-production.sh api

@@ -17,7 +17,9 @@ CONTAINER_PREFIX="shipshit"
 DEPLOY_HEADER="Production Deployment — api.shipshit.games"
 
 REGISTRY="ghcr.io"
-IMAGE_REPO="shipshitgames/shipshitgames"
+# Derived from ${{ github.repository }} (exported by the deploy job) so it can
+# never drift from where the build job pushed. Fallback matches this repo.
+IMAGE_REPO="${IMAGE_REPO:-shipshitgames/shipshit.games}"
 # Exported so docker-compose.production.yml resolves ${API_IMAGE} to this exact
 # tag, and so rollback_service can pin a previous tag.
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
