@@ -253,6 +253,52 @@ violates the contract, **0** when all sheets pass (or none are found). `--json`
 prints the full report (`{ ok, assetsDir, game, reports }`) to stdout and keeps
 stderr clean for machine consumers — it does **not** change the exit code.
 
+## `normalize-sheet` / `check-sheets` — horizontal tier sheet gate (issue #246)
+
+Weapon tier/state sheets that the runtime samples as equal-width `1 x N` cells
+should be made coherent before they ship. `assetgen normalize-sheet` trims each
+cell by alpha, re-centers the visible content into the same-size transparent
+cell, preserves the original sheet dimensions, and writes PNG or lossless WebP.
+`assetgen check-sheets` is the CI/editor gate for the same contract.
+
+```bash
+# Normalize a horizontal Deadrot tier sheet into 5 fixed 435x724 cells
+# (final output: 2175x724, regardless of the source generator width):
+bun packages/assetgen/src/cli.ts normalize-sheet \
+  --in ../deadrotcom/packages/assets/games/scourge-survivors/weapons/pyre/smg-tiers.webp \
+  --out ../deadrotcom/packages/assets/games/scourge-survivors/weapons/pyre/smg-tiers.normalized.webp \
+  --columns 5 --cell-size 435x724 --padding 2
+
+# Check one or more sheets; shell globs can expand after --in:
+bun packages/assetgen/src/cli.ts check-sheets \
+  --in ../deadrotcom/packages/assets/games/scourge-survivors/weapons/pyre/*-tiers.webp \
+  --columns 5 --cell-size 435x724 --padding 2 --max-center-drift 1 --max-bounds-delta 2
+
+# Machine-readable CI/editor output:
+bun packages/assetgen/src/cli.ts check-sheets --in ./weapon-tiers.webp \
+  --columns 5 --cell-size 435x724 --json
+
+# Batch-normalize Deadrot Scourge tier sheets while keeping runtime manifests unchanged:
+for sheet in ../deadrotcom/packages/assets/games/scourge-survivors/weapons/pyre/*-tiers.webp; do
+  bun packages/assetgen/src/cli.ts normalize-sheet --in "$sheet" --out "$sheet" \
+    --columns 5 --cell-size 435x724 --padding 2
+done
+```
+
+Flags shared by both commands: `--columns <n>` (required), `--cell-size <WxH>`
+(or `--cell-width` + `--cell-height`) to lock the exact output/check geometry,
+`--padding <px>`, `--anchor center`, `--alpha-threshold <0-254>`,
+`--max-center-drift <px>` (default 1), `--max-bounds-delta <px>` (default 2),
+`--max-aspect-delta <n>` (default 0.05), and `--json`. `normalize-sheet` also
+takes `--out <path>` and `--dry-run`. When `--cell-size` is supplied, the
+normalizer repairs generator dimensions into `columns * cellWidth` by
+`cellHeight`; the checker then enforces that exact locked canvas. The checker
+fails on invalid equal-cell geometry, canonical dimension mismatch, missing alpha,
+blank cells, edge-clipped content, padding underflow, center drift, bounds-size
+delta, and aspect delta. Reports include per-cell before/after bounds, centers,
+drift, size deltas, and diagnostics so the game can keep sampling `1 / columns`
+without frame metadata.
+
 ## `codegen` — typed per-game asset bindings (issue #22)
 
 `assetgen codegen --game <slug>` turns the asset index (+ optional
