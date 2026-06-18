@@ -123,12 +123,18 @@ export async function register(manifestPath: string, entry: AssetEntry): Promise
   await writeFile(manifestPath, JSON.stringify(data, null, 2) + "\n");
 }
 
+/** Required license fields the entry is missing or left blank (empty when fully licensed). */
+export function missingLicenseFields(entry: AssetEntry): (typeof REQUIRED_LICENSE_FIELDS)[number][] {
+  return REQUIRED_LICENSE_FIELDS.filter((field) => {
+    const value = entry.license?.[field];
+    return typeof value !== "string" || value.trim().length === 0;
+  });
+}
+
 /** Throw unless the entry carries a complete, non-empty license record. */
 export function assertLicenseRecord(entry: AssetEntry): void {
-  for (const field of REQUIRED_LICENSE_FIELDS) {
-    const value = entry.license?.[field];
-    if (typeof value !== "string" || value.trim().length === 0) {
-      throw new Error(`asset manifest entry ${entry.id}:${entry.kind} requires license.${field}`);
-    }
+  const missing = missingLicenseFields(entry);
+  if (missing.length > 0) {
+    throw new Error(`asset manifest entry ${entry.id}:${entry.kind} requires license.${missing[0]}`);
   }
 }
