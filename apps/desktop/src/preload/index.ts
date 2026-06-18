@@ -84,6 +84,19 @@ contextBridge.exposeInMainWorld("studio", {
     setVisualTarget: (game, id, visualTarget) => ipcRenderer.invoke("moodboard:setVisualTarget", { game, id, visualTarget }),
     removeItem: (game, id) => ipcRenderer.invoke("moodboard:removeItem", { game, id }),
   },
+  // Art-direction lab (#82): subject → styled variants → locked style target.
+  lab: {
+    listGames: () => ipcRenderer.invoke("lab:listGames"),
+    get: (game) => ipcRenderer.invoke("lab:get", game),
+    setSubject: (game, subject, kind) => ipcRenderer.invoke("lab:setSubject", { game, subject, kind }),
+    addVariant: (game, variant) => ipcRenderer.invoke("lab:addVariant", { game, variant }),
+    scoreVariant: (game, id, score) => ipcRenderer.invoke("lab:scoreVariant", { game, id, score }),
+    tagVariant: (game, id, tags) => ipcRenderer.invoke("lab:tagVariant", { game, id, tags }),
+    annotateVariant: (game, id, note) => ipcRenderer.invoke("lab:annotateVariant", { game, id, note }),
+    removeVariant: (game, id) => ipcRenderer.invoke("lab:removeVariant", { game, id }),
+    lockVariant: (game, id) => ipcRenderer.invoke("lab:lockVariant", { game, id }),
+    clearLock: (game) => ipcRenderer.invoke("lab:clearLock", { game }),
+  },
   // Maps generator (#18): seed/validate/preview an ArenaMap layout, then write
   // the typed module + SVG into the Studio's maps dir.
   maps: {

@@ -10,7 +10,7 @@ import { isModelResult } from "./model-preview-config";
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
 // Default provider = codex CLI (your subscription — no API key).
 
-type SectionId = "projects" | "gallery" | "maps" | "sprites" | "music" | "3d" | "moodboard" | "research" | "codegen";
+type SectionId = "projects" | "gallery" | "maps" | "sprites" | "music" | "3d" | "moodboard" | "lab" | "research" | "codegen";
 type Group = "Generators" | "Art Direction" | "Ressources" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
@@ -62,6 +62,50 @@ interface MoodboardItem {
   dataUrl?: string | null;
 }
 interface Moodboard { game: string; items: MoodboardItem[]; updatedAt: string }
+interface ArtLabImageRef { path: string; mime: string }
+interface ArtLabVariant {
+  id: string;
+  direction: string;
+  prompt: string;
+  provider: string;
+  score: number;
+  tags: string[];
+  note: string;
+  locked: boolean;
+  image: ArtLabImageRef | null;
+  dataUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+interface ArtLabLock {
+  game: string;
+  variantId: string;
+  subject: string;
+  kind: string;
+  direction: string;
+  prompt: string;
+  provider: string;
+  image: ArtLabImageRef | null;
+  dataUrl?: string | null;
+  lockedAt: string;
+}
+interface ArtLab {
+  game: string;
+  subject: string;
+  kind: string;
+  variants: ArtLabVariant[];
+  lock: ArtLabLock | null;
+  createdAt: string;
+  updatedAt: string;
+}
+interface ArtLabVariantInput {
+  direction: string;
+  prompt: string;
+  provider: string;
+  dataUrl?: string | null;
+  sourcePath?: string | null;
+  mime?: string;
+}
 interface GalleryAsset {
   id: string;
   assetId: string;
@@ -198,6 +242,18 @@ declare global {
         setVisualTarget: (game: string, id: string, visualTarget: boolean) => Promise<Moodboard>;
         removeItem: (game: string, id: string) => Promise<Moodboard>;
       };
+      lab: {
+        listGames: () => Promise<string[]>;
+        get: (game: string) => Promise<ArtLab>;
+        setSubject: (game: string, subject: string, kind: string) => Promise<ArtLab>;
+        addVariant: (game: string, variant: ArtLabVariantInput) => Promise<ArtLab>;
+        scoreVariant: (game: string, id: string, score: number) => Promise<ArtLab>;
+        tagVariant: (game: string, id: string, tags: string[]) => Promise<ArtLab>;
+        annotateVariant: (game: string, id: string, note: string) => Promise<ArtLab>;
+        removeVariant: (game: string, id: string) => Promise<ArtLab>;
+        lockVariant: (game: string, id: string) => Promise<ArtLab>;
+        clearLock: (game: string) => Promise<ArtLab>;
+      };
       maps: {
         listGames: () => Promise<string[]>;
         preview: (opts: MapsGenOptions) => Promise<MapPreviewResult>;
@@ -215,6 +271,7 @@ const SECTIONS: Section[] = [
   { id: "3d", label: "3D", group: "Generators", glyph: "◈", blurb: "Meshes, props and Warden engineering for the 3D titles." },
   { id: "gallery", label: "Gallery", group: "Art Direction", glyph: "▤", blurb: "Review and compare every generated asset in a game's pack — sprites, tiers, textures, UI." },
   { id: "moodboard", label: "Moodboard", group: "Art Direction", glyph: "▦", blurb: "Per-game reference boards for notes, images, and locked visual targets." },
+  { id: "lab", label: "Lab", group: "Art Direction", glyph: "⌖", blurb: "Forge styled variants of one subject, score and tag them, then lock the winning look as the game's style target." },
   { id: "research", label: "Rules", group: "Ressources", glyph: "📖", blurb: "Distill a YouTube game-dev tutorial into a reusable build ruleset." },
   { id: "codegen", label: "Codegen", group: "Codegen", glyph: "λ", blurb: "Plan → Review → Execute → Verify → Ship over the local CLI." },
 ];
@@ -1351,6 +1408,248 @@ function MoodboardPane() {
   );
 }
 
+const LAB_KINDS = ["sprite", "scene", "tile", "ui", "portrait"];
+const emptyLab = (game: string): ArtLab => ({ game, subject: "", kind: "sprite", variants: [], lock: null, createdAt: "", updatedAt: "" });
+
+function labSlug(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || "lab";
+}
+
+// Controlled text field for a variant's tags/note. Holds a local draft so an
+// unrelated re-render (scoring another card, a new variant landing) can't wipe an
+// in-progress edit, and re-syncs from the authoritative value only while unfocused
+// — so server-side normalization (slugged tags, trimmed notes) shows up without
+// ever clobbering what the user is typing. Commits on blur when the value changed.
+function LabTagsField({ value, onCommit }: { value: string; onCommit: (next: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  const focused = useRef(false);
+  useEffect(() => { if (!focused.current) setDraft(value); }, [value]);
+  return (
+    <input
+      className="lab-tags"
+      value={draft}
+      placeholder="tags, comma, separated"
+      onFocus={() => { focused.current = true; }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { focused.current = false; if (draft.trim() !== value.trim()) onCommit(draft); else setDraft(value); }}
+    />
+  );
+}
+
+function LabNoteField({ value, onCommit }: { value: string; onCommit: (next: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  const focused = useRef(false);
+  useEffect(() => { if (!focused.current) setDraft(value); }, [value]);
+  return (
+    <textarea
+      className="lab-note"
+      value={draft}
+      rows={2}
+      placeholder="critique / note"
+      onFocus={() => { focused.current = true; }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { focused.current = false; if (draft.trim() !== value.trim()) onCommit(draft); else setDraft(value); }}
+    />
+  );
+}
+
+// Art Direction Lab (#82): one subject, many style-direction variants. Each
+// variant is a real generate() run (subject + direction prompt) filed under the
+// game's lab; the chosen one locks into a pipeline-readable style-target contract.
+function LabPane() {
+  const [game, setGame] = useState("scourge-survivors");
+  const [games, setGames] = useState<string[]>(["scourge-survivors", "deadlane", "pactfall", "starblight"]);
+  const [lab, setLab] = useState<ArtLab>(() => emptyLab("scourge-survivors"));
+  const [subject, setSubject] = useState("");
+  const [kind, setKind] = useState("sprite");
+  const [provider, setProvider] = useState("codex");
+  const [direction, setDirection] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [log, setLog] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    window.studio?.settings.get().then((s) => {
+      if (s.defaultGame) setGame(s.defaultGame);
+      const next = withSettingsDefaults(s);
+      setProvider(next.providerDefaults.sprite || next.defaultProvider);
+    }).catch(() => {});
+    window.studio?.lab.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
+    const off = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    return () => { off?.(); };
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    setError("");
+    window.studio?.lab.get(game)
+      .then((next) => { if (!live) return; setLab(next); setSubject(next.subject); setKind(next.kind || "sprite"); })
+      .catch((e) => { if (live) setError(String((e as Error)?.message ?? e)); });
+    return () => { live = false; };
+  }, [game]);
+
+  const subjectDirty = subject.trim() !== (lab.subject || "").trim() || kind !== (lab.kind || "sprite");
+
+  async function saveSubject() {
+    if (!window.studio?.lab) { setError("studio bridge unavailable"); return; }
+    try { setLab(await window.studio.lab.setSubject(game, subject, kind)); }
+    catch (e) { setError(String((e as Error)?.message ?? e)); }
+  }
+
+  async function generateVariant() {
+    if (!window.studio?.generate || !window.studio.lab) { setLog("studio bridge unavailable — restart the app"); return; }
+    const base = subject.trim();
+    if (!base) { setError("set a subject first"); return; }
+    setBusy(true);
+    setError("");
+    setLog("");
+    try {
+      // Persist subject/kind first so every variant matches what's on screen.
+      if (subjectDirty) setLab(await window.studio.lab.setSubject(game, subject, kind));
+      const prompt = [base, direction.trim()].filter(Boolean).join(" — ");
+      const genId = `lab-${labSlug(base)}-${Math.random().toString(36).slice(2, 7)}`;
+      const result = await window.studio.generate({ id: genId, prompt, game, kind, provider });
+      if (!result.ok || !result.dataUrl) {
+        setError(result.ok ? "generation produced no previewable image" : "generation failed — see log");
+        return;
+      }
+      setLab(await window.studio.lab.addVariant(game, {
+        direction: direction.trim(),
+        prompt,
+        provider,
+        dataUrl: result.dataUrl,
+        sourcePath: result.path,
+        mime: result.mediaType || undefined,
+      }));
+      setDirection("");
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Every variant mutation funnels through here so a rejected IPC call surfaces an
+  // error instead of silently no-op'ing — and a dead bridge says so out loud.
+  async function runMutation(fn: (lab: NonNullable<typeof window.studio>["lab"]) => Promise<ArtLab>) {
+    const api = window.studio?.lab;
+    if (!api) { setError("studio bridge unavailable — restart the app"); return; }
+    try { setError(""); setLab(await fn(api)); }
+    catch (e) { setError(String((e as Error)?.message ?? e)); }
+  }
+
+  function scoreVariant(variant: ArtLabVariant, value: number) {
+    return runMutation((api) => api.scoreVariant(game, variant.id, value === variant.score ? 0 : value));
+  }
+  function retagVariant(variant: ArtLabVariant, value: string) {
+    const tags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
+    return runMutation((api) => api.tagVariant(game, variant.id, tags));
+  }
+  function annotateVariant(variant: ArtLabVariant, value: string) {
+    if (value.trim() === (variant.note || "").trim()) return;
+    return runMutation((api) => api.annotateVariant(game, variant.id, value));
+  }
+  function removeVariant(variant: ArtLabVariant) {
+    return runMutation((api) => api.removeVariant(game, variant.id));
+  }
+  function toggleLock(variant: ArtLabVariant) {
+    return runMutation((api) => (variant.locked ? api.clearLock(game) : api.lockVariant(game, variant.id)));
+  }
+  function clearLock() {
+    return runMutation((api) => api.clearLock(game));
+  }
+
+  return (
+    <div className="lab">
+      <aside className="lab-tools">
+        <label className="gen-field"><span>Game</span>
+          <select value={game} onChange={(e) => setGame(e.target.value)}>
+            {games.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+        <label className="gen-field"><span>Subject</span>
+          <textarea value={subject} onChange={(e) => setSubject(e.target.value)} rows={3} placeholder="the base art concept — e.g. a rotting Scourge husk mid-lunge" />
+        </label>
+        <div className="gen-row">
+          <label className="gen-field"><span>Kind</span>
+            <select value={kind} onChange={(e) => setKind(e.target.value)}>
+              {LAB_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </label>
+          <label className="gen-field"><span>Provider</span>
+            <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+              {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.id}</option>)}
+            </select>
+          </label>
+        </div>
+        <button className="set-btn" type="button" onClick={saveSubject} disabled={!subjectDirty || !subject.trim()}>
+          {subjectDirty ? "Save subject" : "Subject saved"}
+        </button>
+        <label className="gen-field"><span>Style direction</span>
+          <textarea value={direction} onChange={(e) => setDirection(e.target.value)} rows={3} placeholder="this variant's look — e.g. high-contrast rim light, desaturated, wet gore" />
+        </label>
+        <button className="gen-btn" type="button" onClick={generateVariant} disabled={busy || !subject.trim()}>
+          {busy ? "Forging variant…" : "Generate variant"}
+        </button>
+        <p className="gen-note">Re-prompts the subject with this style direction via the <b>{provider}</b> pipeline, then files the result under {game}'s lab. Locking writes a style-target contract the pipeline can read later (#56).</p>
+        <div className="lab-stats">
+          <span>{lab.variants.length} variants</span>
+          <span>{lab.lock ? "1 locked" : "no lock"}</span>
+        </div>
+        {error && <pre className="gen-log is-err">{error}</pre>}
+        {(busy || log) && <pre className="gen-log">{log || "—"}</pre>}
+      </aside>
+
+      <section className="lab-stage" aria-label={`${game} art lab`}>
+        {lab.lock && (
+          <div className="lab-lock">
+            <div className="lab-lock-thumb">
+              {lab.lock.dataUrl ? <img src={lab.lock.dataUrl} alt="locked style target" /> : <div className="lab-missing">no image</div>}
+            </div>
+            <div className="lab-lock-body">
+              <span className="lab-lock-tag">★ locked style target</span>
+              <strong>{lab.lock.direction || "(no direction)"}</strong>
+              <code className="lab-lock-prompt">{lab.lock.prompt}</code>
+            </div>
+            <button className="set-btn" type="button" onClick={clearLock}>Clear lock</button>
+          </div>
+        )}
+
+        {lab.variants.length === 0 ? (
+          <div className="lab-empty">
+            <span>no variants yet</span>
+            <b>{game}</b>
+          </div>
+        ) : (
+          <div className="lab-grid">
+            {lab.variants.map((variant) => (
+              <article key={variant.id} className={"lab-card" + (variant.locked ? " is-locked" : "")}>
+                <div className="lab-card-img">
+                  {variant.dataUrl ? <img src={variant.dataUrl} alt={variant.direction || "variant"} /> : <div className="lab-missing">missing image</div>}
+                </div>
+                <div className="lab-card-body">
+                  <div className="lab-direction">{variant.direction || <em>no direction</em>}</div>
+                  <div className="lab-score" role="group" aria-label="Score">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button key={n} type="button" className={"lab-star" + (n <= variant.score ? " is-on" : "")} aria-label={`Score ${n}`} onClick={() => scoreVariant(variant, n)}>★</button>
+                    ))}
+                  </div>
+                  <LabTagsField value={variant.tags.join(", ")} onCommit={(next) => retagVariant(variant, next)} />
+                  <LabNoteField value={variant.note} onCommit={(next) => annotateVariant(variant, next)} />
+                  <div className="lab-card-actions">
+                    <button type="button" className="set-btn" onClick={() => toggleLock(variant)}>{variant.locked ? "Unlock" : "Lock as target"}</button>
+                    <button type="button" className="target-btn" aria-label="Remove variant" title="Remove" onClick={() => removeVariant(variant)}>×</button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 function formatBytes(bytes: number | null): string {
   if (!bytes && bytes !== 0) return "—";
   if (bytes < 1024) return `${bytes} B`;
@@ -1798,7 +2097,7 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "projects" ? <ProjectsPane /> : active === "gallery" ? <GalleryPane /> : active === "maps" ? <MapsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "3d" ? <ModelPane /> : active === "moodboard" ? <MoodboardPane /> : active === "research" ? <ResearchPane /> : (
+            {active === "projects" ? <ProjectsPane /> : active === "gallery" ? <GalleryPane /> : active === "maps" ? <MapsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "3d" ? <ModelPane /> : active === "moodboard" ? <MoodboardPane /> : active === "lab" ? <LabPane /> : active === "research" ? <ResearchPane /> : (
               <div className="placeholder-card">
                 <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
                 <p><strong>{section.label}</strong> workspace coming online.</p>
