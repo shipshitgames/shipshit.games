@@ -82,7 +82,7 @@ function help(): void {
 
 commands:
   sources           list source manifests
-  validate          validate sources, transcripts, and derivatives
+  validate          validate sources, transcripts, and derivatives against schemas/ (--root <dir> for another library)
   distill           fetch/read a transcript and distill reusable build rules
   new-transcript    create transcript markdown plus sidecar metadata
   new-derivative    create a skill/app/tool/rule candidate
@@ -121,7 +121,16 @@ async function run(): Promise<void> {
     }
 
     case "validate": {
-      const result = await validateLibrary();
+      const root = flag("root");
+      const options = root
+        ? {
+            sourcesDir: resolve(root, "sources"),
+            transcriptsDir: resolve(root, "transcripts"),
+            derivativesDir: resolve(root, "derivatives"),
+            contentRoot: resolve(root),
+          }
+        : {};
+      const result = await validateLibrary(options);
       for (const warning of result.warnings) console.warn(`[warn] ${warning}`);
       for (const error of result.errors) console.error(`[error] ${error}`);
       console.log(

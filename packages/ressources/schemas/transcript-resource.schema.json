@@ -36,7 +36,7 @@
         "status": {
           "enum": ["user-provided", "public-captions", "official-api", "permissioned", "unknown"]
         },
-        "notes": { "type": "string" }
+        "notes": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     },
