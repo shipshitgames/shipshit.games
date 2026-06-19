@@ -6,27 +6,24 @@
  * prerequisite for trunk-based development — code ships continuously without
  * being exposed before it is ready.
  *
+ * This seam is SERVER-ONLY: `isEnabled` reads `process.env[...]` dynamically, so
+ * Next.js cannot inline the value into the client bundle. For client/browser
+ * flags, use the PostHog seam in `apps/web/lib/flags.ts` instead.
+ *
  * Conventions (see `packages/shared/FEATURE_FLAGS.md`):
  *   - Register every flag in `FLAGS`, then gate code with `isEnabled("name")`.
- *   - Server flags read a plain env var (e.g. `SKOOL_FULFILLMENT_ENABLED`).
- *   - Client/browser flags MUST use a `NEXT_PUBLIC_`-prefixed env var so Next.js
- *     inlines them into the client bundle; mark them with `client: true`.
+ *   - Flags read a plain server env var (e.g. `SKOOL_FULFILLMENT_ENABLED`).
  *   - A flag is "on" only when its env var is one of `true` / `1` / `on` / `yes`
  *     (any case, surrounding whitespace ignored). Anything else — including
  *     unset — is "off". Flags fail closed.
  */
 
-/** Definition of a single feature flag. */
+/** Definition of a single (server-side) feature flag. */
 export interface FlagDef {
-  /** Environment variable that toggles the flag. */
+  /** Server environment variable that toggles the flag. */
   env: string;
   /** What the flag guards. Shown in docs and debug snapshots. */
   description: string;
-  /**
-   * True when the flag controls client-visible behaviour and its env var is
-   * therefore `NEXT_PUBLIC_`-prefixed (inlined into the browser bundle).
-   */
-  client?: boolean;
 }
 
 /**

@@ -45,9 +45,10 @@ if (!isEnabled("skoolFulfillment")) return false;
 - **Fails closed.** A flag is "on" only when its env var is one of
   `true` / `1` / `on` / `yes` (any case, whitespace trimmed). Unset or anything
   else is "off".
-- **Server vs client.** Server flags read a plain env var. Client/browser flags
-  **must** use a `NEXT_PUBLIC_`-prefixed env var (Next.js only inlines those
-  into the browser bundle) and be marked `client: true` in the registry.
+- **Server-only.** This seam is for **server** flags: `isEnabled` reads
+  `process.env[...]` dynamically, which Next.js cannot inline into the client
+  bundle, so it cannot deliver client/browser flags. For client/browser flags,
+  use the PostHog seam in [`apps/web/lib/flags.ts`](../../apps/web/lib/flags.ts).
 - **Operational env vars are not flags.** Mode switches like
   `CONTENT_SNAPSHOT_ONLY` (used in `apps/web/lib/github.ts` and
   `apps/web/lib/youtube.ts`) describe *how the app runs*, not *whether a feature

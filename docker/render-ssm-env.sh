@@ -73,6 +73,7 @@ resolve_aws_region() {
   local token
   token="$(
     curl -fsS -X PUT \
+      --connect-timeout 1 --max-time 2 \
       "http://169.254.169.254/latest/api/token" \
       -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" \
       2>/dev/null || true
@@ -86,6 +87,7 @@ resolve_aws_region() {
   local identity
   identity="$(
     curl -fsS \
+      --connect-timeout 1 --max-time 2 \
       -H "X-aws-ec2-metadata-token: ${token}" \
       "http://169.254.169.254/latest/dynamic/instance-identity/document" \
       2>/dev/null || true
