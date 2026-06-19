@@ -1482,6 +1482,11 @@ function LabPane() {
   // studio:models (the same falImageKinds SettingsPane reads). Falls back to the
   // static LAB_KINDS until the catalog loads so the picker is never empty.
   const [kinds, setKinds] = useState<string[]>(LAB_KINDS);
+  // Latest allowed kinds for the lab-load effect to clamp against, without making
+  // that effect depend on `kinds` (which would re-fetch the lab when the catalog
+  // resolves). LAB_KINDS and the resolved catalog are both valid image-kind sets.
+  const kindsRef = useRef(kinds);
+  kindsRef.current = kinds;
 
   useEffect(() => {
     window.studio?.settings.get().then((s) => {
@@ -1512,8 +1517,9 @@ function LabPane() {
         setSubject(next.subject);
         // A lab persisted before kinds were restricted may carry a non-image kind
         // (e.g. "scene"); clamp it to a real image kind so generation can't throw.
+        const allowed = kindsRef.current;
         const stored = next.kind || "sprite";
-        setKind(kinds.includes(stored) ? stored : kinds[0]);
+        setKind(allowed.includes(stored) ? stored : allowed[0]);
       })
       .catch((e) => { if (live) setError(String((e as Error)?.message ?? e)); });
     return () => { live = false; };
