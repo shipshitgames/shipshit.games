@@ -219,6 +219,58 @@ test("ignores mutations targeting an unknown variant id", () => {
   expect(store.lockVariant("rothulk", "missing").lock).toBeNull();
 });
 
+test("drops a variant image with a traversal path but still loads the lab", () => {
+  const root = tempRoot();
+  const store = fixedStore(root);
+  store.addVariant("pactfall", { direction: "a", dataUrl: FAKE_DATA_URL });
+
+  // Tamper the on-disk store with a path that escapes the lab dir (defense-in-depth).
+  const labFile = path.join(root, "pactfall", "lab.json");
+  const raw = JSON.parse(fs.readFileSync(labFile, "utf8"));
+  raw.variants[0].image.path = path.join("..", "..", "etc", "passwd");
+  fs.writeFileSync(labFile, JSON.stringify(raw));
+
+  const lab = fixedStore(root).readLab("pactfall");
+  expect(lab.variants).toHaveLength(1);
+  expect(lab.variants[0].image).toBeNull();
+  expect(lab.variants[0].dataUrl).toBeNull();
+  // The rest of the variant survives — only the unsafe image reference is dropped.
+  expect(lab.variants[0].direction).toBe("a");
+});
+
+test("drops an absolute variant image path", () => {
+  const root = tempRoot();
+  const store = fixedStore(root);
+  store.addVariant("redline", { direction: "a", dataUrl: FAKE_DATA_URL });
+  const labFile = path.join(root, "redline", "lab.json");
+  const raw = JSON.parse(fs.readFileSync(labFile, "utf8"));
+  raw.variants[0].image.path = "/etc/hosts";
+  fs.writeFileSync(labFile, JSON.stringify(raw));
+
+  const lab = fixedStore(root).readLab("redline");
+  expect(lab.variants[0].image).toBeNull();
+  expect(lab.variants[0].dataUrl).toBeNull();
+});
+
+test("re-encodes a variant image when its bytes change between mutations", () => {
+  const root = tempRoot();
+  const store = fixedStore(root);
+  store.addVariant("rothulk", { direction: "a", dataUrl: FAKE_DATA_URL });
+
+  // First mutation echoes the cached data URL.
+  const first = store.scoreVariant("rothulk", "id-1", 3);
+  expect(first.variants[0].dataUrl).toBe(FAKE_DATA_URL);
+
+  // Overwrite the bytes on disk, bumping mtime; a later mutation must re-encode.
+  const imagePath = path.join(root, "rothulk", "variants", "id-1.webp");
+  const future = new Date(Date.now() + 5000);
+  fs.writeFileSync(imagePath, "new-bytes");
+  fs.utimesSync(imagePath, future, future);
+
+  const second = store.tagVariant("rothulk", "id-1", ["warm"]);
+  expect(second.variants[0].dataUrl).toBe(`data:image/webp;base64,${Buffer.from("new-bytes").toString("base64")}`);
+});
+
 test("requires a rootDir", () => {
   const store = createArtLabStore({});
   expect(() => store.readLab("scourge-survivors")).toThrow("art-lab rootDir is required");
