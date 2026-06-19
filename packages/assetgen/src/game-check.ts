@@ -85,8 +85,8 @@ function toPosix(p: string): string {
 }
 
 /** True when any whole `[a-z0-9]+` token of `value` is a banned source. */
-export function isBannedSource(value: string | undefined | null): boolean {
-  if (!value) return false;
+export function isBannedSource(value: unknown): boolean {
+  if (typeof value !== "string" || !value) return false;
   for (const token of value.toLowerCase().split(/[^a-z0-9]+/)) {
     if (token && BANNED_SET.has(token)) return true;
   }
@@ -195,7 +195,10 @@ export async function runGameCheck(opts: GameCheckOptions): Promise<GameCheckRep
   //    atlas/anim pages are derived build output and are not counted).
   const referenced = new Set<string>();
   for (const entry of entries) {
-    for (const ref of entryFileRefs(entry)) referenced.add(toPosix(ref.value));
+    // Canonicalize each reference to the same key shape walkWebps emits for disk
+    // files (`relative(assetsRoot, full)`), so a non-canonical manifest path like
+    // "./sprites/x.webp" still matches the real file and is not a false orphan.
+    for (const ref of entryFileRefs(entry)) referenced.add(toPosix(relative(assetsRoot, join(assetsRoot, ref.value))));
   }
   const diskWebps: string[] = [];
   await walkWebps(assetsRoot, assetsRoot, diskWebps);
@@ -225,8 +228,8 @@ export async function runGameCheck(opts: GameCheckOptions): Promise<GameCheckRep
   const banned: string[] = [];
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i]!;
-    const fields: { field: string; value: string | undefined }[] = [
-      ...PROVIDER_FIELDS.map((f) => ({ field: f, value: entry[f] as string | undefined })),
+    const fields: { field: string; value: unknown }[] = [
+      ...PROVIDER_FIELDS.map((f) => ({ field: f, value: entry[f] })),
       { field: "license.tool", value: entry.license?.tool },
       { field: "license.plan", value: entry.license?.plan },
       { field: "provenance.provider", value: entry.provenance?.provider },

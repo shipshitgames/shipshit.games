@@ -146,6 +146,20 @@ test("orphan-webps fails on a webp the manifest never references", async () => {
   }
 });
 
+test("orphan-webps normalizes non-canonical manifest paths (no false orphan for './sprites/sword.webp')", async () => {
+  const { dir, assetsRoot } = await fixture(
+    [entry({ id: "sword", path: "./sprites/sword.webp" })],
+    ["sprites/sword.webp"],
+  );
+  try {
+    const report = await run(assetsRoot);
+    const result = byCheck(report, "orphan-webps");
+    assert.equal(result.status, "ok", result.messages.join("\n"));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("orphan-webps ignores packed atlas/anim page images (derived build output)", async () => {
   const { dir, assetsRoot } = await fixture(
     [entry({ id: "sword", path: "sprites/sword.webp" })],

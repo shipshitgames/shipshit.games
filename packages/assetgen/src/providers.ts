@@ -7,7 +7,7 @@ import { runCodexCli } from "./codex.ts";
 import { generateFalAsset } from "./fal.ts";
 import type { FalModel } from "./fal.ts";
 import { getKey, missingKeyMessage } from "./keys.ts";
-import { downloadGeneratedAsset, outputUrl } from "./media.ts";
+import { downloadGeneratedAsset, outputUrl, trustedOriginsFor } from "./media.ts";
 import type { GeneratedAsset, GeneratedAssetMeta } from "./media.ts";
 import {
   DEFAULT_PROVIDER_BY_KIND,
@@ -69,17 +69,23 @@ function providerKey(provider: AssetProvider): string | undefined {
   return getKey(provider.key.envName, provider.key.service);
 }
 
-/** Pure builder for the OpenAI Images request body (no IO; unit-testable). */
+/**
+ * Pure builder for the OpenAI Images request body (no IO; unit-testable).
+ *
+ * `seed` is accepted but deliberately NOT attached to the body: the OpenAI Images
+ * API does not support a seed parameter and may reject the request with a 400.
+ * Provenance never relied on it either — {@link openAiAssetMeta} only marks a
+ * generation reproducible from a response-echoed seed, which the Images API never
+ * sends. The param is kept as a documented no-op so callers and the recorded
+ * provenance (requested seed) stay unchanged.
+ */
 export function openAiImageBody(
   prompt: string,
   model: string,
   size: string,
-  seed?: number,
+  _seed?: number,
 ): Record<string, unknown> {
-  const body: Record<string, unknown> = { model, prompt, size, background: "transparent", n: 1 };
-  // Only sent when supplied, so the default (seedless) request stays byte-identical.
-  if (seed !== undefined) body.seed = seed;
-  return body;
+  return { model, prompt, size, background: "transparent", n: 1 };
 }
 
 /**
@@ -361,13 +367,7 @@ function resolveDownloadHosts(client: ModelProviderClient): readonly string[] | 
  * where the download must satisfy {@link resolveDownloadHosts} instead.
  */
 function resolveTrustedOrigins(client: ModelProviderClient): readonly string[] | undefined {
-  const base = process.env[`${client.id.toUpperCase()}_API_BASE_URL`];
-  if (!base) return undefined;
-  try {
-    return [new URL(base).origin];
-  } catch {
-    return undefined;
-  }
+  return trustedOriginsFor(process.env[`${client.id.toUpperCase()}_API_BASE_URL`]);
 }
 
 /** Drive any {@link ModelProviderClient} create→poll→download cycle to a raw GLB. */
@@ -451,7 +451,7 @@ async function generateSuno(kind: AssetKind, prompt: string, opts: ProviderOptio
   const json: any = await res.json();
   const url = outputUrl(json);
   if (!url) throw new Error("suno: response did not include an audio URL");
-  return downloadGeneratedAsset(url, model);
+  return downloadGeneratedAsset(url, model, undefined, { trustedOrigins: trustedOriginsFor(endpoint) });
 }
 
 /** Pure builder for the ElevenLabs text-to-sound request (no IO; unit-testable). */
@@ -513,7 +513,7 @@ export async function generateBeatoven(
   const json: any = await res.json();
   const url = outputUrl(json);
   if (!url) throw new Error("beatoven: response did not include an audio URL");
-  return downloadGeneratedAsset(url, model, deps.fetchImpl);
+  return downloadGeneratedAsset(url, model, deps.fetchImpl, { trustedOrigins: trustedOriginsFor(endpoint) });
 }
 
 /** Deterministic silent 16-bit mono PCM WAV (RIFF/WAVE) — no randomness, no Date. */
