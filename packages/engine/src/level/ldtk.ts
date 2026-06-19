@@ -164,10 +164,15 @@ export function loadLdtkProject(input: string | LdtkRoot, options: LdtkLoadOptio
 
 /** Map a single LDtk level onto the engine arena model. */
 export function loadLdtkLevel(root: LdtkRoot, level: LdtkLevel, options: LdtkLoadOptions = {}): LdtkArena {
-  if (typeof level?.pxWid !== 'number' || typeof level?.pxHei !== 'number') {
-    throw new LdtkError(`LDtk level "${level?.identifier ?? '?'}" is missing pxWid/pxHei`)
+  if (!Number.isFinite(level?.pxWid) || level.pxWid <= 0 || !Number.isFinite(level?.pxHei) || level.pxHei <= 0) {
+    throw new LdtkError(
+      `LDtk level "${level?.identifier ?? '?'}" has invalid pxWid/pxHei (need finite, positive numbers, got ${level?.pxWid}x${level?.pxHei})`,
+    )
   }
   const scale = options.scale ?? 1
+  if (!Number.isFinite(scale) || scale <= 0) {
+    throw new LdtkError(`LDtk load scale must be a finite, positive number, got ${scale}`)
+  }
   const center = options.center ?? true
   const originX = center ? (level.pxWid * scale) / 2 : 0
   const originZ = center ? (level.pxHei * scale) / 2 : 0
@@ -185,19 +190,19 @@ export function loadLdtkLevel(root: LdtkRoot, level: LdtkLevel, options: LdtkLoa
         }
         // An IntGrid layer can also carry auto-rule tiles for rendering.
         if (layer.autoLayerTiles && layer.autoLayerTiles.length > 0) {
-          tileLayers.push(toTileLayer(layer, layer.autoLayerTiles, scale, originX, originZ))
+          tileLayers.push(toTileLayer(layer, layer.autoLayerTiles, scale, originX, originZ, root, options))
         }
         break
       }
       case 'AutoLayer': {
         if (layer.autoLayerTiles && layer.autoLayerTiles.length > 0) {
-          tileLayers.push(toTileLayer(layer, layer.autoLayerTiles, scale, originX, originZ))
+          tileLayers.push(toTileLayer(layer, layer.autoLayerTiles, scale, originX, originZ, root, options))
         }
         break
       }
       case 'Tiles': {
         if (layer.gridTiles && layer.gridTiles.length > 0) {
-          tileLayers.push(toTileLayer(layer, layer.gridTiles, scale, originX, originZ))
+          tileLayers.push(toTileLayer(layer, layer.gridTiles, scale, originX, originZ, root, options))
         }
         break
       }
@@ -398,8 +403,22 @@ function toTileLayer(
   scale: number,
   originX: number,
   originZ: number,
+  root: LdtkRoot,
+  options: LdtkLoadOptions,
 ): LdtkTileLayer {
-  const gs = layer.__gridSize
+  // Mirror intGridColliders' guard: a missing/non-positive __gridSize poisons
+  // every tile's size and centre. Fall back to the project default if it is
+  // valid, otherwise warn and drop the layer rather than emit NaN geometry.
+  const gs =
+    Number.isFinite(layer.__gridSize) && layer.__gridSize > 0
+      ? layer.__gridSize
+      : Number.isFinite(root.defaultGridSize) && (root.defaultGridSize ?? 0) > 0
+        ? (root.defaultGridSize as number)
+        : 0
+  if (gs <= 0) {
+    options.onWarn?.(`LDtk layer "${layer.__identifier}" has invalid __gridSize; skipping its tiles`)
+    return { identifier: layer.__identifier, cellSize: 0, tiles: [] }
+  }
   const offX = layer.__pxTotalOffsetX ?? 0
   const offY = layer.__pxTotalOffsetY ?? 0
   const mapped: LdtkTile[] = tiles.map((tile) => {
