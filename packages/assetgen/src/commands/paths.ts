@@ -1,11 +1,15 @@
 import { existsSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { projectAssetsDir, projectGamesRoot, projectRepo, selectedProject } from "./registry.ts";
 
 const commandsDir = dirname(fileURLToPath(import.meta.url));
 const srcDir = dirname(commandsDir); // packages/assetgen/src
 
 export function defaultAssetsDir(): string {
+  const project = selectedProject();
+  if (project) return projectAssetsDir(project);
+
   const cwd = process.cwd();
   const candidates = [
     join(cwd, "..", "deadrotcom", "packages", "assets"),
@@ -16,6 +20,9 @@ export function defaultAssetsDir(): string {
 }
 
 export function defaultGamesRoot(): string {
+  const project = selectedProject();
+  if (project) return projectGamesRoot(project);
+
   const cwd = process.cwd();
   const candidates = [
     join(cwd, "games"),
@@ -32,6 +39,10 @@ export function defaultGamesRoot(): string {
 
 export function defaultRepo(game: string): string {
   if (game === "shared") return process.cwd();
+
+  const project = selectedProject();
+  if (project) return projectRepo(project, game);
+
   const cwd = process.cwd();
   if (basename(cwd) === game) return cwd;
 
