@@ -17,10 +17,13 @@ import type { AssetEntry } from "./manifest.ts";
  * occupy once promoted — promotion is a move, never a rewrite, and the sidecar
  * relative links survive it untouched.
  *
- * Promotion is best-effort transactional: each draft is committed independently
- * (move files → register → prune that one draft) and rolled back on failure, so
- * a mid-batch error never leaves a draft half-promoted (files in production but
- * still listed in `drafts.json`, or registered with its files missing).
+ * Promotion is best-effort transactional and idempotent: each draft is committed
+ * independently (move files → register → prune that one draft) and rolled back on
+ * a commit failure, so a mid-batch error never registers an entry with its files
+ * missing. The prune is a separate write, so a prune failure can still leave a
+ * committed draft listed in `drafts.json` — but a re-run detects an already-
+ * promoted draft (registered, files no longer staged) and simply re-prunes it
+ * instead of promoting it twice.
  */
 
 /** Assets root for a game repo — mirrors `runAssetPipeline`'s default outputRoot. */
@@ -155,8 +158,17 @@ export interface PromoteOptions {
  * (e.g. an invalid license record, a disk error, or a partial sidecar move) its
  * already-moved files are rolled back into staging and the run aborts — earlier
  * drafts stay committed-and-pruned, this and later drafts stay fully staged.
- * Throws on an unknown id, a draft whose primary asset file is missing, or a
- * commit failure.
+ *
+ * Promotion is idempotent. The commit (move files → register) and the
+ * drafts.json prune are separate writes, so a prune that fails after a commit
+ * can strand an already-promoted draft (its files are in production and it is
+ * registered, yet it is still listed in `drafts.json`). A re-run heals such a
+ * strand instead of double-promoting: a selected draft whose primary file is
+ * gone from staging but already registered in production is treated as
+ * already-promoted and merely re-pruned — no second move, no double register.
+ *
+ * Throws on an unknown id, a draft whose primary asset file is missing from both
+ * staging and production, or a commit failure.
  */
 export async function promoteDrafts(opts: PromoteOptions): Promise<PromoteResult> {
   const log = opts.log ?? (() => {});
@@ -175,11 +187,25 @@ export async function promoteDrafts(opts: PromoteOptions): Promise<PromoteResult
     );
   }
 
-  // Pre-flight: every selected draft's primary file must exist before we move
-  // anything, so a missing-file request fails before any state changes.
-  const missingFiles = selected
-    .filter((entry) => !existsSync(join(stagingRoot, entry.path)))
-    .map((entry) => `${entry.id}:${entry.kind} (${entry.path})`);
+  // What's already registered in production tells us which selected drafts were
+  // committed by an earlier run whose prune didn't land. The production manifest
+  // shares the `{ assets: [...] }` shape, so the same tolerant reader serves it.
+  const { assets: registered } = await readDraftManifest(prodManifest);
+  const registeredKeys = new Set(registered.map((e) => `${e.id}:${e.kind}`));
+
+  // Pre-flight classification, before any file moves:
+  //   - primary file staged           -> a fresh draft to move + register + prune
+  //   - primary gone, but registered   -> already promoted; only the prune is owed
+  //   - primary gone and unregistered  -> genuinely missing; reject before changes
+  // Folding the "already promoted" case in here (instead of rejecting it) is what
+  // makes a re-run after a stranded prune heal rather than fail.
+  const alreadyPromoted = new Set<AssetEntry>();
+  const missingFiles: string[] = [];
+  for (const entry of selected) {
+    if (existsSync(join(stagingRoot, entry.path))) continue; // a normal staged draft
+    if (registeredKeys.has(`${entry.id}:${entry.kind}`)) alreadyPromoted.add(entry);
+    else missingFiles.push(`${entry.id}:${entry.kind} (${entry.path})`);
+  }
   if (missingFiles.length > 0) {
     throw new Error(`draft file(s) missing under ${stagingRoot}: ${missingFiles.join(", ")}`);
   }
@@ -188,38 +214,49 @@ export async function promoteDrafts(opts: PromoteOptions): Promise<PromoteResult
   const movedFiles: string[] = [];
 
   for (const entry of selected) {
-    const moved: string[] = [];
-    try {
-      for (const rel of filesForEntry(entry)) {
-        const src = join(stagingRoot, rel);
-        if (!existsSync(src)) continue; // optional sidecars may legitimately be absent
-        await moveFile(src, join(assetsRoot, rel));
-        moved.push(rel);
-        log(`[moved] ${rel}`);
-      }
-      await register(prodManifest, entry);
-    } catch (err) {
-      // Roll this entry's moves back into staging so the draft stays intact, then
-      // abort — the production manifest never gets an entry without its files.
-      for (const rel of moved) {
-        try {
-          await moveFile(join(assetsRoot, rel), join(stagingRoot, rel));
-        } catch {
-          /* best-effort restore — the throw below still surfaces the failure */
+    if (alreadyPromoted.has(entry)) {
+      // Files were moved and registered on a prior run, but its drafts.json prune
+      // never landed. Re-moving (files are gone) or re-registering would be wrong;
+      // just record it so the prune below clears the stale draft. Idempotent.
+      promoted.push(entry);
+      log(`[already-promoted] ${entry.id}:${entry.kind} — clearing stale draft`);
+    } else {
+      const moved: string[] = [];
+      try {
+        for (const rel of filesForEntry(entry)) {
+          const src = join(stagingRoot, rel);
+          if (!existsSync(src)) continue; // optional sidecars may legitimately be absent
+          await moveFile(src, join(assetsRoot, rel));
+          moved.push(rel);
+          log(`[moved] ${rel}`);
         }
+        await register(prodManifest, entry);
+      } catch (err) {
+        // Roll this entry's moves back into staging so the draft stays intact, then
+        // abort — the production manifest never gets an entry without its files.
+        for (const rel of moved) {
+          try {
+            await moveFile(join(assetsRoot, rel), join(stagingRoot, rel));
+          } catch {
+            /* best-effort restore — the throw below still surfaces the failure */
+          }
+        }
+        throw new Error(`failed to promote ${entry.id}:${entry.kind}: ${errMessage(err)}`);
       }
-      throw new Error(`failed to promote ${entry.id}:${entry.kind}: ${errMessage(err)}`);
+      promoted.push(entry);
+      movedFiles.push(...moved);
+      log(`[promoted] ${entry.id}:${entry.kind} -> ${prodManifest}`);
     }
 
-    // Committed — prune just this draft from drafts.json before the next entry,
-    // so a later failure can never strand an already-promoted draft.
-    promoted.push(entry);
-    movedFiles.push(...moved);
+    // Prune every draft committed so far (fresh + healed) from drafts.json in one
+    // atomic temp-file write. The survivor set is re-derived from the original
+    // `drafts` each pass, so the prune is idempotent: re-pruning an entry that is
+    // already gone is a no-op, and a prune that fails here strands at most the
+    // current entry — which the next entry's prune, or a re-run, heals.
     const promotedKeys = new Set(promoted.map((e) => `${e.id}:${e.kind}`));
     await writeDraftManifest(draftManifest, {
       assets: drafts.filter((d) => !promotedKeys.has(`${d.id}:${d.kind}`)),
     });
-    log(`[promoted] ${entry.id}:${entry.kind} -> ${prodManifest}`);
   }
 
   return { promoted, movedFiles };

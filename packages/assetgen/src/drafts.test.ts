@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import assert from "node:assert/strict";
@@ -16,7 +16,7 @@ import {
   readDraftManifest,
   selectDrafts,
 } from "./drafts";
-import { assertLicenseRecord } from "./manifest";
+import { assertLicenseRecord, register } from "./manifest";
 import type { AssetEntry } from "./manifest";
 
 function spriteEntry(id: string, extra: Partial<AssetEntry> = {}): AssetEntry {
@@ -46,6 +46,22 @@ async function stageDraft(assetsRoot: string, entry: AssetEntry): Promise<void> 
   current.assets.push(entry);
   await mkdir(dirname(manifestPath), { recursive: true });
   await writeFile(manifestPath, JSON.stringify(current, null, 2) + "\n");
+}
+
+/**
+ * Drive `entry` into the strand a prior run leaves after a successful commit
+ * (files moved → registered) whose `drafts.json` prune never landed: its files
+ * live in production, it's in `assets.json`, yet it's still listed as a draft.
+ */
+async function strandCommittedDraft(assetsRoot: string, entry: AssetEntry): Promise<void> {
+  await stageDraft(assetsRoot, entry); // drafts.json lists it; files staged
+  // Move every staged file into the production tree and register it — exactly
+  // what promoteDrafts does just before the (here, failed) prune.
+  for (const rel of filesForEntry(entry)) {
+    await copyThenRemove(join(draftsRoot(assetsRoot), rel), join(assetsRoot, rel));
+  }
+  await register(assetsManifestPath(assetsRoot), entry);
+  // drafts.json is deliberately left un-pruned — that is the strand.
 }
 
 test("filesForEntry returns the asset plus its sidecars, de-duped and blank-free", () => {
@@ -239,4 +255,78 @@ test("copyThenRemove copies the source to the destination and deletes the origin
   assert.equal(existsSync(src), false, "source must be removed after a successful copy");
   assert.equal(existsSync(dest), true, "destination must exist");
   assert.equal(await readFile(dest, "utf8"), "payload");
+});
+
+test("promoteDrafts heals a strand left by a failed prune instead of re-promoting", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-drafts-strand-heal-"));
+  const assetsRoot = assetsRootForRepo(repo);
+  await strandCommittedDraft(assetsRoot, spriteEntry("ghoul", { preview: "previews/ghoul.html" }));
+
+  // Sanity: we really are in the stranded state — committed yet still listed.
+  assert.equal(existsSync(join(assetsRoot, "sprites/ghoul.webp")), true);
+  const before = await readDraftManifest(draftsManifestPath(assetsRoot));
+  assert.deepEqual(before.assets.map((d) => d.id), ["ghoul"]);
+
+  // Re-running must not throw, must move nothing, and must clear the strand.
+  const result = await promoteDrafts({ assetsRoot, ids: ["ghoul"] });
+
+  assert.deepEqual(result.promoted.map((e) => e.id), ["ghoul"]);
+  assert.deepEqual(result.movedFiles, [], "a heal moves nothing — the files are already in production");
+  const drafts = await readDraftManifest(draftsManifestPath(assetsRoot));
+  assert.equal(drafts.assets.length, 0, "the stranded draft is pruned");
+  // Production is intact and registered exactly once (not double-promoted).
+  const prod = JSON.parse(await readFile(assetsManifestPath(assetsRoot), "utf8"));
+  assert.deepEqual(prod.assets.map((e: AssetEntry) => e.id), ["ghoul"]);
+  assert.equal(existsSync(join(assetsRoot, "sprites/ghoul.webp")), true);
+});
+
+test("a failed prune strands an already-promoted draft that a re-run then heals", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-drafts-prune-fail-"));
+  const assetsRoot = assetsRootForRepo(repo);
+  await stageDraft(assetsRoot, spriteEntry("revenant"));
+
+  // Force the per-entry prune to fail *after* the commit: writeDraftManifest
+  // writes `<drafts.json>.<pid>.tmp` before renaming it into place, so
+  // pre-creating that exact path as a directory makes the temp write throw EISDIR
+  // once the entry is already moved + registered. (process.pid is stable within
+  // this run, so the same temp path is reused on the re-run below.)
+  const tmpManifest = `${draftsManifestPath(assetsRoot)}.${process.pid}.tmp`;
+  await mkdir(tmpManifest, { recursive: true });
+
+  await assert.rejects(() => promoteDrafts({ assetsRoot, ids: ["revenant"] }));
+
+  // Stranded: committed to production but still listed as a pending draft.
+  assert.equal(existsSync(join(assetsRoot, "sprites/revenant.webp")), true, "files committed to production");
+  assert.equal(existsSync(join(draftsRoot(assetsRoot), "sprites/revenant.webp")), false, "files left staging");
+  const stranded = await readDraftManifest(draftsManifestPath(assetsRoot));
+  assert.deepEqual(stranded.assets.map((d) => d.id), ["revenant"], "still listed in drafts.json");
+
+  // Clear the injected failure and re-run: the strand heals to a clean no-op.
+  await rm(tmpManifest, { recursive: true });
+  const result = await promoteDrafts({ assetsRoot, ids: ["revenant"] });
+
+  assert.deepEqual(result.promoted.map((e) => e.id), ["revenant"]);
+  assert.deepEqual(result.movedFiles, [], "the re-run moves nothing");
+  const healed = await readDraftManifest(draftsManifestPath(assetsRoot));
+  assert.equal(healed.assets.length, 0, "drafts.json is pruned after the heal");
+  const prod = JSON.parse(await readFile(assetsManifestPath(assetsRoot), "utf8"));
+  assert.deepEqual(prod.assets.map((e: AssetEntry) => e.id), ["revenant"], "registered exactly once");
+});
+
+test("promoteDrafts --all heals a stranded draft and promotes the rest in one pass", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-drafts-strand-mixed-"));
+  const assetsRoot = assetsRootForRepo(repo);
+  // One draft already committed-but-not-pruned (stranded), one still fresh.
+  await strandCommittedDraft(assetsRoot, spriteEntry("stranded"));
+  await stageDraft(assetsRoot, spriteEntry("fresh"));
+
+  const result = await promoteDrafts({ assetsRoot, all: true });
+
+  assert.deepEqual(result.promoted.map((e) => e.id).sort(), ["fresh", "stranded"]);
+  // Only the fresh draft actually moves; the stranded one is already in production.
+  assert.deepEqual(result.movedFiles, ["sprites/fresh.webp"]);
+  const drafts = await readDraftManifest(draftsManifestPath(assetsRoot));
+  assert.equal(drafts.assets.length, 0, "both drafts cleared from drafts.json");
+  const prod = JSON.parse(await readFile(assetsManifestPath(assetsRoot), "utf8"));
+  assert.deepEqual(prod.assets.map((e: AssetEntry) => e.id).sort(), ["fresh", "stranded"]);
 });
