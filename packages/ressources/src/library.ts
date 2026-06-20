@@ -73,8 +73,8 @@ async function listJsonFiles(root: string, suffix = ".json"): Promise<string[]> 
   return out.sort();
 }
 
-export async function loadSources(): Promise<SourceManifest[]> {
-  const files = await listJsonFiles(sourcesDir);
+export async function loadSources(dir: string = sourcesDir): Promise<SourceManifest[]> {
+  const files = await listJsonFiles(dir);
   const sourceFiles = files.filter((file) => file.endsWith("/source.json"));
   return Promise.all(sourceFiles.map((file) => readJson<SourceManifest>(file)));
 }
@@ -84,14 +84,18 @@ export async function findSource(slug: string): Promise<SourceManifest | undefin
   return sources.find((source) => source.slug === slug);
 }
 
-export async function loadTranscripts(): Promise<TranscriptResource[]> {
-  const files = await listJsonFiles(transcriptsDir, ".resource.json");
+export async function loadTranscripts(dir: string = transcriptsDir): Promise<TranscriptResource[]> {
+  const files = await listJsonFiles(dir, ".resource.json");
   return Promise.all(files.map((file) => readJson<TranscriptResource>(file)));
 }
 
-export async function loadDerivatives(): Promise<DerivativeManifest[]> {
-  const files = await listJsonFiles(derivativesDir, ".resource.json");
+export async function loadDerivatives(dir: string = derivativesDir): Promise<DerivativeManifest[]> {
+  const files = await listJsonFiles(dir, ".resource.json");
   return Promise.all(files.map((file) => readJson<DerivativeManifest>(file)));
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function requireString(value: unknown, label: string, errors: string[]): void {
@@ -145,7 +149,19 @@ function validateTranscriptRights(
   if (transcript.rights.status === "unknown") {
     warnings.push(`${transcript.slug} has unknown transcript rights`);
   }
-  if (source && transcriptExists && !canStoreRawTranscript(source, transcript)) {
+  // Only apply the semantic raw-storage rule when both rights objects are
+  // well-formed. A source whose `rights` is missing/non-object already produced
+  // a "must be an object" schema error above (via validateSourceRights); calling
+  // canStoreRawTranscript on it would dereference `source.rights.storeRawTranscript`
+  // and crash the whole run with an uncaught TypeError. Skipping here keeps the
+  // schema diagnostics actionable and avoids double-reporting the same problem.
+  if (
+    source &&
+    transcriptExists &&
+    isPlainObject(source.rights) &&
+    isPlainObject(transcript.rights) &&
+    !canStoreRawTranscript(source, transcript)
+  ) {
     errors.push(
       `${transcript.slug} stores raw transcript text, but ${source.slug}.rights.storeRawTranscript is false or transcript rights are unknown`,
     );
@@ -159,10 +175,15 @@ export function canStoreRawTranscript(
   return source.rights.storeRawTranscript && transcript.rights.status !== "unknown";
 }
 
-export async function validateLibrary(): Promise<ValidationResult> {
+export async function validateLibrary(root: string = packageRoot): Promise<ValidationResult> {
+  const rootSourcesDir = resolve(root, "sources");
+  const rootTranscriptsDir = resolve(root, "transcripts");
+  const rootDerivativesDir = resolve(root, "derivatives");
+  const toRelative = (path: string): string => (path.startsWith(root) ? path.slice(root.length + 1) : path);
+
   const errors: string[] = [];
   const warnings: string[] = [];
-  const sources = await loadSources();
+  const sources = await loadSources(rootSourcesDir);
   const sourceSlugs = new Set<string>();
   const sourcesBySlug = new Map<string, SourceManifest>();
 
@@ -180,7 +201,7 @@ export async function validateLibrary(): Promise<ValidationResult> {
     }
   }
 
-  const transcripts = await loadTranscripts();
+  const transcripts = await loadTranscripts(rootTranscriptsDir);
   for (const transcript of transcripts) {
     requireString(transcript.slug, "transcript.slug", errors);
     requireString(transcript.sourceSlug, `${transcript.slug}.sourceSlug`, errors);
@@ -190,7 +211,7 @@ export async function validateLibrary(): Promise<ValidationResult> {
     if (!sourceSlugs.has(transcript.sourceSlug)) {
       errors.push(`${transcript.slug} references unknown source ${transcript.sourceSlug}`);
     }
-    const transcriptPath = resolve(packageRoot, transcript.transcriptPath);
+    const transcriptPath = resolve(root, transcript.transcriptPath);
     const transcriptExists = await exists(transcriptPath);
     if (!transcriptExists) {
       errors.push(`${transcript.slug} transcriptPath does not exist: ${transcript.transcriptPath}`);
@@ -198,13 +219,13 @@ export async function validateLibrary(): Promise<ValidationResult> {
     validateTranscriptRights(transcript, sourcesBySlug.get(transcript.sourceSlug), transcriptExists, errors, warnings);
   }
 
-  const derivatives = await loadDerivatives();
+  const derivatives = await loadDerivatives(rootDerivativesDir);
   const transcriptPaths = new Set(
-    transcripts.map((transcript) => relativeToPackage(resolve(packageRoot, transcript.transcriptPath))),
+    transcripts.map((transcript) => toRelative(resolve(root, transcript.transcriptPath))),
   );
   const transcriptSidecars = new Set(
     transcripts.map((transcript) =>
-      relativeToPackage(resolve(transcriptsDir, transcript.sourceSlug, `${transcript.slug}.resource.json`)),
+      toRelative(resolve(rootTranscriptsDir, transcript.sourceSlug, `${transcript.slug}.resource.json`)),
     ),
   );
 
@@ -218,7 +239,7 @@ export async function validateLibrary(): Promise<ValidationResult> {
         warnings.push(`${derivative.slug} references a transcript not indexed yet: ${sourceTranscript}`);
       }
     }
-    if (!(await exists(resolve(packageRoot, derivative.outputPath)))) {
+    if (!(await exists(resolve(root, derivative.outputPath)))) {
       errors.push(`${derivative.slug} outputPath does not exist: ${derivative.outputPath}`);
     }
   }
