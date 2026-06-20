@@ -3,6 +3,7 @@
 // with live streaming, plus settings + keychain-backed key management.
 import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import path from "node:path";
+import os from "node:os";
 import fs from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
@@ -20,6 +21,7 @@ import { createMapsStore } from "./maps";
 import { createGallery } from "./gallery";
 import { DEFAULT_GAME, DEFAULTS, normalizeSettings } from "./settings";
 import { buildGenerateArgs } from "./generate-args";
+import { buildPixelizeArgs, decodePixelizeDataUrl, parsePixelizeCutout } from "./pixelize-args";
 import { parseGenerateResult, dataUrlFor } from "./generate-result";
 // Single, shared manifest writer + license validator (issue #17). The Electron
 // main process is bundled from TypeScript (vite-plugin-electron), so it imports
@@ -410,6 +412,63 @@ ipcMain.handle("studio:generate", async (e, opts) => {
       resolve({ ok: code === 0 && !!parsed, log: buf, path: outPath, dataUrl, previewPath, mediaType });
     });
   });
+});
+
+// ---- pixelize (#66): re-grade a generated sprite onto the true DOOM pixel grid ----
+// Shells out to the SAME assetgen `pixelize` verb the CLI uses (one impl, two
+// surfaces) rather than importing pixelize() — that would pull `sharp` (a native
+// addon) into the Electron bundle. rembg cutout is auto-detected by the CLI; absent
+// it falls back to the flood-fill, so the Sprites pane works with or without rembg.
+function readPixelizeSource(payload: any): { buffer: Buffer } | { error: string } {
+  if (payload?.dataUrl) {
+    const decoded = decodePixelizeDataUrl(payload.dataUrl);
+    if (decoded?.buffer?.length) return { buffer: decoded.buffer };
+  }
+  if (typeof payload?.path === "string" && payload.path && fs.existsSync(payload.path)) {
+    try { return { buffer: fs.readFileSync(payload.path) }; } catch { /* fall through */ }
+  }
+  return { error: "nothing to pixelize — generate a sprite first" };
+}
+
+ipcMain.handle("studio:pixelize", async (_e, payload = {}) => {
+  const source = readPixelizeSource(payload);
+  if ("error" in source) return { ok: false, error: source.error };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-pixelize-"));
+  const inPath = path.join(dir, "in.png");
+  const outPath = path.join(dir, "out.webp");
+  try {
+    fs.writeFileSync(inPath, source.buffer);
+    const { args, height, cutout } = buildPixelizeArgs({ assetgenPath: ASSETGEN, inPath, outPath, opts: payload });
+    const run = await new Promise<{ code: number | null; log: string }>((resolve) => {
+      let child;
+      try { child = spawn("bun", args, { cwd: STUDIO_REPO }); }
+      catch (err) { return resolve({ code: -1, log: `spawn failed: ${err}` }); }
+      let buf = "";
+      const onData = (d) => { buf += d.toString(); };
+      child.stdout.on("data", onData);
+      child.stderr.on("data", onData);
+      child.on("error", (err) => { buf += `\nprocess error: ${err}\n`; });
+      const killer = setTimeout(() => { try { child.kill("SIGKILL"); buf += "\n[timed out after 120s]\n"; } catch {} }, 120_000);
+      child.on("close", (code) => { clearTimeout(killer); resolve({ code, log: buf }); });
+    });
+    if (run.code !== 0 || !fs.existsSync(outPath)) {
+      return { ok: false, error: `pixelize exited ${run.code}`, log: run.log, cutout: parsePixelizeCutout(run.log) };
+    }
+    const data = fs.readFileSync(outPath);
+    return {
+      ok: true,
+      dataUrl: `data:image/webp;base64,${data.toString("base64")}`,
+      bytes: data.length,
+      height,
+      requestedCutout: cutout,
+      cutout: parsePixelizeCutout(run.log),
+      log: run.log,
+    };
+  } catch (err) {
+    return { ok: false, error: String((err as Error)?.message ?? err) };
+  } finally {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+  }
 });
 
 // Ressources -> rules: drives @shipshitgames/ressources over a streaming log, same shape as

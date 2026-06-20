@@ -285,7 +285,79 @@ test('loadLdtkLevel maps a single level directly', () => {
 test('a level missing pxWid/pxHei fails loudly', () => {
   const root = fixtureRoot()
   const broken = { ...root.levels[0]!, pxWid: undefined } as unknown as LdtkRoot['levels'][number]
-  expect(() => loadLdtkLevel(root, broken)).toThrow(/missing pxWid/)
+  expect(() => loadLdtkLevel(root, broken)).toThrow(/invalid pxWid/)
+})
+
+test('a level with non-finite or non-positive pxWid fails loudly instead of poisoning coordinates', () => {
+  const root = fixtureRoot()
+  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -128, 0]) {
+    const broken = { ...root.levels[0]!, pxWid: bad } as unknown as LdtkRoot['levels'][number]
+    expect(() => loadLdtkLevel(root, broken)).toThrow(/invalid pxWid/)
+  }
+})
+
+test('a non-finite or non-positive scale option is rejected at the loader', () => {
+  const root = fixtureRoot()
+  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -1, 0]) {
+    expect(() => loadLdtkLevel(root, root.levels[0]!, { scale: bad })).toThrow(/scale/)
+  }
+})
+
+test('a tile layer with an invalid __gridSize warns and drops its tiles', () => {
+  const root: LdtkRoot = {
+    jsonVersion: '1.5.3',
+    levels: [
+      {
+        identifier: 'Tiny',
+        pxWid: 32,
+        pxHei: 32,
+        layerInstances: [
+          {
+            __identifier: 'Floor',
+            __type: 'Tiles',
+            __cWid: 2,
+            __cHei: 2,
+            __gridSize: 0,
+            gridTiles: [{ px: [0, 0], src: [0, 0], f: 0, t: 0 }],
+          },
+        ],
+      },
+    ],
+  }
+  const warnings: string[] = []
+  const arena = loadLdtkProject(root, { onWarn: (m) => warnings.push(m) }).arenas[0]!
+  expect(arena.tileLayers).toHaveLength(1)
+  expect(arena.tileLayers[0]).toEqual({ identifier: 'Floor', cellSize: 0, tiles: [] })
+  expect(warnings.some((w) => /invalid __gridSize/.test(w))).toBe(true)
+})
+
+test('a tile layer with an invalid __gridSize falls back to the project defaultGridSize', () => {
+  const root: LdtkRoot = {
+    jsonVersion: '1.5.3',
+    defaultGridSize: 16,
+    levels: [
+      {
+        identifier: 'Tiny',
+        pxWid: 32,
+        pxHei: 32,
+        layerInstances: [
+          {
+            __identifier: 'Floor',
+            __type: 'Tiles',
+            __cWid: 2,
+            __cHei: 2,
+            __gridSize: Number.NaN as unknown as number,
+            gridTiles: [{ px: [0, 0], src: [0, 0], f: 0, t: 0 }],
+          },
+        ],
+      },
+    ],
+  }
+  const arena = loadLdtkProject(root, { center: false }).arenas[0]!
+  const floor = arena.tileLayers[0]!
+  expect(floor.cellSize).toBe(16)
+  expect(floor.tiles).toHaveLength(1)
+  expect(floor.tiles[0]).toMatchObject({ x: 8, z: 8, size: 16 })
 })
 
 test('every level in a project is mapped to its own arena', () => {

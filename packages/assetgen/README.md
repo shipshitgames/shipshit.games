@@ -67,6 +67,37 @@ auto-fills `dimensions`, `frameSize`, `frames`, `fps`, `anchor`, `scale`,
 `views`, `sheet`, and `license` fields in `assets.json`, and writes a
 `previews/<id>-billboard.html` file for the desktop billboard preview.
 
+## Draft & promote (issue #54)
+
+By default `generate` writes straight into `src/assets/assets.json`. Pass
+`--draft` to **stage** the asset for review instead: the whole asset tree (the
+optimized asset, any sprite billboard/frame-map sidecars, and a `drafts.json`
+manifest) is written under `src/assets/drafts/` and the production manifest is
+left untouched. `assetgen promote` then publishes a staged draft — it moves the
+files into the assets root, registers the entry in `assets.json`, and prunes it
+from `drafts.json`.
+
+The staging tree mirrors the production layout exactly, so a draft's relative
+paths are already its post-promote paths — promotion is a move, never a rewrite,
+and preview/anim sidecar links survive untouched.
+
+```bash
+# Stage a draft (nothing lands in assets.json yet):
+bun packages/assetgen/src/cli.ts generate --provider mock --dry-run \
+  --id swarm-husk --game scourge-survivors --kind sprite \
+  --prompt "a parasite-taken Scourge host" --repo ../deadrotcom/apps/games/scourge-survivors --draft
+
+# Review src/assets/drafts/, then publish one draft (or --all):
+bun packages/assetgen/src/cli.ts promote --id swarm-husk --game scourge-survivors \
+  --repo ../deadrotcom/apps/games/scourge-survivors
+bun packages/assetgen/src/cli.ts promote --all --game scourge-survivors --repo ...
+```
+
+Flags: `generate --draft`; `promote (--id <id>[,<id>] | --all) [--game <slug>|shared]
+[--repo <path>]`. `--id` may be repeated. Promote validates up front — an unknown
+id or a draft whose file went missing fails the whole run before anything moves.
+Default (non-draft) generation is byte-for-byte unchanged.
+
 ## The variant matrix (issue #6)
 
 `assetgen matrix` generates the **per-game sprite variant matrix** from the canon
@@ -314,6 +345,34 @@ to override the resolved path). It is **off by default** and a silent **no-op wh
 the binary is not installed** — a missing or failed upscaler never fails a
 generation.
 
+### Cutout backends (rembg, optional)
+
+`pixelize` removes the background **before** it box-downscales, via `--cutout`:
+
+```bash
+# auto (default): rembg subject-segmentation when installed, else the flood-fill
+bun packages/assetgen/src/cli.ts pixelize --in raw.png --out sprite.webp --cutout auto
+
+# force a specific backend:
+#   rembg  – subject segmentation (best for dark-bodied subjects on a void)
+#   flood  – the built-in border flood-fill of near-black (no extra install)
+#   none   – trust the source alpha as-is
+bun packages/assetgen/src/cli.ts pixelize --in raw.png --out sprite.webp --cutout rembg
+```
+
+The flood-fill keeps interior darks but struggles when a dark body blends into the
+void (only edge-connected near-black goes transparent). [rembg](https://github.com/danielgatis/rembg)
+segments the subject regardless of background — this is the tool DESIGN.md's
+`gradeParams.cutout` already declares. Install once (`pip install rembg`; set
+`REMBG_BIN` to override the resolved path). Like the upscaler it is a silent
+**fallback when rembg is not installed** — `auto`/`rembg` degrade to the flood-fill
+and a generation never fails. `--palette <name>` (default `doom`) selects the locked
+ramp the grid quantizes to.
+
+The studio's **Sprites pane** exposes the same step (grid height, bg threshold,
+cutout, palette, before/after) over `studio:pixelize`, which shells out to this exact
+verb — one impl, two surfaces.
+
 ## Design tokens
 
 `assetgen tokens` compiles the reviewed `DESIGN.md` frontmatter into generated
@@ -442,5 +501,8 @@ Google Fonts families for the design tokens and leaves system stacks as system
 fonts. `tokens.json` records the required display, body, and mono families so
 apps do not make per-surface font decisions.
 
-> TODO (board): background-removal step (rembg) for non-transparent providers; wire the
-> matrix mode into the Electron studio UI.
+> TODO (board): wire the matrix mode into the Electron studio UI.
+>
+> Done (#66): the rembg background-removal step for non-transparent providers ships as
+> `pixelize --cutout rembg|auto` (see "Cutout backends" above) and is surfaced in the
+> studio Sprites pane.

@@ -134,7 +134,12 @@ export class AudioSystem {
   /** Register (or replace) one sound. Replacing an id unloads the previous Howl. */
   register(spec: SoundSpec): RegisteredSound {
     const previous = this.registry.get(spec.id)
-    if (previous) previous.howl.unload()
+    if (previous) {
+      previous.howl.unload()
+      // Replacing the live music id would leave the bus pointing at an unloaded
+      // Howl; clear it so currentMusic/stopMusic don't act on a dead handle.
+      if (this.music?.id === spec.id) this.music = null
+    }
     const howl = this.createHowl({
       src: spec.src,
       loop: spec.loop,

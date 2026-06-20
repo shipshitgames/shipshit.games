@@ -112,8 +112,18 @@ test("assertSafeDownloadUrl enforces https, blocks internal hosts, and honors an
     assert.throws(() => assertSafeDownloadUrl(url), /private\/loopback\/link-local/, url);
   }
 
-  // a PUBLIC IPv4-mapped IPv6 must NOT be over-blocked by the private guard
-  assert.equal(assertSafeDownloadUrl("https://[::ffff:8.8.8.8]/x").protocol, "https:");
+  // ANY bare IPv6 literal (even a "public" IPv4-mapped one) is rejected unless it
+  // is an explicitly trusted origin: the embedded-IPv4 spellings (NAT64, 6to4,
+  // ipv4-compatible/translated) can smuggle an internal address past a range check,
+  // and a legitimate CDN is never a bare IPv6 literal.
+  assert.throws(() => assertSafeDownloadUrl("https://[::ffff:8.8.8.8]/x"), /IPv6-literal host/);
+  assert.throws(() => assertSafeDownloadUrl("https://[64:ff9b::1.2.3.4]/x"), /IPv6-literal host/); // NAT64
+  assert.throws(() => assertSafeDownloadUrl("https://[2002:7f00:1::]/x"), /IPv6-literal host/); // 6to4
+  // ...but a trusted origin (operator-configured endpoint) still bypasses the guard.
+  assert.equal(
+    assertSafeDownloadUrl("https://[2606:4700::1]/x", undefined, ["https://[2606:4700::1]"]).protocol,
+    "https:",
+  );
 
   // allowlist: off-domain hosts and lookalikes rejected
   assert.throws(() => assertSafeDownloadUrl("https://evil.example.com/x.glb", ["meshy.ai"]), /not an allowed download domain/);
@@ -138,13 +148,36 @@ test("downloadGeneratedAsset refuses non-https and internal hosts before fetchin
   );
 });
 
-test("downloadGeneratedAsset leaves the URL unrestricted when no allowlist is given (fal/replicate path)", async () => {
-  // Providers without a host-constrained CDN (fal points at FAL_API_BASE_URL,
-  // http://127.0.0.1 in tests) must keep downloading unrestricted.
+test("downloadGeneratedAsset leaves the host unpinned when no allowlist is given (fal/replicate path)", async () => {
+  // Providers without a host-constrained CDN (fal/replicate/suno/beatoven) return
+  // public https CDN URLs that aren't pinned to a known domain — those must keep
+  // downloading unrestricted (any public https host is fine).
   const fetchImpl = (async () =>
     new Response("glb", { status: 200, headers: { "content-type": "model/gltf-binary" } })) as unknown as typeof fetch;
-  const asset = await downloadGeneratedAsset("http://127.0.0.1:9999/local.glb", undefined, fetchImpl);
+  const asset = await downloadGeneratedAsset("https://cdn.fal.media/abc/local.glb", undefined, fetchImpl);
   assert.equal(asset.mediaType, "model/gltf-binary");
+});
+
+test("downloadGeneratedAsset guards the initial URL even when unguarded (no allowlist) — SSRF at zero allowlist", async () => {
+  // Fix: even on the unguarded fal/replicate/suno/beatoven path, a provider that
+  // hands back a non-https or private/loopback/link-local URL must be rejected
+  // before any fetch — closing a provider directly returning http://169.254.169.254
+  // or file://. The host is NOT pinned (any public https host still downloads).
+  const explode = (async () => {
+    throw new Error("must not fetch a rejected URL");
+  }) as unknown as typeof fetch;
+  await assert.rejects(
+    downloadGeneratedAsset("http://cdn.fal.media/x.glb", undefined, explode),
+    /non-https/,
+  );
+  await assert.rejects(
+    downloadGeneratedAsset("https://169.254.169.254/latest/meta-data", undefined, explode),
+    /private\/loopback\/link-local/,
+  );
+  await assert.rejects(
+    downloadGeneratedAsset("file:///etc/passwd", undefined, explode),
+    /non-https/,
+  );
 });
 
 test("downloadGeneratedAsset trusts an operator-configured base origin (self-hosted / e2e endpoint)", async () => {

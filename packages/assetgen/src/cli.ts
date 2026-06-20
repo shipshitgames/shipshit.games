@@ -14,7 +14,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   "check-token-staleness": async () =>
     (await import("./commands/check-token-staleness.ts")).runCheckTokenStalenessCommand, // #47
   pixelize: async () => (await import("./commands/pixelize.ts")).runPixelizeCommand,
-  promote: async () => (await import("./commands/not-implemented.ts")).runNotImplemented("promote"),
+  promote: async () => (await import("./commands/promote.ts")).runPromoteCommand, // #54
   codegen: async () => (await import("./commands/codegen.ts")).runCodegenCommand, // #22
   check: async () => (await import("./commands/check.ts")).runCheckCommand,
   "check-sprites": async () => (await import("./commands/check-sprites.ts")).runCheckSpritesCommand, // #166

@@ -287,6 +287,49 @@ describe("validatePixels + validateSpriteAnimSheet", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  test("a trailing skippable frame does NOT trip a false truncation warning at the cap", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "assetgen-geom-capfalse-"));
+    const warnings: string[] = [];
+    const realWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(String).join(" "));
+    };
+    try {
+      const red = await sharp({ create: { width: 16, height: 16, channels: 4, background: { r: 200, g: 30, b: 30, alpha: 1 } } }).png().toBuffer();
+      // 60×20 page: two real opaque frames at x=0 and x=20.
+      const page = await sharp({ create: { width: 60, height: 20, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+        .composite([{ input: red, left: 0, top: 0 }, { input: red, left: 20, top: 0 }])
+        .webp({ lossless: true })
+        .toBuffer();
+      await writeFile(join(dir, "warden.anim0.webp"), page);
+      const sheet: SpriteAnimSheet = {
+        ...makeSheet(DIRECTIONS[1]!),
+        pages: [{ image: "warden.anim0.webp", width: 60, height: 20 }],
+        clips: {
+          idle: {
+            loop: true,
+            frames: 3,
+            directions: {
+              south: [
+                { page: 0, x: 0, y: 0, w: 16, h: 16, duration: 125 },
+                { page: 0, x: 20, y: 0, w: 16, h: 16, duration: 125 },
+                // trailing DEGENERATE frame — the pixel pass skips it before counting.
+                { page: 0, x: 40, y: 0, w: 0, h: 16, duration: 125 },
+              ],
+            },
+          },
+        },
+      };
+      // cap=2: both real frames are scanned and the only remaining frame is skippable,
+      // so the cap is never actually hit — no truncation warning may fire.
+      expect(await validatePixels(sheet, dir, 2)).toEqual([]);
+      expect(warnings.filter((w) => w.includes("pixel scan truncated"))).toEqual([]);
+    } finally {
+      console.warn = realWarn;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("discoverAnimSheets", () => {

@@ -19,6 +19,7 @@ import {
   toSpriteSheetWebp,
   writeBillboardPreview,
 } from "../sprites.ts";
+import { assetsRootForRepo, draftsManifestPath, draftsRoot } from "../drafts.ts";
 import { flag, has, intFlag, numberFlag } from "./args.ts";
 import { defaultRepo } from "./paths.ts";
 
@@ -33,6 +34,10 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const model = flag(argv, "model");
   const size = intFlag(argv, "size", 1024);
   const repo = flag(argv, "repo") || defaultRepo(game);
+  // Draft mode (issue #54): stage the asset under src/assets/drafts/ + drafts.json
+  // instead of writing the production manifest. Default off — non-draft runs are
+  // byte-for-byte unchanged. `assetgen promote` later publishes staged drafts.
+  const draft = has(argv, "draft");
   const dryRun = has(argv, "dry-run");
   const usageLog = flag(argv, "usage-log");
   const views = parseViews(flag(argv, "views"));
@@ -229,6 +234,14 @@ export async function runGenerate(argv: string[]): Promise<void> {
       }
     : undefined;
 
+  // Draft runs divert the entire asset tree (asset + sidecars + manifest) under
+  // src/assets/drafts/. The staging layout mirrors production exactly, so the
+  // recorded relative paths are already the post-promote paths.
+  const assetsRoot = assetsRootForRepo(repo);
+  const draftOutput = draft
+    ? { outputRoot: draftsRoot(assetsRoot), manifestPath: draftsManifestPath(assetsRoot) }
+    : {};
+
   await runAssetPipeline({
     id,
     // Manifest records the raw user prompt; generation uses the augmented one.
@@ -245,6 +258,7 @@ export async function runGenerate(argv: string[]): Promise<void> {
     outlineTintThreshold,
     human,
     repo,
+    ...draftOutput,
     usageLogPath: usageLog,
     postprocess: spriteMode
       ? spritePostprocess
@@ -255,6 +269,11 @@ export async function runGenerate(argv: string[]): Promise<void> {
           : undefined,
     log: (chunk) => process.stdout.write(chunk),
   });
+
+  if (draft) {
+    const promoteHint = `assetgen promote --id ${id}${game !== "shared" ? ` --game ${game}` : ""}`;
+    console.log(`[draft] staged under ${draftsRoot(assetsRoot)} — run \`${promoteHint}\` to publish`);
+  }
 }
 
 function printGenerateUsage(): void {
@@ -271,6 +290,7 @@ function printGenerateUsage(): void {
       "           [--ktx2] [--no-draco] [--rig <source>]\n" +
       "           [--outline-tint] [--outline-tint-strength 0.5] [--outline-tint-threshold 32]\n" +
       "           [--license <terms>] [--license-url <url>] [--seed <n>] [--authored] [--edit-kind <label>]\n" +
+      "           [--draft]  (stage under src/assets/drafts/; publish later with `assetgen promote`)\n" +
       "  assetgen --id <id> --prompt <text> [--game <slug>|shared]\n" +
       "           [--kind sprite|texture|icon|music|sfx|voice|model|3d] [--provider openai|fal|codex|replicate|meshy|tripo|suno|elevenlabs|beatoven|mock]\n" +
       "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
@@ -280,6 +300,7 @@ function printGenerateUsage(): void {
       "  assetgen tokens [--check] [--repo-only] [--design <path>] [--assets-dir <path>]\n" +
       "  assetgen check-design [--root <repo>]\n" +
       "  assetgen pixelize --in <raw.png> --out <sprite.webp> [--height 110] [--bg 42]\n" +
+      "  assetgen promote (--id <id>[,<id>] | --all) [--game <slug>|shared] [--repo <path>]\n" +
       `\n  games: ${views}\n` +
       "  Default game repo lookup prefers ./games/<game> or ../games/<game>.",
   );

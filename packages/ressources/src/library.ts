@@ -7,18 +7,17 @@ import type {
   SyncedChannelVideos,
   SyncedVideo,
   TranscriptResource,
-  TranscriptRightsStatus,
 } from "./types";
-import { derivativesDir, packageRoot, relativeToPackage, sourcesDir, transcriptsDir } from "./paths";
+import {
+  derivativesDir,
+  packageRoot,
+  relativeToPackage,
+  schemasDir,
+  sourcesDir,
+  transcriptsDir,
+} from "./paths";
+import { validateValue, type JsonSchema } from "./schema";
 import { execYtDlp, parseVideoId, parseYtDlpVideo, ytDlpAvailable } from "./ytdlp";
-
-const TRANSCRIPT_RIGHTS_STATUSES = new Set<TranscriptRightsStatus>([
-  "user-provided",
-  "public-captions",
-  "official-api",
-  "permissioned",
-  "unknown",
-]);
 
 export interface ValidationResult {
   ok: boolean;
@@ -51,7 +50,17 @@ async function exists(path: string): Promise<boolean> {
 }
 
 async function readJson<T>(path: string): Promise<T> {
-  return JSON.parse(await readFile(path, "utf8")) as T;
+  const text = await readFile(path, "utf8");
+  try {
+    return JSON.parse(text) as T;
+  } catch (error) {
+    throw new Error(`${path}: ${(error as Error).message}`);
+  }
+}
+
+/** A non-null, non-array object — the only shape the semantic checks may dereference. */
+function isPlainObject(value: unknown): boolean {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function writeJson(path: string, value: unknown): Promise<void> {
@@ -71,6 +80,10 @@ async function listJsonFiles(root: string, suffix = ".json"): Promise<string[]> 
   }
   await walk(root);
   return out.sort();
+}
+
+async function loadSchema(dir: string, name: string): Promise<JsonSchema> {
+  return readJson<JsonSchema>(resolve(dir, name));
 }
 
 export async function loadSources(dir: string = sourcesDir): Promise<SourceManifest[]> {
@@ -94,78 +107,14 @@ export async function loadDerivatives(dir: string = derivativesDir): Promise<Der
   return Promise.all(files.map((file) => readJson<DerivativeManifest>(file)));
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function requireString(value: unknown, label: string, errors: string[]): void {
-  if (typeof value !== "string" || value.trim() === "") errors.push(`${label} must be a non-empty string`);
-}
-
-function requireStringArray(value: unknown, label: string, errors: string[]): void {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
-    errors.push(`${label} must be an array of strings`);
-  }
-}
-
-function requireTranscriptRightsStatus(value: unknown, label: string, errors: string[]): void {
-  if (typeof value !== "string" || !TRANSCRIPT_RIGHTS_STATUSES.has(value as TranscriptRightsStatus)) {
-    errors.push(`${label} must be one of ${Array.from(TRANSCRIPT_RIGHTS_STATUSES).join(", ")}`);
-  }
-}
-
-function validateSourceRights(source: SourceManifest, errors: string[]): void {
-  const label = `${source.slug}.rights`;
-  if (!source.rights || typeof source.rights !== "object") {
-    errors.push(`${label} must be an object`);
-    return;
-  }
-
-  requireTranscriptRightsStatus(source.rights.transcriptPolicy, `${label}.transcriptPolicy`, errors);
-  if (typeof source.rights.storeRawTranscript !== "boolean") {
-    errors.push(`${label}.storeRawTranscript must be a boolean`);
-  }
-  requireString(source.rights.notes, `${label}.notes`, errors);
-  if (source.rights.storeRawTranscript && source.rights.transcriptPolicy === "unknown") {
-    errors.push(`${label} cannot allow raw transcript storage with an unknown transcript policy`);
-  }
-}
-
-function validateTranscriptRights(
-  transcript: TranscriptResource,
-  source: SourceManifest | undefined,
-  transcriptExists: boolean,
-  errors: string[],
-  warnings: string[],
-): void {
-  const label = `${transcript.slug}.rights`;
-  if (!transcript.rights || typeof transcript.rights !== "object") {
-    errors.push(`${label} must be an object`);
-    return;
-  }
-
-  requireTranscriptRightsStatus(transcript.rights.status, `${label}.status`, errors);
-  requireString(transcript.rights.notes, `${label}.notes`, errors);
-  if (transcript.rights.status === "unknown") {
-    warnings.push(`${transcript.slug} has unknown transcript rights`);
-  }
-  // Only apply the semantic raw-storage rule when both rights objects are
-  // well-formed. A source whose `rights` is missing/non-object already produced
-  // a "must be an object" schema error above (via validateSourceRights); calling
-  // canStoreRawTranscript on it would dereference `source.rights.storeRawTranscript`
-  // and crash the whole run with an uncaught TypeError. Skipping here keeps the
-  // schema diagnostics actionable and avoids double-reporting the same problem.
-  if (
-    source &&
-    transcriptExists &&
-    isPlainObject(source.rights) &&
-    isPlainObject(transcript.rights) &&
-    !canStoreRawTranscript(source, transcript)
-  ) {
-    errors.push(
-      `${transcript.slug} stores raw transcript text, but ${source.slug}.rights.storeRawTranscript is false or transcript rights are unknown`,
-    );
-  }
+/**
+ * Stable, human-readable label for a manifest, read safely from the value
+ * itself (a null/scalar manifest has no `.slug` to dereference) and falling
+ * back to an indexed label when the slug is missing or not a usable string.
+ */
+function manifestLabel(value: unknown, kind: string, index: number): string {
+  const slug = isPlainObject(value) ? (value as Record<string, unknown>).slug : undefined;
+  return typeof slug === "string" && slug.length > 0 ? slug : `${kind}[${index}]`;
 }
 
 export function canStoreRawTranscript(
@@ -175,72 +124,144 @@ export function canStoreRawTranscript(
   return source.rights.storeRawTranscript && transcript.rights.status !== "unknown";
 }
 
-export async function validateLibrary(root: string = packageRoot): Promise<ValidationResult> {
-  const rootSourcesDir = resolve(root, "sources");
-  const rootTranscriptsDir = resolve(root, "transcripts");
-  const rootDerivativesDir = resolve(root, "derivatives");
-  const toRelative = (path: string): string => (path.startsWith(root) ? path.slice(root.length + 1) : path);
+export interface ValidateOptions {
+  /** Directory scanned for `source.json` manifests. Defaults to the package `sources/`. */
+  sourcesDir?: string;
+  /** Directory scanned for transcript `*.resource.json` sidecars. Defaults to the package `transcripts/`. */
+  transcriptsDir?: string;
+  /** Directory scanned for derivative `*.resource.json` manifests. Defaults to the package `derivatives/`. */
+  derivativesDir?: string;
+  /** Base directory used to resolve manifest-relative file paths. Defaults to the package root. */
+  contentRoot?: string;
+  /** Directory holding the canonical JSON Schemas. Defaults to the package `schemas/`. */
+  schemasDir?: string;
+}
 
+export async function validateLibrary(options: ValidateOptions = {}): Promise<ValidationResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
-  const sources = await loadSources(rootSourcesDir);
+
+  const srcDir = options.sourcesDir ?? sourcesDir;
+  const txDir = options.transcriptsDir ?? transcriptsDir;
+  const dvDir = options.derivativesDir ?? derivativesDir;
+  const contentRoot = options.contentRoot ?? packageRoot;
+  const schemaDir = options.schemasDir ?? schemasDir;
+
+  const [sourceSchema, transcriptSchema, derivativeSchema] = await Promise.all([
+    loadSchema(schemaDir, "source.schema.json"),
+    loadSchema(schemaDir, "transcript-resource.schema.json"),
+    loadSchema(schemaDir, "derivative.schema.json"),
+  ]);
+
+  const toContentRelative = (absolute: string): string =>
+    absolute.startsWith(contentRoot) ? absolute.slice(contentRoot.length + 1) : absolute;
+
+  const sources = await loadSources(srcDir);
   const sourceSlugs = new Set<string>();
   const sourcesBySlug = new Map<string, SourceManifest>();
 
-  for (const source of sources) {
-    requireString(source.slug, "source.slug", errors);
-    requireString(source.title, `${source.slug}.title`, errors);
-    requireString(source.url, `${source.slug}.url`, errors);
-    requireStringArray(source.topics, `${source.slug}.topics`, errors);
-    validateSourceRights(source, errors);
-    if (sourceSlugs.has(source.slug)) errors.push(`duplicate source slug: ${source.slug}`);
-    sourceSlugs.add(source.slug);
-    sourcesBySlug.set(source.slug, source);
+  sources.forEach((source, index) => {
+    const label = manifestLabel(source, "source", index);
+    // Shape validation is driven entirely by the published schema.
+    errors.push(...validateValue(source, sourceSchema, label));
+    // The schema already reported the wrong shape; don't deref a non-object.
+    if (!isPlainObject(source)) return;
+
+    // Conditional rule the schema subset cannot express (if/then):
+    // raw storage requires a known transcript policy.
+    if (
+      source.rights &&
+      typeof source.rights === "object" &&
+      source.rights.storeRawTranscript === true &&
+      source.rights.transcriptPolicy === "unknown"
+    ) {
+      errors.push(`${label}.rights cannot allow raw transcript storage with an unknown transcript policy`);
+    }
+
+    if (typeof source.slug === "string" && source.slug.length > 0) {
+      if (sourceSlugs.has(source.slug)) errors.push(`duplicate source slug: ${source.slug}`);
+      sourceSlugs.add(source.slug);
+      sourcesBySlug.set(source.slug, source);
+    }
+
     if (source.kind === "youtube-channel" && !source.channelId) {
-      warnings.push(`${source.slug} is a YouTube channel without channelId`);
+      warnings.push(`${label} is a YouTube channel without channelId`);
     }
-  }
+  });
 
-  const transcripts = await loadTranscripts(rootTranscriptsDir);
-  for (const transcript of transcripts) {
-    requireString(transcript.slug, "transcript.slug", errors);
-    requireString(transcript.sourceSlug, `${transcript.slug}.sourceSlug`, errors);
-    requireString(transcript.title, `${transcript.slug}.title`, errors);
-    requireString(transcript.url, `${transcript.slug}.url`, errors);
-    requireString(transcript.transcriptPath, `${transcript.slug}.transcriptPath`, errors);
-    if (!sourceSlugs.has(transcript.sourceSlug)) {
-      errors.push(`${transcript.slug} references unknown source ${transcript.sourceSlug}`);
+  const transcripts = await loadTranscripts(txDir);
+  for (const [index, transcript] of transcripts.entries()) {
+    const label = manifestLabel(transcript, "transcript", index);
+    errors.push(...validateValue(transcript, transcriptSchema, label));
+    if (!isPlainObject(transcript)) continue;
+
+    if (typeof transcript.sourceSlug === "string" && !sourceSlugs.has(transcript.sourceSlug)) {
+      errors.push(`${label} references unknown source ${transcript.sourceSlug}`);
     }
-    const transcriptPath = resolve(root, transcript.transcriptPath);
-    const transcriptExists = await exists(transcriptPath);
-    if (!transcriptExists) {
-      errors.push(`${transcript.slug} transcriptPath does not exist: ${transcript.transcriptPath}`);
-    }
-    validateTranscriptRights(transcript, sourcesBySlug.get(transcript.sourceSlug), transcriptExists, errors, warnings);
-  }
 
-  const derivatives = await loadDerivatives(rootDerivativesDir);
-  const transcriptPaths = new Set(
-    transcripts.map((transcript) => toRelative(resolve(root, transcript.transcriptPath))),
-  );
-  const transcriptSidecars = new Set(
-    transcripts.map((transcript) =>
-      toRelative(resolve(rootTranscriptsDir, transcript.sourceSlug, `${transcript.slug}.resource.json`)),
-    ),
-  );
-
-  for (const derivative of derivatives) {
-    requireString(derivative.slug, "derivative.slug", errors);
-    requireString(derivative.title, `${derivative.slug}.title`, errors);
-    requireString(derivative.outputPath, `${derivative.slug}.outputPath`, errors);
-    requireStringArray(derivative.sourceTranscripts, `${derivative.slug}.sourceTranscripts`, errors);
-    for (const sourceTranscript of derivative.sourceTranscripts) {
-      if (!transcriptPaths.has(sourceTranscript) && !transcriptSidecars.has(sourceTranscript)) {
-        warnings.push(`${derivative.slug} references a transcript not indexed yet: ${sourceTranscript}`);
+    let transcriptExists = false;
+    if (typeof transcript.transcriptPath === "string" && transcript.transcriptPath.length > 0) {
+      transcriptExists = await exists(resolve(contentRoot, transcript.transcriptPath));
+      if (!transcriptExists) {
+        errors.push(`${label} transcriptPath does not exist: ${transcript.transcriptPath}`);
       }
     }
-    if (!(await exists(resolve(root, derivative.outputPath)))) {
-      errors.push(`${derivative.slug} outputPath does not exist: ${derivative.outputPath}`);
+
+    // Referential + business rules layered on top of the schema pass.
+    if (transcript.rights?.status === "unknown") {
+      warnings.push(`${label} has unknown transcript rights`);
+    }
+    const source = sourcesBySlug.get(transcript.sourceSlug);
+    // Only apply the cross-file raw-storage rule when both rights objects are
+    // well-formed. A source with a valid slug (so it lands in sourcesBySlug) but a
+    // missing/non-object `rights` already produced a "rights is required"/type error
+    // from the schema pass above; calling canStoreRawTranscript on it would
+    // dereference `source.rights.storeRawTranscript` and crash the whole run with an
+    // uncaught TypeError. Skipping keeps the schema diagnostics actionable and avoids
+    // double-reporting the same problem.
+    if (
+      source &&
+      transcriptExists &&
+      isPlainObject(source.rights) &&
+      isPlainObject(transcript.rights) &&
+      !canStoreRawTranscript(source, transcript)
+    ) {
+      errors.push(
+        `${label} stores raw transcript text, but ${source.slug}.rights.storeRawTranscript is false or transcript rights are unknown`,
+      );
+    }
+  }
+
+  const derivatives = await loadDerivatives(dvDir);
+  const transcriptPaths = new Set(
+    transcripts
+      .filter((transcript) => typeof transcript?.transcriptPath === "string" && transcript.transcriptPath.length > 0)
+      .map((transcript) => toContentRelative(resolve(contentRoot, transcript.transcriptPath))),
+  );
+  const transcriptSidecars = new Set(
+    transcripts
+      .filter((transcript) => typeof transcript?.sourceSlug === "string" && typeof transcript?.slug === "string")
+      .map((transcript) =>
+        toContentRelative(resolve(txDir, transcript.sourceSlug, `${transcript.slug}.resource.json`)),
+      ),
+  );
+
+  for (const [index, derivative] of derivatives.entries()) {
+    const label = manifestLabel(derivative, "derivative", index);
+    errors.push(...validateValue(derivative, derivativeSchema, label));
+    if (!isPlainObject(derivative)) continue;
+
+    const sourceTranscripts = Array.isArray(derivative.sourceTranscripts) ? derivative.sourceTranscripts : [];
+    for (const sourceTranscript of sourceTranscripts) {
+      if (!transcriptPaths.has(sourceTranscript) && !transcriptSidecars.has(sourceTranscript)) {
+        warnings.push(`${label} references a transcript not indexed yet: ${sourceTranscript}`);
+      }
+    }
+
+    if (typeof derivative.outputPath === "string" && derivative.outputPath.length > 0) {
+      if (!(await exists(resolve(contentRoot, derivative.outputPath)))) {
+        errors.push(`${label} outputPath does not exist: ${derivative.outputPath}`);
+      }
     }
   }
 

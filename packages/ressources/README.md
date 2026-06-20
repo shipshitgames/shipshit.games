@@ -154,3 +154,17 @@ derivatives/
 templates/
 schemas/
 ```
+
+## Schemas
+
+The JSON Schemas in `schemas/` are the single source of truth for manifest
+shape. `validate` loads them at runtime and checks every `source.json`,
+transcript `*.resource.json`, and derivative `*.resource.json` against the
+matching schema, so the published schema and the enforced rules can never drift
+apart. Referential checks (slug uniqueness, transcript→source links, file
+existence) and the raw-transcript-storage rights rule run on top of the schema
+pass.
+
+Point `validate` at another library tree with `--root <dir>` (it expects
+`<dir>/sources`, `<dir>/transcripts`, and `<dir>/derivatives`); the schemas in
+this package stay the canonical rules used for the check.

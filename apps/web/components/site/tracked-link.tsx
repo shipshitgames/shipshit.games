@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { AnchorHTMLAttributes, MouseEvent, Ref } from "react";
 
-import { externalLinkAttrs } from "@/lib/external-link";
+import { externalLinkAttrs, isExternalHref } from "@/lib/external-link";
 import { trackEvent, type AnalyticsEventName } from "@/lib/analytics";
 
 export interface TrackedLinkProps
@@ -24,11 +24,11 @@ export interface TrackedLinkProps
  * declarative (`<TrackedLink event="video_click" .../>`) instead of repeating
  * the `onClick={() => trackEvent(...)}` glue.
  *
- * External hrefs (`http…`) render a plain `<a>` with the shared
- * {@link externalLinkAttrs} `target`/`rel`; internal hrefs render a Next.js
- * `<Link>` to preserve client-side navigation. Accepting `ref` as a prop (the
- * React 19 pattern) and spreading the rest keep it usable as a
- * `<Button asChild>` child.
+ * Off-site hrefs render a plain `<a>` with the shared
+ * {@link externalLinkAttrs} `target`/`rel` (web URLs open in a new tab;
+ * `mailto:`/`tel:` stay in-tab); internal hrefs render a Next.js `<Link>` to
+ * preserve client-side navigation. Accepting `ref` as a prop (the React 19
+ * pattern) and spreading the rest keep it usable as a `<Button asChild>` child.
  */
 export function TrackedLink({
   href,
@@ -44,7 +44,9 @@ export function TrackedLink({
     onClick?.(e);
   }
 
-  if (href.startsWith("http")) {
+  // Off-site hrefs — external web URLs plus `mailto:`/`tel:` — render a plain
+  // `<a>`; `externalLinkAttrs` adds `target=_blank` only for web URLs.
+  if (isExternalHref(href) || href.startsWith("mailto:") || href.startsWith("tel:")) {
     return (
       <a
         ref={ref}

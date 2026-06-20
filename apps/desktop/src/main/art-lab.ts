@@ -62,6 +62,59 @@ function safeReadJson(filePath, fallback) {
   }
 }
 
+// Defense-in-depth: image.path is read back from on-disk lab.json/lock.json, then
+// path.join'd onto labDir and fs-read/copied. A corrupted/tampered store must not
+// be able to escape the lab dir via an absolute path or "..". Mirrors the
+// scaffolder's assertSafeLorePath, but fails *soft* (returns false → drop the
+// image) so the rest of an otherwise-loadable lab still loads. Not IPC-reachable.
+function isSafeRelImagePath(labDirAbs, relPath) {
+  const value = String(relPath || "");
+  if (!value) return false;
+  // Reject absolute paths (POSIX "/..." and Windows "C:\...").
+  if (value.startsWith("/") || value.startsWith("\\") || /^[a-zA-Z]:/.test(value)) return false;
+  // Reject any traversal segment.
+  if (value.split(/[\\/]/).some((segment) => segment === "..")) return false;
+  // Belt-and-suspenders: the resolved path must stay under labDir.
+  const root = path.resolve(labDirAbs);
+  const resolved = path.resolve(root, value);
+  return resolved === root || resolved.startsWith(root + path.sep);
+}
+
+// Cache base64 data URLs keyed by absolute image path so the Electron main thread
+// only re-reads + re-encodes an image when its bytes actually change. Every lab
+// mutation re-publishes the full lab WITH dataUrls; without this, score/tag/lock
+// would readFileSync + base64 every variant (and the lock) on each keystroke. The
+// cheap fs.statSync mtime check gates the expensive read.
+const dataUrlCache = new Map();
+
+function encodeImage(absolute, mime) {
+  let stat;
+  try {
+    stat = fs.statSync(absolute);
+  } catch {
+    dataUrlCache.delete(absolute);
+    return null;
+  }
+  const cached = dataUrlCache.get(absolute);
+  if (cached && cached.mtimeMs === stat.mtimeMs) return cached.dataUrl;
+  let dataUrl = null;
+  try {
+    dataUrl = `data:${mime};base64,${fs.readFileSync(absolute).toString("base64")}`;
+  } catch {
+    dataUrlCache.delete(absolute);
+    return null;
+  }
+  dataUrlCache.set(absolute, { mtimeMs: stat.mtimeMs, dataUrl });
+  return dataUrl;
+}
+
+// Drop a cache entry when its file is deleted or about to be overwritten, so a
+// fresh image written at the same path (possibly within the filesystem's mtime
+// granularity) can't be masked by a stale encode.
+function evictDataUrl(absolute) {
+  dataUrlCache.delete(absolute);
+}
+
 function extFor(mime) {
   return EXT_BY_MIME[String(mime || "").toLowerCase()] || ".png";
 }
@@ -99,8 +152,14 @@ function createArtLabStore(options) {
     return path.join(labDir(game), "locked");
   }
 
-  function normalizeVariant(raw) {
-    const image = raw?.image && raw.image.path
+  function normalizeVariant(raw, labDirAbs?) {
+    // Drop the image (rather than throw) if its stored path is unsafe — a corrupted
+    // store still loads the rest of the lab. When labDirAbs is omitted (addVariant
+    // builds the image from a path we just wrote) the value is already trusted.
+    const safe = !raw?.image?.path
+      ? false
+      : !labDirAbs || isSafeRelImagePath(labDirAbs, raw.image.path);
+    const image = safe
       ? { path: String(raw.image.path), mime: String(raw.image.mime || "image/png") }
       : null;
     return {
@@ -121,7 +180,8 @@ function createArtLabStore(options) {
   function normalizeLab(game, raw) {
     const safeGame = sanitizeGame(game || raw?.game);
     const createdAt = typeof raw?.createdAt === "string" ? raw.createdAt : now();
-    const variants = Array.isArray(raw?.variants) ? raw.variants.map(normalizeVariant) : [];
+    const labDirAbs = labDir(safeGame);
+    const variants = Array.isArray(raw?.variants) ? raw.variants.map((v) => normalizeVariant(v, labDirAbs)) : [];
     return {
       game: safeGame,
       subject: cleanText(raw?.subject, 4000),
@@ -132,15 +192,13 @@ function createArtLabStore(options) {
     };
   }
 
-  // Attach a base64 data URL (read from the on-disk image) for the renderer.
+  // Attach a base64 data URL (read from the on-disk image) for the renderer. The
+  // mtime-keyed cache means an unchanged image is encoded once, not on every
+  // score/tag/lock mutation. normalizeVariant has already dropped unsafe paths.
   function publicVariant(game, variant) {
     if (!variant.image?.path) return { ...variant, dataUrl: null };
     const absolute = path.join(labDir(game), variant.image.path);
-    let dataUrl = null;
-    try {
-      dataUrl = `data:${variant.image.mime};base64,${fs.readFileSync(absolute).toString("base64")}`;
-    } catch {}
-    return { ...variant, dataUrl };
+    return { ...variant, dataUrl: encodeImage(absolute, variant.image.mime) };
   }
 
   function readLock(game) {
@@ -148,11 +206,10 @@ function createArtLabStore(options) {
     const raw = safeReadJson(lockPath(safeGame), null);
     if (!raw) return null;
     let dataUrl = null;
-    if (raw.image?.path) {
-      const absolute = path.join(labDir(safeGame), raw.image.path);
-      try {
-        dataUrl = `data:${raw.image.mime};base64,${fs.readFileSync(absolute).toString("base64")}`;
-      } catch {}
+    // Same defense-in-depth as normalizeVariant: a tampered lock.json must not be
+    // able to read outside the lab dir. Drop the image (still return the lock).
+    if (raw.image?.path && isSafeRelImagePath(labDir(safeGame), raw.image.path)) {
+      dataUrl = encodeImage(path.join(labDir(safeGame), raw.image.path), raw.image.mime);
     }
     return { ...raw, dataUrl };
   }
@@ -250,7 +307,9 @@ function createArtLabStore(options) {
     const lab = readLabRaw(safeGame);
     const target = lab.variants.find((candidate) => candidate.id === String(id || ""));
     if (target?.image?.path) {
-      try { fs.rmSync(path.join(labDir(safeGame), target.image.path), { force: true }); } catch {}
+      const absolute = path.join(labDir(safeGame), target.image.path);
+      try { fs.rmSync(absolute, { force: true }); } catch {}
+      evictDataUrl(absolute);
     }
     lab.variants = lab.variants.filter((candidate) => candidate.id !== String(id || ""));
     writeLab(lab);
@@ -273,14 +332,19 @@ function createArtLabStore(options) {
       const ext = path.extname(variant.image.path) || extFor(variant.image.mime);
       const relativePath = path.join("locked", `${variant.id}${ext}`);
       fs.mkdirSync(lockedDir(safeGame), { recursive: true });
+      const destination = path.join(labDir(safeGame), relativePath);
       try {
-        fs.copyFileSync(path.join(labDir(safeGame), variant.image.path), path.join(labDir(safeGame), relativePath));
+        fs.copyFileSync(path.join(labDir(safeGame), variant.image.path), destination);
+        // Re-locking the same variant overwrites locked/<id>.<ext> in place.
+        evictDataUrl(destination);
         lockImage = { path: relativePath, mime: variant.image.mime };
       } catch {}
     }
     // Re-locking a different variant would otherwise orphan the old locked image.
     if (previous?.image?.path && previous.image.path !== lockImage?.path) {
-      try { fs.rmSync(path.join(labDir(safeGame), previous.image.path), { force: true }); } catch {}
+      const absolute = path.join(labDir(safeGame), previous.image.path);
+      try { fs.rmSync(absolute, { force: true }); } catch {}
+      evictDataUrl(absolute);
     }
     const lock = {
       game: safeGame,
@@ -304,7 +368,9 @@ function createArtLabStore(options) {
     // Drop the copied locked image too, so a cleared lock leaves nothing behind.
     const lock = safeReadJson(lockPath(safeGame), null);
     if (lock?.image?.path) {
-      try { fs.rmSync(path.join(labDir(safeGame), lock.image.path), { force: true }); } catch {}
+      const absolute = path.join(labDir(safeGame), lock.image.path);
+      try { fs.rmSync(absolute, { force: true }); } catch {}
+      evictDataUrl(absolute);
     }
     try { fs.rmSync(lockPath(safeGame), { force: true }); } catch {}
     const lab = readLabRaw(safeGame);
