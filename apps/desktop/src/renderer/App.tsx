@@ -15,6 +15,7 @@ type Group = "Generators" | "Art Direction" | "Ressources" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
 interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null; previewPath?: string | null; mediaType?: string | null }
+interface PixelizeResult { ok: boolean; dataUrl?: string; bytes?: number; height?: number; requestedCutout?: string; cutout?: { tool: string; reason?: string } | null; log?: string; error?: string }
 interface ResearchResult { ok: boolean; log: string; path: string | null; rules: string | null }
 interface ProjectAsset { id: string; kind: string; path: string; game: string | null }
 interface ProjectSummary {
@@ -204,6 +205,14 @@ declare global {
         draco?: boolean;
         rig?: string;
       }) => Promise<GenResult>;
+      pixelize: (opts: {
+        dataUrl?: string;
+        path?: string;
+        height?: number;
+        bgThreshold?: number;
+        cutout?: string;
+        palette?: string;
+      }) => Promise<PixelizeResult>;
       listGames: () => Promise<string[]>;
       onGenLog: (cb: (chunk: string) => void) => () => void;
       research: (opts: { url: string; slug: string; provider?: string }) => Promise<ResearchResult>;
@@ -532,6 +541,106 @@ function ProjectsPane() {
   );
 }
 
+// Pixelize step (#66): after a sprite is generated, re-grade it onto the true DOOM
+// pixel grid — rembg/flood-fill cutout → box-downscale to the grid height →
+// nearest-quantize to the fixed ramp → lossless webp — and show a before/after.
+// Runs the SAME assetgen pixelize() the CLI uses, over studio:pixelize.
+const PIXELIZE_CUTOUTS = [
+  { id: "auto", label: "auto (rembg → flood)" },
+  { id: "rembg", label: "rembg (segmentation)" },
+  { id: "flood", label: "flood-fill (near-black)" },
+  { id: "none", label: "none" },
+];
+
+function PixelizePanel({ source }: { source: { dataUrl?: string | null; path?: string | null } }) {
+  const [height, setHeight] = useState(110);
+  const [bg, setBg] = useState(42);
+  const [cutout, setCutout] = useState("auto");
+  const [palette, setPalette] = useState("doom");
+  const [busy, setBusy] = useState(false);
+  const [out, setOut] = useState<PixelizeResult | null>(null);
+  const [err, setErr] = useState("");
+
+  // A fresh generation invalidates the previous pixelize output. The parent remounts
+  // this panel via `key` on each new source (React's "reset state with a key"), so the
+  // before/after never carries over a stale result — no effect, no derived state.
+  const hasSource = !!(source.dataUrl || source.path);
+
+  async function run() {
+    if (!window.studio?.pixelize) { setErr("studio bridge unavailable — restart the app"); return; }
+    if (!hasSource) { setErr("nothing to pixelize — generate a sprite first"); return; }
+    setBusy(true);
+    setErr("");
+    try {
+      const result = await window.studio.pixelize({
+        dataUrl: source.dataUrl ?? undefined,
+        path: source.path ?? undefined,
+        height,
+        bgThreshold: bg,
+        cutout,
+        palette,
+      });
+      if (!result.ok) { setErr(result.error || "pixelize failed"); setOut(null); }
+      else setOut(result);
+    } catch (e) {
+      setErr(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="pixelize-step">
+      <div className="pixelize-head">
+        <span className="pixelize-title">Pixelize</span>
+        <span className="pixelize-sub">snap to a true DOOM pixel grid</span>
+      </div>
+      <div className="pixelize-controls">
+        <label className="gen-field"><span>Grid height</span>
+          <input type="number" min={16} max={512} value={height}
+            onChange={(e) => setHeight(Math.max(16, Math.min(512, Number(e.target.value) || 110)))} />
+        </label>
+        <div className="pixelize-presets">
+          <button type="button" className={height === 110 ? "is-on" : ""} onClick={() => setHeight(110)}>rank-and-file · 110</button>
+          <button type="button" className={height === 180 ? "is-on" : ""} onClick={() => setHeight(180)}>boss · 180</button>
+        </div>
+        <label className="gen-field"><span>BG threshold</span>
+          <input type="number" min={0} max={255} value={bg}
+            onChange={(e) => setBg(Math.max(0, Math.min(255, Number(e.target.value) || 0)))} />
+        </label>
+        <label className="gen-field"><span>Cutout</span>
+          <select value={cutout} onChange={(e) => setCutout(e.target.value)}>
+            {PIXELIZE_CUTOUTS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </label>
+        <label className="gen-field"><span>Palette</span>
+          <select value={palette} onChange={(e) => setPalette(e.target.value)}>
+            <option value="doom">DOOM ramp</option>
+          </select>
+        </label>
+      </div>
+      <button className="gen-btn pixelize-btn" type="button" disabled={busy || !hasSource} onClick={run}>
+        {busy ? "Pixelizing…" : "Pixelize"}
+      </button>
+      {err && <div className="project-error">{err}</div>}
+      <div className="pixelize-ba">
+        <figure className="pixelize-cell">
+          <figcaption>before</figcaption>
+          {source.dataUrl
+            ? <img className="pixelize-img" src={source.dataUrl} alt="before pixelize" />
+            : <div className="gen-preview-empty">—</div>}
+        </figure>
+        <figure className="pixelize-cell">
+          <figcaption>after{out?.cutout?.tool ? ` · ${out.cutout.tool}` : ""}</figcaption>
+          {out?.dataUrl
+            ? <img className="pixelize-img is-pixelated" src={out.dataUrl} alt="after pixelize" />
+            : <div className="gen-preview-empty">{busy ? "pixelizing…" : "pixelize"}</div>}
+        </figure>
+      </div>
+    </div>
+  );
+}
+
 function SpritesPane() {
   const [id, setId] = useState("swarm-husk");
   const [prompt, setPrompt] = useState("a rotting bio-husk of the Scourge, mid-lunge, gore");
@@ -671,6 +780,7 @@ function SpritesPane() {
         {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
         {result?.path && <div className="gen-path">{result.path}</div>}
         {result?.previewPath && <div className="gen-path">{result.previewPath}</div>}
+        {result?.ok && result.dataUrl && <PixelizePanel key={result.dataUrl} source={{ dataUrl: result.dataUrl, path: result.path }} />}
       </div>
     </div>
   );
