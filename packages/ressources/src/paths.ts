@@ -6,6 +6,7 @@ export const sourcesDir = resolve(packageRoot, "sources");
 export const transcriptsDir = resolve(packageRoot, "transcripts");
 export const derivativesDir = resolve(packageRoot, "derivatives");
 export const templatesDir = resolve(packageRoot, "templates");
+export const schemasDir = resolve(packageRoot, "schemas");
 
 export function relativeToPackage(path: string): string {
   return path.startsWith(packageRoot) ? path.slice(packageRoot.length + 1) : path;
