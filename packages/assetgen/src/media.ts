@@ -54,10 +54,13 @@ export interface DownloadOptions {
   timeoutMs?: number;
   /**
    * Host allowlist (suffix-matched on the registrable domain). Supplying it opts
-   * the download into the SSRF guards: the URL — and every redirect hop — must be
-   * https, must not resolve to a private/loopback/link-local host, and must match
+   * the download into the FULL SSRF guards: the URL — and every redirect hop — must
+   * be https, must not resolve to a private/loopback/link-local host, and must match
    * one of these domains. Omitted (the default for providers whose download URLs
-   * aren't host-constrained, e.g. fal/replicate) leaves the URL unrestricted.
+   * aren't host-constrained, e.g. fal/replicate) leaves the host UNPINNED but still
+   * validates the initial URL's protocol + private/IPv6-literal host (so a provider
+   * directly returning http://169.254.169.254 or file:// is still refused); only
+   * redirect hops are left to the platform rather than re-checked.
    */
   allowedHosts?: readonly string[];
   /**
@@ -151,6 +154,16 @@ export function assertSafeDownloadUrl(
   if (host === "localhost" || host.endsWith(".localhost") || isPrivateIpv4(host) || isPrivateIpv6(host)) {
     throw new Error(`download: refusing private/loopback/link-local host ${parsed.hostname}`);
   }
+  // Reject ANY remaining bare IPv6 literal that isn't an explicitly trusted origin
+  // (those return early above). isPrivateIpv6 catches the well-known private
+  // ranges, but the embedded-IPv4 spellings (NAT64 64:ff9b::, 6to4 2002:,
+  // ipv4-compatible ::a.b.c.d, ipv4-translated ::ffff:0:...) can smuggle an
+  // internal IPv4 past a range check. Legitimate CDN hosts are domain names, never
+  // bare IPv6 literals — the WHATWG URL parser keeps the brackets and a `:` in
+  // `hostname` for them, so this is a cheap, total rejection.
+  if (host.startsWith("[") || host.includes(":")) {
+    throw new Error(`download: refusing IPv6-literal host ${parsed.hostname}`);
+  }
   if (allowedHosts && allowedHosts.length > 0 && !hostInAllowlist(host, allowedHosts)) {
     throw new Error(
       `download: host ${host} is not an allowed download domain (${allowedHosts.join(", ")}). ` +
@@ -161,6 +174,23 @@ export function assertSafeDownloadUrl(
 }
 
 /**
+ * Build the `trustedOrigins` for a provider whose endpoint is operator-configured
+ * via `*_API_BASE_URL` (self-hosted, proxy, or the e2e mock). Downloads served
+ * from that same origin are trusted exactly like the create/poll calls — so a
+ * self-hosted endpoint reachable only over http/loopback still works — while an
+ * arbitrary internal URL a provider hands back is still refused. Production
+ * defaults (no override) return undefined, leaving the https + private-host guard.
+ */
+export function trustedOriginsFor(baseUrl: string | undefined): readonly string[] | undefined {
+  if (!baseUrl) return undefined;
+  try {
+    return [new URL(baseUrl).origin];
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Fetch a download URL within a timeout budget (always applied — a hung CDN
  * connection must not block forever). Two redirect strategies:
  *
@@ -168,13 +198,22 @@ export function assertSafeDownloadUrl(
  *   keep the platform's native redirect-following, exactly as the pre-hardening
  *   `fetch(url)` did, so a vendor CDN that legitimately chains several hops is not
  *   silently capped at {@link MAX_DOWNLOAD_REDIRECTS}; only the timeout is added.
+ *   The INITIAL url is still validated (protocol + private/loopback/link-local +
+ *   IPv6-literal, host UNPINNED) so a provider directly returning an internal or
+ *   non-https URL is refused before the fetch; redirect hops stay unre-checked.
  * - Guarded callers (meshy/tripo) follow redirects manually so the SSRF guard
  *   re-checks every hop — including a CDN 302 to an internal address — and the
  *   chain is capped so a hostile CDN can't loop the download forever.
  */
 async function fetchDownload(url: string, fetchImpl: typeof fetch, options: DownloadOptions): Promise<Response> {
   const { timeoutMs = DEFAULT_DOWNLOAD_TIMEOUT_MS, allowedHosts, trustedOrigins } = options;
-  const guarded = (allowedHosts && allowedHosts.length > 0) || (trustedOrigins && trustedOrigins.length > 0);
+  // Host-pinned, per-hop-re-checked manual redirect mode is opted into by an
+  // ALLOWLIST only. A trustedOrigin alone (an operator-configured *_API_BASE_URL)
+  // does NOT flip to manual mode — it just lets that one origin through the
+  // initial validation, so a self-hosted/proxied endpoint (incl. http/loopback)
+  // stays reachable while native redirect-following is preserved for the
+  // unpinned providers (fal/replicate/suno/beatoven).
+  const pinHosts = !!(allowedHosts && allowedHosts.length > 0);
   const deadline = Date.now() + Math.max(1, timeoutMs);
   const budget = (): number => {
     const remaining = deadline - Date.now();
@@ -182,9 +221,15 @@ async function fetchDownload(url: string, fetchImpl: typeof fetch, options: Down
     return remaining;
   };
 
-  if (!guarded) {
-    // Native redirect-following (default), preserving the unguarded providers'
-    // prior behavior; the single signal still bounds the whole chain + body read.
+  if (!pinHosts) {
+    // Validate the INITIAL url (no allowlist → protocol + private/loopback/
+    // link-local + IPv6-literal checks, host not pinned) so a provider that
+    // directly hands back http://169.254.169.254 or file:// is rejected before we
+    // touch the network. A trustedOrigin (operator-configured *_API_BASE_URL) is
+    // accepted here, so a self-hosted/proxied endpoint over http/loopback still
+    // works. Redirect behavior is unchanged: a single native fetch delegates
+    // hop-following to the platform (no per-hop re-check).
+    assertSafeDownloadUrl(url, undefined, trustedOrigins);
     return fetchImpl(url, { signal: AbortSignal.timeout(budget()) });
   }
 

@@ -10,7 +10,7 @@
 # Run indirectly: docker/deploy-production.sh api  (which sets IMAGE_TAG etc).
 services:
   api:
-    image: ${API_IMAGE:-ghcr.io/shipshitgames/shipshitgames/api:${IMAGE_TAG:-latest}}
+    image: ${API_IMAGE:-ghcr.io/shipshitgames/shipshit.games/api:${IMAGE_TAG:-latest}}
     container_name: api-shipshit-games
     restart: unless-stopped
     security_opt:

@@ -289,6 +289,7 @@ export async function validatePixels(
 ): Promise<GeometryViolation[]> {
   const out: GeometryViolation[] = [];
   let scanned = 0;
+  let truncated = false;
 
   const pageCache = new Map<number, Buffer | null>();
   const loadPage = async (page: number): Promise<Buffer | null> => {
@@ -299,14 +300,9 @@ export async function validatePixels(
     return buf;
   };
 
-  for (const [clipName, clip] of Object.entries(sheet.clips)) {
+  outer: for (const [clipName, clip] of Object.entries(sheet.clips)) {
     for (const [facing, frames] of Object.entries(clip.directions)) {
       for (let index = 0; index < frames.length; index++) {
-        if (scanned >= maxScanFrames) {
-          // Don't silently pass the un-scanned tail: tell the caller coverage was capped.
-          console.warn(`[check-sprites] ${sheet.id}: pixel scan truncated at ${maxScanFrames} frame(s); later frames were not checked for blanks`);
-          return out;
-        }
         const frame = frames[index]!;
         const page = sheet.pages[frame.page];
         // Skip rects the structural pass already rejected (degenerate / out of bounds).
@@ -317,6 +313,13 @@ export async function validatePixels(
         if (!buf) {
           out.push({ code: "blank-frame", clip: clipName, direction: facing, frameIndex: index, message: `clip "${clipName}" ${facing}#${index}: atlas page "${page.image}" not found` });
           continue;
+        }
+        // Cap detection sits here — past every skip/missing-page `continue` — so it
+        // only fires when a real, scannable frame is about to be read. A trailing
+        // skippable/degenerate frame can no longer trip a false "truncated" warning.
+        if (scanned >= maxScanFrames) {
+          truncated = true;
+          break outer;
         }
         scanned++;
         try {
@@ -344,6 +347,10 @@ export async function validatePixels(
         }
       }
     }
+  }
+  if (truncated) {
+    // Don't silently pass the un-scanned tail: tell the caller coverage was capped.
+    console.warn(`[check-sprites] ${sheet.id}: pixel scan truncated at ${maxScanFrames} frame(s); later frames were not checked for blanks`);
   }
   return out;
 }

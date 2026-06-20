@@ -83,17 +83,20 @@ test("generateAsset echoes a requested seed through the mock provider but keeps 
   assert.equal(asset.meta.reproducible, false);
 });
 
-test("openAiImageBody omits the seed key unless one is supplied", () => {
-  assert.deepEqual(openAiImageBody("a husk", "gpt-image-2", "1024x1024"), {
+test("openAiImageBody never attaches a seed (the OpenAI Images API rejects it)", () => {
+  const expected = {
     model: "gpt-image-2",
     prompt: "a husk",
     size: "1024x1024",
     background: "transparent",
     n: 1,
-  });
-  assert.equal(openAiImageBody("a husk", "gpt-image-2", "1024x1024", 7).seed, 7);
-  // 0 is a valid seed and must survive into the request body.
-  assert.equal(openAiImageBody("a husk", "gpt-image-2", "1024x1024", 0).seed, 0);
+  };
+  assert.deepEqual(openAiImageBody("a husk", "gpt-image-2", "1024x1024"), expected);
+  // A supplied seed is a documented no-op — the body must be byte-identical and omit seed.
+  assert.deepEqual(openAiImageBody("a husk", "gpt-image-2", "1024x1024", 7), expected);
+  assert.equal("seed" in openAiImageBody("a husk", "gpt-image-2", "1024x1024", 7), false);
+  // 0 is also a no-op (not a falsy edge that sneaks in).
+  assert.equal("seed" in openAiImageBody("a husk", "gpt-image-2", "1024x1024", 0), false);
 });
 
 test("openAiAssetMeta records the requested seed but is reproducible only when the response confirms it", () => {
@@ -106,7 +109,7 @@ test("openAiAssetMeta records the requested seed but is reproducible only when t
   assert.deepEqual(openAiAssetMeta("gpt-image-2", 7, { seed: 7 }), { model: "gpt-image-2", reproducible: true, seed: 7 });
 });
 
-test("generateOpenAi forwards a seed and records it, but stays non-reproducible (OpenAI never confirms the seed)", async () => {
+test("generateOpenAi records a requested seed in provenance but never sends it (OpenAI Images rejects seed)", async () => {
   const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
   let body: any;
   const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
@@ -122,10 +125,11 @@ test("generateOpenAi forwards a seed and records it, but stays non-reproducible 
     { fetchImpl, getKeyImpl: () => "unit-key" },
   );
 
-  assert.equal(body.seed, 1234);
+  // The Images API has no seed param, so the body must OMIT it (sending it can 400).
+  assert.equal("seed" in body, false);
   assert.equal(body.background, "transparent");
-  // The seed reached the request and is recorded, but the response carries no
-  // seed confirmation, so provenance must NOT claim reproducibility.
+  // The requested seed is still recorded for provenance, but the response carries
+  // no seed confirmation, so provenance must NOT claim reproducibility.
   assert.deepEqual(asset.meta, { model: "gpt-image-2", reproducible: false, seed: 1234 });
   assert.deepEqual(asset.data, pngBytes);
 });

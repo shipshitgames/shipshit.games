@@ -36,6 +36,17 @@ describe("isFlagValueOn", () => {
   });
 });
 
+describe("FLAGS registry", () => {
+  it("registers only server flags (no client/NEXT_PUBLIC_ field)", () => {
+    for (const def of Object.values(FLAGS)) {
+      // The seam is server-only; `isEnabled` reads process.env dynamically and
+      // cannot deliver client flags. There must be no `client` field to imply it.
+      expect(Object.keys(def)).not.toContain("client");
+      expect(def.env.startsWith("NEXT_PUBLIC_")).toBe(false);
+    }
+  });
+});
+
 describe("flagSnapshot", () => {
   it("reports every registered flag", () => {
     const snap = flagSnapshot();

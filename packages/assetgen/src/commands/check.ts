@@ -18,8 +18,16 @@ const PER_GAME_INDEX = /^assets\.index\.([a-z0-9-]+)\.json$/;
  * committed `assets.index*.json` is current. Exits non-zero on any failure.
  */
 export async function runCheckCommand(argv: string[]): Promise<void> {
-  const game = flag(argv, "game");
-  if (game) {
+  if (has(argv, "game")) {
+    // `flag` returns the next token unconditionally, so `--game --json` would read
+    // "--json" as the slug and a trailing `--game` would read undefined. Reject a
+    // missing or flag-shaped value instead of running the per-game branch with a
+    // bogus slug (or silently falling through to the index check).
+    const game = flag(argv, "game");
+    if (!game || game.startsWith("--")) {
+      console.error("[check] --game requires a slug, e.g. assetgen check --game <slug>");
+      process.exit(1);
+    }
     await runGameCheckCommand(argv, game);
     return;
   }

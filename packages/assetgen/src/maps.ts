@@ -219,13 +219,17 @@ export function validateMapLayout(map: ArenaMap, opts: MapValidationOptions = {}
   const spawn = opts.spawn ?? readSpawn(map);
   if (spawn) {
     const radius = opts.spawnRadius ?? DEFAULT_SPAWN_RADIUS;
+    // An out-of-bounds spawn is reported once; only an in-bounds spawn is checked
+    // against obstacle clearance, so a spawn outside the arena can't ALSO be
+    // double-reported as blocked by whatever obstacle happens to sit near it.
     if (!withinExtent(spawn.x, spawn.z, ext)) {
       issues.push({ code: "spawn-blocked", message: `spawn (${spawn.x}, ${spawn.z}) is outside bounds` });
-    }
-    for (const obstacle of obstacles) {
-      if (obstacle.blocksMovement === false) continue;
-      if (pointBlocked(obstacle, spawn.x, spawn.z, radius)) {
-        issues.push({ code: "spawn-blocked", message: `spawn (${spawn.x}, ${spawn.z}) is blocked by obstacle "${obstacle.id}"`, obstacleId: obstacle.id });
+    } else {
+      for (const obstacle of obstacles) {
+        if (obstacle.blocksMovement === false) continue;
+        if (pointBlocked(obstacle, spawn.x, spawn.z, radius)) {
+          issues.push({ code: "spawn-blocked", message: `spawn (${spawn.x}, ${spawn.z}) is blocked by obstacle "${obstacle.id}"`, obstacleId: obstacle.id });
+        }
       }
     }
   }

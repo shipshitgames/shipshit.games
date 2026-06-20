@@ -474,6 +474,16 @@ test('unregistering the current music track clears the bus', () => {
   expect(system.currentMusic).toBeNull()
 })
 
+test('re-registering the active music id clears the bus instead of pointing at an unloaded Howl', () => {
+  const { system } = makeAudio()
+  system.register(spec({ id: 'menu', category: 'music', volume: 0.6 }))
+  system.playMusic('menu')
+  expect(system.currentMusic).toBe('menu')
+  // replacing the live music id unloads its Howl; the bus must drop the dead track
+  system.register(spec({ id: 'menu', category: 'music', volume: 0.6 }))
+  expect(system.currentMusic).toBeNull()
+})
+
 // --- master controls + unlock ---
 
 test('setMasterVolume clamps and pushes to the global mixer', () => {

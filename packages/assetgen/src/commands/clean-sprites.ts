@@ -33,7 +33,9 @@ type Bounds = {
 type CleanSpriteResult = {
   input: string;
   output: string;
-  key: ChromaKeyName | "custom";
+  key: ChromaKeyName | "custom" | "none";
+  /** Share of pixels matching the chosen key (0 when no key was applied). */
+  keyShare: number;
   bounds: {
     width: number;
     height: number;
@@ -108,11 +110,12 @@ export async function runCleanSpritesCommand(argv: string[] = process.argv.slice
   for (const input of inputs) {
     const result = await cleanSprite(input, outputPath, options);
     results.push(result);
+    const keyLabel = result.key === "none" ? "none" : `${result.key} ${(result.keyShare * 100).toFixed(1)}%`;
     console.log(
       `${options.dryRun ? "would clean" : "cleaned"} ${path.relative(process.cwd(), input)} -> ${path.relative(
         process.cwd(),
         result.output,
-      )} (${result.bounds.width}x${result.bounds.height} on ${result.canvas}x${result.canvas}, key=${result.key})`,
+      )} (${result.bounds.width}x${result.bounds.height} on ${result.canvas}x${result.canvas}, key=${keyLabel})`,
     );
   }
 
@@ -178,25 +181,30 @@ async function cleanSprite(input: string, outputDir: string, options: CleanSprit
   }
 
   const { data } = await image.raw().toBuffer({ resolveWithObject: true });
-  const key = chooseChromaKey(data, options.chromaKey);
+  const chosen = chooseChromaKey(data, options.chromaKey);
   const pixels = Buffer.from(data);
 
-  for (let offset = 0; offset < pixels.length; offset += 4) {
-    const red = pixels[offset] ?? 0;
-    const green = pixels[offset + 1] ?? 0;
-    const blue = pixels[offset + 2] ?? 0;
-    const alpha = pixels[offset + 3] ?? 0;
-    const color: Rgb = [red, green, blue];
-    const distance = colorDistance(color, key);
+  // When auto found no dominant key, the sprite is already key-free — keying would
+  // punch holes in the subject, so skip chroma removal and only crop/pad.
+  if (chosen !== NO_KEY) {
+    const key = chosen.key;
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      const red = pixels[offset] ?? 0;
+      const green = pixels[offset + 1] ?? 0;
+      const blue = pixels[offset + 2] ?? 0;
+      const alpha = pixels[offset + 3] ?? 0;
+      const color: Rgb = [red, green, blue];
+      const distance = colorDistance(color, key);
 
-    if (distance <= options.tolerance) {
-      pixels[offset + 3] = 0;
-      continue;
-    }
+      if (distance <= options.tolerance) {
+        pixels[offset + 3] = 0;
+        continue;
+      }
 
-    if (distance <= options.halo) {
-      const fade = (distance - options.tolerance) / Math.max(1, options.halo - options.tolerance);
-      pixels[offset + 3] = Math.round(alpha * clamp(fade, 0, 1));
+      if (distance <= options.halo) {
+        const fade = (distance - options.tolerance) / Math.max(1, options.halo - options.tolerance);
+        pixels[offset + 3] = Math.round(alpha * clamp(fade, 0, 1));
+      }
     }
   }
 
@@ -262,7 +270,8 @@ async function cleanSprite(input: string, outputDir: string, options: CleanSprit
   return {
     input,
     output,
-    key: keyName(key),
+    key: chosen === NO_KEY ? "none" : keyName(chosen.key),
+    keyShare: chosen === NO_KEY ? 0 : chosen.share,
     bounds: {
       width: cropWidth,
       height: cropHeight,
@@ -271,8 +280,20 @@ async function cleanSprite(input: string, outputDir: string, options: CleanSprit
   };
 }
 
-function chooseChromaKey(data: Buffer, mode: ChromaMode): Rgb {
-  if (mode !== "auto") return CHROMA_KEYS[mode];
+/**
+ * The winning auto-key must cover at least this fraction of the image before we
+ * treat the sprite as chroma-keyed. Below it, the matches are incidental subject
+ * pixels (a stray green leaf, a blue rim light) and keying would punch holes in
+ * the art, so we report "no key" and skip chroma removal entirely.
+ */
+const MIN_KEY_SHARE = 0.02;
+
+/** Sentinel meaning "auto found no dominant chroma key" — skip the removal pass. */
+const NO_KEY = "none" as const;
+
+function chooseChromaKey(data: Buffer, mode: ChromaMode): { key: Rgb; share: number } | typeof NO_KEY {
+  if (mode !== "auto") return { key: CHROMA_KEYS[mode], share: 1 };
+  const totalPixels = data.length / 4;
   const scores = new Map<ChromaKeyName, number>(CHROMA_KEY_ENTRIES.map(([name]) => [name, 0]));
   for (let offset = 0; offset < data.length; offset += 4) {
     const color: Rgb = [data[offset] ?? 0, data[offset + 1] ?? 0, data[offset + 2] ?? 0];
@@ -280,8 +301,12 @@ function chooseChromaKey(data: Buffer, mode: ChromaMode): Rgb {
       if (colorDistance(color, key) < 80) scores.set(name, (scores.get(name) ?? 0) + 1);
     }
   }
-  const winner = [...scores.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "magenta";
-  return CHROMA_KEYS[winner];
+  const [winner, winnerCount] = [...scores.entries()].sort((a, b) => b[1] - a[1])[0]!;
+  const share = totalPixels > 0 ? winnerCount / totalPixels : 0;
+  // A key-free sprite with incidental key-coloured pixels must not be treated as
+  // keyed: require the winner to cover a meaningful share before keying.
+  if (share < MIN_KEY_SHARE) return NO_KEY;
+  return { key: CHROMA_KEYS[winner], share };
 }
 
 function colorDistance(a: Rgb, b: Rgb): number {

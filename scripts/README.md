@@ -5,32 +5,36 @@ consumer's local dep spec over to the published version, opens a PR per repo,
 and deploys the Vercel-linked apps + games.
 
 `release-tag.mjs` stamps a **production release marker** — an annotated git tag
-(and GitHub release) on the commit that's live in prod. Vercel's Git
-integration still does the deploying; the tag is the immutable, auditable record
-of what shipped, which is the trunk-based replacement for a long-lived prod
-branch.
+on the commit that's live in prod. It is **not** the deployer: production is
+deployed by [`.github/workflows/deploy-production.yml`](../.github/workflows/deploy-production.yml),
+which fires on a published GitHub Release whose tag is semver `v*` (Vercel's
+master git auto-deploy is disabled in `vercel.json`). A `prod-*` marker tag is
+deploy-neutral — the immutable, auditable record of what shipped, which is the
+trunk-based replacement for a long-lived prod branch. By default it creates **no**
+GitHub Release, so a marker never trips the workflow's `v*` deploy gate.
 
 ## Production release markers (`release:tag`)
 
 ```sh
-bun run release:tag        # DRY RUN — prints the plan (commit, tag name), touches nothing
+bun run release:tag        # DRY RUN — prints the plan (commit, tag name); creates/pushes nothing (a read-only `git fetch` refreshes origin/master)
 bun run release:tag:run    # == bun scripts/release-tag.mjs --execute
 ```
 
-Flags: `--sha=<commit>` · `--tag=<name>` · `--message=<text>` · `--no-release`
+Flags: `--sha=<commit>` · `--tag=<name>` · `--message=<text>` · `--release`
 · `--no-fetch`
 
 What it does:
 
-1. Resolves the commit to mark (default: `origin/master` HEAD — what Vercel
-   deploys to prod on push; pass `--sha` to pin an exact deployed commit).
+1. Resolves the commit to mark (default: `origin/master` HEAD; pass `--sha` to
+   pin an exact deployed commit).
 2. Picks a unique tag name (default `prod-YYYY-MM-DD`, deduped with `.2`, `.3`…).
 3. Creates an annotated tag and pushes it.
-4. Creates a matching GitHub release (skip with `--no-release`).
+4. Optionally creates a matching GitHub release — **off by default** (a marker is
+   deploy-neutral); pass `--release` to opt in.
 
-Auth for `--execute`: push access (to push the tag) and `gh auth status` (for
-the release). Run `git push` to a feature branch is **not** required — the tag
-points straight at the deployed commit.
+Auth for `--execute`: push access (to push the tag), plus `gh auth status` if
+you pass `--release`. Run `git push` to a feature branch is **not** required —
+the tag points straight at the deployed commit.
 
 ## Usage
 

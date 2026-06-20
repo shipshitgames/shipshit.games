@@ -180,7 +180,7 @@ Verify in the dashboard for each project:
   backward-compatible (expand/contract) migrations so the previous image
   tolerates the new schema.
 - **Manual api rollback:** on the host, `cd ~/cloud` and
-  `API_IMAGE=ghcr.io/shipshitgames/shipshitgames/api:<good-sha> docker compose
+  `API_IMAGE=ghcr.io/shipshitgames/shipshit.games/api:<good-sha> docker compose
   --env-file .env.production -f docker/docker-compose.production.yml up -d api`.
 - **Vercel rollback:** promote a previous deployment in the project dashboard.
 - **Cannot reach host over Tailscale:** check the `Verify host reachability`

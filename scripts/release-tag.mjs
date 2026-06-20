@@ -2,29 +2,33 @@
 /**
  * release-tag.mjs — stamp a production release marker tag.
  *
- * Production is deployed by Vercel's Git integration on push to `master`. This
- * script records WHAT IS IN PROD as an annotated git tag (and, by default, a
- * GitHub release) pointing at a specific commit — so prod state is a movable
+ * This is NOT the deployer. Production is deployed by
+ * .github/workflows/deploy-production.yml, which fires on a published GitHub
+ * Release whose tag is semver `v*` (Vercel's master git auto-deploy is disabled
+ * in vercel.json). This script instead records WHAT IS IN PROD as an annotated
+ * git tag pointing at a specific commit — an immutable, auditable `prod-*`
  * marker on the trunk, not a long-lived `master`-vs-prod branch distinction.
- * This is the lightweight half of trunk-based deploys: keep Vercel as the
- * deployer, add an immutable, auditable marker for each release.
  *
- * SAFETY: DRY RUN by default — prints the plan, touches nothing. Pass --execute
- * to create + push the tag (and release).
+ * Because `prod-*` marker tags are DEPLOY-NEUTRAL, no GitHub Release is created
+ * by default — a marker must never trip the workflow's `release: published` v*
+ * deploy gate. Pass --release only when you deliberately want a Release too.
+ *
+ * SAFETY: DRY RUN by default — prints the plan and creates/pushes nothing; a
+ * read-only `git fetch` refreshes origin/master unless --no-fetch is passed.
+ * Pass --execute to create + push the tag.
  *
  *   Flags:
- *     --execute          actually create + push the tag (and GitHub release)
+ *     --execute          actually create + push the tag
  *     --sha=<commit>     commit to mark (default: origin/master HEAD)
  *     --tag=<name>       tag name (default: prod-YYYY-MM-DD, deduped with .N)
  *     --message=<text>   annotation / release-note body (default: auto)
- *     --no-release       skip `gh release create` (tag only)
+ *     --release          also `gh release create` (off by default; deploy-neutral)
  *     --no-fetch         don't `git fetch` before resolving origin/master
  *
- * NOTE: Without a Vercel token this marks `origin/master` HEAD, which is what
- * the Git integration deploys to prod on push. Pass --sha to mark an exact
- * deployed commit (copy the SHA from the Vercel dashboard / `vercel inspect`).
+ * NOTE: By default this marks `origin/master` HEAD. Pass --sha to mark an exact
+ * deployed commit (copy the SHA from the release/deploy run or Vercel dashboard).
  *
- * Auth for --execute: push access (tag push) and `gh auth status` (release).
+ * Auth for --execute: push access (tag push); also `gh auth status` if --release.
  */
 import { execSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -36,7 +40,7 @@ const has = (f) => args.includes(f);
 const val = (k) => args.find((a) => a.startsWith(`--${k}=`))?.split("=").slice(1).join("=");
 const EXECUTE = has("--execute");
 const DRY = !EXECUTE;
-const DO_RELEASE = !has("--no-release");
+const DO_RELEASE = has("--release");
 const DO_FETCH = !has("--no-fetch");
 
 const C = { dim: "\x1b[2m", red: "\x1b[31m", grn: "\x1b[32m", yel: "\x1b[33m", cyn: "\x1b[36m", rst: "\x1b[0m" };

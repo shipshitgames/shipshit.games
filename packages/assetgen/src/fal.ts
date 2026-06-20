@@ -1,5 +1,5 @@
 import { getKey, missingKeyMessage } from "./keys.ts";
-import { downloadGeneratedAsset } from "./media.ts";
+import { downloadGeneratedAsset, trustedOriginsFor } from "./media.ts";
 import type { GeneratedAsset, GeneratedAssetMeta } from "./media.ts";
 
 /**
@@ -146,7 +146,12 @@ export async function generateFalAsset(
   const url = typeof image === "string" ? image : image?.url;
   if (!url) throw new Error(`fal: no image in ${model} response`);
 
-  const asset = await downloadGeneratedAsset(url, model, fetchImpl);
+  // Trust downloads from the operator-configured fal endpoint (self-hosted/proxy/
+  // e2e mock over http/loopback); production fal.media URLs are public https and
+  // pass the guard regardless.
+  const asset = await downloadGeneratedAsset(url, model, fetchImpl, {
+    trustedOrigins: trustedOriginsFor(falApiBase()),
+  });
   const meta = falAssetMeta(model, opts.seed, json);
   // The response's declared content type beats extension sniffing on the URL.
   const declared = typeof image === "object" ? image?.content_type?.split(";")[0]?.trim() : undefined;

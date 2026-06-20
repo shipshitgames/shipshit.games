@@ -1408,7 +1408,18 @@ function MoodboardPane() {
   );
 }
 
-const LAB_KINDS = ["sprite", "scene", "tile", "ui", "portrait"];
+// The Lab re-runs generate() with an image kind, so it can only offer the kinds
+// assetgen actually renders as images (IMAGE_KINDS / FAL_IMAGE_KINDS). Picking a
+// non-image kind made generation throw "<provider> does not support <kind>". The
+// live list comes from the catalog over studio:models (falImageKinds, the same
+// source SettingsPane reads); this is the fallback when the catalog isn't loaded.
+const LAB_KINDS = ["sprite", "sprite-anim", "texture", "icon", "map"];
+// Image-capable providers only: the shared PROVIDERS list carries audio-only
+// "suno", which always errors for an image kind. Mirrors MODEL_PROVIDERS /
+// AUDIO_PROVIDERS_BY_CATEGORY — a small local table of the providers this pane
+// can route to (every PROVIDERS entry except the audio-only ones).
+const AUDIO_ONLY_PROVIDERS = new Set(["suno"]);
+const LAB_PROVIDERS = PROVIDERS.filter((p) => !AUDIO_ONLY_PROVIDERS.has(p.id));
 const emptyLab = (game: string): ArtLab => ({ game, subject: "", kind: "sprite", variants: [], lock: null, createdAt: "", updatedAt: "" });
 
 function labSlug(value: string): string {
@@ -1467,12 +1478,29 @@ function LabPane() {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState("");
   const [error, setError] = useState("");
+  // The image kinds assetgen can render, sourced from the catalog over
+  // studio:models (the same falImageKinds SettingsPane reads). Falls back to the
+  // static LAB_KINDS until the catalog loads so the picker is never empty.
+  const [kinds, setKinds] = useState<string[]>(LAB_KINDS);
+  // Latest allowed kinds for the lab-load effect to clamp against, without making
+  // that effect depend on `kinds` (which would re-fetch the lab when the catalog
+  // resolves). LAB_KINDS and the resolved catalog are both valid image-kind sets.
+  const kindsRef = useRef(kinds);
+  kindsRef.current = kinds;
 
   useEffect(() => {
     window.studio?.settings.get().then((s) => {
       if (s.defaultGame) setGame(s.defaultGame);
       const next = withSettingsDefaults(s);
-      setProvider(next.providerDefaults.sprite || next.defaultProvider);
+      const fallback = next.providerDefaults.sprite || next.defaultProvider;
+      // Never seed an audio-only provider into an image-only pane.
+      setProvider(LAB_PROVIDERS.some((p) => p.id === fallback) ? fallback : LAB_PROVIDERS[0].id);
+    }).catch(() => {});
+    window.studio?.models?.list().then((m) => {
+      const list = m?.falImageKinds?.length ? m.falImageKinds : LAB_KINDS;
+      setKinds(list);
+      // If a stale/non-image kind is selected, snap to the first real one.
+      setKind((k) => (list.includes(k) ? k : list[0]));
     }).catch(() => {});
     window.studio?.lab.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
     const off = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
@@ -1483,7 +1511,16 @@ function LabPane() {
     let live = true;
     setError("");
     window.studio?.lab.get(game)
-      .then((next) => { if (!live) return; setLab(next); setSubject(next.subject); setKind(next.kind || "sprite"); })
+      .then((next) => {
+        if (!live) return;
+        setLab(next);
+        setSubject(next.subject);
+        // A lab persisted before kinds were restricted may carry a non-image kind
+        // (e.g. "scene"); clamp it to a real image kind so generation can't throw.
+        const allowed = kindsRef.current;
+        const stored = next.kind || "sprite";
+        setKind(allowed.includes(stored) ? stored : allowed[0]);
+      })
       .catch((e) => { if (live) setError(String((e as Error)?.message ?? e)); });
     return () => { live = false; };
   }, [game]);
@@ -1573,12 +1610,12 @@ function LabPane() {
         <div className="gen-row">
           <label className="gen-field"><span>Kind</span>
             <select value={kind} onChange={(e) => setKind(e.target.value)}>
-              {LAB_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+              {kinds.map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
           </label>
           <label className="gen-field"><span>Provider</span>
             <select value={provider} onChange={(e) => setProvider(e.target.value)}>
-              {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.id}</option>)}
+              {LAB_PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.id}</option>)}
             </select>
           </label>
         </div>
