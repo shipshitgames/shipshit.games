@@ -314,6 +314,34 @@ to override the resolved path). It is **off by default** and a silent **no-op wh
 the binary is not installed** — a missing or failed upscaler never fails a
 generation.
 
+### Cutout backends (rembg, optional)
+
+`pixelize` removes the background **before** it box-downscales, via `--cutout`:
+
+```bash
+# auto (default): rembg subject-segmentation when installed, else the flood-fill
+bun packages/assetgen/src/cli.ts pixelize --in raw.png --out sprite.webp --cutout auto
+
+# force a specific backend:
+#   rembg  – subject segmentation (best for dark-bodied subjects on a void)
+#   flood  – the built-in border flood-fill of near-black (no extra install)
+#   none   – trust the source alpha as-is
+bun packages/assetgen/src/cli.ts pixelize --in raw.png --out sprite.webp --cutout rembg
+```
+
+The flood-fill keeps interior darks but struggles when a dark body blends into the
+void (only edge-connected near-black goes transparent). [rembg](https://github.com/danielgatis/rembg)
+segments the subject regardless of background — this is the tool DESIGN.md's
+`gradeParams.cutout` already declares. Install once (`pip install rembg`; set
+`REMBG_BIN` to override the resolved path). Like the upscaler it is a silent
+**fallback when rembg is not installed** — `auto`/`rembg` degrade to the flood-fill
+and a generation never fails. `--palette <name>` (default `doom`) selects the locked
+ramp the grid quantizes to.
+
+The studio's **Sprites pane** exposes the same step (grid height, bg threshold,
+cutout, palette, before/after) over `studio:pixelize`, which shells out to this exact
+verb — one impl, two surfaces.
+
 ## Design tokens
 
 `assetgen tokens` compiles the reviewed `DESIGN.md` frontmatter into generated
@@ -442,5 +470,8 @@ Google Fonts families for the design tokens and leaves system stacks as system
 fonts. `tokens.json` records the required display, body, and mono families so
 apps do not make per-surface font decisions.
 
-> TODO (board): background-removal step (rembg) for non-transparent providers; wire the
-> matrix mode into the Electron studio UI.
+> TODO (board): wire the matrix mode into the Electron studio UI.
+>
+> Done (#66): the rembg background-removal step for non-transparent providers ships as
+> `pixelize --cutout rembg|auto` (see "Cutout backends" above) and is surfaced in the
+> studio Sprites pane.

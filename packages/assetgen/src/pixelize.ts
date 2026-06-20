@@ -3,9 +3,22 @@
 // the fixed DOOM palette (see DESIGN.md assetgen.gradeParams). One shared engine:
 // the `assetgen pixelize` CLI and the apps/desktop Sprites pane both call this.
 //
-// Pipeline: near-black cutout -> trim -> box-downscale to target height ->
-// nearest-color quantize to the fixed DOOM ramp -> hard 1px alpha -> lossless webp.
+// Pipeline: cutout -> trim -> box-downscale to target height -> nearest-color
+// quantize to the fixed DOOM ramp -> hard 1px alpha -> lossless webp.
+//
+// Cutout backends (issue #66): "flood" is the original border flood-fill of
+// near-black (only background CONNECTED to the edge goes transparent; interior dark
+// body pixels are kept). "rembg" is subject segmentation for non-void / dark-bodied
+// subjects that blend into the void. "auto" prefers rembg, falling back to the
+// flood-fill when rembg is not installed. The core default is "flood" so every
+// existing caller (expand, import-aseprite) stays byte-for-byte unchanged; the CLI
+// and the studio Sprites pane default to "auto" — that's where #66 scopes the upgrade.
 import sharp from "sharp";
+import { maybeCutout } from "./cutout.ts";
+import type { CutoutResult } from "./cutout.ts";
+import type { CutoutMode } from "./pixelize-opts.ts";
+
+export type { CutoutMode } from "./pixelize-opts.ts";
 
 export type RGB = [number, number, number];
 
@@ -24,6 +37,15 @@ export const DOOM_RAMP: string[] = [
   "#a83c00", "#ff6a00", "#ffa030", "#ffce5c", // hellfire ramp
   "#2c5410", "#5a9a18", "#8bdc1f", // toxic ramp (Scourge only)
 ];
+
+/** Named palettes the grid can lock to. DOOM is the house ramp + single source of truth. */
+export const PIXELIZE_PALETTES: Record<string, string[]> = { doom: DOOM_RAMP };
+
+/** Resolve a named palette to its hex ramp, or undefined for an unknown name. */
+export function resolvePaletteByName(name?: string): string[] | undefined {
+  if (!name) return undefined;
+  return PIXELIZE_PALETTES[name.toLowerCase()];
+}
 
 let CACHE: { pal: RGB[]; key: string } | null = null;
 function paletteRGB(palette: string[]): RGB[] {
@@ -57,18 +79,29 @@ export interface PixelizeOpts {
   bgThreshold?: number;
   /** Trim transparent margins after cutout (default true). */
   trim?: boolean;
+  /** Cutout backend. Default "flood" (preserves existing callers); CLI/studio pass "auto". */
+  cutout?: CutoutMode;
+  /** Injectable rembg cutout (tests) — defaults to the real maybeCutout. */
+  cutoutFn?: (input: Buffer) => Promise<CutoutResult>;
 }
 
-/** Raw AI image buffer -> clean, palette-locked, grid-true pixel sprite (lossless webp). */
-export async function pixelize(input: Buffer, opts: PixelizeOpts = {}): Promise<Buffer> {
-  const height = opts.height ?? 110;
-  const pal = paletteRGB(opts.palette ?? DOOM_RAMP);
-  const bgT = opts.bgThreshold ?? 42;
+export interface PixelizeCutoutInfo {
+  /** Which cutout actually produced the alpha. */
+  tool: "rembg" | "flood-fill" | "none";
+  /** Why rembg was skipped, when "auto"/"rembg" fell back to the flood-fill. */
+  reason?: string;
+}
 
-  // 1. cutout — border FLOOD-FILL of near-black (only background CONNECTED to the
-  //    edge goes transparent; interior dark body pixels are kept). Avoids the
-  //    global-threshold bug that punches holes in a dark subject on a void bg.
-  //    (rembg is the upgrade for non-void backgrounds.)
+export interface PixelizeResult {
+  /** Lossless-webp pixel sprite. */
+  data: Buffer;
+  cutout: PixelizeCutoutInfo;
+}
+
+// The original border FLOOD-FILL of near-black: only background CONNECTED to the
+// edge goes transparent; interior dark body pixels are kept. Avoids the
+// global-threshold bug that punches holes in a dark subject on a void bg.
+async function floodFillCutout(input: Buffer, bgT: number): Promise<sharp.Sharp> {
   const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const W = info.width, H = info.height, ch = info.channels;
   const cut = Buffer.from(data);
@@ -93,9 +126,34 @@ export async function pixelize(input: Buffer, opts: PixelizeOpts = {}): Promise<
     if (y > 0) seed(i - W);
     if (y < H - 1) seed(i + W);
   }
+  return sharp(cut, { raw: { width: W, height: H, channels: ch } });
+}
+
+// Resolve the cutout stage to an alpha-cut sharp image + which tool produced it.
+async function resolveCutout(
+  input: Buffer,
+  opts: PixelizeOpts,
+): Promise<{ img: sharp.Sharp; info: PixelizeCutoutInfo }> {
+  const mode: CutoutMode = opts.cutout ?? "flood";
+  const bgT = opts.bgThreshold ?? 42;
+  if (mode === "none") return { img: sharp(input).ensureAlpha(), info: { tool: "none" } };
+  if (mode === "flood") return { img: await floodFillCutout(input, bgT), info: { tool: "flood-fill" } };
+  // "rembg" | "auto": try rembg, fall back to the flood-fill on any no-op.
+  const res = await (opts.cutoutFn ?? maybeCutout)(input);
+  if (res.applied) return { img: sharp(res.data).ensureAlpha(), info: { tool: "rembg" } };
+  return { img: await floodFillCutout(input, bgT), info: { tool: "flood-fill", reason: res.reason } };
+}
+
+/** Raw AI image buffer -> clean, palette-locked, grid-true pixel sprite + the cutout used. */
+export async function pixelizeDetailed(input: Buffer, opts: PixelizeOpts = {}): Promise<PixelizeResult> {
+  const height = opts.height ?? 110;
+  const pal = paletteRGB(opts.palette ?? DOOM_RAMP);
+
+  // 1. cutout (flood-fill / rembg / none)
+  const { img, info: cutout } = await resolveCutout(input, opts);
 
   // 2. trim, then box-downscale to the target grid
-  let s = sharp(cut, { raw: { width: info.width, height: info.height, channels: ch } });
+  let s = img;
   if (opts.trim !== false) s = s.trim();
   s = s.resize({ height, kernel: sharp.kernel.mitchell, fit: "inside", withoutEnlargement: false });
 
@@ -112,7 +170,13 @@ export async function pixelize(input: Buffer, opts: PixelizeOpts = {}): Promise<
   }
 
   // 4. lossless webp at native pixel size (engine scales up with NearestFilter)
-  return sharp(sd, { raw: { width: small.info.width, height: small.info.height, channels: sch } })
+  const data = await sharp(sd, { raw: { width: small.info.width, height: small.info.height, channels: sch } })
     .webp({ lossless: true })
     .toBuffer();
+  return { data, cutout };
+}
+
+/** Raw AI image buffer -> clean, palette-locked, grid-true pixel sprite (lossless webp). */
+export async function pixelize(input: Buffer, opts: PixelizeOpts = {}): Promise<Buffer> {
+  return (await pixelizeDetailed(input, opts)).data;
 }

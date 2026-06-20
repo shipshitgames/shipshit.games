@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld("studio", {
   },
   // Asset generation (runs @shipshitgames/assetgen in the main process).
   generate: (opts) => ipcRenderer.invoke("studio:generate", opts),
+  // Pixelize (#66): re-grade a generated sprite onto the true DOOM pixel grid
+  // (rembg/flood-fill cutout → box-downscale → palette-lock), for a before/after.
+  pixelize: (opts) => ipcRenderer.invoke("studio:pixelize", opts),
   listGames: () => ipcRenderer.invoke("studio:listGames"),
   // Live generation log stream. Returns an unsubscribe fn.
   onGenLog: (cb) => {
