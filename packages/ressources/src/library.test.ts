@@ -341,3 +341,35 @@ test("a transcript with a non-string sourceSlug reports a schema error instead o
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("a slug-valid source missing its rights object reports a schema error instead of crashing the run", async () => {
+  // Regression: a source with a valid slug (so it lands in sourcesBySlug) but no
+  // `rights` object, referenced by a transcript whose file exists, used to throw an
+  // uncaught TypeError out of canStoreRawTranscript (dereferencing
+  // source.rights.storeRawTranscript) — aborting the run and hiding the schema error.
+  // The schema pass already flags the missing rights, so the cross-file raw-storage
+  // rule must be skipped: the run surfaces a clean schema error and exits non-zero.
+  const root = await mkdtemp(join(tmpdir(), "ressources-norights-"));
+  try {
+    const sourceMissingRights = conformantSource();
+    delete sourceMissingRights.rights;
+    await writeFixtureLibrary(root, sourceMissingRights);
+    // Conformant transcript referencing the source, with its transcript file present —
+    // the precondition (transcriptExists) that previously reached the crashing call site.
+    await writeTranscriptFixture(root, conformantTranscript(), { withTranscriptFile: true });
+
+    // Must not throw — this call crashed with an uncaught TypeError before the fix.
+    const result = await validateLibrary(optionsFor(root));
+
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join("\n"), /\.rights is required/);
+    // The cross-file rule is skipped when rights is malformed, so no spurious
+    // "stores raw transcript text" error is layered on top of the schema error.
+    assert.equal(
+      result.errors.filter((error) => error.includes("stores raw transcript text")).length,
+      0,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

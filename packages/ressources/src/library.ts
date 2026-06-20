@@ -212,7 +212,20 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
       warnings.push(`${label} has unknown transcript rights`);
     }
     const source = sourcesBySlug.get(transcript.sourceSlug);
-    if (source && transcriptExists && !canStoreRawTranscript(source, transcript)) {
+    // Only apply the cross-file raw-storage rule when both rights objects are
+    // well-formed. A source with a valid slug (so it lands in sourcesBySlug) but a
+    // missing/non-object `rights` already produced a "rights is required"/type error
+    // from the schema pass above; calling canStoreRawTranscript on it would
+    // dereference `source.rights.storeRawTranscript` and crash the whole run with an
+    // uncaught TypeError. Skipping keeps the schema diagnostics actionable and avoids
+    // double-reporting the same problem.
+    if (
+      source &&
+      transcriptExists &&
+      isPlainObject(source.rights) &&
+      isPlainObject(transcript.rights) &&
+      !canStoreRawTranscript(source, transcript)
+    ) {
       errors.push(
         `${label} stores raw transcript text, but ${source.slug}.rights.storeRawTranscript is false or transcript rights are unknown`,
       );
