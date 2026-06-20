@@ -67,6 +67,37 @@ auto-fills `dimensions`, `frameSize`, `frames`, `fps`, `anchor`, `scale`,
 `views`, `sheet`, and `license` fields in `assets.json`, and writes a
 `previews/<id>-billboard.html` file for the desktop billboard preview.
 
+## Draft & promote (issue #54)
+
+By default `generate` writes straight into `src/assets/assets.json`. Pass
+`--draft` to **stage** the asset for review instead: the whole asset tree (the
+optimized asset, any sprite billboard/frame-map sidecars, and a `drafts.json`
+manifest) is written under `src/assets/drafts/` and the production manifest is
+left untouched. `assetgen promote` then publishes a staged draft — it moves the
+files into the assets root, registers the entry in `assets.json`, and prunes it
+from `drafts.json`.
+
+The staging tree mirrors the production layout exactly, so a draft's relative
+paths are already its post-promote paths — promotion is a move, never a rewrite,
+and preview/anim sidecar links survive untouched.
+
+```bash
+# Stage a draft (nothing lands in assets.json yet):
+bun packages/assetgen/src/cli.ts generate --provider mock --dry-run \
+  --id swarm-husk --game scourge-survivors --kind sprite \
+  --prompt "a parasite-taken Scourge host" --repo ../deadrotcom/apps/games/scourge-survivors --draft
+
+# Review src/assets/drafts/, then publish one draft (or --all):
+bun packages/assetgen/src/cli.ts promote --id swarm-husk --game scourge-survivors \
+  --repo ../deadrotcom/apps/games/scourge-survivors
+bun packages/assetgen/src/cli.ts promote --all --game scourge-survivors --repo ...
+```
+
+Flags: `generate --draft`; `promote (--id <id>[,<id>] | --all) [--game <slug>|shared]
+[--repo <path>]`. `--id` may be repeated. Promote validates up front — an unknown
+id or a draft whose file went missing fails the whole run before anything moves.
+Default (non-draft) generation is byte-for-byte unchanged.
+
 ## The variant matrix (issue #6)
 
 `assetgen matrix` generates the **per-game sprite variant matrix** from the canon
