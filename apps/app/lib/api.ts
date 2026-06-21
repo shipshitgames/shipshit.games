@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 
-// Server-side client for api.shipshit.games. Forwards the caller's Clerk
+// Server-side client for api.shipshit.dev. Forwards the caller's Clerk
 // session JWT so the API authenticates the actual user, not this server.
 const API_URL = process.env.API_URL ?? "http://localhost:3003";
 

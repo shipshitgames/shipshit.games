@@ -287,7 +287,7 @@ run_deploy() {
     log_header "Final API Verification"
     for i in $(seq 1 10); do
       if curl -sf --max-time 10 "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
-        log "api.shipshit.games is healthy (HTTP check passed)"
+        log "api is healthy (HTTP check passed)"
         break
       fi
       [ "$i" -eq 10 ] && log "WARNING: API HTTP health check did not pass after 10 attempts"
