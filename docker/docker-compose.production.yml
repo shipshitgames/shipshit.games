@@ -8,17 +8,27 @@
 # from apps/api/Dockerfile and pulled from ghcr by deploy-production.sh.
 #
 # Run indirectly: docker/deploy-production.sh api  (which sets IMAGE_TAG etc).
+#
+# Topology: this container joins the host's shared `shipshit` docker network
+# alongside deadrot-api and the Caddy reverse proxy. Caddy terminates TLS and
+# proxies api.shipshit.dev -> shipshit-api:3003 BY CONTAINER NAME over that
+# network — so container_name is load-bearing — which is why only a localhost
+# port is published, not a public one.
 services:
   api:
     image: ${API_IMAGE:-ghcr.io/shipshitgames/shipshit.games/api:${IMAGE_TAG:-latest}}
-    container_name: api-shipshit-games
+    container_name: shipshit-api
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    networks:
+      - shipshit
     ports:
-      - '${API_PORT:-3003}:3003'
+      # localhost-only: the host-side deploy health check curls localhost:3003.
+      # Caddy reaches this container over the `shipshit` network by name.
+      - '127.0.0.1:${API_PORT:-3003}:3003'
     env_file:
       # Rendered from SSM by render-ssm-env.sh — carries DATABASE_URL plus every
       # api runtime secret (CLERK_*, STRIPE_WEBHOOK_SECRET, REPLICATE_API_TOKEN,
@@ -41,3 +51,9 @@ services:
       timeout: 5s
       start_period: 15s
       retries: 3
+
+# Shared external bridge created on the host (carries deadrot-api + Caddy too).
+# deploy-production.sh creates it if missing; Caddy proxies to shipshit-api:3003.
+networks:
+  shipshit:
+    external: true

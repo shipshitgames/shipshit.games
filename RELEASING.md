@@ -30,37 +30,38 @@ Workflow: [`.github/workflows/deploy-production.yml`](.github/workflows/deploy-p
 Host scripts: [`docker/`](docker/) (`deploy-production.sh`, `deploy-common.sh`,
 `render-ssm-env.sh`, `docker-compose.production.yml`).
 
-> **⚠️ Production-host cutover in progress (2026-06-21).** The api + co-located
-> `deadrot-api` were rebuilt in **us-west-1** — the box serving `api.shipshit.dev`
-> (`:3003`) and `api.deadrot.com` (`:3004`), with RDS `api-shipshit-dev` /
-> `deadrot-api` in the same VPC. The **old us-east-1 host is dead**: its RDS is
-> gone, so it has no DB (its `/health` still returns 200 only because that route
-> never touches Postgres). But CI and the GitHub webhook still target the old
-> host, so today a `v*` release deploys to the dead box while the live box is
-> updated by hand. The load-bearing fixes below are **infra/config, not code:**
+> **⚠️ Production-host cutover (2026-06-21).** The api + co-located `deadrot-api`
+> run in **us-west-1** on the box serving `api.shipshit.dev` (`:3003`) and
+> `api.deadrot.com` (`:3004`), with RDS `api-shipshit-dev` / `deadrot-api` in the
+> same VPC. The old us-east-1 host (`i-076de07bfc9858a38`) is dead (no RDS) and
+> pending teardown.
 >
-> 1. **Join the us-west-1 box to the tailnet** as `tag:server` — it is *not* a
->    tailnet peer today (`tailscale status` shows only the old `shipshit-api`
->    node, which is the dead us-east-1 box). On the box: install tailscale, then
->    `sudo tailscale up --auth-key <tagged-key> --hostname api-shipshit-dev`.
->    Mint the key in the Tailscale console with tag `tag:server`; confirm the ACL
->    allows `tag:ci → tag:server:22`.
-> 2. **Repoint CI deploy target:** set Actions variable
->    `TAILSCALE_INSTANCE_API_IP` to the box's new tailnet IP — in **both** this
->    repo and `shipshitgames/deadrot.com`. Keep `AWS_REGION=us-east-1`: the
->    `/shipshit/production/*` SSM params live in us-east-1, so ensure the box's
->    instance role can read them cross-region (or copy the params to us-west-1).
-> 3. **Repoint the GitHub webhook** (id `639617616`) →
->    `https://api.shipshit.dev/webhooks/github`.
-> 4. **Set the frontend API base:** `API_URL=https://api.shipshit.dev` in the
->    `app` (and `web`, if it calls the api) Vercel projects — it defaults to
->    `http://localhost:3003` and is not set in checked-in env.
-> 5. **Reconcile the running container:** the deploy manages `api-shipshit-games`
->    on `:3003` — verify the hand-deployed container's name first so the first
->    managed deploy doesn't collide on the port.
-> 6. **Verify**, then **decommission** the us-east-1 host (`i-076de07bfc9858a38`)
->    and the stopped `api.shipshit.dev-al2-rollback` box, and drop/repoint the
->    `api.shipshit.games` A record.
+> **Done:** box on the tailnet as `api-shipshit-dev` (`tag:server`);
+> `TAILSCALE_INSTANCE_API_IP` repointed in this repo **and** `deadrot.com`;
+> webhook `639617616` → `https://api.shipshit.dev/webhooks/github`; CI deploy key
+> in the box's `authorized_keys`. CI now *reaches* the live box.
+>
+> **Box wiring (the compose matches this):** Caddy on the host terminates TLS and
+> reverse-proxies `api.shipshit.dev → shipshit-api:3003` and
+> `api.deadrot.com → deadrot-api:3004` **by container name** over a shared
+> external docker network `shipshit`. So the api container must be named
+> `shipshit-api` and join `shipshit` — `docker-compose.production.yml` +
+> `deploy-production.sh` now do (and the latter creates the network if missing).
+>
+> **First-deploy swap (one-time):** the box currently runs the api from a *manual*
+> ECR image (`…dkr.ecr.us-west-1…/shipshit-api`); CI builds to **ghcr**. Because
+> the compose container name now equals the running one, a CI deploy's
+> `remove_conflicting_container` drops the manual ECR container and brings the
+> ghcr one up on the same name + network — Caddy never notices. Cut over with
+> `docker rm -f shipshit-api` on the box, then run the studio deploy (`force_api`).
+> The manual ECR image is then abandoned. **deadrot needs the same:** its compose
+> container must be `deadrot-api` on the `shipshit` network (not `api-deadrot-com`
+> + a localhost port) or Caddy will 502.
+>
+> **Then:** verify the deploy is green, **decommission** the us-east-1 host + the
+> stopped `api.shipshit.dev-al2-rollback` box, drop/repoint the
+> `api.shipshit.games` A record, and set `API_URL=https://api.shipshit.dev` in the
+> `app`/`web` Vercel projects if not already.
 
 ### Trigger & change-detection
 
