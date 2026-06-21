@@ -21,6 +21,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   index: async () => (await import("./commands/index-assets.ts")).runIndexCommand,
   atlas: async () => (await import("./commands/atlas.ts")).runAtlasCommand,
   "clean-sprites": async () => (await import("./commands/clean-sprites.ts")).runCleanSpritesCommand,
+  "palette-extract": async () => (await import("./commands/palette-extract.ts")).runPaletteExtractCommand, // #115
   maps: async () => (await import("./commands/maps.ts")).runMapsCommand, // #18
 
 };

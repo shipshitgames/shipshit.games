@@ -253,6 +253,43 @@ violates the contract, **0** when all sheets pass (or none are found). `--json`
 prints the full report (`{ ok, assetsDir, game, reports }`) to stdout and keeps
 stderr clean for machine consumers — it does **not** change the exit code.
 
+## `palette-extract` — palette-aware sprite extraction (issue #115)
+
+The flat matte a sprite is keyed on **must sit outside the subject's own
+palette**. When a bruised-purple/violet flyer was generated on a magenta matte,
+extraction left purple/white key residue and bled the key colour back into the
+sprite under runtime filtering (the winged-host failure). `palette-extract`
+makes the safe-key choice a first-class, checkable step: green is the default
+key, but a subject that uses a near-key colour (a toxic-green creature, a
+magenta-tinged flyer) forces the next candidate automatically.
+
+```bash
+# Validate that a source's matte is out of the subject palette (CI / pre-key gate).
+# Exits 1 with an "unsafe-key" / "residual-key" violation when it is not.
+bun packages/assetgen/src/cli.ts palette-extract --check \
+  --in flyer.png --palette-hex "#c020c0,#a030b0,#c1121f,#e9e3d6,#161214"
+
+# Key the matte out with the full guardrail chain and record the chosen key.
+bun packages/assetgen/src/cli.ts palette-extract \
+  --in flyer.png --out flyer.webp --palette doom --size 128
+```
+
+Selection walks `green → magenta → blue → cyan` and takes the first candidate at
+least `--min-distance` (default 110) from every subject colour, so the studio
+DOOM ramp still defaults to green. Extraction keys the matte out, optionally
+hardens alpha (`--hard-alpha`), bleeds subject RGB into the margin (shared
+`postprocess` defringe), centre-pads to a **stable** `--size` plate (it never
+tight-crops per frame — that makes flyers jitter), and encodes lossless WebP. It
+writes the bytes plus an `<out>.key.json` sidecar recording the selected
+`keyColor`, `keyName`, `keyReason`, `keySafe`, and the nearest subject colour, so
+the key choice is auditable in the manifest.
+
+Flags: `--palette <name>` / `--palette-hex "<csv>"`, `--key
+auto|green|magenta|blue|cyan|#rrggbb`, `--min-distance`, `--tolerance`, `--halo`,
+`--size`, `--hard-alpha`, `--force` (extract even with an in-palette key),
+`--check`, `--json`. An in-palette key is **refused** at extract time unless
+`--force` is passed.
+
 ## `codegen` — typed per-game asset bindings (issue #22)
 
 `assetgen codegen --game <slug>` turns the asset index (+ optional
