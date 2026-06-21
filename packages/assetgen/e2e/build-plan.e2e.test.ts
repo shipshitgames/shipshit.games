@@ -53,8 +53,10 @@ async function makeProject(): Promise<{ root: string; assetsDir: string; skillsD
   };
   await writeFile(join(assetsDir, "assets-catalog.json"), JSON.stringify(catalog));
 
+  // dir name is free-form — the blueprint is matched by its gameType/genreAliases,
+  // so a real genre skill (e.g. fps-arena) carries the horde-shooter blueprint.
   const skillsDir = join(root, "skills");
-  const skill = join(skillsDir, "build-horde-shooter-game");
+  const skill = join(skillsDir, "fps-arena");
   await mkdir(skill, { recursive: true });
   const blueprint = {
     gameType: "horde-shooter",

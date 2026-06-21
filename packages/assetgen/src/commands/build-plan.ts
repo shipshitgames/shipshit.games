@@ -7,8 +7,9 @@
 //   4. the game-type blueprint skill -> what the type NEEDS + MVP priority
 //
 // Project resolution honours the registry (#256): `--ip <id>`, `ASSETGEN_IP`,
-// `ASSETGEN_PROJECT_ROOT`, or `--root`/`--assets-dir`. Blueprints are read from
-// `.agents/skills/build-<type>-game/blueprint.json` (override with --skills-dir).
+// `ASSETGEN_PROJECT_ROOT`, or `--root`/`--assets-dir`. Blueprints are read from the
+// shipshitgames/skills repo (`<skill>/blueprint.json`); override the location with
+// `--skills-dir` or `ASSETGEN_SKILLS_DIR`.
 //
 // Flags: `--game <slug>` (required), `--ip <id>`, `--root <path>`,
 // `--assets-dir <path>`, `--skills-dir <path>`, `--checks` (run check --game for
@@ -39,7 +40,25 @@ import { findProject, listProjects, projectAssetsDir, selectedProject, UnknownPr
 const CATALOG_FILE = "assets-catalog.json";
 // this file: <repo>/packages/assetgen/src/commands/build-plan.ts -> srcDir = .../src
 const srcDir = dirname(dirname(fileURLToPath(import.meta.url)));
-const DEFAULT_SKILLS_DIR = join(srcDir, "..", "..", "..", ".agents", "skills");
+
+/**
+ * Where blueprints live: the shipshitgames/skills repo (a `<skill>/blueprint.json`
+ * per game type). Honour ASSETGEN_SKILLS_DIR, then the sibling skills checkout
+ * (monorepo dev), then skills installed into the project (.claude / .codex).
+ */
+function defaultSkillsDir(): string {
+  const env = process.env.ASSETGEN_SKILLS_DIR?.trim();
+  if (env) return env;
+  const cwd = process.cwd();
+  const candidates = [
+    join(srcDir, "..", "..", "..", "..", "skills", "skills"), // <www>/shipshitgames/skills/skills
+    join(cwd, "..", "skills", "skills"),
+    join(cwd, "..", "..", "skills", "skills"),
+    join(cwd, ".claude", "skills"),
+    join(cwd, ".codex", "skills"),
+  ];
+  return candidates.find((c) => existsSync(c)) ?? candidates[0]!;
+}
 
 function isGameSlug(value: string): value is GameSlug {
   return (GAME_SLUGS as readonly string[]).includes(value);
@@ -168,7 +187,7 @@ export async function runBuildPlanCommand(argv: string[]): Promise<void> {
   const missing = computeVariantGaps(catalog, [game]);
   const broken = await collectBroken(argv, game, assetsDir);
 
-  const blueprints = await loadBlueprints(flag(argv, "skills-dir") || DEFAULT_SKILLS_DIR);
+  const blueprints = await loadBlueprints(flag(argv, "skills-dir") || defaultSkillsDir());
   const blueprint = selectBlueprint(blueprints, context.design.genre);
 
   const plan = buildPlan({

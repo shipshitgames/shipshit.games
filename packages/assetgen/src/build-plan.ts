@@ -4,8 +4,9 @@
 // three merged signals into one MVP-ordered worklist that tells the agent what to
 // build next.
 //
-//   - WHAT THE TYPE NEEDS  — a per-game-type blueprint (a `build-<type>-game`
-//     skill's `blueprint.json`): required asset classes + the MVP slice.
+//   - WHAT THE TYPE NEEDS  — a per-game-type blueprint (a game-type skill's
+//     `blueprint.json` in the shipshitgames/skills repo): required asset classes
+//     + the MVP slice.
 //   - WHAT IS MISSING      — catalog variant nulls (`computeVariantGaps`, #259).
 //   - WHAT IS BROKEN       — `check --game` failures (`brokenAssetsFromReport`, #259).
 //   - DESIGN CONTEXT       — genre + core loop + MVP requirements (`ingest-docs`, #260).
@@ -49,8 +50,10 @@ function norm(s: string): string {
 }
 
 /**
- * Discover blueprint skills under `skillsDir` — every `build-<type>-game/blueprint.json`.
- * Pure-ish IO: never throws; malformed or partial blueprints are skipped.
+ * Discover blueprints under `skillsDir` — every `<skill>/blueprint.json`. The
+ * skill directory name is free-form (e.g. `fps-arena`); a blueprint is keyed by
+ * its own `gameType`/`genreAliases`, so any game skill in the shipshitgames/skills
+ * repo can carry one. Pure-ish IO: never throws; malformed blueprints are skipped.
  */
 export async function loadBlueprints(skillsDir: string): Promise<Blueprint[]> {
   if (!existsSync(skillsDir)) return [];
@@ -62,7 +65,6 @@ export async function loadBlueprints(skillsDir: string): Promise<Blueprint[]> {
   }
   const out: Blueprint[] = [];
   for (const name of entries) {
-    if (!/^build-.+-game$/.test(name)) continue;
     const file = join(skillsDir, name, "blueprint.json");
     if (!existsSync(file)) continue;
     try {
