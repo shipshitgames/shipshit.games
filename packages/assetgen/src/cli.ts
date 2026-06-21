@@ -22,6 +22,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   atlas: async () => (await import("./commands/atlas.ts")).runAtlasCommand,
   "clean-sprites": async () => (await import("./commands/clean-sprites.ts")).runCleanSpritesCommand,
   maps: async () => (await import("./commands/maps.ts")).runMapsCommand, // #18
+  "ingest-docs": async () => (await import("./commands/ingest-docs.ts")).runIngestDocsCommand, // #260
 
 };
 
