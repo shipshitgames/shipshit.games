@@ -788,6 +788,109 @@ test("ingestProjectDocs selects a game doc via the frontmatter.mode field", asyn
   }
 });
 
+test("ingestProjectDocs prefers the filename-matched Games/<Game>.md doc as the metadata primary", async () => {
+  // Real-world shape (Deadrot): the canonical game doc lives at
+  // apps/lore/content/Games/Scourge-Survivors.md and carries the genre, but it
+  // has NO frontmatter.game — it matches only by its filename slug. A peripheral
+  // UI-previs README under Art/ tags `game: Scourge-Survivors` and sorts FIRST
+  // alphabetically (Art/ < Games/). The genre must still come from the real game
+  // doc, not from the genre-less previs README that merely happens to sort first.
+  const root = await mkdtemp(join(tmpdir(), "ingest-primary-"));
+  try {
+    const content = join(root, "apps", "lore", "content");
+
+    // Peripheral doc: tags `game:` but carries no genre, sorts before Games/.
+    const previsDir = join(content, "Art", "UI-Drafts", "2026-06-04-fps-hud-previs");
+    await mkdir(previsDir, { recursive: true });
+    await writeFile(
+      join(previsDir, "README.md"),
+      [
+        "---",
+        "type: buildable-ui-previs",
+        "game: Scourge-Survivors",
+        "---",
+        "# Scourge Survivors FPS HUD Previs",
+        "",
+        "## Core Loop",
+        "Wrong loop — this previs README must not become the primary.",
+      ].join("\n"),
+    );
+
+    // Canonical game doc: matches ONLY by filename slug, carries the genre.
+    const gamesDir = join(content, "Games");
+    await mkdir(gamesDir, { recursive: true });
+    await writeFile(
+      join(gamesDir, "Scourge-Survivors.md"),
+      [
+        "---",
+        "genre: first-person horde-survivors shooter (Vampire-Survivors × DOOM)",
+        "faction: The Pyre",
+        "---",
+        "# Scourge Survivors",
+        "",
+        "## Core Loop",
+        "Drop in, grind the Scourge, draft upgrades, push deeper until overrun.",
+      ].join("\n"),
+    );
+
+    const ctx = await ingestProjectDocs({ root, game: "scourge-survivors" });
+
+    assert.equal(ctx.game, "scourge-survivors");
+    // Genre + title + core loop all come from the canonical Games/ doc, not the README.
+    assert.match(ctx.design.genre ?? "", /survivors/i);
+    assert.match(ctx.design.genre ?? "", /horde/i);
+    assert.equal(ctx.design.title, "Scourge Survivors");
+    assert.equal(
+      ctx.design.coreLoop,
+      "Drop in, grind the Scourge, draft upgrades, push deeper until overrun.",
+    );
+
+    // Both docs are still ingested (the previs README is a legitimate lore doc).
+    const lore = ctx.sources.find((s) => s.source === "lore")!;
+    assert.equal(lore.count, 2);
+    const paths = ctx.docs.map((d) => d.path).sort();
+    assert.deepEqual(paths, [
+      "apps/lore/content/Art/UI-Drafts/2026-06-04-fps-hud-previs/README.md",
+      "apps/lore/content/Games/Scourge-Survivors.md",
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("ingestProjectDocs falls back to a frontmatter-only game-doc match as the primary", async () => {
+  // No doc's filename slugifies to the game slug (bySlug is false everywhere), but
+  // one doc tags itself via frontmatter.game. The fallback (gameDocs[0]) must still
+  // make it the metadata primary so its genre/core loop surface.
+  const root = await mkdtemp(join(tmpdir(), "ingest-fallback-"));
+  try {
+    await mkdir(join(root, "lore", "Games"), { recursive: true });
+    await writeFile(
+      join(root, "lore", "Games", "Flagship.md"),
+      [
+        "---",
+        "game: scourge-survivors",
+        "genre: first-person horde shooter",
+        "---",
+        "# Flagship FPS",
+        "",
+        "## Core Loop",
+        "Survive the swarm and push deeper.",
+      ].join("\n"),
+    );
+
+    const ctx = await ingestProjectDocs({ root, game: "scourge-survivors" });
+    assert.equal(ctx.game, "scourge-survivors");
+    assert.equal(ctx.design.title, "Flagship FPS");
+    assert.match(ctx.design.genre ?? "", /horde/i);
+    assert.equal(ctx.design.coreLoop, "Survive the swarm and push deeper.");
+    const lore = ctx.sources.find((s) => s.source === "lore")!;
+    assert.equal(lore.count, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("ingestProjectDocs slugifies a display-name game so catalog scoping still matches", async () => {
   // Passing "The Scavenge" (a display name) must resolve to the slug "the-scavenge"
   // and still scope the catalog, whose games/variants keys are slugs.

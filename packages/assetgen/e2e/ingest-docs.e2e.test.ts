@@ -241,6 +241,56 @@ test("e2e: an empty root degrades gracefully (exit 0, no context)", async () => 
   }
 });
 
+test("e2e: genre is read from the canonical Games/<Game>.md even when a previs doc tags the game (exit 0)", async () => {
+  // Mirrors the Deadrot layout that regressed the Build Plan engine: the genre
+  // lives in apps/lore/content/Games/<Game>.md (matched only by its filename
+  // slug — no game/mode frontmatter), while a peripheral Art/ previs README tags
+  // `game:` and sorts FIRST alphabetically. The canonical game doc must win, so
+  // the genre surfaces (and a genre-aware blueprint can match downstream).
+  const root = await mkdtemp(join(tmpdir(), "assetgen-ingestdocs-e2e-primary-"));
+  try {
+    const content = join(root, "apps", "lore", "content");
+
+    const previsDir = join(content, "Art", "UI-Drafts", "2026-06-04-fps-hud-previs");
+    await mkdir(previsDir, { recursive: true });
+    await writeFile(
+      join(previsDir, "README.md"),
+      ["---", "type: buildable-ui-previs", `game: ${GAME}`, "---", "# FPS HUD Previs", "", "Buildable DOM prototype."].join(
+        "\n",
+      ),
+    );
+
+    const gamesDir = join(content, "Games");
+    await mkdir(gamesDir, { recursive: true });
+    await writeFile(
+      join(gamesDir, "Scourge-Survivors.md"),
+      [
+        "---",
+        "genre: first-person horde-survivors shooter",
+        "---",
+        "# Scourge Survivors",
+        "",
+        "## Core Loop",
+        "Drop in, grind the Scourge, draft upgrades, push deeper until overrun.",
+      ].join("\n"),
+    );
+
+    const res = await spawnCli(["ingest-docs", "--root", root, "--game", GAME, "--json"]);
+    assert.equal(res.exitCode, 0, `stdout:\n${res.stdout}\nstderr:\n${res.stderr}`);
+
+    const ctx = JSON.parse(res.stdout) as Ctx;
+    assert.equal(ctx.hasContext, true);
+    assert.match(ctx.design.genre ?? "", /survivors/i, "genre must come from the Games/ doc, not the previs README");
+    assert.notEqual(ctx.design.coreLoop, null);
+
+    // Both docs were ingested; the canonical game doc is the one carrying the genre.
+    const lore = ctx.sources.find((s) => s.source === "lore");
+    assert.equal(lore?.count, 2);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("e2e: docs without a catalog yield doc-only entities and no asset requirements (exit 0)", async () => {
   const root = await projectRoot({ withCatalog: false });
   try {
