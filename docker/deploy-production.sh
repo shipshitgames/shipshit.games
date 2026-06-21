@@ -1,5 +1,5 @@
 #!/bin/bash
-# Production deploy orchestration for api.shipshit.games.
+# Production deploy orchestration for api.shipshit.dev.
 # Runs ON the EC2 host via a single SSH session from GitHub Actions.
 #
 # Usage: ./docker/deploy-production.sh <space-separated services>
@@ -18,7 +18,7 @@ CONTAINER_PREFIX="shipshit"
 # default ${CONTAINER_PREFIX}-api, so it reads clearly on the shared host next to
 # api-deadrot-com. Must match container_name in docker-compose.production.yml.
 declare -A CONTAINER_NAMES=([api]="api-shipshit-games")
-DEPLOY_HEADER="Production Deployment — api.shipshit.games"
+DEPLOY_HEADER="Production Deployment — api.shipshit.dev"
 
 REGISTRY="ghcr.io"
 # Derived from ${{ github.repository }} (exported by the deploy job) so it can

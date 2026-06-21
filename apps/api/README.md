@@ -1,8 +1,8 @@
 # api — the Ship Shit platform API
 
-Next.js (route handlers only) + Prisma/Postgres. Serves `api.shipshit.games`
-on Vercel today, and ships as a self-contained Docker image so other brands
-(deadrot) can run the same API with different env.
+Next.js (route handlers only) + Prisma/Postgres. Serves `api.shipshit.dev` as a
+self-contained Docker image on an EC2 host co-located with its RDS Postgres, so
+other brands (deadrot) can run the same image with different env on the same host.
 
 ## Surface
 

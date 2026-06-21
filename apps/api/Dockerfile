@@ -1,4 +1,4 @@
-# api.shipshit.games — build from the REPO ROOT so workspace deps resolve:
+# api.shipshit.dev — build from the REPO ROOT so workspace deps resolve:
 #   docker build -f apps/api/Dockerfile -t shipshit-api .
 # The same image serves any brand (deadrot etc.) — all config is env-driven,
 # see README.md for the variables.

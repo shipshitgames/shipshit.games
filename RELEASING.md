@@ -18,7 +18,7 @@ surfaces.
 | `web`  | shipshit.games      | Vercel | `vercel deploy --prod` (project `prj_rgAwd80VdYDiT3adfMlmOAAnKVqN`) |
 | `app`  | app.shipshit.games  | Vercel | `vercel deploy --prod` (project `prj_g7ItrkBV2QeXTYBqYIetTjrz0gpZ`) |
 | `docs` | docs.shipshit.games | Vercel | `vercel deploy --prod` (project `prj_KcglQPTZJFj6Nn5oUj04OE0oXm8y`) |
-| `api`  | api.shipshit.games  | **EC2 (Docker)** | image → ghcr → SSH-over-Tailscale → `docker compose` on the host, in the RDS VPC |
+| `api`  | api.shipshit.dev    | **EC2 (Docker)** | image → ghcr → SSH-over-Tailscale → `docker compose` on the host, in the RDS VPC |
 
 The `api` runs on a single EC2 host **inside the RDS VPC**, allow-listed on the
 RDS security group. That is the fix for the original problem: a Vercel-hosted
@@ -29,6 +29,38 @@ credentials ever touch GitHub Actions.**
 Workflow: [`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)
 Host scripts: [`docker/`](docker/) (`deploy-production.sh`, `deploy-common.sh`,
 `render-ssm-env.sh`, `docker-compose.production.yml`).
+
+> **⚠️ Production-host cutover in progress (2026-06-21).** The api + co-located
+> `deadrot-api` were rebuilt in **us-west-1** — the box serving `api.shipshit.dev`
+> (`:3003`) and `api.deadrot.com` (`:3004`), with RDS `api-shipshit-dev` /
+> `deadrot-api` in the same VPC. The **old us-east-1 host is dead**: its RDS is
+> gone, so it has no DB (its `/health` still returns 200 only because that route
+> never touches Postgres). But CI and the GitHub webhook still target the old
+> host, so today a `v*` release deploys to the dead box while the live box is
+> updated by hand. The load-bearing fixes below are **infra/config, not code:**
+>
+> 1. **Join the us-west-1 box to the tailnet** as `tag:server` — it is *not* a
+>    tailnet peer today (`tailscale status` shows only the old `shipshit-api`
+>    node, which is the dead us-east-1 box). On the box: install tailscale, then
+>    `sudo tailscale up --auth-key <tagged-key> --hostname api-shipshit-dev`.
+>    Mint the key in the Tailscale console with tag `tag:server`; confirm the ACL
+>    allows `tag:ci → tag:server:22`.
+> 2. **Repoint CI deploy target:** set Actions variable
+>    `TAILSCALE_INSTANCE_API_IP` to the box's new tailnet IP — in **both** this
+>    repo and `shipshitgames/deadrot.com`. Keep `AWS_REGION=us-east-1`: the
+>    `/shipshit/production/*` SSM params live in us-east-1, so ensure the box's
+>    instance role can read them cross-region (or copy the params to us-west-1).
+> 3. **Repoint the GitHub webhook** (id `639617616`) →
+>    `https://api.shipshit.dev/webhooks/github`.
+> 4. **Set the frontend API base:** `API_URL=https://api.shipshit.dev` in the
+>    `app` (and `web`, if it calls the api) Vercel projects — it defaults to
+>    `http://localhost:3003` and is not set in checked-in env.
+> 5. **Reconcile the running container:** the deploy manages `api-shipshit-games`
+>    on `:3003` — verify the hand-deployed container's name first so the first
+>    managed deploy doesn't collide on the port.
+> 6. **Verify**, then **decommission** the us-east-1 host (`i-076de07bfc9858a38`)
+>    and the stopped `api.shipshit.dev-al2-rollback` box, and drop/repoint the
+>    `api.shipshit.games` A record.
 
 ### Trigger & change-detection
 
@@ -115,7 +147,7 @@ need to redeploy without cutting a new tag.
 - **RDS security group**: add an inbound rule allowing this host (its SG or
   private IP) on Postgres `5432`.
 - Open the **api port** (`3003`) only as needed (front it with the existing
-  reverse proxy / DNS for `api.shipshit.games`).
+  reverse proxy / DNS for `api.shipshit.dev`).
 
 ### 3d. SSM parameters (`<prefix>/production/<KEY>`, SecureString)
 

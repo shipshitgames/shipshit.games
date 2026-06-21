@@ -43,7 +43,7 @@ services:
       REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
-      SERVICE_NAME: ${SERVICE_NAME:-api.shipshit.games}
+      SERVICE_NAME: ${SERVICE_NAME:-api.shipshit.dev}
     ports:
       - "3003:3003"
     depends_on:

@@ -1,7 +1,7 @@
-# Production compose for api.shipshit.games — a single stateless Next.js API in
+# Production compose for api.shipshit.dev — a single stateless Next.js API in
 # front of the managed RDS Postgres. There is no in-compose Postgres: the DB is
-# the AWS RDS instance `shipshit-api`, reached privately because this host sits
-# in the VPC and is allow-listed on the RDS security group.
+# the AWS RDS instance `api-shipshit-dev` (us-west-1), reached privately because
+# this host sits in that RDS's VPC and is allow-listed on its security group.
 #
 # Env is hydrated from AWS SSM into ../.env.production by render-ssm-env.sh on
 # every deploy; the container reads it via env_file. The image is built in CI
@@ -29,7 +29,7 @@ services:
       - NODE_ENV=production
       - PORT=3003
       - HOSTNAME=0.0.0.0
-      - SERVICE_NAME=${SERVICE_NAME:-api.shipshit.games}
+      - SERVICE_NAME=${SERVICE_NAME:-api.shipshit.dev}
     healthcheck:
       # The runner image ships node (no curl/wget), so poll /health with fetch.
       test:
