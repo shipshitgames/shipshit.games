@@ -644,11 +644,13 @@ export async function ingestProjectDocs(opts: IngestOptions): Promise<ProjectDoc
   // Fall back to the first matched doc.
   const primaryDoc =
     game !== null ? (gameDocs.find((d) => d.bySlug)?.parsed ?? gameDocs[0]?.parsed ?? null) : designDoc;
-  const designDocGenre =
-    designDoc && typeof designDoc.frontmatter.genre === "string" && designDoc.frontmatter.genre
-      ? designDoc.frontmatter.genre
-      : null;
-  const design = extractDesignMetadata(primaryDoc, designDocGenre);
+  // Genre fallback: prefer a genre declared by any matched game doc, then the
+  // universe DESIGN.md — so a per-game genre is honoured even when the chosen
+  // primary doc omits it.
+  const genreDoc = [...gameDocs.map((d) => d.parsed), designDoc].find(
+    (d): d is ParsedMarkdown => !!d && typeof d.frontmatter.genre === "string" && !!d.frontmatter.genre,
+  );
+  const design = extractDesignMetadata(primaryDoc, genreDoc ? (genreDoc.frontmatter.genre as string) : null);
 
   // 6. Catalog + asset requirements.
   const catalogPath =

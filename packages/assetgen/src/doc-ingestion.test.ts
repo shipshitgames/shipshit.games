@@ -916,3 +916,29 @@ test("ingestProjectDocs slugifies a display-name game so catalog scoping still m
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("ingestProjectDocs falls back to a genre on any matched game doc when the canonical doc omits it", async () => {
+  const root = await mkdtemp(join(tmpdir(), "ingest-genre-fallback-"));
+  try {
+    // Canonical Games/<Game>.md matches by filename slug (so it is the primary)
+    // but declares NO genre.
+    await mkdir(join(root, "lore", "Games"), { recursive: true });
+    await writeFile(
+      join(root, "lore", "Games", "Horde.md"),
+      ["---", "faction: pyre", "---", "# Horde", "", "## Core Loop", "Survive the swarm."].join("\n"),
+    );
+    // A peripheral doc matches by frontmatter.game and DOES declare the genre.
+    await mkdir(join(root, "lore", "Design"), { recursive: true });
+    await writeFile(
+      join(root, "lore", "Design", "Horde-Pitch.md"),
+      ["---", "game: horde", "genre: wave shooter", "---", "# Pitch"].join("\n"),
+    );
+
+    const ctx = await ingestProjectDocs({ root, game: "horde" });
+    assert.equal(ctx.design.title, "Horde"); // canonical Games/ doc stays primary
+    assert.equal(ctx.design.coreLoop, "Survive the swarm.");
+    assert.equal(ctx.design.genre, "wave shooter"); // genre sourced from the other matched doc
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
