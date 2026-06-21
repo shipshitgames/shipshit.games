@@ -124,7 +124,7 @@ test("e2e: --json maps catalog variant gaps and check failures into one report",
     assert.equal(report.summary.missingVariants, 1); // gap-entity → deadlane
     assert.equal(report.summary.brokenAssets, 1); // ghost unresolved in scourge-survivors
     assert.equal(report.summary.totalGaps, 2);
-    assert.equal(report.summary.gamesTotal, 6);
+    assert.equal(report.summary.gamesTotal, 8);
     assert.equal(report.summary.gamesChecked, 1);
     assert.equal(report.catalogVersion, "9.9.9");
 
@@ -148,9 +148,9 @@ test("e2e: --json maps catalog variant gaps and check failures into one report",
     const ssSprite = report.byTypeAndPriority.find((g) => g.assetType === "sprite" && g.game === "scourge-survivors");
     assert.ok((ssSprite?.brokenAssets ?? 0) >= 1);
 
-    // The five games with no seeded manifest are reported unchecked, not crashed.
+    // The seven games with no seeded manifest are reported unchecked, not crashed.
     const unchecked = report.byGame.filter((g) => !g.checked);
-    assert.equal(unchecked.length, 5);
+    assert.equal(unchecked.length, 7);
     assert.ok(unchecked.every((g) => /no registration manifest/.test(g.reason ?? "")));
   } finally {
     await rm(assetsDir, { recursive: true, force: true });
