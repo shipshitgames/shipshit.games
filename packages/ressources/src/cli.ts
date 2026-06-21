@@ -4,10 +4,19 @@ import { dirname, resolve } from "node:path";
 import {
   createDerivative,
   createTranscriptResource,
-  loadSources,
   syncChannelVideos,
   validateLibrary,
 } from "./library";
+import {
+  formatDerivativesTable,
+  formatSourcesTable,
+  formatTranscriptsTable,
+  inventoryDerivatives,
+  inventorySources,
+  inventoryTranscripts,
+  type Inventory,
+  type InventoryOptions,
+} from "./inventory";
 import { distill } from "./distill";
 import { fetchTranscript } from "./transcript";
 import type { DerivativeKind, TranscriptRightsStatus } from "./types";
@@ -34,6 +43,30 @@ function allFlags(name: string): string[] {
 
 function boolFlag(name: string): boolean {
   return argv.includes(`--${name}`);
+}
+
+/** Point an inventory command at another library tree with `--root <dir>`. */
+function inventoryOptions(): InventoryOptions {
+  const root = flag("root");
+  if (!root) return {};
+  return {
+    sourcesDir: resolve(root, "sources"),
+    transcriptsDir: resolve(root, "transcripts"),
+    derivativesDir: resolve(root, "derivatives"),
+    contentRoot: resolve(root),
+  };
+}
+
+/**
+ * Print an inventory (stable JSON with `--json`, otherwise an aligned table),
+ * route any validation-blocking errors to stderr, and exit non-zero when the
+ * library has malformed records.
+ */
+function emitInventory<Item>(inventory: Inventory<Item>, table: string): void {
+  console.log(boolFlag("json") ? JSON.stringify(inventory, null, 2) : table);
+  for (const warning of inventory.warnings) console.warn(`[warn] ${warning}`);
+  for (const error of inventory.errors) console.error(`[error] ${error}`);
+  if (inventory.errors.length > 0) process.exit(1);
 }
 
 async function runDistill(): Promise<void> {
@@ -81,7 +114,9 @@ function help(): void {
   console.log(`usage: ressources <command> [flags]
 
 commands:
-  sources           list source manifests
+  sources           inventory source manifests (--json for tools, --root <dir> for another library)
+  transcripts       inventory transcript sidecars (--json, --root <dir>)
+  derivatives       inventory derivative manifests (--json, --root <dir>)
   validate          validate sources, transcripts, and derivatives against schemas/ (--root <dir> for another library)
   distill           fetch/read a transcript and distill reusable build rules
   new-transcript    create transcript markdown plus sidecar metadata
@@ -90,6 +125,9 @@ commands:
 
 examples:
   bun packages/ressources/src/cli.ts sources
+  bun packages/ressources/src/cli.ts sources --json
+  bun packages/ressources/src/cli.ts transcripts --json
+  bun packages/ressources/src/cli.ts derivatives
   bun packages/ressources/src/cli.ts validate
   bun packages/ressources/src/cli.ts distill --url <youtube-url> --out rules.md
   bun packages/ressources/src/cli.ts distill --transcript-file transcript.txt --title "Title" --out rules.md
@@ -113,10 +151,20 @@ async function run(): Promise<void> {
     }
 
     case "sources": {
-      const sources = await loadSources();
-      for (const source of sources) {
-        console.log(`${source.slug}\t${source.priority}\t${source.kind}\t${source.title}\t${source.url}`);
-      }
+      const inventory = await inventorySources(inventoryOptions());
+      emitInventory(inventory, formatSourcesTable(inventory));
+      return;
+    }
+
+    case "transcripts": {
+      const inventory = await inventoryTranscripts(inventoryOptions());
+      emitInventory(inventory, formatTranscriptsTable(inventory));
+      return;
+    }
+
+    case "derivatives": {
+      const inventory = await inventoryDerivatives(inventoryOptions());
+      emitInventory(inventory, formatDerivativesTable(inventory));
       return;
     }
 
