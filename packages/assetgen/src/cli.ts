@@ -18,11 +18,15 @@ const COMMANDS: Record<string, CommandLoader> = {
   codegen: async () => (await import("./commands/codegen.ts")).runCodegenCommand, // #22
   check: async () => (await import("./commands/check.ts")).runCheckCommand,
   "check-sprites": async () => (await import("./commands/check-sprites.ts")).runCheckSpritesCommand, // #166
+  "check-sheets": async () => (await import("./commands/check-sheets.ts")).runCheckSheetsCommand, // #246
+  "normalize-sheet": async () => (await import("./commands/normalize-sheet.ts")).runNormalizeSheetCommand, // #246
   index: async () => (await import("./commands/index-assets.ts")).runIndexCommand,
+  "gap-map": async () => (await import("./commands/gap-map.ts")).runGapMapCommand, // #259
   atlas: async () => (await import("./commands/atlas.ts")).runAtlasCommand,
   "clean-sprites": async () => (await import("./commands/clean-sprites.ts")).runCleanSpritesCommand,
   "palette-extract": async () => (await import("./commands/palette-extract.ts")).runPaletteExtractCommand, // #115
   maps: async () => (await import("./commands/maps.ts")).runMapsCommand, // #18
+  "ingest-docs": async () => (await import("./commands/ingest-docs.ts")).runIngestDocsCommand, // #260
 
 };
 
