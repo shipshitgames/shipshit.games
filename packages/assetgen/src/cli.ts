@@ -21,6 +21,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   "check-sheets": async () => (await import("./commands/check-sheets.ts")).runCheckSheetsCommand, // #246
   "normalize-sheet": async () => (await import("./commands/normalize-sheet.ts")).runNormalizeSheetCommand, // #246
   index: async () => (await import("./commands/index-assets.ts")).runIndexCommand,
+  "gap-map": async () => (await import("./commands/gap-map.ts")).runGapMapCommand, // #259
   atlas: async () => (await import("./commands/atlas.ts")).runAtlasCommand,
   "clean-sprites": async () => (await import("./commands/clean-sprites.ts")).runCleanSpritesCommand,
   maps: async () => (await import("./commands/maps.ts")).runMapsCommand, // #18
