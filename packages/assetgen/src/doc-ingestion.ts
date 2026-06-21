@@ -590,7 +590,11 @@ export async function ingestProjectDocs(opts: IngestOptions): Promise<ProjectDoc
   ).filter((d) => existsSync(d));
 
   // 3. Game doc(s): scan lore dirs for the selected game's docs (only when a game is set).
-  const gameDocs: { path: string; parsed: ParsedMarkdown }[] = [];
+  // A doc matches when its frontmatter game/mode OR its FILENAME slugifies to the
+  // game slug — the latter finds the canonical `…/Games/<Game>.md` design doc even
+  // when its frontmatter omits game/mode. `bySlug` records that filename match so
+  // step 5 can prefer the real game doc as the metadata `primary`.
+  const gameDocs: { path: string; parsed: ParsedMarkdown; bySlug: boolean }[] = [];
   if (game !== null) {
     const mdFiles: string[] = [];
     for (const dir of loreDirs) await collectMarkdown(dir, mdFiles);
@@ -602,8 +606,9 @@ export async function ingestProjectDocs(opts: IngestOptions): Promise<ProjectDoc
       const fmGame = typeof parsed.frontmatter.game === "string" ? slugify(parsed.frontmatter.game) : "";
       const fmMode = typeof parsed.frontmatter.mode === "string" ? slugify(parsed.frontmatter.mode) : "";
       const fileSlug = slugify((file.split(sep).pop() ?? "").replace(/\.md$/i, ""));
-      if (fmGame === game || fmMode === game || fileSlug === game) {
-        gameDocs.push({ path: file, parsed });
+      const bySlug = fileSlug === game;
+      if (fmGame === game || fmMode === game || bySlug) {
+        gameDocs.push({ path: file, parsed, bySlug });
       }
     }
   }
@@ -631,13 +636,21 @@ export async function ingestProjectDocs(opts: IngestOptions): Promise<ProjectDoc
     });
   }
 
-  // 5. Distill design metadata. Primary = first game doc when a game is set, else the design doc.
-  const primaryDoc = game !== null ? (gameDocs[0]?.parsed ?? null) : designDoc;
-  const designDocGenre =
-    designDoc && typeof designDoc.frontmatter.genre === "string" && designDoc.frontmatter.genre
-      ? designDoc.frontmatter.genre
-      : null;
-  const design = extractDesignMetadata(primaryDoc, designDocGenre);
+  // 5. Distill design metadata. Primary = the canonical game doc when a game is
+  // set, else the design doc. Prefer the doc whose FILENAME matches the game slug
+  // (the `…/Games/<Game>.md` design doc that carries genre + core loop) over a
+  // peripheral doc that merely tags `game:`/`mode:` in frontmatter (e.g. a
+  // UI-previs README), which would otherwise shadow it whenever it sorts first.
+  // Fall back to the first matched doc.
+  const primaryDoc =
+    game !== null ? (gameDocs.find((d) => d.bySlug)?.parsed ?? gameDocs[0]?.parsed ?? null) : designDoc;
+  // Genre fallback: prefer a genre declared by any matched game doc, then the
+  // universe DESIGN.md — so a per-game genre is honoured even when the chosen
+  // primary doc omits it.
+  const genreDoc = [...gameDocs.map((d) => d.parsed), designDoc].find(
+    (d): d is ParsedMarkdown => !!d && typeof d.frontmatter.genre === "string" && !!d.frontmatter.genre,
+  );
+  const design = extractDesignMetadata(primaryDoc, genreDoc ? (genreDoc.frontmatter.genre as string) : null);
 
   // 6. Catalog + asset requirements.
   const catalogPath =
