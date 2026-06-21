@@ -24,6 +24,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   "gap-map": async () => (await import("./commands/gap-map.ts")).runGapMapCommand, // #259
   atlas: async () => (await import("./commands/atlas.ts")).runAtlasCommand,
   "clean-sprites": async () => (await import("./commands/clean-sprites.ts")).runCleanSpritesCommand,
+  "palette-extract": async () => (await import("./commands/palette-extract.ts")).runPaletteExtractCommand, // #115
   maps: async () => (await import("./commands/maps.ts")).runMapsCommand, // #18
   "ingest-docs": async () => (await import("./commands/ingest-docs.ts")).runIngestDocsCommand, // #260
 
