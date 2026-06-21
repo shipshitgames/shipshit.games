@@ -813,3 +813,30 @@ test("ingestProjectDocs slugifies a display-name game so catalog scoping still m
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("ingestProjectDocs prefers the canonical Games/ doc and reads its genre over an incidental match", async () => {
+  const root = await mkdtemp(join(tmpdir(), "ingest-genre-rank-"));
+  try {
+    // An incidental match that sorts alphabetically first (Art < Games) and matches
+    // by frontmatter.game, but carries NO genre.
+    await mkdir(join(root, "lore", "Art"), { recursive: true });
+    await writeFile(
+      join(root, "lore", "Art", "batch.md"),
+      ["---", "game: horde", "---", "# Batch", "", "Concept batch, no genre."].join("\n"),
+    );
+    // The canonical game doc (Games/) matches by filename slug and declares the genre.
+    await mkdir(join(root, "lore", "Games"), { recursive: true });
+    await writeFile(
+      join(root, "lore", "Games", "Horde.md"),
+      ["---", "genre: wave shooter", "---", "# Horde", "", "## Core Loop", "Survive the swarm."].join("\n"),
+    );
+    // Deliberately NO DESIGN.md, so the genre can only come from the game doc.
+
+    const ctx = await ingestProjectDocs({ root, game: "horde" });
+    assert.equal(ctx.design.genre, "wave shooter");
+    assert.equal(ctx.design.title, "Horde"); // canonical Games/ doc chosen as primary
+    assert.equal(ctx.design.coreLoop, "Survive the swarm.");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

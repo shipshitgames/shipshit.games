@@ -631,13 +631,19 @@ export async function ingestProjectDocs(opts: IngestOptions): Promise<ProjectDoc
     });
   }
 
-  // 5. Distill design metadata. Primary = first game doc when a game is set, else the design doc.
-  const primaryDoc = game !== null ? (gameDocs[0]?.parsed ?? null) : designDoc;
-  const designDocGenre =
-    designDoc && typeof designDoc.frontmatter.genre === "string" && designDoc.frontmatter.genre
-      ? designDoc.frontmatter.genre
-      : null;
-  const design = extractDesignMetadata(primaryDoc, designDocGenre);
+  // 5. Distill design metadata. Prefer the canonical game doc (e.g.
+  // `Games/<Game>.md`, or `frontmatter.type: game`) over an incidental filename
+  // match, and source the genre from whichever doc declares one — so a genre on
+  // the game doc is honoured even when it is not the alphabetically-first match.
+  const isGameDoc = (d: { path: string; parsed: ParsedMarkdown }): boolean =>
+    /(^|\/)games\//i.test(toPosix(relative(root, d.path))) || d.parsed.frontmatter.type === "game";
+  const rankedGameDocs = [...gameDocs].sort((a, b) => Number(isGameDoc(b)) - Number(isGameDoc(a)));
+  const primaryDoc = game !== null ? (rankedGameDocs[0]?.parsed ?? null) : designDoc;
+  const genreDoc = [...rankedGameDocs.map((d) => d.parsed), designDoc].find(
+    (d): d is ParsedMarkdown => !!d && typeof d.frontmatter.genre === "string" && !!d.frontmatter.genre,
+  );
+  const fallbackGenre = genreDoc ? (genreDoc.frontmatter.genre as string) : null;
+  const design = extractDesignMetadata(primaryDoc, fallbackGenre);
 
   // 6. Catalog + asset requirements.
   const catalogPath =
