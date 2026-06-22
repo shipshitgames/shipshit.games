@@ -131,10 +131,13 @@ SSM_PATH="${SSM_PARAMETER_PATH_PREFIX}/${DEPLOY_ENV}"
 
 log "Fetching SSM parameters from ${SSM_PATH} in ${AWS_REGION}"
 
+# NON-recursive on purpose: the api's params are flat leaves directly under
+# ${SSM_PATH}. A co-tenant subtree (/shipshit/production/deadrot/*, whose leaves
+# such as DATABASE_URL collide with ours) lives one level deeper and is rendered
+# by deadrot's own deploy script -- never fold it into the api's env.
 PARAMETER_ROWS="$(
   aws ssm get-parameters-by-path \
     --path "${SSM_PATH}" \
-    --recursive \
     --with-decryption \
     --region "${AWS_REGION}" \
     --query 'Parameters[].[Name,Value]' \
