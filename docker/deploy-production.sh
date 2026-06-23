@@ -10,13 +10,12 @@
 
 set -euo pipefail
 
-COMPOSE_FILE="docker/docker-compose.production.yml"
 ENV_FILE=".env.production"
 DEPLOY_ENV="production"
 CONTAINER_PREFIX="shipshit"
 # The api container MUST be named `shipshit-api`: the host's Caddy reverse proxy
 # routes api.shipshit.games -> shipshit-api:3005 by container name over the shared
-# `shipshit` network. Must match container_name in docker-compose.production.yml.
+# `shipshit` network. Must match the deploy-common.sh container name.
 declare -A CONTAINER_NAMES=([api]="shipshit-api")
 DEPLOY_HEADER="Production Deployment — api.shipshit.games"
 
@@ -24,15 +23,15 @@ REGISTRY="ghcr.io"
 # Derived from ${{ github.repository }} (exported by the deploy job) so it can
 # never drift from where the build job pushed. Fallback matches this repo.
 IMAGE_REPO="${IMAGE_REPO:-shipshitgames/shipshit.games}"
-# Exported so docker-compose.production.yml resolves ${API_IMAGE} to this exact
-# tag, and so rollback_service can pin a previous tag.
+# Exported so deploy-common.sh starts this exact tag, and so rollback_service
+# can pin a previous tag.
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
 export API_IMAGE="${REGISTRY}/${IMAGE_REPO}/api:${IMAGE_TAG}"
 export MIGRATE_IMAGE="${REGISTRY}/${IMAGE_REPO}/api-migrate:${IMAGE_TAG}"
 
 # The api joins the host's shared `shipshit` docker network (also carries
-# deadrot-api + the Caddy reverse proxy). docker-compose.production.yml declares
-# it external, so ensure it exists before composing (idempotent).
+# deadrot-api + the Caddy reverse proxy). Ensure it exists before deploy
+# (idempotent).
 docker network inspect shipshit >/dev/null 2>&1 || docker network create shipshit >/dev/null 2>&1 || true
 
 # Production health-check tuning: fail fast.

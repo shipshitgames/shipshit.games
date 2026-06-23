@@ -313,7 +313,6 @@ jobs:
           set -euo pipefail
           SSH_OPTS=(-o StrictHostKeyChecking=accept-new -i ~/.ssh/ec2_key)
           ssh "${SSH_OPTS[@]}" "${EC2_USER}@${HOST_IP}" "mkdir -p ./cloud/docker"
-          scp "${SSH_OPTS[@]}" docker/docker-compose.production.yml "${EC2_USER}@${HOST_IP}:./cloud/docker/"
           scp "${SSH_OPTS[@]}" docker/deploy-production.sh          "${EC2_USER}@${HOST_IP}:./cloud/docker/"
           scp "${SSH_OPTS[@]}" docker/deploy-common.sh              "${EC2_USER}@${HOST_IP}:./cloud/docker/"
           scp "${SSH_OPTS[@]}" docker/render-ssm-env.sh             "${EC2_USER}@${HOST_IP}:./cloud/docker/"

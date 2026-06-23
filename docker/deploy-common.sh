@@ -10,7 +10,6 @@
 # the previous image on failure.
 #
 # Callers MUST export before sourcing:
-#   COMPOSE_FILE      — compose file path (docker/docker-compose.production.yml)
 #   ENV_FILE          — root env file name (.env.production)
 #   DEPLOY_ENV        — environment label for render-ssm-env.sh (production)
 #   CONTAINER_PREFIX  — docker container name prefix (shipshit)
@@ -152,9 +151,25 @@ rollback_service() {
   fi
   log "Rolling back ${service} to ${previous_image}..."
   docker pull "$previous_image" 2>/dev/null || true
-  API_IMAGE="$previous_image" docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" \
-    up -d --force-recreate --no-deps "$service" 2>/dev/null || true
+  start_api_container "$previous_image" >/dev/null 2>&1 || true
   log "Rollback initiated for ${service}"
+}
+
+start_api_container() {
+  local image="$1"
+  docker run -d \
+    --name "$(container_name_for api)" \
+    --restart unless-stopped \
+    --security-opt no-new-privileges:true \
+    --cap-drop ALL \
+    --network shipshit \
+    -p "127.0.0.1:${API_PORT}:${API_PORT}" \
+    --env-file "$ENV_FILE" \
+    -e NODE_ENV=production \
+    -e "PORT=${API_PORT}" \
+    -e HOSTNAME=0.0.0.0 \
+    -e "SERVICE_NAME=${SERVICE_NAME:-api.shipshit.games}" \
+    "$image"
 }
 
 # ---------------------------------------------------------------------------
@@ -199,7 +214,10 @@ deploy_service() {
   remove_conflicting_container "$service"
 
   log "Deploying ${service}..."
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --force-recreate --no-deps "$service"
+  case "$service" in
+    api) start_api_container "$API_IMAGE" ;;
+    *) log "FAILED: unsupported service ${service}"; return 1 ;;
+  esac
 
   if wait_healthy "$service"; then
     DEPLOYED_SERVICES+=("$service")

@@ -18,7 +18,7 @@ surfaces.
 | `web`  | shipshit.games      | Vercel | `vercel deploy --prod` (project `prj_rgAwd80VdYDiT3adfMlmOAAnKVqN`) |
 | `app`  | app.shipshit.games  | Vercel | `vercel deploy --prod` (project `prj_g7ItrkBV2QeXTYBqYIetTjrz0gpZ`) |
 | `docs` | docs.shipshit.games | Vercel | `vercel deploy --prod` (project `prj_KcglQPTZJFj6Nn5oUj04OE0oXm8y`) |
-| `api`  | api.shipshit.games  | **EC2 (Docker)** | image → ghcr → SSH-over-Tailscale → `docker compose` on the host, in the RDS VPC |
+| `api`  | api.shipshit.games  | **EC2 (Docker)** | image → ghcr → SSH-over-Tailscale → `docker run` on the host, in the RDS VPC |
 
 The `api` runs on a single EC2 host **inside the RDS VPC**, allow-listed on the
 RDS security group. That is the fix for the original problem: a Vercel-hosted
@@ -28,7 +28,8 @@ credentials ever touch GitHub Actions.**
 
 Workflow: [`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)
 Host scripts: [`docker/`](docker/) (`deploy-production.sh`, `deploy-common.sh`,
-`render-ssm-env.sh`, `docker-compose.production.yml`).
+`render-ssm-env.sh`; `docker-compose.production.yml` is retained as reference
+config).
 
 > **⚠️ Production-host cutover (2026-06-21).** The api + co-located `deadrot-api`
 > run in **us-west-1** on the box serving `api.shipshit.games` (`:3005`) and
@@ -41,16 +42,16 @@ Host scripts: [`docker/`](docker/) (`deploy-production.sh`, `deploy-common.sh`,
 > webhook `639617616` → `https://api.shipshit.games/webhooks/github`; CI deploy key
 > in the box's `authorized_keys`. CI now *reaches* the live box.
 >
-> **Box wiring (the compose matches this):** Caddy on the host terminates TLS and
+> **Box wiring (the deploy script matches this):** Caddy on the host terminates TLS and
 > reverse-proxies `api.shipshit.games → shipshit-api:3005` and
 > `api.deadrot.com → deadrot-api:3004` **by container name** over a shared
 > external docker network `shipshit`. So the api container must be named
-> `shipshit-api` and join `shipshit` — `docker-compose.production.yml` +
-> `deploy-production.sh` now do (and the latter creates the network if missing).
+> `shipshit-api` and join `shipshit` — `deploy-production.sh` now does this
+> directly with `docker run` and creates the network if missing.
 >
 > **First-deploy swap (one-time):** the box currently runs the api from a *manual*
 > ECR image (`…dkr.ecr.us-west-1…/shipshit-api`); CI builds to **ghcr**. Because
-> the compose container name now equals the running one, a CI deploy's
+> the deploy container name now equals the running one, a CI deploy's
 > `remove_conflicting_container` drops the manual ECR container and brings the
 > ghcr one up on the same name + network — Caddy never notices. Cut over with
 > `docker rm -f shipshit-api` on the box, then run the studio deploy (`force_api`).
@@ -136,7 +137,7 @@ need to redeploy without cutting a new tag.
 ### 3c. EC2 host
 
 - Amazon Linux / Ubuntu in the **same VPC** as RDS `shipshit-api`.
-- Install **Docker + Docker Compose v2**. Deploy user in the `docker` group.
+- Install **Docker**. Deploy user in the `docker` group.
 - Working dir `~/cloud` (the workflow scps scripts to `~/cloud/docker/` and runs
   `~/cloud/docker/deploy-production.sh`).
 - **Tailscale** installed and joined with `tag:ci` reachable (the CI node uses
@@ -168,10 +169,10 @@ the api source:
 > If production exercises assetgen providers beyond Replicate (FAL / Meshy /
 > Tripo / Suno / Beatoven), add their credentials here too — see
 > `packages/assetgen` for the authoritative list. `SERVICE_NAME` and `NODE_ENV`
-> are injected by compose and need not be in SSM.
+> are injected by the deploy script and need not be in SSM.
 
 `SERVICE_NAME`/`PORT`/`HOSTNAME`/`NODE_ENV` come from
-`docker-compose.production.yml`, not SSM.
+`deploy-common.sh`, not SSM.
 
 ### 3e. Vercel projects — stop git auto-deploy
 
@@ -211,9 +212,8 @@ Verify in the dashboard for each project:
   are then blocked). Migrations are **not** rolled back — write
   backward-compatible (expand/contract) migrations so the previous image
   tolerates the new schema.
-- **Manual api rollback:** on the host, `cd ~/cloud` and
-  `API_IMAGE=ghcr.io/shipshitgames/shipshit.games/api:<good-sha> docker compose
-  --env-file .env.production -f docker/docker-compose.production.yml up -d api`.
+- **Manual api rollback:** on the host, `cd ~/cloud`, set `API_IMAGE` to a known
+  good image, and run `./docker/deploy-production.sh api`.
 - **Vercel rollback:** promote a previous deployment in the project dashboard.
 - **Cannot reach host over Tailscale:** check the `Verify host reachability`
   step; confirm `TAILSCALE_INSTANCE_API_IP` and that `tag:ci` ACLs permit the
