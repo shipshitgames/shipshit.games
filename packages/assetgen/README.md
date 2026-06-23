@@ -43,6 +43,28 @@ bun packages/assetgen/src/cli.ts generate --provider mock --dry-run \
   --license "internal prototype; review before shipping"
 ```
 
+## `muzzle-tuner` — studio-side weapon flash placement
+
+Deadrot should ship games, not asset tooling. Use `assetgen muzzle-tuner` from
+this repo to tune Scourge Survivors weapon muzzle metadata against the running
+dev game, then write the exact manifest values back to the Deadrot asset pack.
+
+```bash
+# Print the injectable browser-console tuner for a running Scourge dev page:
+bun packages/assetgen/src/cli.ts muzzle-tuner --script
+
+# Inspect current metadata:
+bun packages/assetgen/src/cli.ts muzzle-tuner --weapon shotgun --json
+
+# Write values copied from the tuner panel:
+bun packages/assetgen/src/cli.ts muzzle-tuner \
+  --weapon shotgun --muzzle -0.12,0.26,-0.18 --flash-scale 0.24 --write
+```
+
+Flags: `--assets-dir <deadrot/packages/assets>`, `--manifest <assets.json>`,
+`--game <slug>` (default `scourge-survivors`), `--weapon <id>`, `--muzzle x,y,z`,
+`--flash-scale <n>`, `--write`, `--json`, `--script`.
+
 ## Shared pipeline contract
 
 All asset generators should call the shared `runAssetPipeline` core instead of
