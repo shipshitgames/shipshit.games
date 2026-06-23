@@ -1,5 +1,5 @@
 #!/bin/bash
-# Production deploy orchestration for api.shipshit.dev.
+# Production deploy orchestration for api.shipshit.games.
 # Runs ON the EC2 host via a single SSH session from GitHub Actions.
 #
 # Usage: ./docker/deploy-production.sh <space-separated services>
@@ -15,10 +15,10 @@ ENV_FILE=".env.production"
 DEPLOY_ENV="production"
 CONTAINER_PREFIX="shipshit"
 # The api container MUST be named `shipshit-api`: the host's Caddy reverse proxy
-# routes api.shipshit.dev -> shipshit-api:3003 by container name over the shared
+# routes api.shipshit.games -> shipshit-api:3005 by container name over the shared
 # `shipshit` network. Must match container_name in docker-compose.production.yml.
 declare -A CONTAINER_NAMES=([api]="shipshit-api")
-DEPLOY_HEADER="Production Deployment — api.shipshit.dev"
+DEPLOY_HEADER="Production Deployment — api.shipshit.games"
 
 REGISTRY="ghcr.io"
 # Derived from ${{ github.repository }} (exported by the deploy job) so it can

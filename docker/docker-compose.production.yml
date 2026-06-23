@@ -1,4 +1,4 @@
-# Production compose for api.shipshit.dev — a single stateless Next.js API in
+# Production compose for api.shipshit.games — a single stateless Next.js API in
 # front of the managed RDS Postgres. There is no in-compose Postgres: the DB is
 # the AWS RDS instance `api-shipshit-dev` (us-west-1), reached privately because
 # this host sits in that RDS's VPC and is allow-listed on its security group.
@@ -11,7 +11,7 @@
 #
 # Topology: this container joins the host's shared `shipshit` docker network
 # alongside deadrot-api and the Caddy reverse proxy. Caddy terminates TLS and
-# proxies api.shipshit.dev -> shipshit-api:3003 BY CONTAINER NAME over that
+# proxies api.shipshit.games -> shipshit-api:3005 BY CONTAINER NAME over that
 # network — so container_name is load-bearing — which is why only a localhost
 # port is published, not a public one.
 services:
@@ -26,9 +26,9 @@ services:
     networks:
       - shipshit
     ports:
-      # localhost-only: the host-side deploy health check curls localhost:3003.
+      # localhost-only: the host-side deploy health check curls localhost:3005.
       # Caddy reaches this container over the `shipshit` network by name.
-      - '127.0.0.1:${API_PORT:-3003}:3003'
+      - '127.0.0.1:${API_PORT:-3005}:3005'
     env_file:
       # Rendered from SSM by render-ssm-env.sh — carries DATABASE_URL plus every
       # api runtime secret (CLERK_*, STRIPE_WEBHOOK_SECRET, REPLICATE_API_TOKEN,
@@ -37,23 +37,23 @@ services:
     environment:
       # Non-secret runtime metadata + network binding; secrets come from env_file.
       - NODE_ENV=production
-      - PORT=3003
+      - PORT=3005
       - HOSTNAME=0.0.0.0
-      - SERVICE_NAME=${SERVICE_NAME:-api.shipshit.dev}
+      - SERVICE_NAME=${SERVICE_NAME:-api.shipshit.games}
     healthcheck:
       # The runner image ships node (no curl/wget), so poll /health with fetch.
       test:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        - "fetch('http://127.0.0.1:3005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       start_period: 15s
       retries: 3
 
 # Shared external bridge created on the host (carries deadrot-api + Caddy too).
-# deploy-production.sh creates it if missing; Caddy proxies to shipshit-api:3003.
+# deploy-production.sh creates it if missing; Caddy proxies to shipshit-api:3005.
 networks:
   shipshit:
     external: true

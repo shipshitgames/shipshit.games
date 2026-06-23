@@ -28,7 +28,7 @@ CHANGED_SERVICES=("$@")
 WAIT_RETRIES="${WAIT_RETRIES:-20}"
 WAIT_INTERVAL="${WAIT_INTERVAL:-3}"
 WAIT_START_DELAY="${WAIT_START_DELAY:-5}"
-API_PORT="${API_PORT:-3003}"
+API_PORT="${API_PORT:-3005}"
 
 # Optional per-service container-name overrides. A caller may populate this
 # before sourcing (e.g. CONTAINER_NAMES[api]=api-shipshit-games) to name a

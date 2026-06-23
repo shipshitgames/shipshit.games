@@ -1,6 +1,6 @@
 # api — the Ship Shit platform API
 
-Next.js (route handlers only) + Prisma/Postgres. Serves `api.shipshit.dev` as a
+Next.js (route handlers only) + Prisma/Postgres. Serves `api.shipshit.games` as a
 self-contained Docker image on an EC2 host co-located with its RDS Postgres, so
 other brands (deadrot) can run the same image with different env on the same host.
 
@@ -38,7 +38,7 @@ server-side and forwards the caller's token (see `apps/app/lib/api.ts`).
 ```sh
 docker compose up postgres   # Postgres 17 on :5432
 bun run db:migrate           # prisma migrate dev
-bun run dev                  # next dev on :3003
+bun run dev                  # next dev on :3005
 ```
 
 ## Container
@@ -46,7 +46,7 @@ bun run dev                  # next dev on :3003
 ```sh
 # from the repo root
 docker build -f apps/api/Dockerfile -t shipshit-api .
-docker run -p 3003:3003 -e DATABASE_URL=... -e CLERK_SECRET_KEY=... shipshit-api
+docker run -p 3005:3005 -e DATABASE_URL=... -e CLERK_SECRET_KEY=... shipshit-api
 ```
 
 The runtime image does not ship the prisma CLI — run migrations against the

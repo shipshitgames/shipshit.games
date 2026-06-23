@@ -1,4 +1,4 @@
-# Local stack: `docker compose up` from apps/api (API on :3003, Postgres on :5432).
+# Local stack: `docker compose up` from apps/api (API on :3005, Postgres on :5432).
 # For DB-only local dev: `docker compose up postgres` + `bun run dev`.
 services:
   postgres:
@@ -43,9 +43,9 @@ services:
       REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
-      SERVICE_NAME: ${SERVICE_NAME:-api.shipshit.dev}
+      SERVICE_NAME: ${SERVICE_NAME:-api.shipshit.games}
     ports:
-      - "3003:3003"
+      - "3005:3005"
     depends_on:
       postgres:
         condition: service_healthy

@@ -76,7 +76,7 @@ account (`deadrotcom/apps/web/lib/shipshit-entitlement*.ts`). That bridge, plus 
 | `shipshit.games` | Gaming SaaS: build cockpit + tools/courses store + brand hub | **studio Clerk** (devs/learners) | Studio Pass, courses |
 | `deadrot.com` | Deadrot franchise: lore + connected universe + **playable games** | **deadrot Clerk** (players) | Deadrot games / collection |
 | `deadrot.com/<slug>` | Playable game (Vite SPA), gated by deadrot | deadrot Clerk | — |
-| `api.shipshit.dev` | Studio API: tools/courses billing, asset jobs | webhook key | — |
+| `api.shipshit.games` | Studio API: tools/courses billing, asset jobs | webhook key | — |
 | `<future-ip>.com` (later) | Next franchise satellite — own Clerk + gates | its own Clerk | its games |
 
 ### Identity & commerce — federated, decoupled

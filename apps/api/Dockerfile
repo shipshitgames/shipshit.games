@@ -1,4 +1,4 @@
-# api.shipshit.dev — build from the REPO ROOT so workspace deps resolve:
+# api.shipshit.games — build from the REPO ROOT so workspace deps resolve:
 #   docker build -f apps/api/Dockerfile -t shipshit-api .
 # The same image serves any brand (deadrot etc.) — all config is env-driven,
 # see README.md for the variables.
@@ -46,7 +46,7 @@ RUN apt-get update -y \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production \
-    PORT=3003 \
+    PORT=3005 \
     HOSTNAME=0.0.0.0 \
     NEXT_TELEMETRY_DISABLED=1
 
@@ -54,7 +54,7 @@ COPY --from=builder /app/apps/api/.next/standalone ./
 COPY --from=builder /app/apps/api/.next/static ./apps/api/.next/static
 
 USER node
-EXPOSE 3003
+EXPOSE 3005
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3003)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+  CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3005)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
 CMD ["node", "apps/api/server.js"]

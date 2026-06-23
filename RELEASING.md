@@ -18,7 +18,7 @@ surfaces.
 | `web`  | shipshit.games      | Vercel | `vercel deploy --prod` (project `prj_rgAwd80VdYDiT3adfMlmOAAnKVqN`) |
 | `app`  | app.shipshit.games  | Vercel | `vercel deploy --prod` (project `prj_g7ItrkBV2QeXTYBqYIetTjrz0gpZ`) |
 | `docs` | docs.shipshit.games | Vercel | `vercel deploy --prod` (project `prj_KcglQPTZJFj6Nn5oUj04OE0oXm8y`) |
-| `api`  | api.shipshit.dev    | **EC2 (Docker)** | image → ghcr → SSH-over-Tailscale → `docker compose` on the host, in the RDS VPC |
+| `api`  | api.shipshit.games  | **EC2 (Docker)** | image → ghcr → SSH-over-Tailscale → `docker compose` on the host, in the RDS VPC |
 
 The `api` runs on a single EC2 host **inside the RDS VPC**, allow-listed on the
 RDS security group. That is the fix for the original problem: a Vercel-hosted
@@ -31,18 +31,18 @@ Host scripts: [`docker/`](docker/) (`deploy-production.sh`, `deploy-common.sh`,
 `render-ssm-env.sh`, `docker-compose.production.yml`).
 
 > **⚠️ Production-host cutover (2026-06-21).** The api + co-located `deadrot-api`
-> run in **us-west-1** on the box serving `api.shipshit.dev` (`:3003`) and
+> run in **us-west-1** on the box serving `api.shipshit.games` (`:3005`) and
 > `api.deadrot.com` (`:3004`), with RDS `api-shipshit-dev` / `deadrot-api` in the
 > same VPC. The old us-east-1 host (`i-076de07bfc9858a38`) is dead (no RDS) and
 > pending teardown.
 >
 > **Done:** box on the tailnet as `api-shipshit-dev` (`tag:server`);
 > `TAILSCALE_INSTANCE_API_IP` repointed in this repo **and** `deadrot.com`;
-> webhook `639617616` → `https://api.shipshit.dev/webhooks/github`; CI deploy key
+> webhook `639617616` → `https://api.shipshit.games/webhooks/github`; CI deploy key
 > in the box's `authorized_keys`. CI now *reaches* the live box.
 >
 > **Box wiring (the compose matches this):** Caddy on the host terminates TLS and
-> reverse-proxies `api.shipshit.dev → shipshit-api:3003` and
+> reverse-proxies `api.shipshit.games → shipshit-api:3005` and
 > `api.deadrot.com → deadrot-api:3004` **by container name** over a shared
 > external docker network `shipshit`. So the api container must be named
 > `shipshit-api` and join `shipshit` — `docker-compose.production.yml` +
@@ -59,8 +59,7 @@ Host scripts: [`docker/`](docker/) (`deploy-production.sh`, `deploy-common.sh`,
 > + a localhost port) or Caddy will 502.
 >
 > **Then:** verify the deploy is green, **decommission** the us-east-1 host + the
-> stopped `api.shipshit.dev-al2-rollback` box, drop/repoint the
-> `api.shipshit.games` A record, and set `API_URL=https://api.shipshit.dev` in the
+> stopped rollback box, and set `API_URL=https://api.shipshit.games` in the
 > `app`/`web` Vercel projects if not already.
 
 ### Trigger & change-detection
@@ -147,8 +146,8 @@ need to redeploy without cutting a new tag.
   - `kms:Decrypt` (for SecureString params)
 - **RDS security group**: add an inbound rule allowing this host (its SG or
   private IP) on Postgres `5432`.
-- Open the **api port** (`3003`) only as needed (front it with the existing
-  reverse proxy / DNS for `api.shipshit.dev`).
+- Open the **api port** (`3005`) only as needed (front it with the existing
+  reverse proxy / DNS for `api.shipshit.games`).
 
 ### 3d. SSM parameters (`<prefix>/production/<KEY>`, SecureString)
 

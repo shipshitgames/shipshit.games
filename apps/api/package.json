@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "prisma generate && next dev -p 3003",
+    "dev": "prisma generate && next dev -p 3005",
     "build": "prisma generate && next build",
-    "start": "next start -p 3003",
+    "start": "next start -p 3005",
     "typecheck": "prisma generate && tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
