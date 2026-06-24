@@ -23,6 +23,28 @@ test("scourge survivors brief shows the lore-driven sections", async ({ page }) 
     "href",
     "https://deadrot.com/scourge-survivors",
   );
+  await expect(page.getByRole("heading", { name: /play the build, then inspect the work/i })).toBeVisible();
+  await expect(page.getByText(/runtime code and shipped game assets stay in the Deadrot repo/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: /live vercel build/i })).toHaveAttribute(
+    "href",
+    "https://scourge-survivors.vercel.app",
+  );
+  await expect(page.getByRole("link", { name: /source repo/i })).toHaveAttribute(
+    "href",
+    /github\.com\/shipshitgames\/deadrot\.com\/tree\/develop\/apps\/games\/scourge-survivors/,
+  );
+  await expect(page.getByRole("link", { name: /skills library/i })).toHaveAttribute(
+    "href",
+    "https://github.com/shipshitgames/skills",
+  );
+  await expect(page.getByRole("link", { name: /built live on ship shit show/i })).toHaveAttribute(
+    "href",
+    "/youtube",
+  );
+  await expect(page.getByRole("link", { name: /finished gate/i })).toHaveAttribute(
+    "href",
+    "https://github.com/shipshitgames/deadrot.com/issues/242",
+  );
 
   // Lore features grid.
   await expect(page.getByText("Survive, then go deeper")).toBeVisible();
@@ -58,6 +80,14 @@ test("warline brief (no lore entry) renders without errors", async ({ page }) =>
   await expect(page.getByRole("heading", { level: 1, name: /warline/i })).toBeVisible();
   // Falls back to the shared summary when no lore exists.
   await expect(page.getByText(/persistent war board/i).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /live vercel build/i })).toHaveAttribute(
+    "href",
+    "https://warline-jet.vercel.app",
+  );
+  await expect(page.getByRole("link", { name: /finished gate/i })).toHaveAttribute(
+    "href",
+    "https://github.com/shipshitgames/deadrot.com/issues/248",
+  );
 
   expect(errors, `console errors: ${errors.join(" | ")}`).toEqual([]);
 });

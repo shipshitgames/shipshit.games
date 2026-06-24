@@ -4,6 +4,7 @@ import { GAMES } from "@shipshitgames/shared";
 
 import { CharacterRoster } from "@/components/games/character-roster";
 import { EnemyBestiary } from "@/components/games/enemy-bestiary";
+import { GameBuildPath } from "@/components/games/game-build-path";
 import { FactionLinkCard } from "@/components/games/faction-link-card";
 import { GameFeatures } from "@/components/games/game-features";
 import { GameHero } from "@/components/games/game-hero";
@@ -81,6 +82,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
       </script>
 
       <GameHero game={game} lore={lore} />
+      <GameBuildPath game={game} accent={accent} />
       {lore ? <GameFeatures features={lore.features} accent={accent} /> : null}
       <CharacterRoster characters={characters} accent={accent} />
       <EnemyBestiary creatures={creatures} />
