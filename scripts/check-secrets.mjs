@@ -91,7 +91,9 @@ function scanWorkingTree() {
 }
 
 function scanGitHistory() {
-  const commits = git(["rev-list", "--all"]).trim().split("\n").filter(Boolean);
+  // In CI, `actions/checkout` with full history may fetch other open branches.
+  // Scan the checked-out ref's history so an unrelated branch cannot fail this PR.
+  const commits = git(["rev-list", process.env.SECRET_SCAN_HISTORY_REF || "HEAD"]).trim().split("\n").filter(Boolean);
   const findings = [];
   const scannedBlobs = new Set();
 
