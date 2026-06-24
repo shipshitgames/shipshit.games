@@ -1,6 +1,6 @@
 import { readFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, extname, join } from "node:path";
 import sharp from "sharp";
 import { isAudioKind } from "./audio.ts";
 import { runCodexCli } from "./codex.ts";
@@ -35,6 +35,8 @@ export interface ProviderOptions {
   log?: (chunk: string) => void;
   timeoutMs?: number;
   pollIntervalMs?: number;
+  /** Local image references used for style/source-guided generations. */
+  referenceImages?: readonly string[];
   /**
    * Reproducibility seed; forwarded to the seedable providers (fal/openai).
    * Reproducible provenance is only claimed when the provider CONFIRMS the seed:
@@ -88,6 +90,10 @@ export function openAiImageBody(
   return { model, prompt, size, background: "transparent", n: 1 };
 }
 
+export function openAiImageEditFields(prompt: string, model: string, size: string): Record<string, string> {
+  return { model, prompt, size, background: "transparent", n: "1" };
+}
+
 /**
  * Reproducibility meta for an OpenAI image generation. The Images API neither
  * echoes a seed nor exposes a determinism signal, so — like fal's falAssetMeta —
@@ -114,11 +120,20 @@ export async function generateOpenAi(
   const key = (deps.getKeyImpl ?? getKey)(keyCfg.envName, keyCfg.service);
   if (!key) throw missingKeyMessage(keyCfg);
   const model = opts.model ?? provider.defaultModel ?? "gpt-image-2";
-  const res = await (deps.fetchImpl ?? fetch)("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify(openAiImageBody(prompt, model, opts.size, opts.seed)),
-  });
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const referenceImages = opts.referenceImages ?? [];
+  const res =
+    referenceImages.length > 0
+      ? await fetchImpl("https://api.openai.com/v1/images/edits", {
+          method: "POST",
+          headers: { authorization: `Bearer ${key}` },
+          body: await openAiImageEditFormData(prompt, model, opts.size, referenceImages),
+        })
+      : await fetchImpl("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+          body: JSON.stringify(openAiImageBody(prompt, model, opts.size, opts.seed)),
+        });
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
   const json: any = await res.json();
   return imageAsset(Buffer.from(json.data[0].b64_json, "base64"), model, openAiAssetMeta(model, opts.seed, json));
@@ -132,9 +147,63 @@ export async function generateCodex(
 ): Promise<GeneratedAsset> {
   const dir = await mkdtemp(join(tmpdir(), "assetgen-"));
   const out = join(dir, "out.png");
-  await (deps.runCodexCliImpl ?? runCodexCli)({ prompt, outPath: out, cwd: dir, log: opts.log });
+  const referenceImages = await prepareCodexReferenceImages(opts.referenceImages ?? [], dir);
+  await (deps.runCodexCliImpl ?? runCodexCli)({ prompt, outPath: out, cwd: dir, referenceImages, log: opts.log });
   // The local Codex agent isn't seed-driven, so a render is never reproducible.
   return imageAsset(await readFile(out), "codex-cli", { model: "codex-cli", reproducible: false });
+}
+
+async function openAiImageEditFormData(
+  prompt: string,
+  model: string,
+  size: string,
+  referenceImages: readonly string[],
+): Promise<FormData> {
+  if (referenceImages.length > 16) throw new Error("OpenAI image edits accept at most 16 reference images");
+  const form = new FormData();
+  for (const [field, value] of Object.entries(openAiImageEditFields(prompt, model, size))) {
+    form.append(field, value);
+  }
+  for (const path of referenceImages) {
+    form.append("image", await imageFile(path));
+  }
+  return form;
+}
+
+async function imageFile(path: string): Promise<File> {
+  const mime = imageMimeType(path);
+  if (!mime) throw new Error(`OpenAI reference image must be png, jpg, jpeg, or webp: ${path}`);
+  const data = await readFile(path);
+  return new File([new Uint8Array(data)], basename(path), { type: mime });
+}
+
+async function prepareCodexReferenceImages(referenceImages: readonly string[], dir: string): Promise<string[]> {
+  const prepared: string[] = [];
+  for (let i = 0; i < referenceImages.length; i++) {
+    const ref = referenceImages[i]!;
+    if (extname(ref).toLowerCase() !== ".webp") {
+      prepared.push(ref);
+      continue;
+    }
+    const out = join(dir, `reference-${i + 1}.png`);
+    await sharp(ref).png().toFile(out);
+    prepared.push(out);
+  }
+  return prepared;
+}
+
+function imageMimeType(path: string): string | null {
+  switch (extname(path).toLowerCase()) {
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".webp":
+      return "image/webp";
+    default:
+      return null;
+  }
 }
 
 async function generateReplicate(kind: AssetKind, prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {

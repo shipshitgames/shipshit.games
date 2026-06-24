@@ -1,6 +1,9 @@
-import { writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import sharp from "sharp";
 
 import { FAL_MODELS } from "./fal";
 import { buildMinimalGlb } from "./glb-fixture";
@@ -14,6 +17,7 @@ import {
   meshyClient,
   openAiAssetMeta,
   openAiImageBody,
+  openAiImageEditFields,
   resolveProvider,
   runModelTask,
   tripoClient,
@@ -99,6 +103,16 @@ test("openAiImageBody never attaches a seed (the OpenAI Images API rejects it)",
   assert.equal("seed" in openAiImageBody("a husk", "gpt-image-2", "1024x1024", 0), false);
 });
 
+test("openAiImageEditFields builds the edit request metadata", () => {
+  assert.deepEqual(openAiImageEditFields("keep the silhouette", "gpt-image-2", "1024x1024"), {
+    model: "gpt-image-2",
+    prompt: "keep the silhouette",
+    size: "1024x1024",
+    background: "transparent",
+    n: "1",
+  });
+});
+
 test("openAiAssetMeta records the requested seed but is reproducible only when the response confirms it", () => {
   assert.deepEqual(openAiAssetMeta("gpt-image-2"), { model: "gpt-image-2", reproducible: false });
   // A requested seed is recorded for provenance, but unconfirmed by the response → not reproducible.
@@ -149,6 +163,43 @@ test("generateOpenAi omits the seed and stays non-reproducible when none is supp
   assert.deepEqual(asset.meta, { model: "gpt-image-2", reproducible: false });
 });
 
+test("generateOpenAi sends reference images to the image edit endpoint", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assetgen-openai-ref-"));
+  const reference = join(dir, "source.png");
+  await sharp({
+    create: { width: 2, height: 2, channels: 4, background: { r: 1, g: 2, b: 3, alpha: 1 } },
+  })
+    .png()
+    .toFile(reference);
+
+  const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  let requestUrl = "";
+  let requestBody: BodyInit | null | undefined;
+  const fetchImpl = (async (url: unknown, init?: RequestInit) => {
+    requestUrl = String(url);
+    requestBody = init?.body;
+    return new Response(JSON.stringify({ data: [{ b64_json: pngBytes.toString("base64") }] }), {
+      headers: { "content-type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  const asset = await generateOpenAi(
+    "preserve source silhouette",
+    { size: "1024x1024", referenceImages: [reference] },
+    { fetchImpl, getKeyImpl: () => "unit-key" },
+  );
+
+  assert.equal(requestUrl, "https://api.openai.com/v1/images/edits");
+  assert.ok(requestBody instanceof FormData);
+  const form = requestBody as FormData;
+  const entries = [...form.entries()];
+  assert.equal(entries.find(([key]) => key === "model")?.[1], "gpt-image-2");
+  assert.equal(entries.find(([key]) => key === "prompt")?.[1], "preserve source silhouette");
+  const image = entries.find(([key]) => key === "image")?.[1] as unknown as File;
+  assert.equal(image.name, "source.png");
+  assert.deepEqual(asset.data, pngBytes);
+});
+
 test("generateOpenAi without a key explains how to set OPENAI_API_KEY", async () => {
   await assert.rejects(
     generateOpenAi("a husk", { size: "1024" }, { getKeyImpl: () => undefined }),
@@ -175,6 +226,27 @@ test("generateCodex records non-reproducible meta (the local agent is not seed-d
   assert.deepEqual(asset.meta, { model: "codex-cli", reproducible: false });
   assert.ok(recordedOut?.endsWith("out.png"));
   assert.deepEqual(asset.data, pngBytes);
+});
+
+test("generateCodex forwards prepared reference images to the local Codex CLI", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assetgen-codex-ref-"));
+  const reference = join(dir, "style.png");
+  await writeFile(reference, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  let recordedReferences: readonly string[] | undefined;
+
+  await generateCodex(
+    "a parasite-taken host",
+    { size: "128", referenceImages: [reference] },
+    {
+      runCodexCliImpl: async ({ outPath, referenceImages }) => {
+        recordedReferences = referenceImages;
+        await writeFile(outPath, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+        return { command: "codex", args: [], output: "", exitCode: 0 };
+      },
+    },
+  );
+
+  assert.deepEqual(recordedReferences, [reference]);
 });
 
 test("mock provider returns a valid GLB for model kinds", async () => {

@@ -27,8 +27,22 @@ export type HostFamily =
   | "machine-graft"
   | "bone-titan"
   | "voidship";
+export type PromptReferenceSlot = "style" | "silhouette" | "palette" | "source";
 
 export type AssetVariants = Record<GameSlug, string | null>;
+
+export interface AssetPromptReference {
+  slot: PromptReferenceSlot;
+  path?: string;
+  note?: string;
+}
+
+export interface AssetPromptSpec {
+  id: string;
+  prompt: string;
+  references?: AssetPromptReference[];
+  note?: string;
+}
 
 export interface EntityAsset {
   id: string;
@@ -38,15 +52,17 @@ export interface EntityAsset {
   hostFamily: HostFamily | null;
   canon: string;
   promptBase: string;
+  prompts?: AssetPromptSpec[];
   games: GameSlug[];
   variants: AssetVariants;
 }
 
 export interface SharedAsset {
   id: string;
-  kind: "fx" | "ui" | "font" | "audio";
+  kind: "fx" | "ui" | "font" | "audio" | "weapon" | "texture" | "prop" | "projectile" | "pickup" | "map";
   name: string;
   path: string;
+  prompts?: AssetPromptSpec[];
   note?: string;
 }
 
@@ -97,6 +113,18 @@ export function seedAssetCatalog(): AssetCatalog {
           "Fast melee Scourge fodder that floods lanes and breach rooms through numbers, claws, and parasite-driven host takeover.",
         promptBase:
           "Scourge melee swarm creature wearing a ruptured rot-flesh host, hunched parasite frame, black chitin over raw muscle, blade-like forearms, invasive tendrils, toxic-green breach cores, wet gore and exposed sinew",
+        prompts: [
+          {
+            id: "base",
+            prompt:
+              "Scourge melee swarm creature wearing a ruptured rot-flesh host, hunched parasite frame, black chitin over raw muscle, blade-like forearms, invasive tendrils, toxic-green breach cores, wet gore and exposed sinew",
+            references: [
+              { slot: "style", path: "lore/Art/style-refs/{game}.webp" },
+              { slot: "palette", path: "lore/Art/grade/doom.gpl" },
+            ],
+            note: "Entity prompt used by the per-game sprite matrix.",
+          },
+        ],
         games: ["scourge-survivors", "deadlane", "pactfall"],
         variants: emptyVariants(),
       },
@@ -107,6 +135,14 @@ export function seedAssetCatalog(): AssetCatalog {
         kind: "fx",
         name: "Blood Splatter FX",
         path: "shared/fx/blood-splatter.webp",
+        prompts: [
+          {
+            id: "base",
+            prompt:
+              "compact chunky pixel-art blood impact splatter, clotted dark red droplets, hard-edged readable burst shape, transparent background",
+            references: [{ slot: "palette", path: "lore/Art/grade/doom.gpl" }],
+          },
+        ],
         note: "Game-agnostic gore FX reused across games.",
       },
       {
@@ -114,6 +150,14 @@ export function seedAssetCatalog(): AssetCatalog {
         kind: "fx",
         name: "Hellfire Ember FX",
         path: "shared/fx/hellfire-ember.webp",
+        prompts: [
+          {
+            id: "base",
+            prompt:
+              "short-lived chunky pixel-art hellfire ember burst, orange-to-blood-hot sparks, smoky black edges, transparent background",
+            references: [{ slot: "palette", path: "lore/Art/grade/doom.gpl" }],
+          },
+        ],
         note: "Shared Pyre heat/ember FX, not a per-game render.",
       },
       {
@@ -121,7 +165,73 @@ export function seedAssetCatalog(): AssetCatalog {
         kind: "ui",
         name: "Breach Core Icon",
         path: "shared/ui/breach-core-icon.webp",
+        prompts: [
+          {
+            id: "base",
+            prompt:
+              "Scourge breach core HUD icon, toxic-green parasite node inside blackened gunmetal frame, bone tick marks, no text",
+            references: [
+              { slot: "style", path: "lore/Art/style-refs/scourge-survivors.webp" },
+              { slot: "palette", path: "lore/Art/grade/doom.gpl" },
+            ],
+          },
+        ],
         note: "Scourge-only toxic breach-core UI proof reused across games.",
+      },
+      {
+        id: "weapon-pyre-sidearm",
+        kind: "weapon",
+        name: "Pyre Sidearm",
+        path: "shared/weapons/pyre-sidearm.webp",
+        prompts: [
+          {
+            id: "base",
+            prompt:
+              "Pyre sidearm weapon pickup, chunky pixel-art black iron pistol, blood-red grip wrap, hellfire muzzle heat, readable silhouette, transparent background",
+            references: [
+              { slot: "style", path: "lore/Art/style-refs/scourge-survivors.webp" },
+              { slot: "palette", path: "lore/Art/grade/doom.gpl" },
+              { slot: "source", note: "Use a validated source image when editing or expanding an approved weapon tier sheet." },
+            ],
+          },
+        ],
+        note: "Prompt seed for weapon and tier-sheet generation.",
+      },
+      {
+        id: "texture-arena-iron-floor",
+        kind: "texture",
+        name: "Arena Iron Floor",
+        path: "shared/textures/arena-iron-floor.webp",
+        prompts: [
+          {
+            id: "base",
+            prompt:
+              "seamless chunky pixel-art arena floor texture, blackened iron plates, rust seams, ash scratches, no horizon, repeat-safe grime",
+            references: [
+              { slot: "style", path: "lore/Art/style-refs/scourge-survivors.webp" },
+              { slot: "palette", path: "lore/Art/grade/doom.gpl" },
+            ],
+          },
+        ],
+        note: "Prompt seed for arena material generation.",
+      },
+      {
+        id: "prop-breach-node",
+        kind: "prop",
+        name: "Breach Node Prop",
+        path: "shared/props/breach-node.webp",
+        prompts: [
+          {
+            id: "base",
+            prompt:
+              "Scourge breach node prop, parasite growth consuming stolen metal and bone, invasive tendrils, toxic-green core, chunky pixel-art transparent cutout",
+            references: [
+              { slot: "style", path: "lore/Art/style-refs/scourge-survivors.webp" },
+              { slot: "palette", path: "lore/Art/grade/doom.gpl" },
+            ],
+          },
+        ],
+        note: "Prompt seed for arena prop generation.",
       },
       {
         id: "font-doom-ui",
@@ -171,6 +281,30 @@ export const ASSETS_CATALOG_SCHEMA = {
         { type: "null" },
       ],
     },
+    promptReference: {
+      type: "object",
+      required: ["slot"],
+      additionalProperties: false,
+      properties: {
+        slot: { type: "string", enum: ["style", "silhouette", "palette", "source"] },
+        path: { type: "string" },
+        note: { type: "string" },
+      },
+    },
+    promptSpec: {
+      type: "object",
+      required: ["id", "prompt"],
+      additionalProperties: false,
+      properties: {
+        id: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        prompt: { type: "string" },
+        references: {
+          type: "array",
+          items: { $ref: "#/definitions/promptReference" },
+        },
+        note: { type: "string" },
+      },
+    },
     variants: {
       type: "object",
       required: GAME_SLUGS,
@@ -189,6 +323,10 @@ export const ASSETS_CATALOG_SCHEMA = {
         hostFamily: { $ref: "#/definitions/hostFamily" },
         canon: { type: "string" },
         promptBase: { type: "string" },
+        prompts: {
+          type: "array",
+          items: { $ref: "#/definitions/promptSpec" },
+        },
         games: {
           type: "array",
           uniqueItems: true,
@@ -203,9 +341,16 @@ export const ASSETS_CATALOG_SCHEMA = {
       additionalProperties: false,
       properties: {
         id: { type: "string", pattern: "^[a-z0-9]+(-[a-z0-9]+)*$" },
-        kind: { type: "string", enum: ["fx", "ui", "font", "audio"] },
+        kind: {
+          type: "string",
+          enum: ["fx", "ui", "font", "audio", "weapon", "texture", "prop", "projectile", "pickup", "map"],
+        },
         name: { type: "string" },
         path: { type: "string" },
+        prompts: {
+          type: "array",
+          items: { $ref: "#/definitions/promptSpec" },
+        },
         note: { type: "string" },
       },
     },
@@ -250,10 +395,36 @@ export const GAME_SLUGS: readonly GameSlug[] = [
   "rothulk",
 ] as const;
 
-export type AssetKind = "entity" | "boss" | "fx" | "ui" | "font" | "audio";
+export type AssetKind =
+  | "entity"
+  | "boss"
+  | "fx"
+  | "ui"
+  | "font"
+  | "audio"
+  | "weapon"
+  | "texture"
+  | "prop"
+  | "projectile"
+  | "pickup"
+  | "map";
 export type Faction = "scourge" | "pyre" | "wardens" | "neutral";
 export type HostFamily = "rot-flesh" | "chitin" | "mycelial" | "machine-graft" | "bone-titan" | "voidship";
+export type PromptReferenceSlot = "style" | "silhouette" | "palette" | "source";
 export type AssetVariants = Record<GameSlug, string | null>;
+
+export interface AssetPromptReference {
+  slot: PromptReferenceSlot;
+  path?: string;
+  note?: string;
+}
+
+export interface AssetPromptSpec {
+  id: string;
+  prompt: string;
+  references?: AssetPromptReference[];
+  note?: string;
+}
 
 export interface EntityAsset {
   id: string;
@@ -263,15 +434,17 @@ export interface EntityAsset {
   hostFamily: HostFamily | null;
   canon: string;
   promptBase: string;
+  prompts?: AssetPromptSpec[];
   games: GameSlug[];
   variants: AssetVariants;
 }
 
 export interface SharedAsset {
   id: string;
-  kind: "fx" | "ui" | "font" | "audio";
+  kind: "fx" | "ui" | "font" | "audio" | "weapon" | "texture" | "prop" | "projectile" | "pickup" | "map";
   name: string;
   path: string;
+  prompts?: AssetPromptSpec[];
   note?: string;
 }
 

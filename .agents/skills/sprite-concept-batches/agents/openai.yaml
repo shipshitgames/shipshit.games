@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sprite Concept Batches"
+  short_description: "Batch prompts for Deadrot asset concepts"
+  default_prompt: "Use $sprite-concept-batches to plan reference-backed Deadrot sprite, weapon, material, or UI concept batches."

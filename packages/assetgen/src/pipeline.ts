@@ -35,7 +35,7 @@ export interface PipelineContract {
   steps: readonly GameAssetPipelineStep[];
   promptPanel: {
     requiredFields: readonly ["id", "prompt", "game", "kind"];
-    optionalFields: readonly ["provider", "model", "size"];
+    optionalFields: readonly ["provider", "model", "size", "referenceImages"];
   };
   credentialVault: PipelineCredentialVaultEntry[];
   manifest: {
@@ -69,6 +69,8 @@ export interface AssetPipelineContext {
   size: number;
   provider: ProviderId;
   model?: string;
+  /** Local image references used for style/source-guided generations. */
+  referenceImages?: readonly string[];
   /** Opt-in outline-tint postprocess (see `ToWebpOptions.outlineTint`). Default off. */
   outlineTint?: boolean;
   outlineTintStrength?: number;
@@ -93,6 +95,8 @@ export interface AssetPipelineOptions {
   outputRoot?: string;
   manifestPath?: string;
   model?: string;
+  /** Local image references used for style/source-guided generations. */
+  referenceImages?: readonly string[];
   /** Reproducibility seed forwarded to seedable providers (openai/fal). */
   seed?: number;
   /** Opt-in outline-tint postprocess (see `ToWebpOptions.outlineTint`). Default off. */
@@ -132,7 +136,7 @@ export function describeAssetPipeline(): PipelineContract {
     steps: GAME_ASSET_PIPELINE_STEPS,
     promptPanel: {
       requiredFields: ["id", "prompt", "game", "kind"],
-      optionalFields: ["provider", "model", "size"],
+      optionalFields: ["provider", "model", "size", "referenceImages"],
     },
     credentialVault: Object.values(assetProviders).map((provider) => ({
       provider: provider.id,
@@ -162,6 +166,8 @@ export interface GenerateOneOptions {
   provider: string;
   size: number;
   model?: string;
+  /** Local image references used for style/source-guided generations. */
+  referenceImages?: readonly string[];
   /** Reproducibility seed forwarded to seedable providers (openai/fal). */
   seed?: number;
   /** Opt-in outline-tint postprocess (see `ToWebpOptions.outlineTint`). Default off. */
@@ -202,6 +208,7 @@ export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOne
       provider: opts.provider,
       size: `${opts.size}x${opts.size}`,
       model: opts.model,
+      referenceImages: opts.referenceImages,
       seed: opts.seed,
       log: opts.log ?? (() => {}),
     }),
@@ -313,6 +320,7 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
         provider: opts.provider,
         size: opts.size,
         model: opts.model,
+        referenceImages: opts.referenceImages,
         seed: opts.seed,
         outlineTint: opts.outlineTint,
         outlineTintStrength: opts.outlineTintStrength,
@@ -343,6 +351,9 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
           path: finalRelPath,
           prompt: opts.prompt,
           provider: generated.provider,
+          ...(opts.referenceImages && opts.referenceImages.length > 0
+            ? { referenceImages: [...opts.referenceImages] }
+            : {}),
           ...(optimized.entryFields ?? {}),
           provenance,
           ...(opts.human ? { human: opts.human } : {}),

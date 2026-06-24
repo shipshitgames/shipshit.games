@@ -1,3 +1,6 @@
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -85,6 +88,17 @@ test("falRequestBody omits the seed key unless one is supplied", () => {
   });
   // 0 is a valid seed and must survive into the request body.
   assert.equal(falRequestBody("a husk", imageSize, 0).seed, 0);
+});
+
+test("falRequestBody adds reference image guidance when supplied", () => {
+  const body = falRequestBody("a husk", { width: 512, height: 512 }, undefined, [
+    "data:image/png;base64,abc",
+    "data:image/png;base64,def",
+  ]);
+
+  assert.equal(body.image_url, "data:image/png;base64,abc");
+  assert.deepEqual(body.image_urls, ["data:image/png;base64,abc", "data:image/png;base64,def"]);
+  assert.equal(body.image_prompt_strength, 0.18);
 });
 
 test("falAssetMeta prefers the echoed seed, falls back to the requested one, and reads requestId", () => {
@@ -178,6 +192,31 @@ test("generateFalAsset posts to the per-kind default model and downloads the ima
     assert.equal(asset.mediaType, "image/png");
     assert.equal(asset.extension, "png");
     assert.deepEqual(asset.data, png);
+  });
+});
+
+test("generateFalAsset embeds local reference images as data URLs", async () => {
+  await withFalApiBase(undefined, async () => {
+    const dir = await mkdtemp(join(tmpdir(), "assetgen-fal-ref-"));
+    const reference = join(dir, "style.png");
+    await writeFile(reference, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const { fetchImpl, calls } = fakeFetch((url) => {
+      if (url.endsWith("/output.png")) return new Response(Buffer.from([1]), { headers: { "content-type": "image/png" } });
+      return new Response(JSON.stringify({ images: ["https://cdn.example.test/output.png"] }), {
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    await generateFalAsset(
+      "sprite",
+      "a husk",
+      { size: "1024", referenceImages: [reference] },
+      { fetchImpl, resolveKey: () => "unit-key" },
+    );
+
+    const body = JSON.parse(String(calls[0]?.init?.body));
+    assert.match(body.image_url, /^data:image\/png;base64,/);
+    assert.equal(body.image_prompt_strength, 0.18);
   });
 });
 

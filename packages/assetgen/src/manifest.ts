@@ -9,6 +9,8 @@ export interface AssetEntry {
   game: string;
   path: string; // relative to the assets root
   prompt?: string;
+  /** Local source/reference images used for style, silhouette, palette, or edit guidance. */
+  referenceImages?: string[];
   provider?: string;
   /** Provider model/plan used, surfaced for sprite + image assets. */
   model?: string;

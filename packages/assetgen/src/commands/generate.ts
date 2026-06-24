@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { resolve, join } from "node:path";
 import { GAME_VIEW, buildPrompt } from "../style.ts";
 import { defaultProviderForKind } from "../providers.ts";
 import { runAssetPipeline } from "../pipeline.ts";
@@ -20,7 +20,7 @@ import {
   writeBillboardPreview,
 } from "../sprites.ts";
 import { assetsRootForRepo, draftsManifestPath, draftsRoot } from "../drafts.ts";
-import { flag, has, intFlag, numberFlag } from "./args.ts";
+import { flag, flagValues, has, intFlag, numberFlag, shortFlagValues } from "./args.ts";
 import { defaultRepo } from "./paths.ts";
 
 export async function runGenerate(argv: string[]): Promise<void> {
@@ -34,6 +34,9 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const model = flag(argv, "model");
   const size = intFlag(argv, "size", 1024);
   const repo = flag(argv, "repo") || defaultRepo(game);
+  const referenceImages = [...flagValues(argv, "reference"), ...shortFlagValues(argv, "i")].map((path) =>
+    resolve(path),
+  );
   // Draft mode (issue #54): stage the asset under src/assets/drafts/ + drafts.json
   // instead of writing the production manifest. Default off — non-draft runs are
   // byte-for-byte unchanged. `assetgen promote` later publishes staged drafts.
@@ -105,6 +108,7 @@ export async function runGenerate(argv: string[]): Promise<void> {
       : buildPrompt({ prompt: promptInput, game, kind: generationKind });
   console.log(`[assetgen] provider=${which}${model ? ` model=${model}` : ""} game=${game} kind=${kind} id=${id}`);
   console.log(`[prompt] ${full}`);
+  for (const reference of referenceImages) console.log(`[reference] ${reference}`);
 
   const spritePostprocess: AssetPostprocessHook | undefined = spriteMode
     ? async (asset, context) => {
@@ -251,6 +255,7 @@ export async function runGenerate(argv: string[]): Promise<void> {
     kind: generationKind,
     provider: which,
     model,
+    referenceImages,
     size,
     seed,
     outlineTint,
@@ -284,7 +289,7 @@ function printGenerateUsage(): void {
     "usage:\n" +
       "  assetgen generate --id <id> --prompt <text> [--game <slug>|shared]\n" +
       "           [--kind sprite|texture|icon|music|sfx|voice|model|3d] [--provider openai|fal|codex|replicate|meshy|tripo|suno|elevenlabs|beatoven|mock]\n" +
-      "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
+      "           [--model <model>] [--size 1024] [--reference <image>|-i <image...>] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
       "           [--views front,side,back] [--frames 1] [--fps 8] [--anchor 0.5,1] [--scale 1]\n" +
       "           [--category music|sfx|voice] [--volume 1] [--loop|--no-loop] [--bitrate 128] [--normalize]\n" +
       "           [--ktx2] [--no-draco] [--rig <source>]\n" +
@@ -293,7 +298,7 @@ function printGenerateUsage(): void {
       "           [--draft]  (stage under src/assets/drafts/; publish later with `assetgen promote`)\n" +
       "  assetgen --id <id> --prompt <text> [--game <slug>|shared]\n" +
       "           [--kind sprite|texture|icon|music|sfx|voice|model|3d] [--provider openai|fal|codex|replicate|meshy|tripo|suno|elevenlabs|beatoven|mock]\n" +
-      "           [--model <model>] [--size 1024] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
+      "           [--model <model>] [--size 1024] [--reference <image>|-i <image...>] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
       "  assetgen matrix [--game <slug>] [--id <entity>] [--provider mock|openai|fal|codex|replicate]\n" +
       "           [--size 1024] [--only-missing] [--dry-run] [--sync-games] [--assets-dir <path>] [--usage-log <path|off>]\n" +
       "  assetgen games [--check] [--games-root <path>] [--assets-dir <path>]\n" +
