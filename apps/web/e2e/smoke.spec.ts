@@ -35,7 +35,32 @@ for (const route of PUBLIC_ROUTES) {
 
 test("game gallery lists catalogue entries and links to detail pages", async ({ page }) => {
   await page.goto("/games", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("link", { name: /scourge survivors/i }).first()).toBeVisible();
+
+  const cards = page.getByTestId("game-card");
+  await expect(cards).toHaveCount(7);
+
+  const scourge = page.locator('[data-testid="game-card"][data-game-slug="scourge-survivors"]');
+  await expect(scourge.getByRole("link", { name: /^scourge survivors$/i })).toHaveAttribute(
+    "href",
+    "/games/scourge-survivors",
+  );
+  await expect(scourge.getByRole("link", { name: /^demo$/i })).toHaveAttribute(
+    "href",
+    "https://scourge-survivors.vercel.app",
+  );
+  await expect(scourge.getByRole("link", { name: /^source$/i })).toHaveAttribute(
+    "href",
+    "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/scourge-survivors",
+  );
+
+  await expect(
+    page.locator('[data-testid="game-card"][data-game-slug="pactfall"]'),
+  ).toContainText("Concept");
+  await expect(
+    page.locator('[data-testid="game-card"][data-game-slug="pactfall"]').getByRole("link", { name: /^demo$/i }),
+  ).toHaveAttribute("href", "https://pactfall.vercel.app");
+  await expect(page.locator('[data-game-slug="bloodlane"]')).toHaveCount(0);
+  await expect(page.locator('[data-game-slug="zero-day"]')).toHaveCount(0);
 });
 
 test("game detail page renders for a known slug", async ({ page }) => {
