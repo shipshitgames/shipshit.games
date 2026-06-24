@@ -7,6 +7,7 @@ import os from "node:os";
 import fs from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { readAssetBaseUrl } from "@shipshitgames/shared";
 import { readSharedGameSlugs } from "./game-slugs";
 import { createTerminalManager, terminalShell } from "./terminal-manager";
 import {
@@ -105,6 +106,7 @@ const ASSETS_PKG_CANDIDATES = [
 ];
 const gallery = createGallery({
   assetsRoot: () => ASSETS_PKG_CANDIDATES.find((p) => fs.existsSync(path.join(p, "games"))) || null,
+  assetBaseUrl: () => readAssetBaseUrl(process.env),
 });
 
 // ---- settings (non-secret) ----

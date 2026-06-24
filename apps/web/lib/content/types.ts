@@ -124,6 +124,10 @@ export interface AssetIndexEntry {
   game: LoreGameSlug | null;
   /** Site-relative public path. */
   publicPath: string;
+  /** Path relative to the shared Deadrot asset package, when this entry comes from that package. */
+  sourcePath?: string | null;
+  /** CDN-backed URL resolved from sourcePath and asset-origin config, when configured. */
+  assetUrl?: string | null;
   /** [width, height] parsed from the webp header; null when unknown. */
   dimensions: [number, number] | null;
   provenance: AssetProvenance | null;

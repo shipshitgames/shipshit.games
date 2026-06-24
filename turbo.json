@@ -6,6 +6,7 @@
       "dependsOn": ["^build"],
       "env": [
         "ACCESS_SIGNING_SECRET",
+        "ASSET_BASE_URL",
         "CONTENT_SNAPSHOT_ONLY",
         "GITHUB_TOKEN",
         "GITHUB_TOKEN_HAS_PROJECT_SCOPE",
@@ -19,6 +20,7 @@
         "GENERATE_HOURLY_LIMIT",
         "GITHUB_WEBHOOK_SECRET",
         "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_ASSET_BASE_URL",
         "NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL",
         "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL",
         "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
@@ -36,7 +38,8 @@
         "STRIPE_SECRET_KEY",
         "STRIPE_STUDIO_PASS_FOUNDER_COUPON_ID",
         "STRIPE_STUDIO_PASS_PRICE_ID",
-        "STRIPE_WEBHOOK_SECRET"
+        "STRIPE_WEBHOOK_SECRET",
+        "VITE_ASSET_BASE_URL"
       ],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", "out/**"]
     },
@@ -63,7 +66,9 @@
       "cache": false,
       "env": [
         "CONTENT_SNAPSHOT_ONLY",
+        "ASSET_BASE_URL",
         "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_ASSET_BASE_URL",
         "NEXT_PUBLIC_SITE_URL",
         "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
         "CLERK_SECRET_KEY",

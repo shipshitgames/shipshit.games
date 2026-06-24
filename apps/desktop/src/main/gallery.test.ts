@@ -166,6 +166,20 @@ test("list reports manifest source for games with a manifest", () => {
   expect(gallery.list("scourge-survivors").source).toBe("manifest");
 });
 
+test("list exposes a CDN URL for package-relative assets when configured", () => {
+  const root = tempRoot();
+  writeAsset(root, "games/scourge-survivors/weapons/pistol.webp", 8);
+  writeManifest(root, "scourge-survivors", {
+    sprites: { pistol: { type: "sprite", path: "games/scourge-survivors/weapons/pistol.webp" } },
+  });
+  const gallery = createGallery({ assetsRoot: root, assetBaseUrl: "https://cdn.deadrot.test/assets/" });
+  const res = gallery.list("scourge-survivors");
+  expect(res.assetBaseUrl).toBe("https://cdn.deadrot.test/assets");
+  expect(res.assets.find((a) => a.id === "pistol")?.cdnUrl).toBe(
+    "https://cdn.deadrot.test/assets/games/scourge-survivors/weapons/pistol.webp",
+  );
+});
+
 test("list reports an error when the assets package is absent", () => {
   const gallery = createGallery({ assetsRoot: () => null });
   const res = gallery.list("scourge-survivors");

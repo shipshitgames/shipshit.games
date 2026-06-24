@@ -8,6 +8,7 @@
 // per-game manifest, NOT the Deadrot shared package.
 import fs from "node:fs";
 import path from "node:path";
+import { normalizeAssetBaseUrl, resolveAssetUrl } from "@shipshitgames/shared";
 
 const IMAGE_EXT = new Set([".webp", ".png", ".jpg", ".jpeg", ".gif", ".avif"]);
 // Categories that hold renderable images. `audio` is non-visual; `runtime` is
@@ -128,10 +129,13 @@ function walkImages(rootDir, gameDir, game, out = []) {
   return out;
 }
 
-function createGallery({ assetsRoot }) {
+function createGallery({ assetsRoot, assetBaseUrl = null }) {
   function root() {
     const r = typeof assetsRoot === "function" ? assetsRoot() : assetsRoot;
     return r && fs.existsSync(r) ? r : null;
+  }
+  function baseUrl() {
+    return normalizeAssetBaseUrl(typeof assetBaseUrl === "function" ? assetBaseUrl() : assetBaseUrl);
   }
   function gamesDir() {
     const r = root();
@@ -218,11 +222,13 @@ function createGallery({ assetsRoot }) {
       source = "filesystem";
     }
     const budget = Number.isFinite(opts.embedBudget) ? opts.embedBudget : DEFAULT_EMBED_BUDGET;
+    const assetOrigin = baseUrl();
     let used = 0;
     const assets = flat.map((a) => {
+      const cdnUrl = resolveAssetUrl(a.path, assetOrigin);
       const abs = resolveSafe(a.path);
       if (!abs || !fs.existsSync(abs)) {
-        return { ...a, missing: true, dataUrl: null, bytes: null, deferred: false };
+        return { ...a, cdnUrl, missing: true, dataUrl: null, bytes: null, deferred: false };
       }
       const size = fs.statSync(abs).size;
       const approxB64 = Math.ceil(size * 1.37);
@@ -230,14 +236,15 @@ function createGallery({ assetsRoot }) {
         const e = embed(abs);
         if (e) {
           used += approxB64;
-          return { ...a, missing: false, dataUrl: e.dataUrl, bytes: e.bytes, deferred: false };
+          return { ...a, cdnUrl, missing: false, dataUrl: e.dataUrl, bytes: e.bytes, deferred: false };
         }
       }
-      return { ...a, missing: false, dataUrl: null, bytes: size, deferred: true };
+      return { ...a, cdnUrl, missing: false, dataUrl: null, bytes: size, deferred: true };
     });
     return {
       ok: true,
       root: r,
+      assetBaseUrl: assetOrigin,
       source,
       manifestPath: source === "manifest" ? manifestPath(safeGame) : null,
       game: safeGame,

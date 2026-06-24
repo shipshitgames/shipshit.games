@@ -1,5 +1,6 @@
 import Image from "next/image";
 
+import { assetSrc } from "@/components/assets/asset-meta";
 import { Eyebrow } from "@/components/site/eyebrow";
 import { accentStyle } from "@/components/games/accent";
 import type { AccentToken, AssetIndexEntry } from "@/lib/content/types";
@@ -37,7 +38,7 @@ export function SpriteGallery({
             >
               <div className="flex aspect-square items-center justify-center overflow-hidden border-b border-gunmetal/60 bg-void p-3">
                 <Image
-                  src={asset.publicPath}
+                  src={assetSrc(asset)}
                   alt={`${asset.name} pixel art asset`}
                   width={asset.dimensions?.[0] ?? 160}
                   height={asset.dimensions?.[1] ?? 160}

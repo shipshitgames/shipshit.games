@@ -7,7 +7,7 @@
 import Image from "next/image";
 
 import type { AssetIndexEntry } from "@/lib/content/types";
-import { entityIdOf, formatDimensions, gameLabel } from "./asset-meta";
+import { assetSrc, entityIdOf, formatDimensions, gameLabel } from "./asset-meta";
 
 /** Canonical per-game column order (gallery order). */
 const GAME_COLUMN_ORDER = [
@@ -80,7 +80,7 @@ export function VariantMatrix({
                 <figure key={variant.id} className="w-28 sm:w-32">
                   <div className="relative flex aspect-square items-center justify-center rounded-md border border-gunmetal bg-void">
                     <Image
-                      src={variant.publicPath}
+                      src={assetSrc(variant)}
                       alt={`${variant.name} as rendered for ${gameLabel(variant.game, gameTitles) ?? "the shared canon"}`}
                       fill
                       sizes="8rem"

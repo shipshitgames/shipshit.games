@@ -53,6 +53,7 @@ describe("buildAssetIndex", () => {
       },
       deadrotSpriteFiles: ["player-ranger-front.webp", "portrait-rot-engine.webp"],
       lore: LORE,
+      assetBaseUrl: "https://cdn.deadrot.test/assets/",
     });
 
     const ids = entries.map((e) => e.id);
@@ -63,6 +64,15 @@ describe("buildAssetIndex", () => {
     expect(ids).not.toContain("entity:scourge-swarm:deadlane");
     expect(ids).not.toContain("runtime:scourge-survivors:not-a-sprite");
     expect(copies).toHaveLength(4);
+    expect(entries.find((e) => e.id === "entity:scourge-swarm:scourge-survivors")?.sourcePath).toBe(
+      "entities/scourge-swarm/scourge-survivors.webp",
+    );
+    expect(entries.find((e) => e.id === "entity:scourge-swarm:scourge-survivors")?.assetUrl).toBe(
+      "https://cdn.deadrot.test/assets/entities/scourge-swarm/scourge-survivors.webp",
+    );
+    expect(entries.find((e) => e.id === "deadrot:player-ranger-front")?.assetUrl).toBe(
+      "https://cdn.deadrot.test/assets/sites/deadrotcom/public/sprites/player-ranger-front.webp",
+    );
   });
 
   test("carries provenance and enriches from lore", () => {

@@ -120,6 +120,7 @@ interface GalleryAsset {
   filter: string | null;
   role: string | null;
   license: Record<string, unknown> | null;
+  cdnUrl?: string | null;
   missing: boolean;
   dataUrl: string | null;
   bytes: number | null;
@@ -129,6 +130,7 @@ interface GalleryResult {
   ok: boolean;
   error?: string;
   root: string | null;
+  assetBaseUrl?: string | null;
   source?: "manifest" | "filesystem";
   manifestPath?: string | null;
   game: string;
@@ -1903,6 +1905,10 @@ function GalleryPane() {
     setCompare((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 4 ? prev : [...prev, id]));
   }, []);
 
+  const copyText = useCallback((value: string) => {
+    void navigator.clipboard?.writeText(value).catch(() => {});
+  }, []);
+
   const step = useCallback((delta: number) => {
     setLightbox((current) => {
       if (!current) return current;
@@ -1955,6 +1961,7 @@ function GalleryPane() {
         ))}
         <span className="gallery-meta">
           {result.source ? `${result.source}` : ""}
+          {result.assetBaseUrl ? " · cdn" : ""}
           {result.assets.some((a) => a.missing) ? ` · ${result.assets.filter((a) => a.missing).length} missing` : ""}
         </span>
       </div>
@@ -2061,6 +2068,9 @@ function GalleryPane() {
                 {lightboxAsset.role && (<><dt>role</dt><dd>{lightboxAsset.role}</dd></>)}
                 <dt>size</dt><dd>{formatBytes(lightboxAsset.bytes)}</dd>
                 <dt>path</dt><dd className="gallery-lightbox-path">{lightboxAsset.path}</dd>
+                {lightboxAsset.cdnUrl && (
+                  <><dt>cdn</dt><dd className="gallery-lightbox-path">{lightboxAsset.cdnUrl}</dd></>
+                )}
                 {lightboxAsset.license && (
                   <><dt>license</dt><dd>{Object.entries(lightboxAsset.license).map(([k, v]) => `${k}: ${String(v)}`).join("\n")}</dd></>
                 )}
@@ -2074,6 +2084,16 @@ function GalleryPane() {
               >
                 {compare.includes(lightboxAsset.id) ? "Unpin from compare" : "Pin to compare"}
               </button>
+              {lightboxAsset.cdnUrl && (
+                <>
+                  <button className="set-btn" type="button" onClick={() => copyText(lightboxAsset.cdnUrl!)}>
+                    Copy CDN URL
+                  </button>
+                  <a className="set-btn gallery-link-btn" href={lightboxAsset.cdnUrl} target="_blank" rel="noreferrer">
+                    Open CDN
+                  </a>
+                </>
+              )}
             </div>
           </div>
         </div>

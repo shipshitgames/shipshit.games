@@ -1,4 +1,5 @@
 import type { AssetIndexEntry, AssetProvenance, LoreSnapshot } from "../../lib/content/types";
+import { resolveAssetUrl } from "@shipshitgames/shared";
 
 export interface SpriteCopy {
   /** Absolute source path inside the Deadrot asset package. */
@@ -62,9 +63,11 @@ export function buildAssetIndex(input: {
   /** Filenames (no dir) of sites/deadrotcom/public/sprites/*.webp, drafts excluded. */
   deadrotSpriteFiles: string[];
   lore: LoreSnapshot;
+  assetBaseUrl?: string | null;
 }): AssetIndexBuild {
   const entries: AssetIndexEntry[] = [];
   const copies: SpriteCopy[] = [];
+  const assetUrl = (sourcePath: string) => resolveAssetUrl(sourcePath, input.assetBaseUrl);
 
   for (const entity of input.catalogEntities) {
     for (const [game, variantPath] of Object.entries(entity.variants)) {
@@ -78,6 +81,8 @@ export function buildAssetIndex(input: {
         faction: entity.faction ?? null,
         game,
         publicPath,
+        sourcePath: variantPath,
+        assetUrl: assetUrl(variantPath),
         dimensions: null,
         provenance: null,
         canon: entity.canon,
@@ -99,6 +104,8 @@ export function buildAssetIndex(input: {
       faction: /^(enemy|boss)/.test(key) ? "scourge" : "pyre",
       game: "scourge-survivors",
       publicPath,
+      sourcePath: front.path,
+      assetUrl: assetUrl(front.path),
       dimensions: front.dimensions ?? null,
       provenance: pickProvenance(sprite.license),
     });
@@ -123,8 +130,9 @@ export function buildAssetIndex(input: {
     if (!file.endsWith(".webp")) continue;
     const base = file.replace(/\.webp$/, "");
     const publicPath = `/sprites/deadrot/${file}`;
+    const sourcePath = `sites/deadrotcom/public/sprites/${file}`;
     const loreMatch = loreBySprite.get(base);
-    copies.push({ src: `sites/deadrotcom/public/sprites/${file}`, publicPath });
+    copies.push({ src: sourcePath, publicPath });
     entries.push({
       id: `deadrot:${base}`,
       kind: base.startsWith("portrait-") ? "portrait" : "runtime-sprite",
@@ -132,6 +140,8 @@ export function buildAssetIndex(input: {
       faction: loreMatch?.faction ?? inferFactionFromName(base),
       game: null,
       publicPath,
+      sourcePath,
+      assetUrl: assetUrl(sourcePath),
       dimensions: null,
       provenance: null,
     });

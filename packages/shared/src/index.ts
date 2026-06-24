@@ -6,6 +6,9 @@ import gamesCatalog from "./games.json";
 /** Feature flags — `isEnabled("flag")`. See ./flags and FEATURE_FLAGS.md. */
 export * from "./flags";
 
+/** Shared asset-origin URL helpers for package-relative Deadrot assets. */
+export * from "./assets";
+
 /** Lifecycle status of a game in the gallery. */
 export type GameStatus = "finished" | "playable" | "prototype" | "in-dev" | "concept";
 

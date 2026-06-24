@@ -112,6 +112,20 @@ bun packages/assetgen/src/cli.ts matrix \
   --assets-dir ../deadrotcom/packages/assets
 ```
 
+## Shared asset origin
+
+The Deadrot asset package remains the source of truth. Studio consumers can
+serve those package-relative paths from a CDN by setting:
+
+```bash
+NEXT_PUBLIC_ASSET_BASE_URL=https://<cdn-origin>/assets
+ASSET_BASE_URL=https://<cdn-origin>/assets
+```
+
+`apps/web` snapshots keep local `public/` fallbacks but prefer CDN URLs when the
+origin is configured. `apps/desktop` keeps reading the local package for offline
+review and shows the matching CDN URL in the asset lightbox when configured.
+
 ## Discover game token targets
 
 `games` writes `games.json` into the Deadrot asset package. It discovers each
