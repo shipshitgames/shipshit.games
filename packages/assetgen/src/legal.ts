@@ -247,7 +247,7 @@ export interface AssetLegalRecord {
 
 /** Classify one manifest entry into its advisory legal record. */
 export function classifyAsset(entry: AssetEntry, usage: UsageContext): AssetLegalRecord {
-  const rawSource = entry.license?.tool ?? entry.provenance?.provider ?? "";
+  const rawSource = entry.license?.tool?.trim() ? entry.license.tool : entry.provenance?.provider ?? "";
   const policy = resolveSourcePolicy(rawSource, { kind: assetCategory(entry), usage });
   const humanAuthored = entry.human?.authored === true;
   const model = entry.model ?? entry.provenance?.model ?? entry.license?.plan;

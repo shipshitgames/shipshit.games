@@ -15,6 +15,10 @@
       "types": "./src/sprite-prompt.ts",
       "default": "./src/sprite-prompt.ts"
     },
+    "./sprites": {
+      "types": "./src/sprites.ts",
+      "default": "./src/sprites.ts"
+    },
     "./src/*": "./src/*"
   },
   "scripts": {

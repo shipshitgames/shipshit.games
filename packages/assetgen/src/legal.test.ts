@@ -20,15 +20,24 @@ import {
 } from "./legal.ts";
 
 /** Build an AssetEntry with a complete license record; override anything per test. */
-function entry(over: Partial<AssetEntry> & { id: string; tool: string; kind?: string }): AssetEntry {
-  const kind = over.kind ?? "sprite";
+type EntryOverrides = Omit<Partial<AssetEntry>, "id" | "kind" | "license"> & {
+  id: string;
+  tool: string;
+  kind?: string;
+  plan?: string;
+  license?: Partial<AssetEntry["license"]>;
+};
+
+function entry(over: EntryOverrides): AssetEntry {
+  const { id, kind: rawKind, license, plan, tool, ...asset } = over;
+  const kind = rawKind ?? "sprite";
   return {
-    id: over.id,
+    ...asset,
+    id,
     kind,
-    game: over.game ?? "scourge-survivors",
-    path: over.path ?? `sprites/${over.id}.webp`,
-    ...over,
-    license: { tool: over.tool, plan: over.plan ?? over.tool, date: "2026-06-22", kind, ...(over.license ?? {}) },
+    game: asset.game ?? "scourge-survivors",
+    path: asset.path ?? `sprites/${id}.webp`,
+    license: { tool, plan: plan ?? tool, date: "2026-06-22", kind, ...(license ?? {}) },
   } as AssetEntry;
 }
 

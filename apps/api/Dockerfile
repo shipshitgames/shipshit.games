@@ -32,12 +32,10 @@ COPY packages/assetgen packages/assetgen
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN cd apps/api && bunx prisma generate && bun run next build
 
-# The API does zero image processing, but Next auto-traces sharp (assetgen's
-# sprite-sheet slicer dep) into the standalone bundle. Drop it + node-pty so
-# the runtime image carries no asset-toolchain native binaries.
+# Asset Lab sheet slicing uses assetgen's sharp-backed sprite normalizer.
+# Keep sharp/@img in the runtime image; node-pty remains CLI-only.
 RUN cd apps/api/.next/standalone/node_modules \
-  && rm -rf sharp @img node-pty \
-            .bun/sharp@* .bun/@img+* .bun/node-pty@*
+  && rm -rf node-pty .bun/node-pty@*
 
 FROM node:24-slim AS runner
 # Prisma probes the system OpenSSL to pick its engine; slim ships without it.

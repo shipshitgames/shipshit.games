@@ -4,7 +4,7 @@ import sharp from "sharp";
 
 // Moved to sprite-prompt.ts (pure, no sharp) so API bundles can import it
 // without native deps; re-exported here so existing imports keep working.
-export { spritePromptDirective } from "./sprite-prompt.ts";
+export { spritePromptDirective } from "./sprite-prompt";
 
 export type Anchor = [number, number];
 
@@ -52,6 +52,16 @@ export interface SpriteSheetMetadata {
 export interface SpriteSheetResult {
   data: Buffer;
   metadata: SpriteSheetMetadata;
+  frames: SpriteSheetFrame[];
+}
+
+export interface SpriteSheetFrame {
+  data: Buffer;
+  frame: number;
+  view: string;
+  column: number;
+  row: number;
+  dimensions: [number, number];
 }
 
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
@@ -103,6 +113,7 @@ export async function toSpriteSheetWebp(input: Buffer, opts: SpriteSheetOptions)
   const srcCellHeight = Math.max(1, Math.floor(sourceHeight / layout.usedRows));
 
   const cells: sharp.OverlayOptions[] = [];
+  const frames: SpriteSheetFrame[] = [];
   for (let row = 0; row < layout.usedRows; row++) {
     for (let col = 0; col < layout.usedColumns; col++) {
       const left = Math.min(col * srcCellWidth, sourceWidth - srcCellWidth);
@@ -112,7 +123,16 @@ export async function toSpriteSheetWebp(input: Buffer, opts: SpriteSheetOptions)
         .resize(frameWidth, frameHeight, { fit: "contain", background: TRANSPARENT })
         .png()
         .toBuffer();
+      const frameData = await sharp(cell).webp({ lossless: true, effort: 5 }).toBuffer();
       cells.push({ input: cell, left: col * frameWidth, top: row * frameHeight });
+      frames.push({
+        data: frameData,
+        frame: frameCount > 1 ? col : 0,
+        view: frameCount > 1 ? views[row] ?? views[0] ?? "front" : views[col] ?? views[0] ?? "front",
+        column: col,
+        row,
+        dimensions: [frameWidth, frameHeight],
+      });
     }
   }
 
@@ -130,6 +150,7 @@ export async function toSpriteSheetWebp(input: Buffer, opts: SpriteSheetOptions)
 
   return {
     data,
+    frames,
     metadata: {
       dimensions: [sheetWidth, sheetHeight],
       frameSize: [frameWidth, frameHeight],

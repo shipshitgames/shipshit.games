@@ -6,11 +6,9 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/**/*": ["./generated/client/**"],
   },
-  // NOTE: assetgen drags sharp + node-pty (its sprite-sheet slicer / PTY
-  // toolchain) into the install, and Next auto-traces sharp for the image
-  // optimizer. The API does zero image work, so the Dockerfile prunes those
-  // native binaries from the standalone output (glob excludes don't reliably
-  // match bun's flattened .bun store layout).
+  // NOTE: Asset Lab sheet slicing reuses assetgen's sharp-backed sprite-sheet
+  // normalizer, so the Docker runtime must keep sharp. node-pty is still CLI
+  // only and can be pruned from the standalone output.
 };
 
 export default nextConfig;
