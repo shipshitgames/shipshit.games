@@ -46,6 +46,10 @@ try {
   );
 }
 
+if (process.env.SSG_DESKTOP_E2E_USER_DATA) {
+  app.setPath("userData", process.env.SSG_DESKTOP_E2E_USER_DATA);
+}
+
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
 const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
 

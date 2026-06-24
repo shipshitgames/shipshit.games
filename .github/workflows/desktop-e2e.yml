@@ -1,0 +1,86 @@
+name: Desktop E2E
+
+on:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "packages/assetgen/**"
+      - "packages/engine/**"
+      - "packages/ressources/**"
+      - "package.json"
+      - "bun.lock"
+      - "turbo.json"
+      - ".github/workflows/desktop-e2e.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "apps/desktop/**"
+      - "packages/assetgen/**"
+      - "packages/engine/**"
+      - "packages/ressources/**"
+      - "package.json"
+      - "bun.lock"
+      - "turbo.json"
+      - ".github/workflows/desktop-e2e.yml"
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  desktop-e2e:
+    name: Desktop Studio Smoke
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Cache Bun and Turbo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            .turbo
+          key: ${{ runner.os }}-bun-turbo-${{ hashFiles('bun.lock', 'turbo.json', '**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-turbo-
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Desktop E2E Smoke
+        run: bun run --cwd apps/desktop e2e:smoke
+        timeout-minutes: 18
+
+      - name: Upload Desktop E2E Artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: desktop-e2e-artifacts
+          path: |
+            apps/desktop/test-results
+            apps/desktop/playwright-report
+          if-no-files-found: ignore
