@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start -p 3002",
     "typecheck": "tsc --noEmit",
+    "test": "bun test lib",
+    "test:coverage": "bun test lib --coverage",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
