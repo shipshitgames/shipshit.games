@@ -74,6 +74,9 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: React Doctor
+        run: bun run lint:react
+
       - name: Typecheck
         run: bun run typecheck
 
@@ -124,6 +127,63 @@ jobs:
         run: bun run e2e
         working-directory: apps/web
         timeout-minutes: 12
+
+  assetgen-gates:
+    name: Assetgen Integrity Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - name: Checkout Studio Source
+        uses: actions/checkout@v6
+        with:
+          path: shipshit.games
+
+      - name: Checkout Deadrot Assets
+        uses: actions/checkout@v6
+        with:
+          repository: shipshitgames/deadrot.com
+          path: deadrotcom
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Cache Bun and Turbo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.bun/install/cache
+            shipshit.games/.turbo
+            deadrotcom/.turbo
+          key: ${{ runner.os }}-assetgen-gates-${{ hashFiles('shipshit.games/bun.lock', 'shipshit.games/turbo.json', 'shipshit.games/**/package.json', 'deadrotcom/bun.lock', 'deadrotcom/turbo.json', 'deadrotcom/**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-assetgen-gates-
+
+      - name: Install Studio Dependencies
+        run: bun install --frozen-lockfile
+        working-directory: shipshit.games
+
+      - name: Install Deadrot Dependencies
+        run: bun install --frozen-lockfile
+        working-directory: deadrotcom
+
+      - name: Verify Deadrot Asset Index
+        run: bun run --cwd packages/assets assets:index:check
+        working-directory: deadrotcom
+
+      - name: Run Assetgen Staleness Gates
+        run: bun run check:assetgen-gates -- --assets-dir ../deadrotcom/packages/assets --games-root ../deadrotcom/apps/games
+        working-directory: shipshit.games
 
   desktop-terminal:
     name: Desktop Terminal (node-pty)

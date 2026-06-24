@@ -10,6 +10,12 @@ import { defaultAssetsDir, defaultRepo } from "./paths.ts";
 
 const PER_GAME_INDEX = /^assets\.index\.([a-z0-9-]+)\.json$/;
 
+export function isAssetIndexFile(file: string): boolean {
+  if (file === ASSET_INDEX_FILE) return true;
+  const match = PER_GAME_INDEX.exec(file);
+  return Boolean(match && GAME_SLUGS.includes(match[1] as (typeof GAME_SLUGS)[number]));
+}
+
 /**
  * Asset-integrity gate. With `--game <slug>` it runs the per-game checks (#52):
  * every manifest reference resolves, no orphan webps, every entry licensed, no
@@ -84,7 +90,7 @@ async function runIndexCheckCommand(argv: string[]): Promise<void> {
 
   const entries = await readdir(assetsDir);
   const indexFiles = entries
-    .filter((f) => f === ASSET_INDEX_FILE || PER_GAME_INDEX.test(f))
+    .filter(isAssetIndexFile)
     .sort();
   if (indexFiles.length === 0) {
     console.error(`[check] no assets.index*.json in ${assetsDir} — run \`assetgen index\` first`);
