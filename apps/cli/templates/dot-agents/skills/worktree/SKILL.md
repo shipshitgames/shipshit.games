@@ -95,7 +95,23 @@ install dependencies in the new worktree:
 bun install
 ```
 
-### 4. Load context
+### 4. Local env includes
+
+The helper links ignored app env files into the new worktree when they already
+exist in the source checkout:
+
+```txt
+apps/web/.env.local
+apps/app/.env.local
+apps/api/.env.local
+apps/docs/.env.local
+```
+
+If `apps/docs/.env.local` is missing, it is seeded from
+`apps/docs/.env.example` first. These files remain ignored by git; do not commit
+secrets or local env files.
+
+### 5. Load context
 
 Run `session-start` from inside the new worktree to load repo memory and recent
 session notes before beginning the feature.
