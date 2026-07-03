@@ -7,12 +7,15 @@
     "build": "prisma generate && next build",
     "start": "next start -p 3005",
     "typecheck": "prisma generate && tsc --noEmit",
+    "test": "bun test lib",
+    "test:coverage": "bun test lib --coverage",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.956.0",
     "@clerk/backend": "^2.29.0",
     "@prisma/client": "^6.19.0",
     "@shipshitgames/assetgen": "workspace:*",
