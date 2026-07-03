@@ -18,10 +18,13 @@
     "preview": "vite preview",
     "start": "node scripts/rebuild-native.cjs && bun run build && NODE_ENV=production electron .",
     "postinstall": "node scripts/rebuild-native.cjs --soft",
+    "install:electron": "node scripts/install-electron.cjs",
     "rebuild:native": "node scripts/rebuild-native.cjs",
     "verify:terminal": "bun run build && node dist/verify/index.cjs",
-    "test": "bun test",
-    "test:coverage": "bun test --coverage",
+    "e2e": "bun run e2e:smoke",
+    "e2e:smoke": "bun run install:electron && bun run rebuild:native && bun run build && playwright test --config e2e/playwright.config.ts",
+    "test": "bun test src",
+    "test:coverage": "bun test src --coverage",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
@@ -55,6 +58,7 @@
   },
   "devDependencies": {
     "@electron/rebuild": "4.0.3",
+    "@playwright/test": "^1.60.0",
     "@types/node": "25.9.1",
     "@types/react": "19.2.16",
     "@types/react-dom": "19.2.3",

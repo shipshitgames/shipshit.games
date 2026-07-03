@@ -83,6 +83,36 @@ for cand in develop master main; do
 done
 [ -n "$BASE_REF" ] || die "no develop/master/main branch found to base the worktree on"
 
+# --- Include ignored local environment files ------------------------------
+include_env_local_files() {
+  local src_root="$1"
+  local dst_root="$2"
+  local rel src dest
+  local env_files=(
+    "apps/web/.env.local"
+    "apps/app/.env.local"
+    "apps/api/.env.local"
+    "apps/docs/.env.local"
+  )
+
+  if [ ! -e "$src_root/apps/docs/.env.local" ] && [ -f "$src_root/apps/docs/.env.example" ]; then
+    cp "$src_root/apps/docs/.env.example" "$src_root/apps/docs/.env.local"
+    printf 'worktree: seeded apps/docs/.env.local from apps/docs/.env.example.\n' >&2
+  fi
+
+  for rel in "${env_files[@]}"; do
+    src="$src_root/$rel"
+    dest="$dst_root/$rel"
+    [ -e "$src" ] || continue
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+      continue
+    fi
+    mkdir -p "$(dirname "$dest")"
+    ln -s "$src" "$dest"
+    printf 'worktree: linked %s from source checkout.\n' "$rel" >&2
+  done
+}
+
 # --- Create the worktree --------------------------------------------------
 mkdir -p "$TOPLEVEL/.worktrees"
 
@@ -94,6 +124,8 @@ elif git show-ref --verify --quiet "refs/heads/$BRANCH"; then
 else
   git worktree add -b "$BRANCH" "$WTDIR" "$BASE_REF"
 fi
+
+include_env_local_files "$TOPLEVEL" "$WTDIR"
 
 # --- Report ---------------------------------------------------------------
 printf '\n'

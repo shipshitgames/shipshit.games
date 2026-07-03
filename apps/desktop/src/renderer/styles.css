@@ -331,6 +331,59 @@ body {
 .project-actions { display: flex; gap: 8px; }
 .project-error { font-family: var(--font-mono); font-size: 11px; color: #ff8a7a; word-break: break-word; }
 
+/* ---- Gyms ---- */
+.gyms { width: 100%; align-self: stretch; display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 22px; min-height: 520px; }
+.gym-sidebar { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.gym-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.gym-sidebar-head span { font-family: var(--font-display); font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--bone); }
+.gym-project-list { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gym-project {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center;
+  width: 100%; padding: 11px 12px; text-align: left; color: var(--ash); background: var(--coal);
+  border: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); border-radius: 3px; cursor: pointer;
+}
+.gym-project:hover { color: var(--bone); border-color: color-mix(in srgb, var(--gunmetal) 76%, var(--bone)); }
+.gym-project.is-active { color: var(--bone); border-color: var(--hellfire); box-shadow: inset 2px 0 0 var(--hellfire); }
+.gym-project strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display); font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
+.gym-project span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 11px; color: color-mix(in srgb, var(--ash) 72%, var(--void)); }
+.gym-project b { grid-row: 1 / span 2; grid-column: 2; min-width: 28px; text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--hellfire); }
+.gym-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.gym-project-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); }
+.gym-project-head h2 { margin: 0 0 4px; font-family: var(--font-display); font-size: 22px; text-transform: uppercase; letter-spacing: 0.04em; }
+.gym-path, .gym-url {
+  font-family: var(--font-mono); font-size: 11px; color: color-mix(in srgb, var(--ash) 68%, var(--void));
+  word-break: break-all;
+}
+.gym-url { color: var(--hellfire); }
+.gym-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.gym-card {
+  display: flex; flex-direction: column; gap: 10px; min-height: 220px; padding: 14px;
+  background: var(--coal); border: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); border-radius: 4px;
+}
+.gym-card-head { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gym-kind { font-family: var(--font-mono); font-size: 10px; color: var(--hellfire); text-transform: uppercase; letter-spacing: 0.12em; }
+.gym-card strong { font-family: var(--font-display); font-size: 17px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--bone); }
+.gym-card p { margin: 0; min-height: 40px; color: var(--ash); }
+.gym-command {
+  display: block; min-height: 42px; padding: 9px; font-family: var(--font-mono); font-size: 11px; color: var(--bone);
+  background: #07070b; border: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); border-radius: 2px; white-space: pre-wrap; word-break: break-word;
+}
+.gym-launch { margin-top: auto; width: 100%; }
+.gym-result {
+  display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 12px;
+  background: color-mix(in srgb, var(--hellfire) 9%, var(--coal)); border: 1px solid color-mix(in srgb, var(--hellfire) 45%, transparent); border-radius: 3px;
+}
+.gym-result strong { color: var(--bone); }
+.gym-result span { font-family: var(--font-mono); font-size: 11px; color: var(--ash); }
+.gym-empty {
+  padding: 18px; color: color-mix(in srgb, var(--ash) 68%, var(--void)); background: var(--coal);
+  border: 1px dashed var(--gunmetal); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.12em; font-size: 11px;
+}
+.gym-empty.is-large {
+  min-height: 220px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; justify-content: center;
+}
+.gym-empty b { color: var(--hellfire); font-family: var(--font-mono); font-size: 12px; letter-spacing: 0; text-transform: none; }
+
 /* ---- Gallery ---- */
 .gallery { width: 100%; align-self: stretch; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
 .gallery-toolbar { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) auto; gap: 12px; align-items: end; }

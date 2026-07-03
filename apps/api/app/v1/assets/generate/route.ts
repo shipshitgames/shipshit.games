@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { GAMES } from "@shipshitgames/shared";
 import { requireAuth } from "@/lib/auth";
-import { readAssetImage, saveAsset } from "@/lib/assets";
+import { assetUrl, readAssetImage, saveAsset } from "@/lib/assets";
 import { aspectRatioFor, SHEET_POSES, spritePrompt } from "@/lib/asset-prompt";
 import { db } from "@/lib/db";
 import { getReplicateToken, MODEL, runPrediction, uploadReference } from "@/lib/replicate";
@@ -96,23 +96,27 @@ export async function POST(req: Request) {
       errors.push(`Image download failed (${imageRes.status})`);
       continue;
     }
-    const record = await saveAsset(
-      {
-        subject: prompt,
-        description:
-          typeof description === "string" && description.trim() ? description.trim() : null,
-        fullPrompt,
-        style: "art bible",
-        pose: sheetPoses ? null : typeof pose === "string" ? pose : null,
-        sheetPoses: sheetPoses ?? [],
-        gameSlug: game.slug,
-        game: game.title,
-        model: MODEL,
-        ownerId: auth.userId,
-      },
-      Buffer.from(await imageRes.arrayBuffer()),
-    );
-    saved.push({ ...record, url: `/v1/assets/${record.id}/file` });
+    try {
+      const record = await saveAsset(
+        {
+          subject: prompt,
+          description:
+            typeof description === "string" && description.trim() ? description.trim() : null,
+          fullPrompt,
+          style: "art bible",
+          pose: sheetPoses ? null : typeof pose === "string" ? pose : null,
+          sheetPoses: sheetPoses ?? [],
+          gameSlug: game.slug,
+          game: game.title,
+          model: MODEL,
+          ownerId: auth.userId,
+        },
+        Buffer.from(await imageRes.arrayBuffer()),
+      );
+      saved.push({ ...record, url: assetUrl(record) });
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : "asset save failed");
+    }
   }
 
   if (saved.length === 0) {

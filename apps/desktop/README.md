@@ -84,6 +84,24 @@ bun run typecheck
 bun run build
 ```
 
+## Desktop smoke/e2e
+
+The desktop smoke suite launches the built production Electron app with an
+isolated fixture `userData` directory. It verifies that the renderer is not
+blank, the preload bridge is exposed, fixture projects render in the Studio UI,
+and a Projects pane action reaches IPC by switching the active project.
+
+```bash
+cd apps/desktop
+bun run e2e:smoke
+```
+
+The command explicitly downloads Electron when Bun has skipped its install
+lifecycle, rebuilds `node-pty` for Electron's ABI, builds the app, then runs
+Playwright's Electron driver. On failure, Playwright writes screenshots, traces,
+and videos under `apps/desktop/test-results`; the scheduled GitHub Action also
+uploads `test-results` and `playwright-report`.
+
 Run the dev shell (rebuilds the addon first, then launches Electron):
 
 ```bash
@@ -134,6 +152,33 @@ ASSET_BASE_URL=https://<cdn-origin>/assets bun run dev
 
 The CDN URL is review metadata; the gallery still works offline from the local
 package when the origin is unset.
+
+## Gyms launcher
+
+The Gyms pane reads each registered game repo's `studio.gyms.json` declaration
+or `.shipshit/gyms.json` fallback. A declaration is intentionally small and
+launches out-of-process:
+
+```json
+{
+  "gyms": [
+    {
+      "id": "character",
+      "label": "Character Gym",
+      "kind": "character",
+      "description": "Animation, bounds, hit frames, and tuning.",
+      "script": "gym:character",
+      "args": ["--port", "5175"],
+      "url": "http://localhost:5175/gym/character"
+    }
+  ]
+}
+```
+
+`script` runs as `bun run <script>` from the game repo unless `cwd` points at a
+repo-relative subdirectory. `command` + `args` may be used instead for a custom
+launcher. If `url` is present, the Studio opens it externally after starting the
+process.
 
 The Homebrew cask should point at the signed/notarized `.dmg` uploaded to a
 GitHub release.

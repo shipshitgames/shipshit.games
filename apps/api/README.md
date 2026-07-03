@@ -10,7 +10,7 @@ other brands (deadrot) can run the same image with different env on the same hos
 | --- | --- | --- |
 | `GET /health` | public | liveness + brand name |
 | `GET /v1/assets` | Clerk JWT | Asset Lab gallery (metadata) |
-| `GET /v1/assets/:id/file` | Clerk JWT | asset PNG |
+| `GET /v1/assets/:id/file` | Clerk JWT | compatibility asset file route; redirects to CDN or streams bytes |
 | `POST /v1/assets/generate` | Clerk JWT | nano-banana-2 sprite generation |
 | `GET /v1/stats/commits` | Clerk JWT | commit activity from GitHub pushes |
 | `POST /webhooks/stripe` | Stripe signature | verified event log |
@@ -31,7 +31,19 @@ server-side and forwards the caller's token (see `apps/app/lib/api.ts`).
 | `STRIPE_WEBHOOK_SECRET` | for webhook | from Stripe dashboard endpoint config |
 | `GITHUB_WEBHOOK_SECRET` | for webhook | repo/org webhook shared secret |
 | `REPLICATE_API_TOKEN` | for generate | falls back to the `shipshit-replicate` keychain entry locally |
+| `ASSET_STORAGE_BUCKET` | no | enables object storage for new Asset Lab images |
+| `ASSET_STORAGE_REGION` | with storage | S3/R2 region; falls back to `AWS_REGION`, `AWS_DEFAULT_REGION`, then `us-east-1` |
+| `ASSET_STORAGE_ENDPOINT` | no | S3-compatible endpoint for R2/MinIO; omit for AWS S3 |
+| `ASSET_STORAGE_PREFIX` | no | object key prefix for generated images; defaults to `asset-lab` |
+| `ASSET_STORAGE_PUBLIC_BASE_URL` | no | CDN/public origin used in API `url` fields, e.g. `https://assets.shipshit.games` |
+| `ASSET_STORAGE_FORCE_PATH_STYLE` | no | force path-style S3 addressing; defaults on when a custom endpoint is set |
 | `SERVICE_NAME` | no | brand label in `/health` (e.g. `api.deadrot.com`) |
+
+When `ASSET_STORAGE_BUCKET` is unset, Asset Lab keeps the old local-development
+fallback and stores image bytes in Postgres. When it is set, new generations are
+uploaded to object storage under `ASSET_STORAGE_PREFIX/<asset-id>.png`; Postgres
+stores metadata, object key, media type, byte size, and optional CDN URL. Existing
+rows with inline bytes continue to work through `/v1/assets/:id/file`.
 
 ## Local dev
 
