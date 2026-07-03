@@ -1727,40 +1727,38 @@ function labSlug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || "lab";
 }
 
-// Controlled text field for a variant's tags/note. Holds a local draft so an
-// unrelated re-render (scoring another card, a new variant landing) can't wipe an
-// in-progress edit, and re-syncs from the authoritative value only while unfocused
-// — so server-side normalization (slugged tags, trimmed notes) shows up without
-// ever clobbering what the user is typing. Commits on blur when the value changed.
+// Uncontrolled variant metadata fields. The parent keys them by the saved value,
+// so unrelated re-renders cannot wipe an in-progress edit, while committed
+// server-side normalization still remounts the input with the latest value.
 function LabTagsField({ value, onCommit }: { value: string; onCommit: (next: string) => void }) {
-  const [draft, setDraft] = useState(value);
-  const focused = useRef(false);
-  useEffect(() => { if (!focused.current) setDraft(value); }, [value]);
   return (
     <input
       className="lab-tags"
-      value={draft}
+      aria-label="Variant tags"
+      defaultValue={value}
       placeholder="tags, comma, separated"
-      onFocus={() => { focused.current = true; }}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => { focused.current = false; if (draft.trim() !== value.trim()) onCommit(draft); else setDraft(value); }}
+      onBlur={(event) => {
+        const next = event.currentTarget.value;
+        if (next.trim() !== value.trim()) onCommit(next);
+        else event.currentTarget.value = value;
+      }}
     />
   );
 }
 
 function LabNoteField({ value, onCommit }: { value: string; onCommit: (next: string) => void }) {
-  const [draft, setDraft] = useState(value);
-  const focused = useRef(false);
-  useEffect(() => { if (!focused.current) setDraft(value); }, [value]);
   return (
     <textarea
       className="lab-note"
-      value={draft}
+      aria-label="Variant note"
+      defaultValue={value}
       rows={2}
       placeholder="critique / note"
-      onFocus={() => { focused.current = true; }}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => { focused.current = false; if (draft.trim() !== value.trim()) onCommit(draft); else setDraft(value); }}
+      onBlur={(event) => {
+        const next = event.currentTarget.value;
+        if (next.trim() !== value.trim()) onCommit(next);
+        else event.currentTarget.value = value;
+      }}
     />
   );
 }
@@ -1880,7 +1878,10 @@ function LabPane() {
     return runMutation((api) => api.scoreVariant(game, variant.id, value === variant.score ? 0 : value));
   }
   function retagVariant(variant: ArtLabVariant, value: string) {
-    const tags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
+    const tags = value.split(",").flatMap((tag) => {
+      const trimmed = tag.trim();
+      return trimmed ? [trimmed] : [];
+    });
     return runMutation((api) => api.tagVariant(game, variant.id, tags));
   }
   function annotateVariant(variant: ArtLabVariant, value: string) {
@@ -1972,8 +1973,16 @@ function LabPane() {
                       <button key={n} type="button" className={"lab-star" + (n <= variant.score ? " is-on" : "")} aria-label={`Score ${n}`} onClick={() => scoreVariant(variant, n)}>★</button>
                     ))}
                   </div>
-                  <LabTagsField value={variant.tags.join(", ")} onCommit={(next) => retagVariant(variant, next)} />
-                  <LabNoteField value={variant.note} onCommit={(next) => annotateVariant(variant, next)} />
+                  <LabTagsField
+                    key={`${variant.id}:tags:${variant.tags.join(",")}`}
+                    value={variant.tags.join(", ")}
+                    onCommit={(next) => retagVariant(variant, next)}
+                  />
+                  <LabNoteField
+                    key={`${variant.id}:note:${variant.note}`}
+                    value={variant.note}
+                    onCommit={(next) => annotateVariant(variant, next)}
+                  />
                   <div className="lab-card-actions">
                     <button type="button" className="set-btn" onClick={() => toggleLock(variant)}>{variant.locked ? "Unlock" : "Lock as target"}</button>
                     <button type="button" className="target-btn" aria-label="Remove variant" title="Remove" onClick={() => removeVariant(variant)}>×</button>

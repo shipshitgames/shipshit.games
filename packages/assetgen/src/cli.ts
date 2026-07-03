@@ -30,6 +30,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   "ingest-docs": async () => (await import("./commands/ingest-docs.ts")).runIngestDocsCommand, // #260
   "build-plan": async () => (await import("./commands/build-plan.ts")).runBuildPlanCommand, // #257
   legal: async () => (await import("./commands/legal.ts")).runLegalCommand, // #59
+  "ci-gates": async () => (await import("./commands/ci-gates.ts")).runCiGatesCommand, // #162
 
 };
 
