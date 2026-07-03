@@ -4,10 +4,18 @@ Scope: this entire `shipshitgames` repository.
 
 ## Agent Entry Point
 
-- Read `.agents/memory/MEMORY.md` first.
+- At the start of every session, inspect `.agents/` and read the active project
+  memory and rules before doing task work:
+  - `.agents/memory/MEMORY.md`
+  - `.agents/memory/captured-rules.md`
+  - `.agents/memory/repo-boundary.md`
+- Read the relevant `.agents/skills/*/SKILL.md` file before using a local skill.
+- Read the latest relevant `.agents/SESSIONS/*.md` entry when resuming or
+  debugging prior work.
 - Read `.agents/memory/repo-boundary.md` before moving apps, packages, or assets.
 - Claude Code: read `CLAUDE.md`, then follow this file.
-- Codex and other coding agents: follow this `AGENTS.md`.
+- Codex: read `CODEX.md`, then follow this file.
+- Other coding agents: follow this `AGENTS.md`.
 - Cursor: `.cursorignore` keeps generated files, lockfiles, and secrets out of indexed context.
 
 ## Project Role
@@ -28,6 +36,9 @@ Scope: this entire `shipshitgames` repository.
 ## Engineering Rules
 
 - Use Bun for package management unless a subproject explicitly requires npm.
+- Do not introduce workaround, escape-hatch, or temporary production
+  configuration as a fix. Prefer the clean canonical solution, even when it
+  takes longer.
 - Do not add shipped Deadrot assets here; write them to `../deadrotcom/packages/assets`.
 - Do not move `packages/assetgen` into Deadrot; keep it as the studio CLI product.
 - Do not treat runtime package copies in this repo as the Deadrot shipping source of truth unless the user explicitly says otherwise.
