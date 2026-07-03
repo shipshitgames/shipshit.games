@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+export { withLocalAssetUrls } from "./asset-urls";
 
 // Server-side client for api.shipshit.games. Forwards the caller's Clerk
 // session JWT so the API authenticates the actual user, not this server.
@@ -14,9 +15,4 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
       ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
   });
-}
-
-/** The app serves gallery images from its own origin; map API records to local URLs. */
-export function withLocalAssetUrls<T extends { id: string }>(assets: T[]): (T & { url: string })[] {
-  return assets.map((asset) => ({ ...asset, url: `/api/assets/file/${asset.id}` }));
 }
