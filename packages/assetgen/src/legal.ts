@@ -245,9 +245,13 @@ export interface AssetLegalRecord {
   flags: LegalFlag[];
 }
 
+function firstNonBlank(...values: Array<string | undefined>): string {
+  return values.find((value) => typeof value === "string" && value.trim().length > 0) ?? "";
+}
+
 /** Classify one manifest entry into its advisory legal record. */
 export function classifyAsset(entry: AssetEntry, usage: UsageContext): AssetLegalRecord {
-  const rawSource = entry.license?.tool?.trim() || entry.provenance?.provider || "";
+  const rawSource = firstNonBlank(entry.license?.tool, entry.provenance?.provider);
   const policy = resolveSourcePolicy(rawSource, { kind: assetCategory(entry), usage });
   const humanAuthored = entry.human?.authored === true;
   const model = entry.model ?? entry.provenance?.model ?? entry.license?.plan;

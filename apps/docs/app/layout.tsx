@@ -5,8 +5,11 @@ import { Footer, Layout, Navbar } from "nextra-theme-docs";
 import "nextra-theme-docs/style.css";
 import "./globals.css";
 
+const docsUrl =
+  process.env.NEXT_PUBLIC_DOCS_URL || "https://docs.shipshit.games";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://docs.shipshit.games"),
+  metadataBase: new URL(docsUrl),
   title: {
     default: "Ship Shit Games Docs",
     template: "%s - Ship Shit Games Docs",
@@ -17,7 +20,7 @@ export const metadata: Metadata = {
     title: "Ship Shit Games Docs",
     description:
       "How to use the Ship Shit Games tooling: asset generation, source distillation, engine, UI, and studio workflows.",
-    url: "https://docs.shipshit.games",
+    url: docsUrl,
     siteName: "Ship Shit Games Docs",
     type: "website",
   },

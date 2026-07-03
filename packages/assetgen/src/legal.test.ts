@@ -19,26 +19,24 @@ import {
   type UsageContext,
 } from "./legal.ts";
 
-type EntryOverride = Omit<Partial<AssetEntry>, "id" | "kind" | "license"> & {
+type EntryOverride = Partial<Omit<AssetEntry, "id" | "license">> & {
   id: string;
-  kind?: string;
   tool: string;
-  plan?: string;
   license?: Partial<AssetEntry["license"]>;
 };
 
 /** Build an AssetEntry with a complete license record; override anything per test. */
 function entry(over: EntryOverride): AssetEntry {
-  const { id, kind: overrideKind, tool, plan, license, ...asset } = over;
-  const kind = overrideKind ?? "sprite";
+  const { id, tool, license: licenseOverride, ...assetOverride } = over;
+  const kind = assetOverride.kind ?? "sprite";
   return {
-    ...asset,
+    ...assetOverride,
     id,
     kind,
-    game: asset.game ?? "scourge-survivors",
-    path: asset.path ?? `sprites/${id}.webp`,
-    license: { tool, plan: plan ?? tool, date: "2026-06-22", kind, ...(license ?? {}) },
-  } as AssetEntry;
+    game: assetOverride.game ?? "scourge-survivors",
+    path: assetOverride.path ?? `sprites/${id}.webp`,
+    license: { tool, plan: licenseOverride?.plan ?? tool, date: "2026-06-22", kind, ...licenseOverride },
+  };
 }
 
 test("normalizeSource lowercases, trims, and de-aliases", () => {
