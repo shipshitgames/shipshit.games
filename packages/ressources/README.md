@@ -81,8 +81,10 @@ distills text you already have.
 ## Commands
 
 ```bash
-# list known sources
+# inventory known sources, transcripts, and derivatives
 bun packages/ressources/src/cli.ts sources
+bun packages/ressources/src/cli.ts transcripts
+bun packages/ressources/src/cli.ts derivatives
 
 # validate source manifests, transcript sidecars, and derivative manifests
 bun packages/ressources/src/cli.ts validate
@@ -113,6 +115,74 @@ bun packages/ressources/src/cli.ts new-derivative \
 
 # optional: sync video metadata when yt-dlp is installed
 bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50
+```
+
+## Inventory
+
+`sources`, `transcripts`, and `derivatives` make the library inspectable for
+humans and tools. Each prints an aligned table by default and stable JSON with
+`--json`, and each exits non-zero when it reads a malformed or schema-invalid
+record (the valid records still list). Point any of them at another library tree
+with `--root <dir>` (expects `<dir>/sources`, `<dir>/transcripts`,
+`<dir>/derivatives`); the schemas in this package stay the canonical rules.
+
+Inventory is a fast lister plus a shape check. Cross-file referential rules
+(slug uniqueness, transcript→source links, file existence) stay the job of
+`validate`.
+
+```bash
+bun packages/ressources/src/cli.ts sources
+```
+
+```txt
+SLUG             KIND             PRIORITY   STATUS  TRANSCRIPTS  TITLE
+---------------  ---------------  ---------  ------  -----------  ---------------
+ai-oriented-dev  youtube-channel  primary    active  3            AI Oriented Dev
+dogs-dream       youtube-channel  inbox      active  1            Dog's Dream
+```
+
+The `--json` form carries the fields the desktop app needs to render lists
+without parsing any markdown:
+
+```bash
+bun packages/ressources/src/cli.ts sources --json
+```
+
+```json
+{
+  "schemaVersion": 1,
+  "kind": "sources",
+  "count": 18,
+  "items": [
+    {
+      "slug": "ai-oriented-dev",
+      "title": "AI Oriented Dev",
+      "kind": "youtube-channel",
+      "priority": "primary",
+      "status": "active",
+      "url": "https://www.youtube.com/@AIOriented",
+      "topics": ["ai-assisted-development", "game-production"],
+      "desiredOutputs": ["rule", "skill", "app", "tool"],
+      "transcriptPolicy": "user-provided",
+      "storeRawTranscript": true,
+      "transcriptCount": 3,
+      "path": "sources/ai-oriented-dev/source.json"
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}
+```
+
+`transcripts --json` adds `sourceSlug`, `sourceKind`, `capturedAt`,
+`transcriptPath`, `rightsStatus`, `tags`, and a `derivativeCount`;
+`derivatives --json` adds `kind`, `status`, `summary`, `outputPath`, `tags`,
+`sourceTranscripts`, and a `sourceTranscriptCount`. A malformed record lands in
+`errors` and forces a non-zero exit:
+
+```json
+{ "kind": "sources", "count": 1, "items": [/* valid records */],
+  "errors": ["sources/broken/source.json: invalid JSON (…)"], "warnings": [] }
 ```
 
 ## Transcript Flow

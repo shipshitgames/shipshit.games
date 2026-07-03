@@ -47,6 +47,10 @@ contextBridge.exposeInMainWorld("studio", {
     remove: (id) => ipcRenderer.invoke("projects:remove", id),
     setActive: (id) => ipcRenderer.invoke("projects:setActive", id),
   },
+  gyms: {
+    list: () => ipcRenderer.invoke("gyms:list"),
+    launch: (projectId, gymId) => ipcRenderer.invoke("gyms:launch", { projectId, gymId }),
+  },
   keys: {
     status: () => ipcRenderer.invoke("keys:status"),
     set: (provider, key) => ipcRenderer.invoke("keys:set", { provider, key }),
