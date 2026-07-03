@@ -1,7 +1,7 @@
 // Ship Shit Games — Studio shell (Electron main process)
 // Loads Vite in dev / the built renderer in prod; runs @shipshitgames/assetgen on IPC
 // with live streaming, plus settings + keychain-backed key management.
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, shell as electronShell } from "electron";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
@@ -19,6 +19,7 @@ import { createMoodboardStore } from "./moodboards";
 import { createArtLabStore } from "./art-lab";
 import { createMapsStore } from "./maps";
 import { createGallery } from "./gallery";
+import { createGymLauncher } from "./gyms";
 import { DEFAULT_GAME, DEFAULTS, normalizeSettings } from "./settings";
 import { buildGenerateArgs } from "./generate-args";
 import { buildPixelizeArgs, decodePixelizeDataUrl, parsePixelizeCutout } from "./pixelize-args";
@@ -44,6 +45,10 @@ try {
       "Run `bun run rebuild:native` in apps/desktop to build it against Electron's ABI.",
     error,
   );
+}
+
+if (process.env.SSG_DESKTOP_E2E_USER_DATA) {
+  app.setPath("userData", process.env.SSG_DESKTOP_E2E_USER_DATA);
 }
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
@@ -148,6 +153,14 @@ function allProjects(settings = readSettings()) {
   return uniqueProjects([...(settings.projects || []), ...discoveredProjects()]);
 }
 
+const gyms = createGymLauncher({
+  projects: () => allProjects(),
+  activeProjectId: () => listProjectState().activeProjectId,
+  spawn,
+  openExternal: (url) => electronShell.openExternal(url),
+  env: process.env,
+});
+
 function listProjectState(settings = readSettings()) {
   const projects = allProjects(settings);
   const activeProjectId = settings.activeProjectId && projects.some((p) => p.id === settings.activeProjectId)
@@ -245,6 +258,9 @@ ipcMain.handle("projects:setActive", (_e, id) => {
   persistProjects(settings.projects || [], project.id);
   return listProjectState();
 });
+
+ipcMain.handle("gyms:list", () => gyms.list());
+ipcMain.handle("gyms:launch", (_e, payload = {}) => gyms.launch(payload));
 
 ipcMain.handle("terminal:start", (e, opts) => {
   e.sender.once("destroyed", () => terminalManager.disposeForWebContents(e.sender.id));

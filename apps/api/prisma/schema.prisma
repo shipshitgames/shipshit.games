@@ -12,8 +12,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Generated Asset Lab sprite. Image bytes live in the row until the S3
-/// asset origin lands (#186); list queries must select around `image`.
+/// Generated Asset Lab sprite. New images are written to object storage when
+/// configured; `image` stays nullable for local-dev fallback and old rows.
 model Asset {
   id          String   @id @default(uuid())
   subject     String
@@ -25,7 +25,11 @@ model Asset {
   gameSlug    String?
   game        String?
   model       String
-  image       Bytes
+  image       Bytes?
+  storageKey  String?
+  imageUrl    String?
+  mediaType   String   @default("image/png")
+  byteSize    Int?
   ownerId     String?
   parentId    String?
   parent      Asset?   @relation("AssetSlices", fields: [parentId], references: [id], onDelete: SetNull)
@@ -36,6 +40,7 @@ model Asset {
   @@index([createdAt(sort: Desc)])
   @@index([gameSlug])
   @@index([parentId])
+  @@index([storageKey])
   @@unique([parentId, sliceIndex])
 }
 
