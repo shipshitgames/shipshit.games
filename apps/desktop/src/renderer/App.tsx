@@ -10,7 +10,7 @@ import { isModelResult } from "./model-preview-config";
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
 // Default provider = codex CLI (your subscription — no API key).
 
-type SectionId = "projects" | "gallery" | "maps" | "sprites" | "music" | "3d" | "moodboard" | "lab" | "research" | "codegen";
+type SectionId = "projects" | "gyms" | "gallery" | "maps" | "sprites" | "music" | "3d" | "moodboard" | "lab" | "research" | "codegen";
 type Group = "Generators" | "Art Direction" | "Ressources" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
@@ -35,6 +35,43 @@ interface ProjectSummary {
   catalogTruncated: boolean;
 }
 interface ProjectState { projects: ProjectSummary[]; activeProjectId: string; activeManifestPath: string | null }
+interface GymSummary {
+  id: string;
+  label: string;
+  kind: string;
+  description: string;
+  script: string | null;
+  command: string | null;
+  args: string[];
+  url: string | null;
+  cwd: string;
+}
+interface GymProject {
+  id: string;
+  name: string;
+  slug: string;
+  repoPath: string;
+  exists: boolean;
+  isActive: boolean;
+  declarationPath: string;
+  declarationExists: boolean;
+  error: string | null;
+  gyms: GymSummary[];
+}
+interface GymsState { projects: GymProject[]; activeProjectId: string }
+interface GymLaunchResult {
+  ok: boolean;
+  error?: string;
+  projectId?: string;
+  gymId?: string;
+  label?: string;
+  pid?: number | null;
+  command?: string | null;
+  args?: string[];
+  cwd?: string;
+  openedUrl?: boolean;
+  url?: string | null;
+}
 interface Settings {
   defaultProvider: string;
   defaultGame: string;
@@ -227,6 +264,10 @@ declare global {
         remove: (id: string) => Promise<ProjectState>;
         setActive: (id: string) => Promise<ProjectState>;
       };
+      gyms: {
+        list: () => Promise<GymsState>;
+        launch: (projectId: string, gymId: string) => Promise<GymLaunchResult>;
+      };
       keys: { status: () => Promise<Record<string, boolean>>; set: (provider: string, key: string) => Promise<Record<string, boolean>> };
       models: { list: () => Promise<{ fal: FalModelInfo[]; defaultProviderByKind?: Record<string, string>; falImageKinds?: string[] }> };
       terminal: {
@@ -274,6 +315,7 @@ declare global {
 
 const SECTIONS: Section[] = [
   { id: "projects", label: "Projects", group: "Codegen", glyph: "⌂", blurb: "Local game repos, target manifests, and asset catalogs." },
+  { id: "gyms", label: "Gyms", group: "Codegen", glyph: "▣", blurb: "Per-game validation surfaces for animation, bounds, hit frames, and tuning." },
   { id: "maps", label: "Maps", group: "Generators", glyph: "▞", blurb: "Breach-zone layouts and arena maps for the Scourge front." },
   { id: "sprites", label: "Sprites", group: "Generators", glyph: "✦", blurb: "Forge DOOM-grade billboards and enemy cutouts — straight into a game's assets." },
   { id: "music", label: "Music + SFX", group: "Generators", glyph: "♪", blurb: "Brutal scores and combat SFX for the shipshitshow." },
@@ -537,6 +579,155 @@ function ProjectsPane() {
           <p><strong>No local projects registered.</strong></p>
         </div>
       )}
+    </div>
+  );
+}
+
+const EMPTY_GYMS_STATE: GymsState = { projects: [], activeProjectId: "" };
+
+function activeGymProject(state: GymsState, projectId: string): GymProject | null {
+  return state.projects.find((project) => project.id === projectId)
+    || state.projects.find((project) => project.id === state.activeProjectId)
+    || state.projects[0]
+    || null;
+}
+
+function launchCommandLabel(gym: GymSummary): string {
+  if (gym.script) return `bun run ${gym.script}${gym.args.length ? ` ${gym.args.join(" ")}` : ""}`;
+  if (gym.command) return `${gym.command}${gym.args.length ? ` ${gym.args.join(" ")}` : ""}`;
+  return gym.url || "open";
+}
+
+function GymsPane() {
+  const [state, setState] = useState<GymsState>(EMPTY_GYMS_STATE);
+  const [projectId, setProjectId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [launching, setLaunching] = useState("");
+  const [message, setMessage] = useState<GymLaunchResult | null>(null);
+  const [error, setError] = useState("");
+  const project = activeGymProject(state, projectId);
+
+  const load = useCallback(async () => {
+    if (!window.studio?.gyms) {
+      setError("studio bridge unavailable");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const next = await window.studio.gyms.list();
+      setState(next);
+      setProjectId((current) => (next.projects.some((project) => project.id === current) ? current : next.activeProjectId));
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function launch(gym: GymSummary) {
+    if (!window.studio?.gyms || !project) {
+      setError("studio bridge unavailable");
+      return;
+    }
+    setLaunching(gym.id);
+    setMessage(null);
+    setError("");
+    try {
+      const result = await window.studio.gyms.launch(project.id, gym.id);
+      setMessage(result);
+      if (!result.ok) setError(result.error || "launch failed");
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    } finally {
+      setLaunching("");
+    }
+  }
+
+  return (
+    <div className="gyms">
+      <aside className="gym-sidebar">
+        <div className="gym-sidebar-head">
+          <span>Projects</span>
+          <button className="set-btn" type="button" disabled={busy} onClick={() => void load()}>{busy ? "Loading…" : "Reload"}</button>
+        </div>
+        {state.projects.length ? (
+          <div className="gym-project-list">
+            {state.projects.map((candidate) => (
+              <button
+                type="button"
+                key={candidate.id}
+                className={"gym-project" + (candidate.id === project?.id ? " is-active" : "")}
+                onClick={() => { setProjectId(candidate.id); setMessage(null); setError(""); }}
+              >
+                <strong>{candidate.name}</strong>
+                <span>{candidate.slug}</span>
+                <b>{candidate.gyms.length}</b>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="gym-empty">no local projects</div>
+        )}
+      </aside>
+
+      <section className="gym-main" aria-label="Gyms">
+        {project ? (
+          <>
+            <div className="gym-project-head">
+              <div>
+                <h2>{project.name}</h2>
+                <div className="gym-path">{project.repoPath}</div>
+              </div>
+              <span className={"badge " + (project.declarationExists && !project.error ? "ok" : "no")}>
+                {project.declarationExists ? "declared" : "none"}
+              </span>
+            </div>
+            <div className="gym-path">declaration {project.declarationPath}</div>
+            {project.error && <pre className="gen-log is-err">{project.error}</pre>}
+            {error && <pre className="gen-log is-err">{error}</pre>}
+            {message?.ok && (
+              <div className="gym-result">
+                <strong>{message.label || "Gym"} launched</strong>
+                <span>{message.command ? `${message.command} ${(message.args || []).join(" ")}` : message.url}</span>
+                {message.pid ? <span>pid {message.pid}</span> : null}
+              </div>
+            )}
+
+            {project.gyms.length ? (
+              <div className="gym-grid">
+                {project.gyms.map((gym) => (
+                  <article className="gym-card" key={gym.id}>
+                    <div className="gym-card-head">
+                      <span className="gym-kind">{gym.kind}</span>
+                      <strong>{gym.label}</strong>
+                    </div>
+                    {gym.description && <p>{gym.description}</p>}
+                    <code className="gym-command">{launchCommandLabel(gym)}</code>
+                    {gym.url && <div className="gym-url">{gym.url}</div>}
+                    <button className="gen-btn gym-launch" type="button" disabled={!!launching} onClick={() => void launch(gym)}>
+                      {launching === gym.id ? "Launching…" : "Launch"}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="gym-empty is-large">
+                <span>no gyms declared</span>
+                <b>{project.slug}</b>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="gym-empty is-large">
+            <span>no projects available</span>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -2244,7 +2435,7 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "projects" ? <ProjectsPane /> : active === "gallery" ? <GalleryPane /> : active === "maps" ? <MapsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "3d" ? <ModelPane /> : active === "moodboard" ? <MoodboardPane /> : active === "lab" ? <LabPane /> : active === "research" ? <ResearchPane /> : (
+            {active === "projects" ? <ProjectsPane /> : active === "gyms" ? <GymsPane /> : active === "gallery" ? <GalleryPane /> : active === "maps" ? <MapsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "3d" ? <ModelPane /> : active === "moodboard" ? <MoodboardPane /> : active === "lab" ? <LabPane /> : active === "research" ? <ResearchPane /> : (
               <div className="placeholder-card">
                 <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
                 <p><strong>{section.label}</strong> workspace coming online.</p>
