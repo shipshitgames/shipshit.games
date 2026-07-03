@@ -30,6 +30,7 @@ const allowed = [
   /<redacted>/i,
   /\$\{/,
   /process\.env/,
+  /postgres(?:ql)?:\/\/postgres:postgres@localhost(?::\d+)?\//i,
   /postgres(?:ql)?:\/\/shipshit:shipshit@postgres/i,
   /postgres(?:ql)?:\/\/shipshit:shipshit_dev@postgres/i,
 ];
