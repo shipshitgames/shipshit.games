@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import {
   FACTION_LABELS,
   KIND_SINGULAR,
+  assetSrc,
   factionGroup,
   formatDimensions,
   gameLabel,
@@ -145,7 +146,7 @@ export function AssetLightbox({
             <div aria-hidden className="vignette pointer-events-none absolute inset-0" />
             <Image
               key={entry.id}
-              src={entry.publicPath}
+              src={assetSrc(entry)}
               alt={entry.name}
               width={entry.dimensions?.[0] ?? 1200}
               height={entry.dimensions?.[1] ?? 630}

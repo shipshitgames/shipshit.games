@@ -10,7 +10,7 @@ import { pageAccent } from "@/components/games/accent";
 import { Button } from "@/components/ui/button";
 import { AssetBrowser, type GameOption } from "@/components/assets/asset-browser";
 import { VariantMatrix } from "@/components/assets/variant-matrix";
-import { formatDimensions } from "@/components/assets/asset-meta";
+import { assetSrc, formatDimensions } from "@/components/assets/asset-meta";
 import { CONTENT_MANIFEST, getAssetIndex } from "@/lib/content";
 
 export const metadata: Metadata = {
@@ -119,7 +119,7 @@ export default function AssetsPage() {
                   className="group relative aspect-[1200/630] overflow-hidden rounded-md border border-gunmetal bg-coal"
                 >
                   <Image
-                    src={cover.publicPath}
+                    src={assetSrc(cover)}
                     alt={`${cover.name} generated key art`}
                     fill
                     sizes="(min-width: 1024px) 280px, 50vw"
@@ -253,7 +253,7 @@ export default function AssetsPage() {
               {swarmRender ? (
                 <div className="mt-4 flex flex-1 items-center justify-center rounded-md border border-gunmetal bg-void p-4">
                   <Image
-                    src={swarmRender.publicPath}
+                    src={assetSrc(swarmRender)}
                     alt="Swarm Ripper rendered for Scourge Survivors"
                     width={swarmRender.dimensions?.[0] ?? 256}
                     height={swarmRender.dimensions?.[1] ?? 256}
@@ -305,7 +305,7 @@ export default function AssetsPage() {
               {swarmRuntime ? (
                 <div className="mt-4 flex flex-1 items-center justify-center rounded-md border border-gunmetal bg-void p-4">
                   <Image
-                    src={swarmRuntime.publicPath}
+                    src={assetSrc(swarmRuntime)}
                     alt="Swarm Ripper runtime sprite in the Scourge Survivors build"
                     width={swarmRuntime.dimensions?.[0] ?? 256}
                     height={swarmRuntime.dimensions?.[1] ?? 256}

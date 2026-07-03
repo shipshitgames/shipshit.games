@@ -11,6 +11,7 @@
  */
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { readAssetBaseUrl, resolveAssetUrl } from "@shipshitgames/shared";
 
 import type {
   AssetIndexEntry,
@@ -43,6 +44,7 @@ const DEFAULT_FEATURED: FeaturedVideo[] = [
 
 interface Flags {
   assetsDir: string;
+  assetBaseUrl: string | null;
   loreDataPath: string;
   check: boolean;
   skipGithub: boolean;
@@ -52,6 +54,7 @@ interface Flags {
 function parseFlags(argv: string[]): Flags {
   const flags: Flags = {
     assetsDir: defaultAssetsDir(),
+    assetBaseUrl: readAssetBaseUrl(process.env),
     loreDataPath: defaultLoreDataPath(),
     check: false,
     skipGithub: false,
@@ -60,6 +63,7 @@ function parseFlags(argv: string[]): Flags {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--assets-dir") flags.assetsDir = path.resolve(argv[(i += 1)]);
+    else if (arg === "--asset-base-url") flags.assetBaseUrl = readAssetBaseUrl({ ASSET_BASE_URL: argv[(i += 1)] });
     else if (arg === "--lore-data") flags.loreDataPath = path.resolve(argv[(i += 1)]);
     else if (arg === "--check") flags.check = true;
     else if (arg === "--skip-github") flags.skipGithub = true;
@@ -71,6 +75,32 @@ function parseFlags(argv: string[]): Flags {
 
 function writeJson(file: string, value: unknown): void {
   writeFileSync(path.join(CONTENT_DIR, file), `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function readSharedIndexDimensions(assetsDir: string): Map<string, [number, number]> {
+  const indexPath = path.join(assetsDir, "assets.index.json");
+  if (!existsSync(indexPath)) return new Map();
+  try {
+    const parsed = JSON.parse(readFileSync(indexPath, "utf8")) as {
+      assets?: { path?: unknown; type?: unknown; width?: unknown; height?: unknown }[];
+    };
+    const dimensions = new Map<string, [number, number]>();
+    for (const asset of parsed.assets ?? []) {
+      if (
+        asset.type === "image" &&
+        typeof asset.path === "string" &&
+        typeof asset.width === "number" &&
+        typeof asset.height === "number" &&
+        asset.width > 0 &&
+        asset.height > 0
+      ) {
+        dimensions.set(asset.path, [asset.width, asset.height]);
+      }
+    }
+    return dimensions;
+  } catch {
+    return new Map();
+  }
 }
 
 async function main(): Promise<void> {
@@ -102,9 +132,11 @@ async function main(): Promise<void> {
   const deadrotSpriteFiles = readdirSync(deadrotSpritesDir).filter((f) => f.endsWith(".webp"));
   const spriteSet = new Set(deadrotSpriteFiles);
   const rawLore = JSON.parse(readFileSync(flags.loreDataPath, "utf8")) as RawLoreData;
-  const lore = transformLore(rawLore, (base) =>
-    spriteSet.has(`${base}.webp`) ? `/sprites/deadrot/${base}.webp` : null,
-  );
+  const lore = transformLore(rawLore, (base) => {
+    if (!spriteSet.has(`${base}.webp`)) return null;
+    const sourcePath = `sites/deadrotcom/public/sprites/${base}.webp`;
+    return resolveAssetUrl(sourcePath, flags.assetBaseUrl) ?? `/sprites/deadrot/${base}.webp`;
+  });
 
   // 2. Asset index + sprite copy plan.
   const catalog = JSON.parse(readFileSync(path.join(flags.assetsDir, "assets-catalog.json"), "utf8")) as {
@@ -118,7 +150,14 @@ async function main(): Promise<void> {
     scourgeSprites: scourgeManifest.sprites,
     deadrotSpriteFiles,
     lore,
+    assetBaseUrl: flags.assetBaseUrl,
   });
+  const sharedIndexDimensions = readSharedIndexDimensions(flags.assetsDir);
+  for (const entry of entries) {
+    if (!entry.dimensions && entry.sourcePath) {
+      entry.dimensions = sharedIndexDimensions.get(entry.sourcePath) ?? null;
+    }
+  }
 
   // 3. Copy sprites + fill dimensions from the webp headers.
   if (!flags.skipSprites) {

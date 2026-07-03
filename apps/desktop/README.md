@@ -139,6 +139,20 @@ The Projects pane registers local game repositories and resolves each target's
 `@shipshitgames/engine` assets manifest schema, surfaces the asset catalog, and
 routes sprite/audio generation to the active project's repo path.
 
+## Asset Gallery Origin
+
+The Gallery pane reads thumbnails from the local Deadrot assets package first:
+`../deadrotcom/packages/assets`, then legacy local fallbacks. Configure
+`ASSET_BASE_URL` (or `VITE_ASSET_BASE_URL`) to also show the CDN URL for each
+package-relative asset in the lightbox:
+
+```bash
+ASSET_BASE_URL=https://<cdn-origin>/assets bun run dev
+```
+
+The CDN URL is review metadata; the gallery still works offline from the local
+package when the origin is unset.
+
 ## Gyms launcher
 
 The Gyms pane reads each registered game repo's `studio.gyms.json` declaration

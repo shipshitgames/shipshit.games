@@ -27,6 +27,19 @@ When adding a desktop feature:
 5. Register generated outputs in the package manifest with license provenance.
 6. Document the command here.
 
+## Asset gallery origin
+
+The desktop Gallery pane reads `../deadrotcom/packages/assets` for offline local
+review. Set `ASSET_BASE_URL` to surface the package CDN URL next to each local
+asset path:
+
+```bash
+ASSET_BASE_URL=https://<cdn-origin>/assets bun run dev
+```
+
+The CDN value is metadata for copy/open actions; thumbnails still come from the
+local package unless they are missing.
+
 ## Dev commands
 
 ```bash

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { isHttpAssetUrl, readAssetBaseUrl, resolveAssetUrl } from "@shipshitgames/shared";
 
 import type {
   ActivitySnapshot,
@@ -74,15 +75,19 @@ export function validateContent(contentDir: string, webRoot: string): string[] {
 
   // Every referenced sprite must exist in public/ (lore portraits + asset index).
   const missingPaths: string[] = [];
-  const checkPublic = (publicPath: string | null, context: string) => {
+  const assetBaseUrl = readAssetBaseUrl(process.env);
+  const checkPublic = (publicPath: string | null, context: string, remoteUrl: string | null = null) => {
     if (!publicPath) return;
+    if (isHttpAssetUrl(publicPath) || isHttpAssetUrl(remoteUrl)) return;
     if (!existsSync(path.join(webRoot, "public", publicPath.replace(/^\//, "")))) {
       missingPaths.push(`${publicPath} (${context})`);
     }
   };
   for (const c of lore.characters) checkPublic(c.spritePath, `character ${c.slug}`);
   for (const b of lore.bestiary) checkPublic(b.spritePath, `creature ${b.slug}`);
-  for (const entry of assetIndex) checkPublic(entry.publicPath, entry.id);
+  for (const entry of assetIndex) {
+    checkPublic(entry.publicPath, entry.id, entry.assetUrl ?? resolveAssetUrl(entry.sourcePath, assetBaseUrl));
+  }
   if (missingPaths.length > 0) {
     errors.push(
       `${missingPaths.length} sprite path(s) missing from public/ — run \`bun run sync:content\`. First: ${missingPaths[0]}`,

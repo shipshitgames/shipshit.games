@@ -91,6 +91,9 @@ bun --filter @shipshitgames/desktop dev
 - Warline ships from `../deadrotcom/apps/games/warline` with its runtime package
   in `../deadrotcom/packages/warline`.
 - Generated game assets belong in `../deadrotcom/packages/assets`.
+- Deployed studio consumers can resolve those package-relative assets through
+  `NEXT_PUBLIC_ASSET_BASE_URL` / `ASSET_BASE_URL`; local web snapshots and the
+  desktop Gallery keep public/local fallbacks for offline development.
 - `packages/engine` is intentionally different from Deadrot-specific runtime
   packages: it is the canonical org-level source for `@shipshitgames/engine`.
   Deadrot games should depend on the package release or use a temporary local

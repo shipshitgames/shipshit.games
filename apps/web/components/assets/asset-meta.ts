@@ -64,6 +64,11 @@ export function entityIdOf(entry: AssetIndexEntry): string | null {
   return entry.id.split(":")[1] ?? null;
 }
 
+/** CDN URL when configured, otherwise the committed local public fallback. */
+export function assetSrc(entry: AssetIndexEntry): string {
+  return entry.assetUrl ?? entry.publicPath;
+}
+
 /** "128 × 128" or null when the snapshot has no parsed dimensions. */
 export function formatDimensions(dimensions: [number, number] | null): string | null {
   if (!dimensions) return null;

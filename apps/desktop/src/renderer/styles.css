@@ -453,7 +453,8 @@ body {
 .gallery-lightbox-meta dt { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in srgb, var(--ash) 68%, var(--void)); }
 .gallery-lightbox-meta dd { margin: 0; font-family: var(--font-mono); font-size: 11px; color: var(--bone); white-space: pre-wrap; word-break: break-word; }
 .gallery-lightbox-path { color: var(--hellfire); }
-.gallery-lightbox-foot { padding: 12px 18px; border-top: 1px solid var(--gunmetal); display: flex; justify-content: flex-end; }
+.gallery-lightbox-foot { padding: 12px 18px; border-top: 1px solid var(--gunmetal); display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.gallery-link-btn { text-decoration: none; display: inline-flex; align-items: center; }
 
 /* ---- Settings ---- */
 .settings { width: min(640px, 100%); display: flex; flex-direction: column; gap: 24px; align-self: start; }

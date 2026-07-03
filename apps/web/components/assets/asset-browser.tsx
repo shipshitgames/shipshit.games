@@ -17,6 +17,7 @@ import {
   KIND_LABELS,
   KIND_ORDER,
   KIND_SINGULAR,
+  assetSrc,
   factionGroup,
   gameLabel,
   type FactionGroup,
@@ -169,7 +170,7 @@ export function AssetBrowser({
             >
               <span className="relative flex aspect-square items-center justify-center bg-void">
                 <Image
-                  src={entry.publicPath}
+                  src={assetSrc(entry)}
                   alt=""
                   fill
                   sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"

@@ -9,6 +9,7 @@ import loreJson from "@/content/lore.json";
 import manifestJson from "@/content/manifest.json";
 import roadmapSnapshot from "@/content/roadmap-snapshot.json";
 import siteMetaJson from "@/content/site-meta.json";
+import { readAssetBaseUrl, resolveAssetUrl } from "@shipshitgames/shared";
 
 import type {
   ActivitySnapshot,
@@ -24,7 +25,11 @@ import type {
 } from "./types";
 
 const lore = loreJson as LoreSnapshot;
-const assetIndex = assetIndexJson as AssetIndexEntry[];
+const assetBaseUrl = readAssetBaseUrl(process.env);
+const assetIndex = (assetIndexJson as AssetIndexEntry[]).map((entry) => ({
+  ...entry,
+  assetUrl: resolveAssetUrl(entry.sourcePath, assetBaseUrl) ?? entry.assetUrl ?? null,
+}));
 
 export const CONTENT_MANIFEST = manifestJson as ContentManifest;
 export const SITE_META = siteMetaJson as SiteMeta;
