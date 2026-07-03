@@ -84,6 +84,24 @@ bun run typecheck
 bun run build
 ```
 
+## Desktop smoke/e2e
+
+The desktop smoke suite launches the built production Electron app with an
+isolated fixture `userData` directory. It verifies that the renderer is not
+blank, the preload bridge is exposed, fixture projects render in the Studio UI,
+and a Projects pane action reaches IPC by switching the active project.
+
+```bash
+cd apps/desktop
+bun run e2e:smoke
+```
+
+The command explicitly downloads Electron when Bun has skipped its install
+lifecycle, rebuilds `node-pty` for Electron's ABI, builds the app, then runs
+Playwright's Electron driver. On failure, Playwright writes screenshots, traces,
+and videos under `apps/desktop/test-results`; the scheduled GitHub Action also
+uploads `test-results` and `playwright-report`.
+
 Run the dev shell (rebuilds the addon first, then launches Electron):
 
 ```bash
