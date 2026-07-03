@@ -37,7 +37,7 @@ function safeFileName(value: string): string {
 function mergeAssets(current: AssetRecord[], incoming: AssetRecord[]): AssetRecord[] {
   const byId = new Map(current.map((asset) => [asset.id, asset]));
   for (const asset of incoming) byId.set(asset.id, asset);
-  return [...byId.values()].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  return Array.from(byId.values()).toSorted((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
 export default function AssetsPage() {
