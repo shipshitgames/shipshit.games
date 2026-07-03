@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -144,6 +144,37 @@ test("generate --seed/--authored/--edit-kind records provenance seed + human aut
   assert.equal(entry.provenance.reproducible, false);
   // Human-authorship disclosure round-trips through the CLI flags.
   assert.deepEqual(entry.human, { authored: true, editKind: "recolor" });
+});
+
+test("generate records reference images used for source-guided assets", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-generate-ref-test-"));
+  const reference = join(repo, "style.png");
+  await writeFile(reference, "png");
+
+  await runGenerate([
+    "--provider",
+    "mock",
+    "--dry-run",
+    "--id",
+    "ref-husk",
+    "--prompt",
+    "a parasite-taken Scourge host",
+    "--game",
+    "scourge-survivors",
+    "--kind",
+    "sprite",
+    "--size",
+    "128",
+    "--repo",
+    repo,
+    "--reference",
+    reference,
+    "--usage-log",
+    "off",
+  ]);
+
+  const manifest = JSON.parse(await readFile(join(repo, "src/assets/assets.json"), "utf8"));
+  assert.deepEqual(manifest.assets[0].referenceImages, [reference]);
 });
 
 test("generate records multi-view animation sheets as sprite-anim entries", async () => {

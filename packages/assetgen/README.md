@@ -32,6 +32,13 @@ bun packages/assetgen/src/cli.ts --provider mock --dry-run --id test --prompt "x
 # before the normal webp + assets.json post-process runs:
 bun packages/assetgen/src/cli.ts generate --provider codex --id ... --prompt "..." --repo ...
 
+# Source/reference-guided generation. Put the prompt before `-i`; `-i` may take
+# multiple images and is forwarded to Codex after the prompt so it cannot eat it.
+bun packages/assetgen/src/cli.ts generate --provider codex \
+  --id pyre-sidearm --kind sprite --prompt "Pyre sidearm pickup" \
+  --repo ../deadrotcom/apps/games/scourge-survivors \
+  -i refs/style.png refs/validated-source.png
+
 # Pipeline dry-run (no key, placeholder image):
 bun packages/assetgen/src/cli.ts generate --provider mock --dry-run --id test --prompt "x"
 
@@ -152,6 +159,12 @@ bun packages/assetgen/src/cli.ts matrix --provider mock --sync-games
 Flags: `--provider` (default `mock` — safe to batch), `--game`, `--id`,
 `--only-missing` (skip cells already rendered on disk), `--size`, `--dry-run`
 (force mock), `--sync-games`, `--assets-dir`, `--init-catalog`.
+
+Catalog entries may also carry a reviewable `prompts` collection. Use it for
+weapons, textures/materials, props, UI, FX, pickups, and other non-character
+assets that are not covered by an entity `promptBase`; each prompt can name
+reference slots (`style`, `silhouette`, `palette`, `source`) so reviewed source
+art is reused instead of re-invented.
 
 ## `index` — asset indexer (issue #101)
 
@@ -548,8 +561,8 @@ alongside the other token gates.
 
 ## Providers
 - `codex` — delegates to the local authed `codex` CLI via node-pty (no key wiring needed)
-- `openai` — **gpt-image-2** (`--model` to override), transparent PNG
-- `fal` — FLUX
+- `openai` — **gpt-image-2** (`--model` to override), transparent PNG; with `--reference`/`-i` it uses the image edit endpoint and attaches up to 16 local png/jpg/webp references
+- `fal` — FLUX; with `--reference`/`-i` it embeds local references as data URLs with the configured style-reference strength
 - `replicate` — model runner for image/model providers (`--model owner/model`)
 - `suno` — audio provider adapter; requires `SUNO_API_BASE_URL` for the licensed endpoint
 - `mock` — offline placeholder for testing the pipeline
@@ -578,6 +591,11 @@ Every provider call appends a local JSONL event to:
 The log stores provider, kind, model, id, output path, duration, and success/failure.
 It stores a prompt hash and character count, not raw prompt text. Override the path
 with `--usage-log <path>` or disable with `--usage-log off`.
+
+Single-asset generation records `referenceImages` in `assets.json` when
+`--reference` or `-i` was used. This is provenance only; keep the referenced
+source images in the asset package or lore/art review area when they are needed
+to reproduce a promoted asset.
 
 ## Style
 Every prompt is suffixed with the DOOM canon from `lore/DESIGN.md` and framed per game.

@@ -33,6 +33,18 @@ test("matrix bootstrap seeds the issue #6 variant row and shared assets", async 
   assert.equal(catalog.shared.some((entry: any) => entry.path.includes("/scourge-survivors/")), false);
   assert.equal(catalog.shared.some((entry: any) => entry.path.includes("/deadlane/")), false);
   assert.equal(catalog.shared.some((entry: any) => entry.path.includes("/pactfall/")), false);
+
+  const prompted = new Set(catalog.shared.filter((entry: any) => entry.prompts?.length > 0).map((entry: any) => entry.kind));
+  assert.equal(prompted.has("weapon"), true);
+  assert.equal(prompted.has("texture"), true);
+  assert.equal(prompted.has("prop"), true);
+  assert.equal(prompted.has("ui"), true);
+  assert.equal(
+    catalog.shared
+      .flatMap((entry: any) => entry.prompts ?? [])
+      .some((prompt: any) => prompt.references?.some((ref: any) => ref.slot === "source")),
+    true,
+  );
 });
 
 test("matrix renders one canon Scourge row into FPS, TD, and MOBA variants", async () => {

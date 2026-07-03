@@ -28,6 +28,13 @@ export interface CodexPtySpawnOptions {
 export interface CodexCliOptions {
   prompt: string;
   outPath: string;
+  /**
+   * Local image references passed to `codex exec -i`.
+   *
+   * The generated prompt is intentionally kept before `-i`; the Codex CLI treats
+   * `-i` as variadic, so references must be appended last.
+   */
+  referenceImages?: readonly string[];
   /** Codex working directory, passed to `codex exec -C`. */
   cwd: string;
   /** PTY process cwd. Defaults to the current process cwd for Bun/node-pty compatibility. */
@@ -63,19 +70,25 @@ export function buildCodexAssetInstruction(prompt: string, outPath: string): str
   ].join("\n");
 }
 
-export function buildCodexExecArgs(prompt: string, outPath: string, cwd?: string): string[] {
+export function buildCodexExecArgs(
+  prompt: string,
+  outPath: string,
+  cwd?: string,
+  referenceImages: readonly string[] = [],
+): string[] {
   return [
     "exec",
     "--dangerously-bypass-approvals-and-sandbox",
     "--skip-git-repo-check",
     ...(cwd ? ["-C", cwd] : []),
     buildCodexAssetInstruction(prompt, outPath),
+    ...(referenceImages.length > 0 ? ["-i", ...referenceImages] : []),
   ];
 }
 
 export async function runCodexCli(opts: CodexCliOptions): Promise<CodexCliResult> {
   const command = opts.command ?? "codex";
-  const args = buildCodexExecArgs(opts.prompt, opts.outPath, opts.cwd);
+  const args = buildCodexExecArgs(opts.prompt, opts.outPath, opts.cwd, opts.referenceImages);
   const timeoutMs = opts.timeoutMs ?? CODEX_ASSET_TIMEOUT_MS;
 
   if (opts.pty) {

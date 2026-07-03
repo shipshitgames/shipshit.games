@@ -147,6 +147,7 @@ test("describeAssetPipeline exposes UI, credential, manifest, and preview contra
   const contract = describeAssetPipeline();
   assert.deepEqual(contract.steps, GAME_ASSET_PIPELINE_STEPS);
   assert.deepEqual(contract.promptPanel.requiredFields, ["id", "prompt", "game", "kind"]);
+  assert.ok(contract.promptPanel.optionalFields.includes("referenceImages"));
   assert.deepEqual(contract.manifest.requiredLicenseFields, ["tool", "plan", "date", "kind"]);
   assert.deepEqual(contract.previewPane.emits, ["path", "mediaType", "dataUrl"]);
   assert.equal(contract.credentialVault.some((entry) => entry.provider === "openai" && entry.keyed), true);

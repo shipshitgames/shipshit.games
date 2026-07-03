@@ -3,6 +3,29 @@ export function flag(argv: string[], name: string, def?: string): string | undef
   return i >= 0 ? argv[i + 1] : def;
 }
 
+export function flagValues(argv: string[], name: string): string[] {
+  const values: string[] = [];
+  const flagName = `--${name}`;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] !== flagName) continue;
+    const value = argv[i + 1];
+    if (value && !value.startsWith("-")) values.push(value);
+  }
+  return values;
+}
+
+export function shortFlagValues(argv: string[], name: string): string[] {
+  const values: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] !== `-${name}`) continue;
+    for (let j = i + 1; j < argv.length && !argv[j]!.startsWith("-"); j++) {
+      values.push(argv[j]!);
+      i = j;
+    }
+  }
+  return values;
+}
+
 export function has(argv: string[], name: string): boolean {
   return argv.includes(`--${name}`);
 }

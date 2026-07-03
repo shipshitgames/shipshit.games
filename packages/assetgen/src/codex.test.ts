@@ -16,6 +16,19 @@ test("buildCodexExecArgs asks Codex to write the exact PNG path", () => {
   assert.match(args.at(-1) ?? "", /transparent background/);
 });
 
+test("buildCodexExecArgs appends reference images after the prompt", () => {
+  const args = buildCodexExecArgs("a parasite-taken host", "/tmp/out.png", "/tmp/work", [
+    "/refs/style.png",
+    "/refs/source.png",
+  ]);
+  const instructionIndex = args.findIndex((arg) => arg.includes("Asset prompt:"));
+  const imageFlagIndex = args.indexOf("-i");
+
+  assert.ok(instructionIndex > 0);
+  assert.equal(imageFlagIndex, instructionIndex + 1);
+  assert.deepEqual(args.slice(imageFlagIndex), ["-i", "/refs/style.png", "/refs/source.png"]);
+});
+
 test("buildCodexAssetInstruction keeps the asset prompt intact", () => {
   const instruction = buildCodexAssetInstruction("Scourge host, not a generic monster", "/tmp/final.png");
   assert.match(instruction, /gpt-image-2/);
@@ -61,6 +74,34 @@ test("runCodexCli streams PTY output and verifies the generated file", async () 
   assert.match(calls[0]!.args.at(-1) ?? "", /asset prompt/);
   assert.match(logged, /codex wrote a file/);
   assert.equal(result.exitCode, 0);
+});
+
+test("runCodexCli forwards reference images to the spawned Codex command", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assetgen-codex-test-"));
+  const outPath = join(dir, "out.png");
+  const calls: Array<{ command: string; args: string[]; opts: CodexPtySpawnOptions }> = [];
+
+  const pty: CodexPtyModule = {
+    spawn(command, args, opts) {
+      calls.push({ command, args, opts });
+      return fakeProcess({
+        async onStart(_data, exit) {
+          await writeFile(outPath, "png");
+          exit({ exitCode: 0 });
+        },
+      });
+    },
+  };
+
+  await runCodexCli({
+    prompt: "asset prompt",
+    outPath,
+    cwd: dir,
+    pty,
+    referenceImages: ["/refs/style.png"],
+  });
+
+  assert.deepEqual(calls[0]!.args.slice(-2), ["-i", "/refs/style.png"]);
 });
 
 test("runCodexCli fails when Codex exits without writing the PNG", async () => {

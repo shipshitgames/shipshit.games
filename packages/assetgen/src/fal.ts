@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { extname } from "node:path";
 import { getKey, missingKeyMessage } from "./keys.ts";
 import { downloadGeneratedAsset, trustedOriginsFor } from "./media.ts";
 import type { GeneratedAsset, GeneratedAssetMeta } from "./media.ts";
@@ -73,6 +75,8 @@ export interface FalRequestOptions {
   log?: (chunk: string) => void;
   /** When set, FLUX runs deterministically and echoes the honored seed back. */
   seed?: number;
+  /** Local image references used for style/source-guided generations. */
+  referenceImages?: readonly string[];
 }
 
 export interface FalDeps {
@@ -89,9 +93,15 @@ export function falRequestBody(
   prompt: string,
   imageSize: { width: number; height: number },
   seed?: number,
+  referenceImageUrls: readonly string[] = [],
 ): Record<string, unknown> {
   const body: Record<string, unknown> = { prompt, image_size: imageSize, num_images: 1 };
   if (seed !== undefined) body.seed = seed;
+  if (referenceImageUrls.length > 0) {
+    body.image_url = referenceImageUrls[0];
+    body.image_prompt_strength = 0.18;
+  }
+  if (referenceImageUrls.length > 1) body.image_urls = referenceImageUrls;
   return body;
 }
 
@@ -122,6 +132,7 @@ export async function generateFalAsset(
   const model = resolveFalModel(kind, opts.model);
   const imageSize = falImageSize(opts.size);
   const timeoutMs = opts.timeoutMs ?? 120_000;
+  const referenceImageUrls = await referenceImagesToDataUrls(opts.referenceImages ?? []);
   opts.log?.(`[fal] ${model} ${imageSize.width}x${imageSize.height}\n`);
 
   let res: Response;
@@ -129,7 +140,7 @@ export async function generateFalAsset(
     res = await fetchImpl(`${falApiBase()}/${model}`, {
       method: "POST",
       headers: { authorization: `Key ${key}`, "content-type": "application/json" },
-      body: JSON.stringify(falRequestBody(prompt, imageSize, opts.seed)),
+      body: JSON.stringify(falRequestBody(prompt, imageSize, opts.seed, referenceImageUrls)),
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
@@ -159,4 +170,29 @@ export async function generateFalAsset(
     return { ...asset, mediaType: declared, meta };
   }
   return { ...asset, meta };
+}
+
+async function referenceImagesToDataUrls(referenceImages: readonly string[]): Promise<string[]> {
+  return await Promise.all(
+    referenceImages.map(async (path) => {
+      const mime = imageMimeType(path);
+      if (!mime) throw new Error(`fal reference image must be png, jpg, jpeg, or webp: ${path}`);
+      const data = await readFile(path);
+      return `data:${mime};base64,${data.toString("base64")}`;
+    }),
+  );
+}
+
+function imageMimeType(path: string): string | null {
+  switch (extname(path).toLowerCase()) {
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".webp":
+      return "image/webp";
+    default:
+      return null;
+  }
 }
