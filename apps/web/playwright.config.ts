@@ -19,8 +19,6 @@ const ciEnv = {
   NEXT_PUBLIC_ANALYTICS_DEBUG: "1",
   NEXT_PUBLIC_SITE_URL: baseURL,
   NEXT_PUBLIC_APP_URL: "http://localhost:3002",
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ci_placeholder",
-  CLERK_SECRET_KEY: "ci-clerk-secret-key",
   ACCESS_SIGNING_SECRET: "ci-access-signing-secret",
   STRIPE_SECRET_KEY: "sk_test_ci_placeholder",
   STRIPE_WEBHOOK_SECRET: "whsec_ci_placeholder",
