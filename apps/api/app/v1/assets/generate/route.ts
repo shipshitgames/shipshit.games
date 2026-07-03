@@ -32,7 +32,11 @@ export async function POST(req: Request) {
   const batch = Math.min(Math.max(Number(count) || 1, 1), MAX_BATCH);
 
   const recentCount = await db.asset.count({
-    where: { ownerId: auth.userId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
+    where: {
+      ownerId: auth.userId,
+      parentId: null,
+      createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+    },
   });
   if (recentCount + batch > HOURLY_LIMIT) {
     return NextResponse.json(

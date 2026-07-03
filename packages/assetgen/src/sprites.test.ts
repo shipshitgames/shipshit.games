@@ -60,7 +60,7 @@ test("toSpriteSheetWebp slices a gridded source into the correct sheet cells", a
     .png()
     .toBuffer();
 
-  const { data, metadata } = await toSpriteSheetWebp(source, {
+  const { data, frames, metadata } = await toSpriteSheetWebp(source, {
     id: "twocell",
     game: "scourge-survivors",
     prompt: "p",
@@ -73,6 +73,8 @@ test("toSpriteSheetWebp slices a gridded source into the correct sheet cells", a
   assert.deepEqual(metadata.views, ["left", "right"]);
   assert.equal(metadata.sheet.usedColumns, 2);
   assert.equal(metadata.sheet.usedRows, 1);
+  assert.equal(frames.length, 2);
+  assert.deepEqual(frames.map((frame) => frame.view), ["left", "right"]);
 
   const { info, at } = await rawPixels(data);
   const cellW = metadata.frameSize[0];
@@ -94,6 +96,60 @@ test("toSpriteSheetWebp slices a gridded source into the correct sheet cells", a
   const cell1 = dominant(cellW, cellW * 2);
   assert.ok(cell0.redHits > cell0.blueHits, `cell0 should be red-dominant: ${JSON.stringify(cell0)}`);
   assert.ok(cell1.blueHits > cell1.redHits, `cell1 should be blue-dominant: ${JSON.stringify(cell1)}`);
+});
+
+test("toSpriteSheetWebp exposes normalized frame buffers for a 1x4 pose sheet", async () => {
+  const colors = [
+    { r: 220, g: 20, b: 20 },
+    { r: 20, g: 220, b: 20 },
+    { r: 20, g: 20, b: 220 },
+    { r: 220, g: 180, b: 20 },
+  ];
+  const cells = await Promise.all(
+    colors.map((color) =>
+      sharp({
+        create: {
+          width: 18,
+          height: 18,
+          channels: 4,
+          background: { ...color, alpha: 1 },
+        },
+      })
+        .png()
+        .toBuffer(),
+    ),
+  );
+  const source = await sharp({
+    create: { width: 180, height: 48, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  })
+    .composite(cells.map((input, i) => ({ input, left: 14 + i * 42, top: 15 })))
+    .png()
+    .toBuffer();
+
+  const { frames, metadata } = await toSpriteSheetWebp(source, {
+    id: "poses",
+    game: "scourge-survivors",
+    prompt: "p",
+    provider: "mock",
+    views: ["front"],
+    frameCount: 4,
+    size: 128,
+  });
+
+  assert.equal(frames.length, 4);
+  assert.deepEqual(metadata.frameSize, [32, 128]);
+  assert.equal(metadata.frameSize[0] & (metadata.frameSize[0] - 1), 0);
+  assert.equal(metadata.frameSize[1] & (metadata.frameSize[1] - 1), 0);
+
+  for (const [index, frame] of frames.entries()) {
+    assert.equal(frame.frame, index);
+    assert.equal(frame.view, "front");
+    assert.deepEqual(frame.dimensions, metadata.frameSize);
+    const meta = await sharp(frame.data).metadata();
+    assert.deepEqual([meta.width, meta.height], metadata.frameSize);
+    const { at } = await rawPixels(frame.data);
+    assert.equal(at(0, 0).a, 0, "frame padding should stay transparent");
+  }
 });
 
 test("transparentizeEdgeBackground keys near-black background but keeps the subject", async () => {

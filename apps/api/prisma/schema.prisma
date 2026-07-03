@@ -31,11 +31,17 @@ model Asset {
   mediaType   String   @default("image/png")
   byteSize    Int?
   ownerId     String?
+  parentId    String?
+  parent      Asset?   @relation("AssetSlices", fields: [parentId], references: [id], onDelete: SetNull)
+  slices      Asset[]  @relation("AssetSlices")
+  sliceIndex  Int?
   createdAt   DateTime @default(now())
 
   @@index([createdAt(sort: Desc)])
   @@index([gameSlug])
+  @@index([parentId])
   @@index([storageKey])
+  @@unique([parentId, sliceIndex])
 }
 
 /// Mirror of Clerk users, maintained by the Clerk webhook.

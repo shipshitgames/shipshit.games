@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Loader2, Sparkles, Download, Gamepad2, RefreshCw, ImageIcon } from "lucide-react";
+import { Archive, Loader2, Sparkles, Download, Gamepad2, RefreshCw, ImageIcon, Scissors } from "lucide-react";
 import { GAMES } from "@shipshitgames/shared";
 
 const POSES = ["idle", "attacking", "running", "jumping", "side view", "back view"] as const;
@@ -24,8 +24,20 @@ interface AssetRecord {
   sheetPoses: string[] | null;
   gameSlug: string | null;
   game: string | null;
+  parentId: string | null;
+  sliceIndex: number | null;
   url: string;
   createdAt: string;
+}
+
+function safeFileName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 56) || "asset";
+}
+
+function mergeAssets(current: AssetRecord[], incoming: AssetRecord[]): AssetRecord[] {
+  const byId = new Map(current.map((asset) => [asset.id, asset]));
+  for (const asset of incoming) byId.set(asset.id, asset);
+  return [...byId.values()].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
 export default function AssetsPage() {
@@ -37,11 +49,26 @@ export default function AssetsPage() {
   const [gameSlug, setGameSlug] = useState<string>(GAMES[0]?.slug ?? "");
   const [pending, setPending] = useState(0);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [slicingId, setSlicingId] = useState<string | null>(null);
+  const [zippingId, setZippingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [assets, setAssets] = useState<AssetRecord[]>([]);
   const [variantPose, setVariantPose] = useState<Record<string, string>>({});
 
   const busy = pending > 0;
+  const topLevelAssets = useMemo(() => assets.filter((asset) => !asset.parentId), [assets]);
+  const framesByParent = useMemo(() => {
+    const grouped: Record<string, AssetRecord[]> = {};
+    for (const asset of assets) {
+      if (!asset.parentId) continue;
+      grouped[asset.parentId] ??= [];
+      grouped[asset.parentId].push(asset);
+    }
+    for (const frames of Object.values(grouped)) {
+      frames.sort((a, b) => (a.sliceIndex ?? 0) - (b.sliceIndex ?? 0));
+    }
+    return grouped;
+  }, [assets]);
 
   useEffect(() => {
     fetch("/api/assets/list")
@@ -61,7 +88,7 @@ export default function AssetsPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
-      setAssets((prev) => [...json.assets, ...prev]);
+      setAssets((prev) => mergeAssets(prev, json.assets ?? []));
       if (json.errors?.length) setError(`${json.errors.length} of ${expected} renders failed: ${json.errors[0]}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed");
@@ -103,6 +130,54 @@ export default function AssetsPage() {
       );
     } finally {
       setRegeneratingId(null);
+    }
+  }
+
+  async function sliceSheet(asset: AssetRecord) {
+    if (!asset.sheetPoses?.length || slicingId) return;
+    setSlicingId(asset.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/assets/slice", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: asset.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `Slice failed (${res.status})`);
+      setAssets((prev) => mergeAssets(prev, json.assets ?? []));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Slice failed");
+    } finally {
+      setSlicingId(null);
+    }
+  }
+
+  async function downloadFramesZip(asset: AssetRecord, frames: AssetRecord[]) {
+    if (!frames.length || zippingId) return;
+    setZippingId(asset.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/assets/zip", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: frames.map((frame) => frame.id) }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({ error: `Zip failed (${res.status})` }));
+        throw new Error(json.error ?? `Zip failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${safeFileName(asset.subject)}-frames.zip`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Zip download failed");
+    } finally {
+      setZippingId(null);
     }
   }
 
@@ -228,10 +303,10 @@ export default function AssetsPage() {
         <h2 className="mt-14 font-display text-2xl font-bold uppercase tracking-tight text-bone">
           Gallery
           <span className="ml-3 text-sm font-normal normal-case tracking-normal text-ash">
-            {assets.length} asset{assets.length === 1 ? "" : "s"}
+            {topLevelAssets.length} asset{topLevelAssets.length === 1 ? "" : "s"}
           </span>
         </h2>
-        {assets.length === 0 && !busy ? (
+        {topLevelAssets.length === 0 && !busy ? (
           <p className="mt-4 text-sm text-ash/70">Nothing generated yet. Render your first sprite above.</p>
         ) : (
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -254,87 +329,153 @@ export default function AssetsPage() {
                 </div>
               </div>
             ))}
-            {assets.map((asset) => (
-              <figure
-                key={asset.id}
-                className="flex flex-col overflow-hidden rounded-md border border-gunmetal bg-coal"
-              >
-                <div
-                  className={`relative w-full bg-void ${
-                    asset.sheetPoses ? "aspect-[21/9]" : "aspect-square"
-                  }`}
+            {topLevelAssets.map((asset) => {
+              const frames = framesByParent[asset.id] ?? [];
+              const expectedFrames = asset.sheetPoses?.length ?? 0;
+
+              return (
+                <figure
+                  key={asset.id}
+                  className="flex flex-col overflow-hidden rounded-md border border-gunmetal bg-coal"
                 >
-                  <Image
-                    src={asset.url}
-                    alt={asset.subject}
-                    fill
-                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    unoptimized
-                    className="object-contain"
-                  />
-                </div>
-                <figcaption className="flex flex-1 flex-col gap-3 p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {asset.sheetPoses && (
-                      <span className="rounded-md border border-hellfire/50 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-hellfire">
-                        1×{asset.sheetPoses.length} sheet
-                      </span>
-                    )}
-                    {asset.game && (
-                      <span className="inline-flex items-center gap-1.5 rounded-md border border-hellfire/50 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-hellfire">
-                        <Gamepad2 className="size-3" aria-hidden="true" />
-                        {asset.game}
-                      </span>
-                    )}
-                    {asset.pose && (
-                      <span className="rounded-md border border-gunmetal px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-ash">
-                        {asset.pose}
-                      </span>
-                    )}
+                  <div
+                    className={`relative w-full bg-void ${
+                      asset.sheetPoses ? "aspect-[21/9]" : "aspect-square"
+                    }`}
+                  >
+                    <Image
+                      src={asset.url}
+                      alt={asset.subject}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      unoptimized
+                      className="object-contain"
+                    />
                   </div>
-                  <p className="text-xs leading-relaxed text-ash">{asset.subject}</p>
-                  <div className="mt-auto flex items-center gap-2 border-t border-gunmetal/60 pt-3">
-                    {!asset.sheetPoses && (
-                    <select
-                      value={variantPose[asset.id] ?? asset.pose ?? POSES[0]}
-                      onChange={(e) =>
-                        setVariantPose((prev) => ({ ...prev, [asset.id]: e.target.value }))
-                      }
-                      aria-label="Pose for reprint"
-                      className="flex-1 rounded-md border border-gunmetal bg-void px-2 py-1.5 text-xs text-bone focus:border-hellfire focus:outline-none"
-                    >
-                      {POSES.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => regenerate(asset)}
-                      disabled={busy}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-gunmetal px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {regeneratingId === asset.id ? (
-                        <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-                      ) : (
-                        <RefreshCw className="size-3.5" aria-hidden="true" />
+                  <figcaption className="flex flex-1 flex-col gap-3 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {asset.sheetPoses && (
+                        <span className="rounded-md border border-hellfire/50 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-hellfire">
+                          1×{asset.sheetPoses.length} sheet
+                        </span>
                       )}
-                      Reprint
-                    </button>
-                    <a
-                      href={asset.url}
-                      download={`${asset.subject.slice(0, 40).replace(/\W+/g, "-")}.png`}
-                      className="shrink-0 text-ash hover:text-hellfire"
-                      aria-label="Download sprite"
-                    >
-                      <Download className="size-4" aria-hidden="true" />
-                    </a>
-                  </div>
-                </figcaption>
-              </figure>
-            ))}
+                      {asset.game && (
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-hellfire/50 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-hellfire">
+                          <Gamepad2 className="size-3" aria-hidden="true" />
+                          {asset.game}
+                        </span>
+                      )}
+                      {asset.pose && (
+                        <span className="rounded-md border border-gunmetal px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-ash">
+                          {asset.pose}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs leading-relaxed text-ash">{asset.subject}</p>
+                    {frames.length > 0 && (
+                      <div className="rounded-md border border-gunmetal/70 bg-void/60 p-2">
+                        <div className="grid grid-cols-4 gap-2">
+                          {frames.map((frame, index) => (
+                            <a
+                              key={frame.id}
+                              href={frame.url}
+                              download={`${safeFileName(frame.subject)}.webp`}
+                              className="group relative aspect-square overflow-hidden rounded-md border border-gunmetal bg-void"
+                              aria-label={`Download frame ${index + 1}`}
+                            >
+                              <Image
+                                src={frame.url}
+                                alt={frame.subject}
+                                fill
+                                sizes="80px"
+                                unoptimized
+                                className="object-contain"
+                              />
+                              <span className="absolute bottom-1 left-1 rounded bg-coal/90 px-1.5 py-0.5 text-[10px] font-bold text-ash">
+                                {frame.pose ?? index + 1}
+                              </span>
+                              <Download
+                                className="absolute right-1 top-1 size-3.5 text-ash opacity-0 group-hover:opacity-100"
+                                aria-hidden="true"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-gunmetal/60 pt-3">
+                      {!asset.sheetPoses && (
+                        <select
+                          value={variantPose[asset.id] ?? asset.pose ?? POSES[0]}
+                          onChange={(e) =>
+                            setVariantPose((prev) => ({ ...prev, [asset.id]: e.target.value }))
+                          }
+                          aria-label="Pose for reprint"
+                          className="flex-1 rounded-md border border-gunmetal bg-void px-2 py-1.5 text-xs text-bone focus:border-hellfire focus:outline-none"
+                        >
+                          {POSES.map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {asset.sheetPoses && (
+                        <button
+                          type="button"
+                          onClick={() => sliceSheet(asset)}
+                          disabled={Boolean(slicingId)}
+                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-gunmetal px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {slicingId === asset.id ? (
+                            <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <Scissors className="size-3.5" aria-hidden="true" />
+                          )}
+                          {frames.length >= expectedFrames ? "Frames ready" : "Slice frames"}
+                        </button>
+                      )}
+                      {frames.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => downloadFramesZip(asset, frames)}
+                          disabled={Boolean(zippingId)}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-gunmetal px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {zippingId === asset.id ? (
+                            <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <Archive className="size-3.5" aria-hidden="true" />
+                          )}
+                          Zip
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => regenerate(asset)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-gunmetal px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {regeneratingId === asset.id ? (
+                          <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <RefreshCw className="size-3.5" aria-hidden="true" />
+                        )}
+                        Reprint
+                      </button>
+                      <a
+                        href={asset.url}
+                        download={`${safeFileName(asset.subject)}.png`}
+                        className="shrink-0 text-ash hover:text-hellfire"
+                        aria-label="Download sprite"
+                      >
+                        <Download className="size-4" aria-hidden="true" />
+                      </a>
+                    </div>
+                  </figcaption>
+                </figure>
+              );
+            })}
           </div>
         )}
       </section>

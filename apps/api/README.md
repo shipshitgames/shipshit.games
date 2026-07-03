@@ -12,6 +12,8 @@ other brands (deadrot) can run the same image with different env on the same hos
 | `GET /v1/assets` | Clerk JWT | Asset Lab gallery (metadata) |
 | `GET /v1/assets/:id/file` | Clerk JWT | compatibility asset file route; redirects to CDN or streams bytes |
 | `POST /v1/assets/generate` | Clerk JWT | nano-banana-2 sprite generation |
+| `POST /v1/assets/:id/slice` | Clerk JWT | slice a generated pose sheet into frame assets |
+| `POST /v1/assets/zip` | Clerk JWT | zip selected asset files for download |
 | `GET /v1/stats/commits` | Clerk JWT | commit activity from GitHub pushes |
 | `POST /webhooks/stripe` | Stripe signature | verified event log |
 | `POST /webhooks/clerk` | svix signature | User mirror sync + event log |
