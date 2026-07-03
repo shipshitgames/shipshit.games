@@ -20,7 +20,7 @@ export interface GalleryGame {
   tagline: string;
   coverPath: string;
   accent: AccentToken;
-  /** Presence signals a playable build; the Play link itself goes to playUrl. */
+  /** Live playable demo URL for the gallery CTA. */
   demoUrl?: string;
   /** Direct play route on the Deadrot hub: deadrot.com/<slug>. */
   playUrl: string;
@@ -59,9 +59,9 @@ function SpriteStrip({ sprites, size }: { sprites: GalleryGame["sprites"]; size:
   );
 }
 
-function CardActions({ game }: { game: GalleryGame }) {
+function CardActions({ game, compact = false }: { game: GalleryGame; compact?: boolean }) {
   return (
-    <div className="mt-5 flex flex-wrap gap-2">
+    <div className={`${compact ? "mt-3" : "mt-5"} flex flex-wrap gap-2`}>
       <Button asChild size="sm" className="font-display uppercase tracking-widest">
         <Link href={`/games/${game.slug}`}>
           Brief
@@ -70,9 +70,9 @@ function CardActions({ game }: { game: GalleryGame }) {
       </Button>
       {game.demoUrl ? (
         <Button asChild size="sm" variant="outline" className="font-display uppercase tracking-widest">
-          <PlayBuildLink href={game.playUrl} game={game.slug} location="gallery">
+          <PlayBuildLink href={game.demoUrl} game={game.slug} location="gallery">
             <Gamepad2 aria-hidden="true" />
-            Play
+            Demo
           </PlayBuildLink>
         </Button>
       ) : null}
@@ -100,6 +100,8 @@ export function GameCard({
   if (variant === "compact") {
     return (
       <article
+        data-testid="game-card"
+        data-game-slug={game.slug}
         style={accentStyle(game.accent)}
         className="group flex items-center gap-5 overflow-hidden rounded-md border border-gunmetal bg-coal p-4 transition-all duration-300 hover:border-[var(--accent)] hover:shadow-[0_0_36px_-14px_var(--accent)]"
       >
@@ -128,6 +130,7 @@ export function GameCard({
           <p className="mt-1 text-xs font-bold uppercase tracking-widest text-ash">
             {game.genre} <span className="text-gunmetal">/</span> {game.faction}
           </p>
+          <CardActions game={game} compact />
         </div>
         <ArrowRight
           aria-hidden="true"
@@ -141,6 +144,8 @@ export function GameCard({
 
   return (
     <article
+      data-testid="game-card"
+      data-game-slug={game.slug}
       style={accentStyle(game.accent)}
       className="group overflow-hidden rounded-md border border-gunmetal bg-coal transition-all duration-300 hover:border-[var(--accent)] hover:shadow-[0_0_44px_-14px_var(--accent)]"
     >

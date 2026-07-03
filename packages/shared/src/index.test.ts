@@ -22,6 +22,19 @@ test("GAME_SLUGS is the six art-target slugs, deduped, without the gallery-only 
   expect(GAME_SLUGS).not.toContain("warline");
 });
 
+test("GAMES is the data-driven public gallery catalogue", () => {
+  expect(GAMES.length).toBe(7);
+  expect(GAMES.map((game) => game.slug)).toEqual([
+    "scourge-survivors",
+    "deadlane",
+    "pactfall",
+    "starblight",
+    "redline",
+    "rothulk",
+    "warline",
+  ]);
+});
+
 test("every game carries a status label and the required gallery fields", () => {
   const stringFields = [
     "slug",
@@ -33,6 +46,8 @@ test("every game carries a status label and the required gallery fields", () => 
     "summary",
     "coverPath",
     "deadrotUrl",
+    "playUrl",
+    "demoUrl",
     "readinessIssueUrl",
     "repoUrl",
   ] as const;
@@ -44,7 +59,21 @@ test("every game carries a status label and the required gallery fields", () => 
     }
     expect(Array.isArray(game.proofPoints)).toBe(true);
     expect(game.proofPoints.length).toBeGreaterThan(0);
+    const demoUrl = game.demoUrl as string;
+    expect(game.repoUrl).toStartWith("https://github.com/shipshitgames/deadrot.com");
+    expect(demoUrl).toStartWith("https://");
+    expect(game.playUrl).toStartWith("https://deadrot.com/");
+    expect(game.readinessIssueUrl).toStartWith("https://github.com/shipshitgames/deadrot.com/issues/");
+    expect(() => new URL(demoUrl)).not.toThrow();
   }
+});
+
+test("canon modes stay nested under their public gallery games", () => {
+  const slugs = GAMES.map((g) => g.slug);
+  expect(slugs).toContain("pactfall");
+  expect(slugs).toContain("starblight");
+  expect(slugs).not.toContain("bloodlane");
+  expect(slugs).not.toContain("zero-day");
 });
 
 test("game slugs are unique across the catalogue", () => {
