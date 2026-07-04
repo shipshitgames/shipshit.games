@@ -8,7 +8,9 @@ export type GameSlug =
   | "pactfall"
   | "starblight"
   | "redline"
-  | "rothulk";
+  | "rothulk"
+  | "brawl"
+  | "warline";
 
 export const GAME_SLUGS: readonly GameSlug[] = [
   "scourge-survivors",
@@ -17,6 +19,8 @@ export const GAME_SLUGS: readonly GameSlug[] = [
   "starblight",
   "redline",
   "rothulk",
+  "brawl",
+  "warline",
 ] as const;
 
 export type Faction = "scourge" | "pyre" | "wardens" | "neutral";
@@ -384,7 +388,9 @@ export type GameSlug =
   | "pactfall"
   | "starblight"
   | "redline"
-  | "rothulk";
+  | "rothulk"
+  | "brawl"
+  | "warline";
 
 export const GAME_SLUGS: readonly GameSlug[] = [
   "scourge-survivors",
@@ -393,6 +399,8 @@ export const GAME_SLUGS: readonly GameSlug[] = [
   "starblight",
   "redline",
   "rothulk",
+  "brawl",
+  "warline",
 ] as const;
 
 export type AssetKind =

@@ -37,6 +37,8 @@ function entity(over: Partial<EntityAsset> = {}): EntityAsset {
       starblight: null,
       redline: null,
       rothulk: null,
+      brawl: null,
+      warline: null,
     },
     ...over,
   };
@@ -130,6 +132,8 @@ test("pendingGames ignores a variant present for a game not in `games` (extra, n
       starblight: null,
       redline: null,
       rothulk: null,
+      brawl: null,
+      warline: null,
     },
   });
   assert.deepEqual(pendingGames(e), []);
@@ -160,7 +164,16 @@ test("computeVariantGaps tolerates a missing variants map", () => {
 });
 
 function emptyVariants(): Record<GameSlug, string | null> {
-  return { "scourge-survivors": null, deadlane: null, pactfall: null, starblight: null, redline: null, rothulk: null };
+  return {
+    "scourge-survivors": null,
+    deadlane: null,
+    pactfall: null,
+    starblight: null,
+    redline: null,
+    rothulk: null,
+    brawl: null,
+    warline: null,
+  };
 }
 
 // ── broken assets ────────────────────────────────────────────────────────────
