@@ -8,6 +8,7 @@ import fs from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { readAssetBaseUrl } from "@shipshitgames/shared";
+import { IPC_CHANNELS } from "../shared/ipc";
 import { readSharedGameSlugs } from "./game-slugs";
 import { createTerminalManager, terminalShell } from "./terminal-manager";
 import {
@@ -226,16 +227,16 @@ function keyStatus() {
   return out;
 }
 
-ipcMain.handle("settings:get", () => readSettings());
-ipcMain.handle("settings:set", (_e, partial) => mergeSettings(partial));
-ipcMain.handle("keys:status", () => keyStatus());
-ipcMain.handle("keys:set", (_e, { provider, key }) => { const s = KEY_SERVICES[provider]; if (s && key) setKey(s, key); return keyStatus(); });
+ipcMain.handle(IPC_CHANNELS.settingsGet, () => readSettings());
+ipcMain.handle(IPC_CHANNELS.settingsSet, (_e, partial) => mergeSettings(partial));
+ipcMain.handle(IPC_CHANNELS.keysStatus, () => keyStatus());
+ipcMain.handle(IPC_CHANNELS.keysSet, (_e, { provider, key }) => { const s = KEY_SERVICES[provider]; if (s && key) setKey(s, key); return keyStatus(); });
 // Model catalogs + canonical routing for the renderer's per-kind pickers —
 // single source: assetgen, via the pure (unit-tested) studioModelsPayload builder.
-ipcMain.handle("studio:models", () => studioModelsPayload());
-ipcMain.handle("studio:listGames", () => listProjectState().projects.map((project) => project.slug));
-ipcMain.handle("projects:list", () => listProjectState());
-ipcMain.handle("projects:add", async () => {
+ipcMain.handle(IPC_CHANNELS.studioModels, () => studioModelsPayload());
+ipcMain.handle(IPC_CHANNELS.studioListGames, () => listProjectState().projects.map((project) => project.slug));
+ipcMain.handle(IPC_CHANNELS.projectsList, () => listProjectState());
+ipcMain.handle(IPC_CHANNELS.projectsAdd, async () => {
   const result = await dialog.showOpenDialog({
     title: "Add local game repo",
     properties: ["openDirectory"],
@@ -246,14 +247,14 @@ ipcMain.handle("projects:add", async () => {
   persistProjects([...(settings.projects || []), project], project.id);
   return listProjectState();
 });
-ipcMain.handle("projects:remove", (_e, id) => {
+ipcMain.handle(IPC_CHANNELS.projectsRemove, (_e, id) => {
   const settings = readSettings();
   const projects = (settings.projects || []).filter((project) => project.id !== id);
   const nextActive = settings.activeProjectId === id ? "" : settings.activeProjectId;
   persistProjects(projects, nextActive);
   return listProjectState();
 });
-ipcMain.handle("projects:setActive", (_e, id) => {
+ipcMain.handle(IPC_CHANNELS.projectsSetActive, (_e, id) => {
   const settings = readSettings();
   const project = allProjects(settings).find((candidate) => candidate.id === id);
   if (!project) return listProjectState(settings);
@@ -261,25 +262,25 @@ ipcMain.handle("projects:setActive", (_e, id) => {
   return listProjectState();
 });
 
-ipcMain.handle("gyms:list", () => gyms.list());
-ipcMain.handle("gyms:launch", (_e, payload = {}) => gyms.launch(payload));
+ipcMain.handle(IPC_CHANNELS.gymsList, () => gyms.list());
+ipcMain.handle(IPC_CHANNELS.gymsLaunch, (_e, payload = {}) => gyms.launch(payload));
 
-ipcMain.handle("terminal:start", (e, opts) => {
+ipcMain.handle(IPC_CHANNELS.terminalStart, (e, opts) => {
   e.sender.once("destroyed", () => terminalManager.disposeForWebContents(e.sender.id));
   return terminalManager.start(e.sender, opts);
 });
-ipcMain.handle("terminal:write", (e, { id, data }) => terminalManager.write(e.sender, id, data));
-ipcMain.handle("terminal:resize", (e, { id, cols, rows }) => terminalManager.resize(e.sender, id, { cols, rows }));
-ipcMain.handle("terminal:stop", (e, id) => terminalManager.stop(e.sender, id));
+ipcMain.handle(IPC_CHANNELS.terminalWrite, (e, { id, data }) => terminalManager.write(e.sender, id, data));
+ipcMain.handle(IPC_CHANNELS.terminalResize, (e, { id, cols, rows }) => terminalManager.resize(e.sender, id, { cols, rows }));
+ipcMain.handle(IPC_CHANNELS.terminalStop, (e, id) => terminalManager.stop(e.sender, id));
 
 // Same source of truth as studio:listGames so the moodboard picker shows the same games as the rest of the app.
-ipcMain.handle("moodboard:listGames", () => listProjectState().projects.map((project) => project.slug));
-ipcMain.handle("moodboard:get", (_e, game) => moodboards.readBoard(game || readSettings().defaultGame));
-ipcMain.handle("moodboard:addNote", (_e, payload = {}) => moodboards.addNote(payload.game || readSettings().defaultGame, payload.text));
-ipcMain.handle("moodboard:updateItem", (_e, payload = {}) => moodboards.updateItem(payload.game || readSettings().defaultGame, payload.item));
-ipcMain.handle("moodboard:setVisualTarget", (_e, payload = {}) => moodboards.setVisualTarget(payload.game || readSettings().defaultGame, payload.id, payload.visualTarget));
-ipcMain.handle("moodboard:removeItem", (_e, payload = {}) => moodboards.removeItem(payload.game || readSettings().defaultGame, payload.id));
-ipcMain.handle("moodboard:importImages", async (_e, game) => {
+ipcMain.handle(IPC_CHANNELS.moodboardListGames, () => listProjectState().projects.map((project) => project.slug));
+ipcMain.handle(IPC_CHANNELS.moodboardGet, (_e, game) => moodboards.readBoard(game || readSettings().defaultGame));
+ipcMain.handle(IPC_CHANNELS.moodboardAddNote, (_e, payload = {}) => moodboards.addNote(payload.game || readSettings().defaultGame, payload.text));
+ipcMain.handle(IPC_CHANNELS.moodboardUpdateItem, (_e, payload = {}) => moodboards.updateItem(payload.game || readSettings().defaultGame, payload.item));
+ipcMain.handle(IPC_CHANNELS.moodboardSetVisualTarget, (_e, payload = {}) => moodboards.setVisualTarget(payload.game || readSettings().defaultGame, payload.id, payload.visualTarget));
+ipcMain.handle(IPC_CHANNELS.moodboardRemoveItem, (_e, payload = {}) => moodboards.removeItem(payload.game || readSettings().defaultGame, payload.id));
+ipcMain.handle(IPC_CHANNELS.moodboardImportImages, async (_e, game) => {
   const r = await dialog.showOpenDialog({
     title: "Import moodboard references",
     properties: ["openFile", "multiSelections"],
@@ -293,27 +294,27 @@ ipcMain.handle("moodboard:importImages", async (_e, game) => {
 // renderer generates each variant via studio:generate and hands the resulting
 // inline data URL straight to lab:addVariant, so the store stays Electron-free.
 const labGame = (game) => game || readSettings().defaultGame;
-ipcMain.handle("lab:listGames", () => listProjectState().projects.map((project) => project.slug));
-ipcMain.handle("lab:get", (_e, game) => artLab.readLab(labGame(game)));
-ipcMain.handle("lab:setSubject", (_e, payload = {}) => artLab.setSubject(labGame(payload.game), payload.subject, payload.kind));
-ipcMain.handle("lab:addVariant", (_e, payload = {}) => artLab.addVariant(labGame(payload.game), payload.variant));
-ipcMain.handle("lab:scoreVariant", (_e, payload = {}) => artLab.scoreVariant(labGame(payload.game), payload.id, payload.score));
-ipcMain.handle("lab:tagVariant", (_e, payload = {}) => artLab.tagVariant(labGame(payload.game), payload.id, payload.tags));
-ipcMain.handle("lab:annotateVariant", (_e, payload = {}) => artLab.annotateVariant(labGame(payload.game), payload.id, payload.note));
-ipcMain.handle("lab:removeVariant", (_e, payload = {}) => artLab.removeVariant(labGame(payload.game), payload.id));
-ipcMain.handle("lab:lockVariant", (_e, payload = {}) => artLab.lockVariant(labGame(payload.game), payload.id));
-ipcMain.handle("lab:clearLock", (_e, payload = {}) => artLab.clearLock(labGame(payload.game)));
+ipcMain.handle(IPC_CHANNELS.labListGames, () => listProjectState().projects.map((project) => project.slug));
+ipcMain.handle(IPC_CHANNELS.labGet, (_e, game) => artLab.readLab(labGame(game)));
+ipcMain.handle(IPC_CHANNELS.labSetSubject, (_e, payload = {}) => artLab.setSubject(labGame(payload.game), payload.subject, payload.kind));
+ipcMain.handle(IPC_CHANNELS.labAddVariant, (_e, payload = {}) => artLab.addVariant(labGame(payload.game), payload.variant));
+ipcMain.handle(IPC_CHANNELS.labScoreVariant, (_e, payload = {}) => artLab.scoreVariant(labGame(payload.game), payload.id, payload.score));
+ipcMain.handle(IPC_CHANNELS.labTagVariant, (_e, payload = {}) => artLab.tagVariant(labGame(payload.game), payload.id, payload.tags));
+ipcMain.handle(IPC_CHANNELS.labAnnotateVariant, (_e, payload = {}) => artLab.annotateVariant(labGame(payload.game), payload.id, payload.note));
+ipcMain.handle(IPC_CHANNELS.labRemoveVariant, (_e, payload = {}) => artLab.removeVariant(labGame(payload.game), payload.id));
+ipcMain.handle(IPC_CHANNELS.labLockVariant, (_e, payload = {}) => artLab.lockVariant(labGame(payload.game), payload.id));
+ipcMain.handle(IPC_CHANNELS.labClearLock, (_e, payload = {}) => artLab.clearLock(labGame(payload.game)));
 
 // ---- maps generator (#18): seed/validate/preview/write ArenaMap layouts ----
 // Same game source of truth as the rest of the app so the picker matches.
-ipcMain.handle("maps:listGames", () => listProjectState().projects.map((project) => project.slug));
-ipcMain.handle("maps:preview", (_e, opts = {}) => maps.preview(opts));
-ipcMain.handle("maps:write", (_e, opts = {}) => maps.write(opts));
+ipcMain.handle(IPC_CHANNELS.mapsListGames, () => listProjectState().projects.map((project) => project.slug));
+ipcMain.handle(IPC_CHANNELS.mapsPreview, (_e, opts = {}) => maps.preview(opts));
+ipcMain.handle(IPC_CHANNELS.mapsWrite, (_e, opts = {}) => maps.write(opts));
 
 // ---- asset gallery (read-only review of the shared Deadrot assets package) ----
-ipcMain.handle("gallery:listGames", () => gallery.listGames());
-ipcMain.handle("gallery:list", (_e, payload = {}) => gallery.list(payload.game || readSettings().defaultGame, payload));
-ipcMain.handle("gallery:image", (_e, payload = {}) => gallery.image(payload.path));
+ipcMain.handle(IPC_CHANNELS.galleryListGames, () => gallery.listGames());
+ipcMain.handle(IPC_CHANNELS.galleryList, (_e, payload = {}) => gallery.list(payload.game || readSettings().defaultGame, payload));
+ipcMain.handle(IPC_CHANNELS.galleryImage, (_e, payload = {}) => gallery.image(payload.path));
 
 // ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
 // GUI apps inherit a minimal PATH, so resolve ffmpeg from common install locations.
@@ -335,7 +336,7 @@ function audioLicense(category, bitrate, normalize) {
   };
 }
 
-ipcMain.handle("studio:pickAudioFiles", async () => {
+ipcMain.handle(IPC_CHANNELS.studioPickAudioFiles, async () => {
   const r = await dialog.showOpenDialog({
     title: "Pick source audio to transcode",
     properties: ["openFile", "multiSelections"],
@@ -347,7 +348,7 @@ ipcMain.handle("studio:pickAudioFiles", async () => {
 // Transcode any audio → WebM/Opus into a game's src/assets/audio/<category>/, mirroring
 // the asset pipeline's "encode finals to .webm/opus" rule. Strips non-audio streams
 // (cover art); optional loudnorm. Streams an ffmpeg log like studio:generate.
-ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
+ipcMain.handle(IPC_CHANNELS.studioTranscodeAudio, async (e, opts) => {
   const files = Array.isArray(opts?.files) ? opts.files : [];
   const target = resolveProjectTarget(opts);
   const game = target.slug;
@@ -355,7 +356,7 @@ ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
   const bitrate = Math.max(32, Math.min(320, Number(opts?.bitrate) || 128));
   const normalize = !!opts?.normalize;
   const outDir = path.join(target.repoPath, "src", "assets", "audio", category);
-  const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:transcode-log", chunk); };
+  const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send(IPC_CHANNELS.studioTranscodeLog, chunk); };
   if (!files.length) { send("no files selected\n"); return { ok: false, log: "no files", outputs: [] }; }
   const ffmpeg = resolveFfmpeg();
   fs.mkdirSync(outDir, { recursive: true });
@@ -401,11 +402,11 @@ ipcMain.handle("studio:transcodeAudio", async (e, opts) => {
   return { ok: outputs.length === files.length, log, outputs };
 });
 
-ipcMain.handle("studio:generate", async (e, opts) => {
+ipcMain.handle(IPC_CHANNELS.studioGenerate, async (e, opts) => {
   const settings = readSettings();
   const target = resolveProjectTarget(opts);
   const { args, provider, game, kind, repo, model } = buildGenerateArgs({ assetgenPath: ASSETGEN, settings, opts, target });
-  const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:gen-log", chunk); };
+  const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send(IPC_CHANNELS.studioGenLog, chunk); };
   send(`$ assetgen --provider ${provider} --game ${game} --kind ${kind} --id ${opts?.id}${model ? ` --model ${model}` : ""}\n`);
   send(`[repo] ${repo}\n`);
   send(`[manifest] ${target.manifestPath}\n`);
@@ -448,7 +449,7 @@ function readPixelizeSource(payload: any): { buffer: Buffer } | { error: string 
   return { error: "nothing to pixelize — generate a sprite first" };
 }
 
-ipcMain.handle("studio:pixelize", async (_e, payload = {}) => {
+ipcMain.handle(IPC_CHANNELS.studioPixelize, async (_e, payload = {}) => {
   const source = readPixelizeSource(payload);
   if ("error" in source) return { ok: false, error: source.error };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-pixelize-"));
@@ -491,13 +492,13 @@ ipcMain.handle("studio:pixelize", async (_e, payload = {}) => {
 
 // Ressources -> rules: drives @shipshitgames/ressources over a streaming log, same shape as
 // studio:generate. Writes the ruleset into the repo under docs/rules/ by default.
-ipcMain.handle("studio:research", async (e, opts) => {
+ipcMain.handle(IPC_CHANNELS.studioResearch, async (e, opts) => {
   // Ressources only distills with codex | mock; ignore the image-gen default provider.
   const provider = opts?.provider === "mock" ? "mock" : "codex";
   const url = (opts?.url || "").trim();
   const slug = (opts?.slug || "ruleset").replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
   const out = path.join(STUDIO_REPO, "docs", "rules", `${slug}.md`);
-  const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send("studio:research-log", chunk); };
+  const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send(IPC_CHANNELS.studioResearchLog, chunk); };
   if (!url) { send("no url provided\n"); return { ok: false, log: "no url", path: null, rules: null }; }
   const args = [RESSOURCES, "distill", "--url", url, "--provider", provider, "--out", out];
   send(`$ ressources distill --url ${url} --provider ${provider} --out ${out}\n`);

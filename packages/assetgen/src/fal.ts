@@ -29,6 +29,9 @@ export const FAL_MODELS: readonly FalModel[] = [
 ];
 
 export const DEFAULT_FAL_MODEL = "fal-ai/flux/dev";
+const FAL_IMAGE_TO_IMAGE_ENDPOINTS: Readonly<Record<string, string>> = {
+  "fal-ai/flux/dev": "fal-ai/flux/dev/image-to-image",
+};
 
 export const DEFAULT_FAL_MODEL_BY_KIND: Record<string, string> = {
   sprite: "fal-ai/flux/dev",
@@ -43,6 +46,18 @@ export const FAL_KEY_CONFIG = { envName: "FAL_KEY", service: "shipshit-fal", lab
 /** Explicit model wins, then the per-kind default, then the provider default. */
 export function resolveFalModel(kind: string, model?: string): string {
   return model || DEFAULT_FAL_MODEL_BY_KIND[kind] || DEFAULT_FAL_MODEL;
+}
+
+export function resolveFalEndpoint(model: string, referenceCount = 0): string {
+  if (referenceCount === 0) return model;
+  if (referenceCount > 1) {
+    throw new Error("fal: FLUX image-to-image accepts exactly one reference image");
+  }
+  const endpoint = FAL_IMAGE_TO_IMAGE_ENDPOINTS[model];
+  if (!endpoint) {
+    throw new Error(`fal: ${model} does not support reference images; use ${DEFAULT_FAL_MODEL}`);
+  }
+  return endpoint;
 }
 
 /** Overridable for tests and self-hosted proxies, like SUNO_API_BASE_URL. */
@@ -93,15 +108,12 @@ export function falRequestBody(
   prompt: string,
   imageSize: { width: number; height: number },
   seed?: number,
-  referenceImageUrls: readonly string[] = [],
+  referenceImageUrl?: string,
 ): Record<string, unknown> {
-  const body: Record<string, unknown> = { prompt, image_size: imageSize, num_images: 1 };
+  const body: Record<string, unknown> = referenceImageUrl
+    ? { prompt, image_url: referenceImageUrl, strength: 0.95, num_images: 1 }
+    : { prompt, image_size: imageSize, num_images: 1 };
   if (seed !== undefined) body.seed = seed;
-  if (referenceImageUrls.length > 0) {
-    body.image_url = referenceImageUrls[0];
-    body.image_prompt_strength = 0.18;
-  }
-  if (referenceImageUrls.length > 1) body.image_urls = referenceImageUrls;
   return body;
 }
 
@@ -130,23 +142,25 @@ export async function generateFalAsset(
   if (!key) throw missingKeyMessage(FAL_KEY_CONFIG);
   const fetchImpl = deps.fetchImpl ?? fetch;
   const model = resolveFalModel(kind, opts.model);
+  const referenceImages = opts.referenceImages ?? [];
+  const endpoint = resolveFalEndpoint(model, referenceImages.length);
   const imageSize = falImageSize(opts.size);
   const timeoutMs = opts.timeoutMs ?? 120_000;
-  const referenceImageUrls = await referenceImagesToDataUrls(opts.referenceImages ?? []);
-  opts.log?.(`[fal] ${model} ${imageSize.width}x${imageSize.height}\n`);
+  const referenceImageUrls = await referenceImagesToDataUrls(referenceImages);
+  opts.log?.(`[fal] ${endpoint} ${imageSize.width}x${imageSize.height}\n`);
 
   let res: Response;
   try {
-    res = await fetchImpl(`${falApiBase()}/${model}`, {
+    res = await fetchImpl(`${falApiBase()}/${endpoint}`, {
       method: "POST",
       headers: { authorization: `Key ${key}`, "content-type": "application/json" },
-      body: JSON.stringify(falRequestBody(prompt, imageSize, opts.seed, referenceImageUrls)),
+      body: JSON.stringify(falRequestBody(prompt, imageSize, opts.seed, referenceImageUrls[0])),
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
     const name = (error as Error)?.name;
     if (name === "TimeoutError" || name === "AbortError") {
-      throw new Error(`fal: ${model} timed out after ${Math.round(timeoutMs / 1000)}s`);
+      throw new Error(`fal: ${endpoint} timed out after ${Math.round(timeoutMs / 1000)}s`);
     }
     throw error;
   }
@@ -155,7 +169,7 @@ export async function generateFalAsset(
   const json: any = await res.json();
   const image = json?.images?.[0] ?? json?.image;
   const url = typeof image === "string" ? image : image?.url;
-  if (!url) throw new Error(`fal: no image in ${model} response`);
+  if (!url) throw new Error(`fal: no image in ${endpoint} response`);
 
   // Trust downloads from the operator-configured fal endpoint (self-hosted/proxy/
   // e2e mock over http/loopback); production fal.media URLs are public https and

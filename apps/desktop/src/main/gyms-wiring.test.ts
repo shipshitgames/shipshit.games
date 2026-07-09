@@ -6,7 +6,7 @@ import { readFile } from "node:fs/promises";
 const mainSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
 const preloadSource = await readFile(new URL("../preload/index.ts", import.meta.url), "utf8");
 
-const GYM_CHANNELS = ["gyms:list", "gyms:launch"];
+const GYM_CHANNEL_KEYS = ["gymsList", "gymsLaunch"];
 
 test("main constructs the gym launcher from the shared factory", () => {
   expect(mainSource).toMatch(/import \{[^}]*\bcreateGymLauncher\b[^}]*\} from ["']\.\/gyms["']/);
@@ -14,9 +14,9 @@ test("main constructs the gym launcher from the shared factory", () => {
 });
 
 test("main handles every gyms:* channel the preload exposes", () => {
-  for (const channel of GYM_CHANNELS) {
-    expect(mainSource).toContain(`ipcMain.handle("${channel}"`);
-    expect(preloadSource).toContain(`ipcRenderer.invoke("${channel}"`);
+  for (const channelKey of GYM_CHANNEL_KEYS) {
+    expect(mainSource).toContain(`ipcMain.handle(IPC_CHANNELS.${channelKey}`);
+    expect(preloadSource).toContain(`ipcRenderer.invoke(IPC_CHANNELS.${channelKey}`);
   }
 });
 

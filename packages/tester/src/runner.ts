@@ -4,11 +4,11 @@
 
 import { chromium } from "playwright";
 import type { Browser, Page } from "playwright";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import { analyzePixels } from "./pixels.ts";
-import { buildMarkdownReport } from "./report.ts";
+import { writeReports } from "./report-files.ts";
 import { sanitizeName } from "./script.ts";
 import type {
   CanvasResult,
@@ -167,11 +167,6 @@ async function sampleCanvas(page: Page, selector: string, sampleSize: number): P
   );
 }
 
-async function writeReports(report: GameTestReport, opts: TesterOptions): Promise<void> {
-  await writeFile(opts.reportJsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  await writeFile(opts.reportMarkdownPath, buildMarkdownReport(report), "utf8");
-}
-
 /**
  * Open `opts.url`, wait for the game to be ready, run the input script, capture
  * screenshots, sample the canvas for blank detection, and return a report. Never
@@ -319,10 +314,6 @@ export async function runGameTest(opts: TesterOptions): Promise<GameTestReport> 
     failures,
   };
 
-  try {
-    await writeReports(report, opts);
-  } catch (error) {
-    report.pageErrors.push(`writing report failed: ${(error as Error).message}`);
-  }
+  await writeReports(report, opts);
   return report;
 }

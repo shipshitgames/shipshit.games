@@ -68,6 +68,8 @@ export interface ProviderDescriptor {
   defaultModel?: string;
   models?: readonly FalModel[];
   key?: ProviderKeyConfig;
+  /** The adapter consumes referenceImages instead of silently ignoring them. */
+  referenceImages?: boolean;
 }
 
 export const PROVIDER_CATALOG: Record<ProviderId, ProviderDescriptor> = {
@@ -76,12 +78,14 @@ export const PROVIDER_CATALOG: Record<ProviderId, ProviderDescriptor> = {
     label: "Codex CLI",
     supports: IMAGE_KINDS,
     defaultModel: "codex-cli",
+    referenceImages: true,
   },
   openai: {
     id: "openai",
     label: "OpenAI API",
     supports: IMAGE_KINDS,
     defaultModel: "gpt-image-2",
+    referenceImages: true,
     key: { envName: "OPENAI_API_KEY", service: "shipshit-openai", label: "OpenAI" },
   },
   fal: {
@@ -91,6 +95,7 @@ export const PROVIDER_CATALOG: Record<ProviderId, ProviderDescriptor> = {
     defaultModel: DEFAULT_FAL_MODEL,
     models: FAL_MODELS,
     key: FAL_KEY_CONFIG,
+    referenceImages: true,
   },
   replicate: {
     id: "replicate",
@@ -139,6 +144,7 @@ export const PROVIDER_CATALOG: Record<ProviderId, ProviderDescriptor> = {
     label: "Mock",
     supports: ["*"],
     defaultModel: "mock",
+    referenceImages: true,
   },
 };
 

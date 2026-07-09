@@ -12,6 +12,7 @@ import {
   falImageSize,
   falRequestBody,
   generateFalAsset,
+  resolveFalEndpoint,
   resolveFalModel,
 } from "./fal";
 
@@ -52,6 +53,13 @@ test("resolveFalModel precedence: explicit beats per-kind beats provider default
   assert.equal(resolveFalModel("never-heard-of-it"), DEFAULT_FAL_MODEL);
 });
 
+test("resolveFalEndpoint uses the documented image-to-image route for one reference", () => {
+  assert.equal(resolveFalEndpoint("fal-ai/flux/dev"), "fal-ai/flux/dev");
+  assert.equal(resolveFalEndpoint("fal-ai/flux/dev", 1), "fal-ai/flux/dev/image-to-image");
+  assert.throws(() => resolveFalEndpoint("fal-ai/flux/dev", 2), /exactly one reference image/);
+  assert.throws(() => resolveFalEndpoint("fal-ai/flux/schnell", 1), /does not support reference images/);
+});
+
 test("per-kind fal defaults all reference models in the catalog", () => {
   const ids = new Set(FAL_MODELS.map((model) => model.id));
   assert.equal(ids.has(DEFAULT_FAL_MODEL), true);
@@ -90,15 +98,19 @@ test("falRequestBody omits the seed key unless one is supplied", () => {
   assert.equal(falRequestBody("a husk", imageSize, 0).seed, 0);
 });
 
-test("falRequestBody adds reference image guidance when supplied", () => {
-  const body = falRequestBody("a husk", { width: 512, height: 512 }, undefined, [
+test("falRequestBody uses the image-to-image schema when a reference is supplied", () => {
+  const body = falRequestBody(
+    "a husk",
+    { width: 512, height: 512 },
+    undefined,
     "data:image/png;base64,abc",
-    "data:image/png;base64,def",
-  ]);
+  );
 
   assert.equal(body.image_url, "data:image/png;base64,abc");
-  assert.deepEqual(body.image_urls, ["data:image/png;base64,abc", "data:image/png;base64,def"]);
-  assert.equal(body.image_prompt_strength, 0.18);
+  assert.equal(body.strength, 0.95);
+  assert.equal(body.image_size, undefined);
+  assert.equal(body.image_urls, undefined);
+  assert.equal(body.image_prompt_strength, undefined);
 });
 
 test("falAssetMeta prefers the echoed seed, falls back to the requested one, and reads requestId", () => {
@@ -207,7 +219,7 @@ test("generateFalAsset embeds local reference images as data URLs", async () => 
       });
     });
 
-    await generateFalAsset(
+    const asset = await generateFalAsset(
       "sprite",
       "a husk",
       { size: "1024", referenceImages: [reference] },
@@ -215,9 +227,36 @@ test("generateFalAsset embeds local reference images as data URLs", async () => 
     );
 
     const body = JSON.parse(String(calls[0]?.init?.body));
+    assert.equal(calls[0]?.url, "https://fal.run/fal-ai/flux/dev/image-to-image");
     assert.match(body.image_url, /^data:image\/png;base64,/);
-    assert.equal(body.image_prompt_strength, 0.18);
+    assert.equal(body.strength, 0.95);
+    assert.equal(body.image_size, undefined);
+    assert.equal(asset.model, "fal-ai/flux/dev");
+    assert.equal(asset.meta?.model, "fal-ai/flux/dev");
   });
+});
+
+test("generateFalAsset rejects unsupported reference combinations before calling fal", async () => {
+  const { fetchImpl, calls } = fakeFetch(() => new Response("unreachable"));
+  await assert.rejects(
+    generateFalAsset(
+      "sprite",
+      "a husk",
+      { size: "1024", model: "fal-ai/flux/schnell", referenceImages: ["one.png"] },
+      { fetchImpl, resolveKey: () => "unit-key" },
+    ),
+    /does not support reference images/,
+  );
+  await assert.rejects(
+    generateFalAsset(
+      "sprite",
+      "a husk",
+      { size: "1024", referenceImages: ["one.png", "two.png"] },
+      { fetchImpl, resolveKey: () => "unit-key" },
+    ),
+    /exactly one reference image/,
+  );
+  assert.equal(calls.length, 0);
 });
 
 test("generateFalAsset routes an explicit model past the per-kind default", async () => {

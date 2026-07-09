@@ -10,9 +10,11 @@ import { readFile } from "node:fs/promises";
 const mainSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
 const preloadSource = await readFile(new URL("../preload/index.ts", import.meta.url), "utf8");
 const rendererSource = await readFile(new URL("../renderer/App.tsx", import.meta.url), "utf8");
+const rendererBridgeSource = await readFile(new URL("../renderer/studio.d.ts", import.meta.url), "utf8");
+const ipcContractSource = await readFile(new URL("../shared/ipc.ts", import.meta.url), "utf8");
 
 test("main handles studio:pixelize through the shared, sharp-free arg builder", () => {
-  expect(mainSource).toMatch(/ipcMain\.handle\(\s*["']studio:pixelize["']/);
+  expect(mainSource).toContain("ipcMain.handle(IPC_CHANNELS.studioPixelize");
   expect(mainSource).toMatch(/import \{[^}]*\bbuildPixelizeArgs\b[^}]*\} from ["']\.\/pixelize-args["']/);
   expect(mainSource).toMatch(/buildPixelizeArgs\(\s*\{/);
   // It must SHELL OUT to the assetgen CLI (one impl, two surfaces), never import
@@ -21,11 +23,12 @@ test("main handles studio:pixelize through the shared, sharp-free arg builder", 
 });
 
 test("preload exposes the pixelize bridge over the studio:pixelize channel", () => {
-  expect(preloadSource).toMatch(/pixelize:\s*\(opts\)\s*=>\s*ipcRenderer\.invoke\(\s*["']studio:pixelize["']/);
+  expect(preloadSource).toMatch(/pixelize:\s*\(opts\)\s*=>\s*ipcRenderer\.invoke\(IPC_CHANNELS\.studioPixelize/);
 });
 
 test("renderer declares the pixelize API and mounts the Pixelize panel", () => {
-  expect(rendererSource).toMatch(/pixelize:\s*\(opts:/);
+  expect(rendererBridgeSource).toMatch(/studio\?:\s*StudioApi/);
+  expect(ipcContractSource).toMatch(/pixelize:\s*\(opts:\s*PixelizeOptions\)/);
   expect(rendererSource).toMatch(/function PixelizePanel\(/);
   expect(rendererSource).toMatch(/<PixelizePanel[^>]*\bsource=/);
 });

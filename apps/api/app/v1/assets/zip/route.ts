@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 
 import { requireAuth } from "@/lib/auth";
-import { type AssetWithImage, readAssetFiles } from "@/lib/assets";
+import { assetExtension } from "@/lib/asset-storage";
+import { AssetArchiveTooLargeError, type AssetWithImage, readAssetFiles } from "@/lib/assets";
 import { makeZip } from "@/lib/zip";
 
 export const runtime = "nodejs";
 
 const MAX_ZIP_ASSETS = 64;
+const MAX_ZIP_BYTES = 32 * 1024 * 1024;
 
 function slug(value: string): string {
   return (
@@ -22,7 +24,7 @@ function zipName(asset: AssetWithImage, index: number): string {
   const frame = asset.record.pose
     ? slug(asset.record.pose)
     : `frame-${(asset.record.sliceIndex ?? index) + 1}`;
-  return `${String(index + 1).padStart(2, "0")}-${slug(asset.record.subject)}-${frame}.webp`;
+  return `${String(index + 1).padStart(2, "0")}-${slug(asset.record.subject)}-${frame}.${assetExtension(asset.record.mediaType)}`;
 }
 
 export async function POST(req: Request) {
@@ -40,7 +42,15 @@ export async function POST(req: Request) {
     );
   }
 
-  const files = await readAssetFiles(ids);
+  let files: AssetWithImage[];
+  try {
+    files = await readAssetFiles(ids, auth.userId, MAX_ZIP_BYTES);
+  } catch (error) {
+    if (error instanceof AssetArchiveTooLargeError) {
+      return NextResponse.json({ error: "asset archive exceeds 32 MiB" }, { status: 413 });
+    }
+    throw error;
+  }
   if (files.length !== new Set(ids).size) {
     return NextResponse.json({ error: "one or more assets were not found" }, { status: 404 });
   }

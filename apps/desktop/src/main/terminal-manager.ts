@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { IPC_CHANNELS } from "../shared/ipc";
+
 const DEFAULT_COLS = 100;
 const DEFAULT_ROWS = 24;
 const MIN_COLS = 20;
@@ -82,11 +84,11 @@ function createTerminalManager(options: any = {}) {
     });
 
     child.onData((data) => {
-      send(webContents, "terminal:data", { id, data });
+      send(webContents, IPC_CHANNELS.terminalData, { id, data });
     });
     child.onExit((event: any = {}) => {
       sessions.delete(id);
-      send(webContents, "terminal:exit", {
+      send(webContents, IPC_CHANNELS.terminalExit, {
         id,
         exitCode: event.exitCode ?? null,
         signal: event.signal ?? null,

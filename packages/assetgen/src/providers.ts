@@ -59,6 +59,7 @@ export interface AssetProvider {
   defaultModel?: string;
   models?: readonly FalModel[];
   key?: ProviderKeyConfig;
+  referenceImages?: boolean;
   generate(kind: AssetKind, prompt: string, opts: ProviderOptions): Promise<GeneratedAsset>;
 }
 
@@ -673,6 +674,9 @@ export async function generateAsset(
   opts: ProviderOptions & { provider?: string },
 ): Promise<GeneratedAsset & { provider: ProviderId; meta: GeneratedAssetMeta }> {
   const provider = resolveProvider(kind, opts.provider);
+  if (opts.referenceImages?.length && !provider.referenceImages) {
+    throw new Error(`${provider.id} does not support reference images`);
+  }
   const asset = await provider.generate(kind, prompt, opts);
   const model = asset.model ?? opts.model ?? provider.defaultModel;
   // Every asset carries a meta: providers that opt out still record reproducible:false.

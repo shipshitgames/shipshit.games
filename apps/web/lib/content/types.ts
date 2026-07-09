@@ -137,7 +137,29 @@ export interface AssetIndexEntry {
   hostFamily?: string;
 }
 
-export type RoadmapStatus = "Todo" | "In Progress" | "Done" | "Other";
+export type CanonicalRoadmapStatus =
+  | "Backlog"
+  | "In Progress"
+  | "Human Review"
+  | "Done"
+  | "Deferred";
+
+/**
+ * `Todo` is retained so committed snapshots written before the GitHub project
+ * renamed that option to `Backlog` remain readable.
+ */
+export type RoadmapStatus = CanonicalRoadmapStatus | "Todo" | "Other";
+
+export interface RoadmapCounts {
+  /** Persisted compatibility key; this is the count displayed as Backlog. */
+  todo: number;
+  inProgress: number;
+  done: number;
+  /** Missing in legacy snapshots and treated as zero by consumers. */
+  humanReview?: number;
+  /** Missing in legacy snapshots and treated as zero by consumers. */
+  deferred?: number;
+}
 
 export interface RoadmapBoard {
   /** Game slug, or "studio" / "deadrot" for the org-level boards. */
@@ -145,8 +167,8 @@ export interface RoadmapBoard {
   title: string;
   projectNumber: number;
   url: string;
-  counts: { todo: number; inProgress: number; done: number };
-  /** Up to 5 not-done items, In Progress first. */
+  counts: RoadmapCounts;
+  /** Up to 5 actionable items, Human Review then In Progress then Backlog. */
   topItems: { title: string; status: RoadmapStatus }[];
 }
 

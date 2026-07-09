@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  const assets = await listAssets();
+  const assets = await listAssets(auth.userId);
   return NextResponse.json({
     assets: assets.map((a) => ({ ...a, url: assetUrl(a) })),
   });

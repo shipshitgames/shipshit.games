@@ -7,6 +7,7 @@
  */
 import { getActivitySnapshot, getRoadmapSnapshot } from "@/lib/content";
 import type { ActivityEvent, ActivitySnapshot, RoadmapSnapshot } from "@/lib/content/types";
+import { summarizeRoadmapItems } from "@/lib/roadmap-status";
 
 const REPOS = ["shipshitgames/shipshit.games", "shipshitgames/deadrot.com"] as const;
 const REVALIDATE_SECONDS = 3600;
@@ -168,24 +169,19 @@ export async function fetchRoadmap(): Promise<{ data: RoadmapSnapshot; live: boo
         else if (project.title === "shipshit.games") scope = "studio";
         else return null;
 
-        const counts = { todo: 0, inProgress: 0, done: 0 };
-        const open: { title: string; status: "Todo" | "In Progress" }[] = [];
-        for (const item of project.items?.nodes ?? []) {
-          const status = item.fieldValueByName?.name;
-          const title = item.content?.title;
-          if (status === "Todo") counts.todo += 1;
-          if (status === "In Progress") counts.inProgress += 1;
-          if (status === "Done") counts.done += 1;
-          if ((status === "Todo" || status === "In Progress") && title) open.push({ title, status });
-        }
-        open.sort((a, b) => (a.status === b.status ? 0 : a.status === "In Progress" ? -1 : 1));
+        const { counts, topItems } = summarizeRoadmapItems(
+          (project.items?.nodes ?? []).map((item) => ({
+            status: item.fieldValueByName?.name,
+            title: item.content?.title,
+          })),
+        );
         return {
           scope,
           title: project.title,
           projectNumber: project.number,
           url: project.url,
           counts,
-          topItems: open.slice(0, 5),
+          topItems,
         };
       })
       .filter((b): b is NonNullable<typeof b> => b !== null)
