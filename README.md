@@ -26,6 +26,8 @@ packages now live in
 
 - `apps/web` - live Next 16 studio site for Skills Pro, DEADROT proof, the asset
   pipeline, pricing, and public calls to action.
+- `apps/app` - authenticated Studio Pass portal and hosted Asset Lab.
+- `apps/api` - studio billing/webhook, generation, storage, and metadata API.
 - `apps/docs` - Nextra docs for studio tools, asset generation, ressources,
   shared packages, canon rules, and deployment notes.
 - `apps/cli` - `shipshitgames` / `ssg` command-line entrypoint.
@@ -42,6 +44,8 @@ packages now live in
   library, distillation CLI, and derivative rule/skill/app/tool candidates.
 - `packages/shared` / `@shipshitgames/shared` - shared TypeScript utilities and
   types.
+- `packages/tester` / `@shipshitgames/tester` - Playwright browser-game QA,
+  blank-canvas detection, screenshots, and agent-readable reports.
 - `packages/ui` / `@shipshitgames/ui` - shared React UI primitives, Tailwind
   styles, and game-flavored component shells.
 
@@ -50,6 +54,8 @@ packages now live in
 ```txt
 apps/
   web/       # shipshit.games
+  app/       # app.shipshit.games
+  api/       # api.shipshit.games
   docs/      # docs.shipshit.games
   cli/       # shipshitgames / ssg binary
   desktop/   # Electron studio
@@ -58,6 +64,7 @@ packages/
   engine/
   ressources/
   shared/
+  tester/
   ui/
 scripts/
 ```
@@ -118,8 +125,9 @@ bun --filter @shipshitgames/desktop dev
   `bun link` bridge during cross-repo engine development.
 - Studio learning material, source manifests, raw transcript sidecars, and
   distilled rules belong in `packages/ressources`.
-- Release automation starts at `bun run release`; use `bun run release:run` to
-  execute the planned release.
+- Package publishing starts with the dry-run `bun run release:packages`; the
+  execute form only publishes already-versioned packages from a clean, synced
+  `master`. Application deployment remains GitHub-Release-driven.
 
 ## Related Repos
 
