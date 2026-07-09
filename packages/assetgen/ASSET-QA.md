@@ -75,7 +75,9 @@ bun <studio-repo>/packages/assetgen/src/cli.ts asset-qa check \
 
 `root` is resolved relative to the manifest. `--root` overrides it and is
 resolved from the current working directory. Every target and repair source
-must stay under that root. WebP checks and repairs require the `dwebp` and
+must stay under that root; containment is physical, so a symlinked path
+component that points outside the root is rejected before any read or
+write. WebP checks and repairs require the `dwebp` and
 `cwebp` binaries from libwebp; the encoder uses PAM RGBA plus `-exact` so hidden
 RGB at transparent edges is not silently discarded.
 

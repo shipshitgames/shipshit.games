@@ -16,12 +16,19 @@ export async function runAssetQaCommand(argv: string[]): Promise<void> {
     process.exit(1);
   }
 
+  const targetIds = flagValues(commandArgs, "target");
+  // flagValues drops missing or flag-like values; an empty selection means
+  // "all targets", so a malformed --target must fail instead of widening scope.
+  if (targetIds.length !== commandArgs.filter((arg) => arg === "--target").length) {
+    console.error("[asset-qa] --target requires a target id");
+    process.exit(1);
+  }
   const options = {
     manifestPath,
     root: flag(commandArgs, "root"),
-    targetIds: flagValues(commandArgs, "target"),
+    targetIds,
   };
-  if (options.root?.startsWith("--")) {
+  if (has(commandArgs, "root") && (options.root === undefined || options.root.startsWith("-"))) {
     console.error("[asset-qa] --root requires a directory path");
     process.exit(1);
   }

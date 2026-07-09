@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -187,6 +187,102 @@ test("e2e: asset-qa repair crops declared atlas bounds with validated transparen
     assert.equal(repair.ok, true);
     assert.deepEqual(repair.targets[0]?.validation.metrics?.alpha.margins, { left: 2, top: 2, right: 2, bottom: 2 });
     assert.equal((await stat(targetPath)).size > 0, true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("e2e: asset-qa enforces physical root containment across symlinked directories", async () => {
+  const base = await mkdtemp(join(tmpdir(), "assetgen-asset-qa-symlink-"));
+  try {
+    const root = join(base, "root");
+    const outside = join(base, "outside");
+    await mkdir(root);
+    await mkdir(outside);
+    await mkdir(join(root, "real"));
+    await symlink(join(base, "outside"), join(root, "dist"), "dir");
+    await symlink(join(root, "real"), join(root, "alias"), "dir");
+    const manifestPath = join(root, "asset-qa.json");
+
+    // A symlinked directory component that leaves the root must fail before
+    // any target is read or written, for both check and repair.
+    await writeManifest(manifestPath, {
+      schemaVersion: 1,
+      targets: [
+        {
+          id: "escaping",
+          path: "dist/sprite.webp",
+          checks: { webpEncoding: "lossless" },
+          repair: { output: { format: "webp", lossless: true } },
+        },
+      ],
+    });
+    await assert.rejects(() => runAssetQaCheck({ manifestPath }), /escapes the manifest root/);
+    await assert.rejects(() => runAssetQaRepair({ manifestPath }), /escapes the manifest root/);
+    assert.deepEqual(await Array.fromAsync(new Bun.Glob("*").scan({ cwd: outside })), []);
+
+    // A symlink that stays inside the root remains a valid product layout.
+    await writeFile(
+      join(root, "real", "sprite.webp"),
+      await encodeWebp(image(2, 2, [[0, 0, 90, 60, 30, 255]]), { format: "webp", lossless: true }),
+    );
+    await writeManifest(manifestPath, {
+      schemaVersion: 1,
+      targets: [{ id: "contained", path: "alias/sprite.webp", checks: { webpEncoding: "lossless" } }],
+    });
+    const contained = await runAssetQaCheck({ manifestPath });
+    assert.equal(contained.ok, true);
+  } finally {
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
+test("e2e: asset-qa repair fails malformed --target and --root flags instead of widening scope", async () => {
+  const root = await mkdtemp(join(tmpdir(), "assetgen-asset-qa-flags-"));
+  try {
+    const manifestPath = join(root, "asset-qa.json");
+    const pixels: number[][] = [[0, 0, 90, 60, 30, 255]];
+    for (const name of ["sprite-a", "sprite-b"]) {
+      await writeFile(
+        join(root, `${name}.webp`),
+        await encodeWebp(image(2, 2, pixels), { format: "webp", lossless: false, quality: 80 }),
+      );
+    }
+    await writeManifest(manifestPath, {
+      schemaVersion: 1,
+      targets: ["sprite-a", "sprite-b"].map((name) => ({
+        id: name,
+        path: `${name}.webp`,
+        checks: { webpEncoding: "lossless" as const },
+        repair: { output: { format: "webp" as const, lossless: true } },
+      })),
+    });
+    const before = {
+      a: await readFile(join(root, "sprite-a.webp")),
+      b: await readFile(join(root, "sprite-b.webp")),
+    };
+
+    // A --target whose id is missing or swallowed by the next flag must fail
+    // before any mutation instead of silently selecting every target.
+    for (const args of [
+      ["repair", "--manifest", manifestPath, "--target", "--json"],
+      ["repair", "--manifest", manifestPath, "--target"],
+    ]) {
+      const run = await runCli(args);
+      assert.equal(run.exitCode, 1);
+      assert.match(run.stderr, /--target requires a target id/);
+    }
+    const rootless = await runCli(["check", "--manifest", manifestPath, "--root"]);
+    assert.equal(rootless.exitCode, 1);
+    assert.match(rootless.stderr, /--root requires a directory path/);
+    assert.deepEqual(await readFile(join(root, "sprite-a.webp")), before.a);
+    assert.deepEqual(await readFile(join(root, "sprite-b.webp")), before.b);
+
+    // A well-formed --target still repairs only the selected target.
+    const scoped = await runCli(["repair", "--manifest", manifestPath, "--target", "sprite-a"]);
+    assert.equal(scoped.exitCode, 0, scoped.stderr);
+    assert.notDeepEqual(await readFile(join(root, "sprite-a.webp")), before.a);
+    assert.deepEqual(await readFile(join(root, "sprite-b.webp")), before.b);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

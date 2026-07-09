@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
+import { readFile, realpath } from "node:fs/promises";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
   alphaBounds,
@@ -241,13 +241,48 @@ async function loadManifest(options: AssetQaRunOptions): Promise<LoadedManifest>
   }
   const manifest = parseAssetQaManifest(parsed);
   const root = options.root ? resolve(options.root) : resolve(dirname(manifestPath), manifest.root ?? ".");
+  let realRoot: string;
+  try {
+    realRoot = await realpath(root);
+  } catch {
+    throw new Error(`asset QA manifest root does not exist: ${root}`);
+  }
   // Resolve every declared path before any check or repair so an unsafe later
   // target cannot partially mutate earlier targets.
   for (const target of manifest.targets) {
-    resolveWithinRoot(root, target.path);
-    if (target.repair?.source) resolveWithinRoot(root, target.repair.source);
+    await assertPhysicallyWithinRoot(realRoot, resolveWithinRoot(root, target.path), target.path);
+    if (target.repair?.source) {
+      await assertPhysicallyWithinRoot(realRoot, resolveWithinRoot(root, target.repair.source), target.repair.source);
+    }
   }
   return { manifest, manifestPath, root };
+}
+
+// resolveWithinRoot is lexical, so a symlinked path component could still send
+// reads or atomic writes outside the root. Resolve the deepest existing
+// ancestor through realpath and re-check the physical destination.
+async function assertPhysicallyWithinRoot(realRoot: string, resolvedPath: string, declaredPath: string): Promise<void> {
+  let existing = resolvedPath;
+  let suffix = "";
+  for (;;) {
+    let real: string;
+    try {
+      real = await realpath(existing);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      const parent = dirname(existing);
+      if (parent === existing) throw new Error(`asset QA path escapes the manifest root: ${declaredPath}`);
+      suffix = suffix === "" ? basename(existing) : join(basename(existing), suffix);
+      existing = parent;
+      continue;
+    }
+    const physical = suffix === "" ? real : join(real, suffix);
+    const fromRoot = relative(realRoot, physical);
+    if (fromRoot === ".." || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
+      throw new Error(`asset QA path escapes the manifest root: ${declaredPath}`);
+    }
+    return;
+  }
 }
 
 export function resolveWithinRoot(root: string, declaredPath: string): string {
