@@ -1,200 +1,193 @@
 #!/usr/bin/env bun
 /**
- * release.mjs — publish-and-deploy orchestrator for Ship Shit Games.
+ * Publish the already-versioned public @shipshitgames packages.
  *
- * Pipeline (in order):
- *   1. Discover publishable packages (apps/* + packages/*, private !== true), topo-sorted by intra-scope deps.
- *   2. (optional) bump versions: --bump=patch|minor|major.
- *   3. Publish each to npm — IDEMPOTENT: skips any name@version already on the registry.
- *   4. Cutover: rewrite every consumer's "workspace:*" / "*" / "file:..." spec for a *published*
- *      @shipshitgames/* package to "^<version>". Consumers = monorepo apps + packages + ../games/*.
- *   5. PR: per git repo with changes, branch + commit + push + `gh pr create`.
- *   6. Deploy: `npx vercel --prod` for every Vercel-linked target (.vercel/project.json) among apps + games.
+ * This script intentionally does not bump versions, rewrite consumers, create
+ * branches, or deploy applications. Version changes must reach a green master
+ * through review first. Production applications deploy only from semver GitHub
+ * Releases through .github/workflows/deploy-production.yml.
  *
- * SAFETY: DRY RUN by default — prints the plan, touches nothing. Pass --execute to perform side effects.
- *   Flags: --execute  --no-publish  --no-pr  --no-deploy  --bump=patch|minor|major
- *          --only=engine,ui   (restrict to these package short-names)
- *          --base=master      (PR base branch; default: the repo's default branch)
+ * Dry-run is the default. Pass --execute to verify and publish.
  *
- * Auth needed for --execute: `npm whoami` (publish), `gh auth status` (PR), Vercel login / VERCEL_TOKEN (deploy).
+ * Flags:
+ *   --execute            publish packages that are not already on npm
+ *   --only=engine,ui     restrict the package short names
  */
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
-import { join, resolve, dirname, basename } from 'node:path'
-import { execSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const HERE = dirname(fileURLToPath(import.meta.url))
-const MONO = resolve(HERE, '..') // the monorepo (shipshitgames/)
-const WORKSPACE = resolve(MONO, '..') // parent holding shipshitgames/ + games/
-const GAMES = join(WORKSPACE, 'games')
-const SCOPE = '@shipshitgames/'
-const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']
+const HERE = dirname(fileURLToPath(import.meta.url));
+const REPO = resolve(HERE, "..");
+const SCOPE = "@shipshitgames/";
+const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
 
-const args = process.argv.slice(2)
-const has = (f) => args.includes(f)
-const val = (k) => args.find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=')
-const EXECUTE = has('--execute')
-const DRY = !EXECUTE
-const DO_PUBLISH = !has('--no-publish')
-const DO_PR = !has('--no-pr')
-const DO_DEPLOY = !has('--no-deploy')
-const BUMP = val('bump') // patch|minor|major|undefined
-const ONLY = val('only')?.split(',').map((s) => s.trim()).filter(Boolean)
-const BASE = val('base')
+const args = process.argv.slice(2);
+const execute = args.includes("--execute");
+const only = args
+  .find((arg) => arg.startsWith("--only="))
+  ?.slice("--only=".length)
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
 
-const C = { dim: '\x1b[2m', red: '\x1b[31m', grn: '\x1b[32m', yel: '\x1b[33m', cyn: '\x1b[36m', rst: '\x1b[0m' }
-const tag = DRY ? `${C.yel}[dry-run]${C.rst}` : `${C.grn}[execute]${C.rst}`
-const log = (...a) => console.log(...a)
-const step = (s) => log(`\n${C.cyn}━━ ${s}${C.rst}`)
-const plan = (...a) => log(`  ${C.yel}plan${C.rst}`, ...a)
-const done = (...a) => log(`  ${C.grn}✓${C.rst}`, ...a)
-const skip = (...a) => log(`  ${C.dim}· ${a.join(' ')}${C.rst}`)
-const die = (m) => { console.error(`${C.red}✗ ${m}${C.rst}`); process.exit(1) }
+const colors = {
+  cyan: "\x1b[36m",
+  dim: "\x1b[2m",
+  green: "\x1b[32m",
+  red: "\x1b[31m",
+  reset: "\x1b[0m",
+  yellow: "\x1b[33m",
+};
 
-const readJson = (f) => JSON.parse(readFileSync(f, 'utf8'))
-const writeJson = (f, o) => writeFileSync(f, JSON.stringify(o, null, 2) + '\n')
-/** Run a command. Read-only commands always run; mutating ones are skipped (printed) in dry-run. */
-function run(cmd, { cwd = MONO, mutating = false, capture = false, env } = {}) {
-  if (mutating && DRY) { plan(`${C.dim}${cmd}${C.rst} ${C.dim}(cwd ${cwd.replace(WORKSPACE, '.')})${C.rst}`); return '' }
+function fail(message) {
+  console.error(`${colors.red}✗ ${message}${colors.reset}`);
+  process.exit(1);
+}
+
+function validateArgs() {
+  const unknown = args.filter(
+    (arg) => arg !== "--execute" && !arg.startsWith("--only="),
+  );
+  if (unknown.length) fail(`unknown release option(s): ${unknown.join(", ")}`);
+  if (args.filter((arg) => arg.startsWith("--only=")).length > 1) {
+    fail("--only may be specified once");
+  }
+  if (args.some((arg) => arg === "--only=")) fail("--only requires at least one package name");
+}
+
+function step(message) {
+  console.log(`\n${colors.cyan}━━ ${message}${colors.reset}`);
+}
+
+function run(command, commandArgs, options = {}) {
   try {
-    return execSync(cmd, { cwd, env: env ? { ...process.env, ...env } : process.env, stdio: capture ? ['ignore', 'pipe', 'ignore'] : 'inherit', encoding: 'utf8' })?.trim() ?? ''
-  } catch (e) {
-    if (capture) return ''
-    throw e
+    return execFileSync(command, commandArgs, {
+      cwd: options.cwd ?? REPO,
+      encoding: "utf8",
+      stdio: options.capture ? ["ignore", "pipe", "ignore"] : "inherit",
+    })?.trim() ?? "";
+  } catch (error) {
+    if (options.allowFailure) return "";
+    throw error;
   }
 }
 
-const listDirs = (d) => (existsSync(d) ? readdirSync(d).map((n) => join(d, n)).filter((p) => statSync(p).isDirectory()) : [])
-const pkgFileOf = (dir) => join(dir, 'package.json')
-const hasPkg = (dir) => existsSync(pkgFileOf(dir))
-
-// ── 1. discover packages ───────────────────────────────────────────────────
-step('Discover publishable packages')
-const appDirs = listDirs(join(MONO, 'apps')).filter(hasPkg)
-const pkgDirs = listDirs(join(MONO, 'packages')).filter(hasPkg)
-const releaseDirs = [...appDirs, ...pkgDirs]
-let publishable = releaseDirs
-  .map((dir) => ({ dir, json: readJson(pkgFileOf(dir)) }))
-  .filter((p) => p.json.private !== true && p.json.name?.startsWith(SCOPE))
-if (ONLY) publishable = publishable.filter((p) => ONLY.includes(p.json.name.slice(SCOPE.length)))
-if (!publishable.length) die('no publishable packages found (all private? wrong --only?)')
-
-// topo-sort by intra-scope deps so dependencies publish first
-const byName = new Map(publishable.map((p) => [p.json.name, p]))
-const scopeDeps = (j) => DEP_FIELDS.flatMap((f) => Object.keys(j[f] || {})).filter((k) => byName.has(k))
-const sorted = []
-const seen = new Set()
-const visit = (p, stack = new Set()) => {
-  if (seen.has(p.json.name)) return
-  if (stack.has(p.json.name)) die(`dependency cycle at ${p.json.name}`)
-  stack.add(p.json.name)
-  for (const d of scopeDeps(p.json)) visit(byName.get(d), stack)
-  seen.add(p.json.name); sorted.push(p)
-}
-publishable.forEach((p) => visit(p))
-for (const p of sorted) log(`  ${p.json.name}@${p.json.version} ${C.dim}(${basename(p.dir)})${C.rst}`)
-
-// ── 2. optional version bump ────────────────────────────────────────────────
-if (BUMP) {
-  step(`Bump (${BUMP})`)
-  for (const p of sorted) {
-    const out = run(`npm version ${BUMP} --no-git-tag-version`, { cwd: p.dir, mutating: true, capture: true })
-    p.json = readJson(pkgFileOf(p.dir)) // re-read new version
-    done(`${p.json.name} -> ${p.json.version}${out ? '' : DRY ? ' (planned)' : ''}`)
-  }
+function readJson(path) {
+  return JSON.parse(readFileSync(path, "utf8"));
 }
 
-// ── 3. publish (idempotent) ─────────────────────────────────────────────────
-step('Publish to npm')
-if (DO_PUBLISH) {
-  if (!DRY && !run('npm whoami', { capture: true })) die('not logged in to npm (`npm login`)')
-  for (const p of sorted) {
-    const { name, version } = p.json
-    const onNpm = run(`npm view ${name}@${version} version`, { capture: true })
-    if (onNpm === version) { skip(`${name}@${version} already published`); continue }
-    if (p.json.scripts?.build) run('bun run build', { cwd: p.dir, mutating: true })
-    run('bun publish --access public', { cwd: p.dir, mutating: true })
-    done(`published ${name}@${version}`)
-  }
-} else skip('--no-publish')
-
-// published version map (whatever the package.json now declares)
-const published = new Map(sorted.map((p) => [p.json.name, p.json.version]))
-
-// ── 4. cutover: workspace:/file:/* -> ^version in every consumer ─────────────
-step('Cutover consumer specs -> ^version')
-const consumerDirs = [
-  ...listDirs(join(MONO, 'apps')),
-  ...pkgDirs,
-  ...listDirs(GAMES).filter((d) => basename(d) !== 'scourge-survivors-funpack'), // other agent's worktree
-].filter(hasPkg)
-const changedRepos = new Map() // gitRoot -> Set(files)
-const gitRootOf = (dir) => {
-  let d = dir
-  while (d !== WORKSPACE && d !== '/') { if (existsSync(join(d, '.git'))) return d; d = dirname(d) }
-  return null
+function listPackageDirs(parent) {
+  if (!existsSync(parent)) return [];
+  return readdirSync(parent)
+    .map((name) => join(parent, name))
+    .filter((path) => statSync(path).isDirectory() && existsSync(join(path, "package.json")));
 }
-for (const dir of consumerDirs) {
-  const file = pkgFileOf(dir)
-  const j = readJson(file)
-  let changed = false
-  for (const field of DEP_FIELDS) {
-    for (const [dep, spec] of Object.entries(j[field] || {})) {
-      if (!published.has(dep)) continue // unpublished/private -> leave the local link
-      const want = `^${published.get(dep)}`
-      const local = /^(workspace:|file:|\*$|link:)/.test(spec)
-      if (spec !== want && (local || spec === '*')) {
-        j[field][dep] = want
-        changed = true
-        plan(`${basename(dir)}: ${dep} ${C.dim}${spec}${C.rst} -> ${want}`)
+
+function discoverPackages() {
+  const candidates = [
+    ...listPackageDirs(join(REPO, "apps")),
+    ...listPackageDirs(join(REPO, "packages")),
+  ];
+  let packages = candidates
+    .map((dir) => ({ dir, json: readJson(join(dir, "package.json")) }))
+    .filter(({ json }) => json.private !== true && json.name?.startsWith(SCOPE));
+  if (only) packages = packages.filter(({ json }) => only.includes(json.name.slice(SCOPE.length)));
+  if (!packages.length) fail("no publishable packages matched");
+
+  const byName = new Map(packages.map((entry) => [entry.json.name, entry]));
+  const sorted = [];
+  const visited = new Set();
+
+  function visit(entry, stack = new Set()) {
+    if (visited.has(entry.json.name)) return;
+    if (stack.has(entry.json.name)) fail(`dependency cycle at ${entry.json.name}`);
+    const nextStack = new Set(stack).add(entry.json.name);
+    for (const field of DEPENDENCY_FIELDS) {
+      for (const dependency of Object.keys(entry.json[field] ?? {})) {
+        const local = byName.get(dependency);
+        if (local) visit(local, nextStack);
       }
     }
+    visited.add(entry.json.name);
+    sorted.push(entry);
   }
-  if (changed) {
-    if (!DRY) writeJson(file, j)
-    const root = gitRootOf(dir)
-    if (root) (changedRepos.get(root) ?? changedRepos.set(root, new Set()).get(root)).add(file)
-  }
+
+  for (const entry of packages) visit(entry);
+  return sorted;
 }
-if (!changedRepos.size) skip('no consumer specs needed cutover')
 
-// ── 5. PR per changed git repo ──────────────────────────────────────────────
-step('Open PRs')
-if (DO_PR && changedRepos.size) {
-  const branch = `release/cutover-${new Date().toISOString().slice(0, 10)}`
-  for (const [root, files] of changedRepos) {
-    const rel = root.replace(WORKSPACE + '/', '')
-    const base = BASE || run('git rev-parse --abbrev-ref HEAD', { cwd: root, capture: true }) || 'master'
-    run(`git checkout -b ${branch}`, { cwd: root, mutating: true })
-    for (const f of files) run(`git add ${JSON.stringify(f)}`, { cwd: root, mutating: true })
-    run(`git commit -m ${JSON.stringify('chore(release): cut over @shipshitgames/* deps to published versions')}`, { cwd: root, mutating: true })
-    run(`git push -u origin ${branch}`, { cwd: root, mutating: true })
-    run(`gh pr create --base ${base} --head ${branch} --fill`, { cwd: root, mutating: true })
-    done(`PR opened: ${rel} (${branch} -> ${base})`)
+function assertReleaseSource() {
+  const branch = run("git", ["branch", "--show-current"], { capture: true });
+  if (branch !== "master") fail(`package releases must run from master (current: ${branch || "detached"})`);
+  if (run("git", ["status", "--porcelain"], { capture: true })) {
+    fail("package releases require a clean working tree");
   }
-} else skip(DO_PR ? 'nothing to PR' : '--no-pr')
+  run("git", ["fetch", "--quiet", "origin", "master"]);
+  const head = run("git", ["rev-parse", "HEAD"], { capture: true });
+  const remote = run("git", ["rev-parse", "origin/master"], { capture: true });
+  if (head !== remote) fail("master must exactly match origin/master before publishing");
+}
 
-// ── 6. deploy Vercel-linked targets ─────────────────────────────────────────
-step('Deploy (vercel --prod)')
-if (DO_DEPLOY) {
-  const linked = (d) => existsSync(join(d, '.vercel', 'project.json'))
-  const rel = (d) => d.replace(WORKSPACE + '/', '')
-  // Monorepo apps: their Vercel project sets rootDirectory=apps/<name>, so the deploy MUST run
-  // from the monorepo root (uploading the workspace) and target the project via env vars. Running
-  // from inside apps/<name> doubles the path -> "apps/web/apps/web does not exist".
-  const apps = listDirs(join(MONO, 'apps')).filter(linked)
-  // Games are standalone repos (rootDirectory='.') -> deploy in place.
-  const games = listDirs(GAMES).filter((d) => basename(d) !== 'scourge-survivors-funpack' && linked(d))
-  if (!apps.length && !games.length) skip('no Vercel-linked targets (.vercel/project.json) found')
-  for (const dir of apps) {
-    const { orgId, projectId } = readJson(join(dir, '.vercel', 'project.json'))
-    run('npx vercel deploy --prod --yes', { cwd: MONO, env: { VERCEL_ORG_ID: orgId, VERCEL_PROJECT_ID: projectId }, mutating: true })
-    done(`deployed ${rel(dir)} ${C.dim}(from monorepo root)${C.rst}`)
-  }
-  for (const dir of games) {
-    run('npx vercel deploy --prod --yes', { cwd: dir, mutating: true })
-    done(`deployed ${rel(dir)}`)
-  }
-} else skip('--no-deploy')
+validateArgs();
 
-log(`\n${tag} ${DRY ? 'plan only — re-run with --execute to publish/PR/deploy.' : 'release complete.'}`)
+step("Discover publishable packages");
+const packages = discoverPackages();
+for (const { dir, json } of packages) {
+  console.log(`  ${json.name}@${json.version} ${colors.dim}(${basename(dir)})${colors.reset}`);
+}
+
+if (!execute) {
+  console.log(
+    `\n${colors.yellow}[dry-run]${colors.reset} package plan only; no versions, repositories, deployments, or registry state changed.`,
+  );
+  process.exit(0);
+}
+
+step("Verify release source");
+assertReleaseSource();
+console.log(`  ${colors.green}✓${colors.reset} clean master matches origin/master`);
+
+if (!run("bun", ["pm", "whoami"], { capture: true, allowFailure: true })) {
+  fail("not logged in to npm (`bun pm whoami`)");
+}
+
+step("Resolve unpublished packages");
+const pending = [];
+for (const { dir, json } of packages) {
+  const spec = `${json.name}@${json.version}`;
+  const publishedVersion = run("bun", ["pm", "view", spec, "version"], {
+    capture: true,
+    allowFailure: true,
+  });
+  if (publishedVersion === json.version) {
+    console.log(`  ${colors.dim}· ${spec} already published${colors.reset}`);
+    continue;
+  }
+
+  pending.push({ dir, json, spec });
+  console.log(`  ${colors.yellow}•${colors.reset} ${spec}`);
+}
+
+step("Preflight unpublished packages");
+for (const { dir, json, spec } of pending) {
+
+  if (json.scripts?.typecheck) run("bun", ["run", "typecheck"], { cwd: dir });
+  if (json.scripts?.test) run("bun", ["run", "test"], { cwd: dir });
+  if (json.scripts?.build && !json.scripts?.typecheck) run("bun", ["run", "build"], { cwd: dir });
+  run("bun", ["pm", "pack", "--dry-run"], { cwd: dir });
+  console.log(`  ${colors.green}✓${colors.reset} verified ${spec}`);
+}
+
+step("Publish packages");
+for (const { dir, spec } of pending) {
+  run("bun", ["publish", "--access", "public"], { cwd: dir });
+  console.log(`  ${colors.green}✓${colors.reset} published ${spec}`);
+}
+
+if (!pending.length) console.log(`  ${colors.dim}· every selected version is already published${colors.reset}`);
+
+console.log(
+  `\n${colors.green}[complete]${colors.reset} packages published; create an explicit downstream dependency PR, then cut a semver GitHub Release when application deployment is intended.`,
+);

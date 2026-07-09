@@ -32,6 +32,8 @@
     "sync:content": "bun apps/web/scripts/sync-content.ts",
     "release": "bun scripts/release.mjs",
     "release:run": "bun scripts/release.mjs --execute",
+    "release:packages": "bun scripts/release.mjs",
+    "release:packages:run": "bun scripts/release.mjs --execute",
     "release:tag": "bun scripts/release-tag.mjs",
     "release:tag:run": "bun scripts/release-tag.mjs --execute",
     "deps:update": "bunx npm-check-updates -u --deep --cooldown 3h --removeRange && bun install"
