@@ -8,7 +8,13 @@ import { join } from "node:path";
 import { runGameTest } from "./runner.ts";
 import { summarizeReport } from "./report.ts";
 import { parseHold, parsePresses, parseScriptJson, sanitizeName } from "./script.ts";
-import { DEFAULT_BLANK_THRESHOLDS, type InputStep, type ReadyMode, type TesterOptions } from "./types.ts";
+import {
+  DEFAULT_BLANK_THRESHOLDS,
+  type GameTestReport,
+  type InputStep,
+  type ReadyMode,
+  type TesterOptions,
+} from "./types.ts";
 
 const USAGE = `tester — browser QA harness for canvas/WebGL games
 
@@ -148,6 +154,10 @@ export function numberOption(values: Map<string, string>, key: string, fallback:
   return n;
 }
 
+export function exitCodeForReport(report: Pick<GameTestReport, "pass">): 0 | 1 {
+  return report.pass ? 0 : 1;
+}
+
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
@@ -229,7 +239,7 @@ async function main(): Promise<void> {
   if (args.flags.has("json")) {
     console.log(JSON.stringify(report, null, 2));
   }
-  process.exit(report.pass ? 0 : 1);
+  process.exit(exitCodeForReport(report));
 }
 
 if (import.meta.main) {

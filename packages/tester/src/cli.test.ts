@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildOptions, numberOption, parseArgs, parseReadySpec, parseViewport } from "./cli.ts";
+import { buildOptions, exitCodeForReport, numberOption, parseArgs, parseReadySpec, parseViewport } from "./cli.ts";
 
 describe("parseArgs", () => {
   test("parses value flags, boolean flags, and ordered inline steps", () => {
@@ -57,6 +57,13 @@ describe("numberOption", () => {
     expect(numberOption(new Map([["observe", "250"]]), "observe", 2000)).toBe(250);
     expect(numberOption(new Map(), "observe", 2000)).toBe(2000);
     expect(() => numberOption(new Map([["observe", "-5"]]), "observe", 2000)).toThrow(/must be a number >= 0/);
+  });
+});
+
+describe("exitCodeForReport", () => {
+  test("maps a failed final report to a nonzero CLI exit", () => {
+    expect(exitCodeForReport({ pass: true })).toBe(0);
+    expect(exitCodeForReport({ pass: false })).toBe(1);
   });
 });
 
