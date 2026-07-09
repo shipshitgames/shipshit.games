@@ -249,6 +249,17 @@ test("generateCodex forwards prepared reference images to the local Codex CLI", 
   assert.deepEqual(recordedReferences, [reference]);
 });
 
+test("generateAsset rejects references for adapters that do not consume them", async () => {
+  await assert.rejects(
+    generateAsset("texture", "preserve this silhouette", {
+      provider: "replicate",
+      size: "1024",
+      referenceImages: ["/tmp/reference.png"],
+    }),
+    /replicate does not support reference images/,
+  );
+});
+
 test("mock provider returns a valid GLB for model kinds", async () => {
   for (const kind of ["model", "3d"]) {
     const asset = await generateAsset(kind, "a stone golem", { provider: "mock", size: "1024x1024" });
