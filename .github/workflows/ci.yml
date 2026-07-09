@@ -129,7 +129,7 @@ jobs:
         timeout-minutes: 12
 
   assetgen-gates:
-    name: Assetgen Integrity Gates
+    name: Deadrot Asset Integrity
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -137,11 +137,6 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
-      - name: Checkout Studio Source
-        uses: actions/checkout@v6
-        with:
-          path: shipshit.games
-
       - name: Checkout Deadrot Assets
         uses: actions/checkout@v6
         with:
@@ -163,15 +158,10 @@ jobs:
         with:
           path: |
             ~/.bun/install/cache
-            shipshit.games/.turbo
             deadrotcom/.turbo
-          key: ${{ runner.os }}-assetgen-gates-${{ hashFiles('shipshit.games/bun.lock', 'shipshit.games/turbo.json', 'shipshit.games/**/package.json', 'deadrotcom/bun.lock', 'deadrotcom/turbo.json', 'deadrotcom/**/package.json') }}
+          key: ${{ runner.os }}-deadrot-assets-${{ hashFiles('deadrotcom/bun.lock', 'deadrotcom/turbo.json', 'deadrotcom/**/package.json') }}
           restore-keys: |
-            ${{ runner.os }}-assetgen-gates-
-
-      - name: Install Studio Dependencies
-        run: bun install --frozen-lockfile
-        working-directory: shipshit.games
+            ${{ runner.os }}-deadrot-assets-
 
       - name: Install Deadrot Dependencies
         run: bun install --frozen-lockfile
@@ -181,9 +171,11 @@ jobs:
         run: bun run --cwd packages/assets assets:index:check
         working-directory: deadrotcom
 
-      - name: Run Assetgen Staleness Gates
-        run: bun run check:assetgen-gates -- --assets-dir ../deadrotcom/packages/assets --games-root ../deadrotcom/apps/games
-        working-directory: shipshit.games
+      # Do not run `assetgen ci-gates` here until the Deadrot package commits an
+      # assetgen-format index, atlas, or codegen target. Without `--strict` it
+      # checks nothing; with `--strict` the current canonical package correctly
+      # fails because no such target exists. The native index check above is the
+      # real integrity gate today.
 
   desktop-terminal:
     name: Desktop Terminal (node-pty)
