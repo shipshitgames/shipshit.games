@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// game-tester CLI. Hand-rolled arg parsing to match the other studio CLIs
+// tester CLI. Hand-rolled arg parsing to match the other studio CLIs
 // (assetgen, ressources). No app-specific logic: it drives any game by URL.
 
 import { readFile } from "node:fs/promises";
@@ -10,10 +10,10 @@ import { summarizeReport } from "./report.ts";
 import { parseHold, parsePresses, parseScriptJson, sanitizeName } from "./script.ts";
 import { DEFAULT_BLANK_THRESHOLDS, type InputStep, type ReadyMode, type TesterOptions } from "./types.ts";
 
-const USAGE = `game-tester — browser QA harness for canvas/WebGL games
+const USAGE = `tester — browser QA harness for canvas/WebGL games
 
 Usage:
-  game-tester --url <url> [options]
+  tester --url <url> [options]
 
 Ready signal (default: canvas):
   --ready <spec>        canvas | selector:<css> | expr:<js> | flag:<window.path>

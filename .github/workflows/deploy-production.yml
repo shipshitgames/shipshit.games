@@ -160,7 +160,7 @@ jobs:
           # relative-path import, which never touches bun.lock — so it MUST be
           # listed explicitly or a token change would silently skip the frontends.
           matches '^packages/shared/' && { web=true; api=true; app=true; docs=true; }
-          matches '^packages/(ui|engine|ressources|game-tester|assets)/' && { web=true; app=true; }
+          matches '^packages/(ui|engine|ressources|tester|assets)/' && { web=true; app=true; }
           matches '^packages/assetgen/' && api=true
 
           # Per-surface sources.

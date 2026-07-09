@@ -39,8 +39,8 @@ describe("assetgen ci-gates", () => {
 
       assert.deepEqual(plan.indexFiles, ["assets.index.json"]);
       assert.deepEqual(plan.skippedIndexFiles, []);
-      assert.deepEqual(plan.atlasGames, ["scourge-survivors"]);
-      assert.deepEqual(plan.codegenTargets.map((target) => target.game), ["scourge-survivors"]);
+      assert.deepEqual(plan.atlasGames, ["brawl", "scourge-survivors"]);
+      assert.deepEqual(plan.codegenTargets.map((target) => target.game), ["brawl", "scourge-survivors"]);
     });
   });
 

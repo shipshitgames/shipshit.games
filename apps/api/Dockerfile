@@ -19,7 +19,7 @@ COPY apps/docs/package.json apps/docs/
 COPY apps/web/package.json apps/web/
 COPY packages/assetgen/package.json packages/assetgen/
 COPY packages/engine/package.json packages/engine/
-COPY packages/game-tester/package.json packages/game-tester/
+COPY packages/tester/package.json packages/tester/
 COPY packages/ressources/package.json packages/ressources/
 COPY packages/shared/package.json packages/shared/
 COPY packages/ui/package.json packages/ui/

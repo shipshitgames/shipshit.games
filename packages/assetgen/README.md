@@ -15,6 +15,10 @@ The Deadrot asset package lives in the sibling game repo:
 `assetgen` reads/writes that package by default. Pass `--assets-dir <path>` to
 target a different asset package.
 
+The product roadmap for provider-backed generation, self-hosted/open model
+adapters, and Unreal/Unity export targets lives in
+[`docs/asset-generation-roadmap.md`](../../docs/asset-generation-roadmap.md).
+
 ## Use
 
 ```bash
@@ -84,11 +88,12 @@ prompt -> generate -> postprocess -> register -> preview
 The `register` stage writes the optimized asset and upserts `src/assets/assets.json`.
 Every new manifest entry must include a `license` record with `tool`, `plan`,
 `date`, and `kind`. This keeps provider/model provenance reviewable for Codex,
-OpenAI, fal, Replicate, Suno-compatible audio, ffmpeg transcodes, and mock runs.
+OpenAI, fal, Replicate, Meshy, Tripo, Suno-compatible audio, ElevenLabs,
+Beatoven, ffmpeg transcodes, and mock runs.
 
 Omitting `--provider` uses the per-kind default: sprites/maps use `codex`,
 textures/icons use `openai`, audio kinds use `suno`, and model/3D assets use
-`replicate`. Pass `--provider` to override a single run.
+`meshy`. Pass `--provider` to override a single run.
 
 Sprite generation post-processes the provider image into a power-of-two
 transparent `.webp`, pads uneven view/frame counts into stable sheet cells,
@@ -564,7 +569,11 @@ alongside the other token gates.
 - `openai` — **gpt-image-2** (`--model` to override), transparent PNG; with `--reference`/`-i` it uses the image edit endpoint and attaches up to 16 local png/jpg/webp references
 - `fal` — FLUX; with `--reference`/`-i` it embeds local references as data URLs with the configured style-reference strength
 - `replicate` — model runner for image/model providers (`--model owner/model`)
+- `meshy` — Meshy text-to-3D task adapter; downloads GLB and runs the model optimize path
+- `tripo` — Tripo text-to-model task adapter; prefers PBR GLB output when available
 - `suno` — audio provider adapter; requires `SUNO_API_BASE_URL` for the licensed endpoint
+- `elevenlabs` — ElevenLabs SFX adapter
+- `beatoven` — Beatoven music adapter for licensed perpetual-commercial endpoints
 - `mock` — offline placeholder for testing the pipeline
 
 ## Keys (shipcode-style)
@@ -575,7 +584,11 @@ fallback). Store one with:
 security add-generic-password -a shipshit -s shipshit-openai -w <OPENAI_KEY>
 security add-generic-password -a shipshit -s shipshit-fal    -w <FAL_KEY>
 security add-generic-password -a shipshit -s shipshit-replicate -w <REPLICATE_API_TOKEN>
+security add-generic-password -a shipshit -s shipshit-meshy -w <MESHY_API_KEY>
+security add-generic-password -a shipshit -s shipshit-tripo -w <TRIPO_API_KEY>
 security add-generic-password -a shipshit -s shipshit-suno -w <SUNO_API_KEY>
+security add-generic-password -a shipshit -s shipshit-elevenlabs -w <ELEVENLABS_API_KEY>
+security add-generic-password -a shipshit -s shipshit-beatoven -w <BEATOVEN_API_KEY>
 ```
 
 The `codex` provider rides codex's own keychain auth — nothing to store.

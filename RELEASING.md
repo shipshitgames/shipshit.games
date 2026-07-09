@@ -73,7 +73,7 @@ config).
 - Repo-wide infra changes (`bun.lock`, root `package.json`, `turbo.json`,
   `tsconfig*.json`) → redeploy **all** surfaces.
 - Shared package fan-out: `packages/shared` → all; `packages/ui|engine|
-  ressources|game-tester|assets` → web+app; `packages/assetgen` → api.
+  ressources|tester|assets` → web+app; `packages/assetgen` → api.
 - `api` deploys before the frontends. If `api` was part of the release and its
   build/deploy fails, the frontends are **blocked** (they only ship when api
   succeeded or wasn't in the release).

@@ -4,4 +4,4 @@
 .asset-lab
 *.tsbuildinfo
 apps/desktop
-packages/game-tester
+packages/tester

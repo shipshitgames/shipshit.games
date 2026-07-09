@@ -184,21 +184,6 @@
         "three": "^0.169.0",
       },
     },
-    "packages/game-tester": {
-      "name": "@shipshitgames/game-tester",
-      "version": "0.1.0",
-      "bin": {
-        "game-tester": "./src/cli.ts",
-      },
-      "dependencies": {
-        "playwright": "^1.60.0",
-      },
-      "devDependencies": {
-        "@types/bun": "1.3.14",
-        "@types/node": "25.9.1",
-        "typescript": "6.0.3",
-      },
-    },
     "packages/ressources": {
       "name": "@shipshitgames/ressources",
       "version": "0.1.0",
@@ -216,6 +201,21 @@
       "version": "0.0.0",
       "devDependencies": {
         "@types/bun": "1.3.14",
+        "typescript": "6.0.3",
+      },
+    },
+    "packages/tester": {
+      "name": "@shipshitgames/tester",
+      "version": "0.1.0",
+      "bin": {
+        "tester": "./src/cli.ts",
+      },
+      "dependencies": {
+        "playwright": "^1.60.0",
+      },
+      "devDependencies": {
+        "@types/bun": "1.3.14",
+        "@types/node": "25.9.1",
         "typescript": "6.0.3",
       },
     },
@@ -902,11 +902,11 @@
 
     "@shipshitgames/engine": ["@shipshitgames/engine@workspace:packages/engine"],
 
-    "@shipshitgames/game-tester": ["@shipshitgames/game-tester@workspace:packages/game-tester"],
-
     "@shipshitgames/ressources": ["@shipshitgames/ressources@workspace:packages/ressources"],
 
     "@shipshitgames/shared": ["@shipshitgames/shared@workspace:packages/shared"],
+
+    "@shipshitgames/tester": ["@shipshitgames/tester@workspace:packages/tester"],
 
     "@shipshitgames/ui": ["@shipshitgames/ui@workspace:packages/ui"],
 

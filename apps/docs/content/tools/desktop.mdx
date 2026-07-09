@@ -5,7 +5,10 @@ description: How the desktop studio should wrap the tools.
 
 # Desktop Studio
 
-`apps/desktop` is the local studio cockpit.
+`apps/desktop` is the local studio cockpit for the Ship Shit Games SaaS
+platform: the Shipshitcode/Cursor-for-games surface for opening an IP repo,
+generating assets, launching gyms, running checks, and promoting reviewed
+outputs back into the downstream game repo.
 
 The desktop app should wrap the same package and CLI surfaces documented here,
 not fork their logic.
@@ -13,8 +16,14 @@ not fork their logic.
 ## Current role
 
 - generator hub for maps, sprites, 3D, music, and SFX
+- project/IP selector for Deadrot and future game universes
+- local preview surface for generated runtime assets
+- game gym launcher for testing assets inside real playable slices
 - local Codex-driven production workflows
 - future UI wrapper around `assetgen` and `ressources`
+
+See the repo-level `docs/shipshitcode-roadmap.md` for the local-first product
+direction.
 
 ## Integration rule
 
