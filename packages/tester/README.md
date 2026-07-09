@@ -1,4 +1,4 @@
-# @shipshitgames/game-tester
+# @shipshitgames/tester
 
 A generic, browser-based QA harness for canvas/WebGL games. It opens a URL, waits
 for a game-ready signal, drives keyboard/pointer input, captures screenshots,
@@ -15,7 +15,7 @@ Part of the open-source toolbox (see issues #96, #102).
 The package depends on `playwright`. Install the Chromium binary once:
 
 ```sh
-cd packages/game-tester
+cd packages/tester
 bun install
 bun run browsers   # playwright install chromium
 ```
@@ -23,12 +23,12 @@ bun run browsers   # playwright install chromium
 ## CLI
 
 ```sh
-# from packages/game-tester
+# from packages/tester
 bun src/cli.ts --url http://localhost:5173 --ready flag:__GAME_READY__ \
   --press "Space" --hold "ArrowRight:1500" --frames 4 --out ./out
 
 # or once linked as a bin
-game-tester --url <url> [options]
+tester --url <url> [options]
 ```
 
 Exit code is `0` when the run passes and `1` when it fails, so it drops straight
@@ -99,7 +99,7 @@ A deterministic `--out` folder (default `game-test-output/`) receives:
 ## Programmatic API
 
 ```ts
-import { runGameTest, buildMarkdownReport } from "@shipshitgames/game-tester";
+import { runGameTest, buildMarkdownReport } from "@shipshitgames/tester";
 
 const report = await runGameTest({
   url: "http://localhost:5173",
@@ -117,7 +117,7 @@ Also exported: `analyzePixels`, `parseInputScript` / `parseScriptJson`,
 ## How agents should use it
 
 1. Serve the game locally (e.g. `bun run dev` in the game) and grab its URL.
-2. Run `game-tester` with a `flag:` ready signal when available, otherwise
+2. Run `tester` with a `flag:` ready signal when available, otherwise
    `--canvas '#scene'`.
 3. Read `report.md` (or parse `report.json`): check `pass`, `ready.ok`,
    `canvas.stats.blank`, and any `pageErrors`. Inspect the screenshots in `out/`.

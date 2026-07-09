@@ -70,7 +70,25 @@ verifies that the requested PNG was written, then runs the normal `.webp` and
 
 If `--provider` is omitted, assetgen uses the per-kind default: sprites/maps use
 `codex`, textures/icons use `openai`, audio kinds use `suno`, and model/3D assets
-use `replicate`.
+use `meshy`.
+
+## Generate a 3D model draft
+
+```bash
+bun packages/assetgen/src/cli.ts generate \
+  --kind model \
+  --provider meshy \
+  --id scourge-bile-pylon \
+  --prompt "static Scourge parasite pylon prop, readable silhouette" \
+  --repo ../deadrotcom/apps/games/scourge-survivors \
+  --draft
+```
+
+Model outputs are downloaded as GLB, passed through the model optimization path,
+and registered with mesh/material/texture/animation counts plus compression,
+rig, license, and provider provenance. The next product slice is explicit
+`assetgen model generate`, `assetgen model optimize`, and
+`assetgen model register` wrappers around this core.
 
 ## Pipeline contract
 
@@ -160,7 +178,11 @@ maintaining hand-forked palettes.
 | `openai` | Image model generation |
 | `fal` | FLUX generation |
 | `replicate` | Image/model provider runner |
+| `meshy` | Meshy text-to-3D task adapter |
+| `tripo` | Tripo text-to-model task adapter |
 | `suno` | Audio provider adapter; requires `SUNO_API_BASE_URL` |
+| `elevenlabs` | ElevenLabs SFX adapter |
+| `beatoven` | Beatoven music adapter |
 
 ## Keychain storage
 
@@ -168,7 +190,11 @@ maintaining hand-forked palettes.
 security add-generic-password -a shipshit -s shipshit-openai -w <OPENAI_KEY>
 security add-generic-password -a shipshit -s shipshit-fal -w <FAL_KEY>
 security add-generic-password -a shipshit -s shipshit-replicate -w <REPLICATE_API_TOKEN>
+security add-generic-password -a shipshit -s shipshit-meshy -w <MESHY_API_KEY>
+security add-generic-password -a shipshit -s shipshit-tripo -w <TRIPO_API_KEY>
 security add-generic-password -a shipshit -s shipshit-suno -w <SUNO_API_KEY>
+security add-generic-password -a shipshit -s shipshit-elevenlabs -w <ELEVENLABS_API_KEY>
+security add-generic-password -a shipshit -s shipshit-beatoven -w <BEATOVEN_API_KEY>
 ```
 
 Keep raw `.env` files out of commits.

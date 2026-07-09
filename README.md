@@ -2,16 +2,21 @@
 
 ![Ship Shit Games wordmark](apps/web/public/brand/shipshit-games-wordmark.png)
 
-**The studio monorepo for building games with AI in public.**
+**The open-source gaming SaaS/tooling platform for building games with AI in
+public.**
 
 [shipshit.games](https://shipshit.games) |
 [deadrot.com](https://deadrot.com)
 
 ## Current Stage
 
-This repo is the studio side of Ship Shit Games: the public site, docs, CLI,
-desktop studio, asset-generation tooling, ressources library, and shared packages
-used to build and explain the DEADROT pipeline.
+This repo is the Ship Shit Games product/tooling platform: the public site,
+hosted app, API, docs, CLI, desktop studio, asset-generation core, provider
+adapters, ressources library, game-testing tools, engine/runtime packages, and
+templates used to build browser-first games.
+
+DEADROT is the flagship proof-of-concept universe built with this tooling. The
+tools and workflow are the product; DEADROT proves they can ship real games.
 
 The player-facing DEADROT hub, lore app, games, runtime assets, and shipped game
 packages now live in
@@ -56,6 +61,19 @@ packages/
   ui/
 scripts/
 ```
+
+## Product Direction
+
+- [`STUDIO-ARCHITECTURE.md`](STUDIO-ARCHITECTURE.md) defines Ship Shit Games as
+  the SaaS/tooling platform and DEADROT as downstream dogfood.
+- [`docs/shipshitcode-roadmap.md`](docs/shipshitcode-roadmap.md) defines the
+  local-first "Cursor for games" roadmap: open an IP repo, generate assets,
+  launch gyms, run QA, and promote changes back into the downstream game repo.
+- [`docs/asset-generation-roadmap.md`](docs/asset-generation-roadmap.md) lays out
+  the provider-backed MVP, self-hosted/open model adapters, export targets, and
+  next `assetgen model` implementation slice.
+- [`docs/deadrot-dogfood-loop.md`](docs/deadrot-dogfood-loop.md) documents the
+  loop from generated draft to Deadrot runtime asset.
 
 ## Develop
 

@@ -23,8 +23,8 @@ apps/cli/*
 !apps/cli/package.json
 apps/app/*
 !apps/app/package.json
-packages/game-tester/*
-!packages/game-tester/package.json
+packages/tester/*
+!packages/tester/package.json
 packages/engine/*
 !packages/engine/package.json
 packages/ressources/*

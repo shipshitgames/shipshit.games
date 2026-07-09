@@ -1,5 +1,5 @@
 {
-  "name": "@shipshitgames/game-tester",
+  "name": "@shipshitgames/tester",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
   "main": "./src/index.ts",
   "module": "./src/index.ts",
   "types": "./src/index.ts",
-  "bin": { "game-tester": "./src/cli.ts" },
+  "bin": { "tester": "./src/cli.ts" },
   "exports": {
     ".": {
       "types": "./src/index.ts",

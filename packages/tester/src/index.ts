@@ -1,4 +1,4 @@
-// Public API for @shipshitgames/game-tester.
+// Public API for @shipshitgames/tester.
 
 export { runGameTest } from "./runner.ts";
 export { analyzePixels } from "./pixels.ts";

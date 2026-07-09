@@ -5,18 +5,20 @@ description: The Ship Shit Games tool stack.
 
 # Tools Overview
 
-The studio tools are built as small reusable packages first, then wrapped by app
-surfaces.
+The studio tools are built as reusable packages first, then wrapped by CLI,
+desktop, and SaaS surfaces. DEADROT is the first downstream proof that the tools
+can ship real games.
 
 ## Tool stack
 
 | Tool | Package or app | Use it for |
 | --- | --- | --- |
-| Assetgen | `packages/assetgen` | Generate sprites, covers, matrix variants, and game asset manifests |
+| Assetgen | `packages/assetgen` | Generate, optimize, register, and audit 2D, 3D, and audio game assets |
 | Ressources | `packages/ressources` | Convert sources into transcripts, build rules, skills, apps, and tools |
 | Engine | `packages/engine` | Share Three.js world primitives and camera/input seams |
+| Tester | `packages/tester` | Drive browser games, detect blank renders, and capture QA reports |
 | UI | `packages/ui` | Share menu, HUD, and game shell components |
-| Desktop Studio | `apps/desktop` | Wrap generation, source distillation, and local agent workflows in one cockpit |
+| Desktop Studio | `apps/desktop` | Wrap generation, previews, project selection, game gyms, and local agent workflows in one cockpit |
 
 ## Pattern
 

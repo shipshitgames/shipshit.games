@@ -29,7 +29,7 @@ async function probeChromium(): Promise<boolean> {
 
 const hasChromium = await probeChromium();
 if (!hasChromium) {
-  console.warn("game-tester: skipping browser integration tests (run `bun run browsers` to enable)");
+  console.warn("tester: skipping browser integration tests (run `bun run browsers` to enable)");
 }
 
 // Browser launch + navigation easily exceeds bun's 5s default per-test timeout.
@@ -59,7 +59,7 @@ function baseOptions(url: string, outDir: string, overrides: Partial<TesterOptio
 
 describe("runGameTest (browser integration)", () => {
   test.skipIf(!hasChromium)("passes on a rendering fixture and runs the input script", async () => {
-    const outDir = await mkdtemp(join(tmpdir(), "game-tester-"));
+    const outDir = await mkdtemp(join(tmpdir(), "tester-"));
     try {
       const options = baseOptions(gameUrl, outDir, {
         script: {
@@ -90,7 +90,7 @@ describe("runGameTest (browser integration)", () => {
   }, BROWSER_TEST_TIMEOUT);
 
   test.skipIf(!hasChromium)("fails on a blank canvas", async () => {
-    const outDir = await mkdtemp(join(tmpdir(), "game-tester-"));
+    const outDir = await mkdtemp(join(tmpdir(), "tester-"));
     try {
       const report = await runGameTest(baseOptions(blankUrl, outDir));
       expect(report.ready.ok).toBe(true);
@@ -104,7 +104,7 @@ describe("runGameTest (browser integration)", () => {
   }, BROWSER_TEST_TIMEOUT);
 
   test.skipIf(!hasChromium)("fails when the ready signal never fires", async () => {
-    const outDir = await mkdtemp(join(tmpdir(), "game-tester-"));
+    const outDir = await mkdtemp(join(tmpdir(), "tester-"));
     try {
       const report = await runGameTest(
         baseOptions(gameUrl, outDir, { ready: { kind: "flag", path: "__NEVER_READY__" }, readyTimeoutMs: 800 }),
