@@ -9,21 +9,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
-  const file = await readAssetFile(id);
+  const file = await readAssetFile(id, auth.userId);
   if (!file) return new Response("not found", { status: 404 });
-  if (file.kind === "redirect") {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        location: file.url,
-        "cache-control": "public, max-age=31536000, immutable",
-      },
-    });
-  }
   return new Response(new Uint8Array(file.data), {
     headers: {
       "content-type": file.mediaType,
-      "cache-control": "public, max-age=31536000, immutable",
+      "cache-control": "private, no-store",
     },
   });
 }

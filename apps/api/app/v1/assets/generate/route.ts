@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   // Reprints are conditioned on the original render so the character stays identical.
   let referenceUrl: string | undefined;
   if (sourceId) {
-    const source = await readAssetImage(String(sourceId));
+    const source = await readAssetImage(String(sourceId), auth.userId);
     if (!source) {
       return NextResponse.json({ error: `source asset not found: ${sourceId}` }, { status: 404 });
     }

@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 type Env = Record<string, string | undefined>;
 
@@ -21,7 +21,12 @@ export interface StoredAssetObject {
 const DEFAULT_PREFIX = "asset-lab";
 const DEFAULT_MEDIA_TYPE = "image/png";
 const DEFAULT_EXTENSION = "png";
-const CACHE_CONTROL = "public, max-age=31536000, immutable";
+const CACHE_CONTROL = "private, max-age=31536000, immutable";
+const EXTENSION_BY_MEDIA_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 let cachedClient: S3Client | null = null;
 let cachedClientKey = "";
@@ -71,6 +76,10 @@ export function assetObjectKey(id: string, prefix = DEFAULT_PREFIX, extension = 
   return `${normalizePrefix(prefix)}/${id}.${extension.replace(/^\./, "")}`;
 }
 
+export function assetExtension(mediaType: string): string {
+  return EXTENSION_BY_MEDIA_TYPE[mediaType] ?? DEFAULT_EXTENSION;
+}
+
 export function publicAssetUrl(baseUrl: string, key: string): string {
   const base = baseUrl.replace(/\/+$/g, "");
   const encodedKey = key
@@ -105,7 +114,7 @@ export async function storeAssetImage(
   const config = assetStorageConfig();
   if (!config) return null;
 
-  const storageKey = assetObjectKey(id, config.prefix);
+  const storageKey = assetObjectKey(id, config.prefix, assetExtension(mediaType));
   await s3Client(config).send(
     new PutObjectCommand({
       Bucket: config.bucket,
@@ -142,6 +151,17 @@ export async function readAssetObject(storageKey: string): Promise<Buffer | null
     if (maybe.name === "NoSuchKey" || maybe.$metadata?.httpStatusCode === 404) return null;
     throw error;
   }
+}
+
+export async function deleteAssetObject(storageKey: string): Promise<void> {
+  const config = assetStorageConfig();
+  if (!config) return;
+  await s3Client(config).send(
+    new DeleteObjectCommand({
+      Bucket: config.bucket,
+      Key: storageKey,
+    }),
+  );
 }
 
 async function bodyToBuffer(body: unknown): Promise<Buffer> {
