@@ -19,6 +19,11 @@
       "types": "./src/sprites.ts",
       "default": "./src/sprites.ts"
     },
+    "./asset-qa": {
+      "types": "./src/asset-qa/index.ts",
+      "default": "./src/asset-qa/index.ts"
+    },
+    "./asset-qa.schema.json": "./asset-qa.schema.json",
     "./src/*": "./src/*"
   },
   "scripts": {

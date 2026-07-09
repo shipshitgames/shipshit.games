@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shipshit.games/schemas/asset-qa.schema.json",
+  "title": "Ship Shit Games asset QA manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "targets"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "root": { "type": "string", "minLength": 1 },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/target" }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "requiredDimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "margins": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "left": { "type": "integer", "minimum": 0 },
+        "top": { "type": "integer", "minimum": 0 },
+        "right": { "type": "integer", "minimum": 0 },
+        "bottom": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "padding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "left": { "type": "integer", "minimum": 0 },
+        "top": { "type": "integer", "minimum": 0 },
+        "right": { "type": "integer", "minimum": 0 },
+        "bottom": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "edgeOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "alphaThreshold": { "type": "number", "minimum": 0, "maximum": 255 },
+        "includeOpaque": { "type": "boolean" },
+        "maxRadius": { "type": "number", "minimum": 1 },
+        "minAlpha": { "type": "number", "minimum": 0, "maximum": 255 },
+        "minLuma": { "type": "number", "minimum": 0, "maximum": 255 },
+        "minLumaDelta": { "type": "number", "minimum": 0 }
+      }
+    },
+    "darkFringeOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "alphaMin": { "type": "number", "minimum": 0, "maximum": 255 },
+        "alphaMax": { "type": "number", "minimum": 0, "maximum": 255 },
+        "darkLumaMax": { "type": "number", "minimum": 0, "maximum": 255 },
+        "subjectLumaMin": { "type": "number", "minimum": 0, "maximum": 255 },
+        "maxRadius": { "type": "number", "minimum": 1 }
+      }
+    },
+    "alphaCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "threshold": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "minMargins": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "$ref": "#/$defs/margins" }
+          ]
+        },
+        "maxBorderPixels": { "type": "integer", "minimum": 0 },
+        "maxDarkFringePixels": { "type": "integer", "minimum": 0 },
+        "maxFringeLuma": { "type": "number", "minimum": 0 },
+        "darkFringe": { "$ref": "#/$defs/darkFringeOptions" },
+        "edge": { "$ref": "#/$defs/edgeOptions" }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "dimensions": { "$ref": "#/$defs/dimensions" },
+        "alpha": { "$ref": "#/$defs/alphaCheck" },
+        "webpEncoding": { "enum": ["lossless", "lossy"] }
+      }
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minX", "minY", "maxX", "maxY"],
+      "properties": {
+        "minX": { "type": "integer", "minimum": 0 },
+        "minY": { "type": "integer", "minimum": 0 },
+        "maxX": { "type": "integer", "minimum": 0 },
+        "maxY": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "crop": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bounds": { "$ref": "#/$defs/bounds" },
+        "alpha": { "const": true },
+        "padding": { "type": "integer", "minimum": 0 },
+        "alphaThreshold": { "type": "integer", "minimum": 0, "maximum": 255 }
+      },
+      "oneOf": [
+        { "required": ["bounds"], "properties": { "bounds": true } },
+        { "required": ["alpha"], "properties": { "alpha": true } }
+      ]
+    },
+    "padHorizontalCells": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columns"],
+      "properties": {
+        "columns": { "type": "integer", "minimum": 1 },
+        "padding": { "$ref": "#/$defs/padding" },
+        "targetCellWidth": { "type": "integer", "minimum": 1 },
+        "targetHeight": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "rematte": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["dark-edge", "dark-fringe"] },
+        "maxPasses": { "type": "integer", "minimum": 1 },
+        "options": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "dark-edge" } } },
+          "then": { "properties": { "options": { "$ref": "#/$defs/edgeOptions" } } }
+        },
+        {
+          "if": { "properties": { "mode": { "const": "dark-fringe" } } },
+          "then": { "properties": { "options": { "$ref": "#/$defs/darkFringeOptions" } } }
+        }
+      ]
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "lossless"],
+      "properties": {
+        "format": { "const": "webp" },
+        "lossless": { "type": "boolean" },
+        "quality": { "type": "number", "minimum": 0, "maximum": 100 },
+        "method": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "exact": { "type": "boolean" }
+      }
+    },
+    "repair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["output"],
+      "properties": {
+        "source": { "$ref": "#/$defs/relativePath" },
+        "expectedSource": { "$ref": "#/$defs/requiredDimensions" },
+        "crop": { "$ref": "#/$defs/crop" },
+        "padHorizontalCells": { "$ref": "#/$defs/padHorizontalCells" },
+        "rematte": { "$ref": "#/$defs/rematte" },
+        "output": { "$ref": "#/$defs/output" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "checks"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
+        "path": { "$ref": "#/$defs/relativePath" },
+        "checks": { "$ref": "#/$defs/checks" },
+        "repair": { "$ref": "#/$defs/repair" }
+      }
+    }
+  }
+}
