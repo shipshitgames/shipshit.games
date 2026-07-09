@@ -62,9 +62,11 @@ test("scourge survivors brief shows the lore-driven sections", async ({ page }) 
   // Roadmap counts from the committed board snapshot.
   const counts = page.getByTestId("roadmap-counts");
   await expect(counts).toBeVisible();
-  await expect(counts).toContainText("Todo");
+  await expect(counts).toContainText("Backlog");
   await expect(counts).toContainText("In Progress");
+  await expect(counts).toContainText("Human Review");
   await expect(counts).toContainText("Done");
+  await expect(counts).toContainText("Deferred");
   await expect(counts.locator("span").first()).toHaveText(/^\d+$/);
 
   expect(errors, `console errors: ${errors.join(" | ")}`).toEqual([]);

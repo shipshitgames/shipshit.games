@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "typecheck": "tsc --noEmit",
     "test": "bun test lib scripts components",
     "test:coverage": "bun test lib scripts components --coverage",
     "e2e": "playwright test",

@@ -5,19 +5,14 @@ import type {
   ActivitySnapshot,
   RoadmapBoard,
   RoadmapSnapshot,
-  RoadmapStatus,
 } from "../../lib/content/types";
+import { summarizeRoadmapItems } from "../../lib/roadmap-status";
 
 const OWNER = "shipshitgames";
 const REPOS = ["shipshitgames/shipshit.games", "shipshitgames/deadrot.com"] as const;
 
 function gh(args: string[]): string {
   return execFileSync("gh", args, { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
-}
-
-function normalizeStatus(status: unknown): RoadmapStatus {
-  if (status === "Todo" || status === "In Progress" || status === "Done") return status;
-  return "Other";
 }
 
 /** Snapshot every deadrot.com/* game board plus the org-level boards. */
@@ -38,18 +33,7 @@ export function snapshotRoadmap(now: string): RoadmapSnapshot {
       gh(["project", "item-list", String(project.number), "--owner", OWNER, "--format", "json", "--limit", "200"]),
     ) as { items: { status?: string; title?: string }[] };
 
-    const counts = { todo: 0, inProgress: 0, done: 0 };
-    const open: { title: string; status: RoadmapStatus }[] = [];
-    for (const item of items.items) {
-      const status = normalizeStatus(item.status);
-      if (status === "Todo") counts.todo += 1;
-      if (status === "In Progress") counts.inProgress += 1;
-      if (status === "Done") counts.done += 1;
-      if ((status === "Todo" || status === "In Progress") && typeof item.title === "string") {
-        open.push({ title: item.title, status });
-      }
-    }
-    open.sort((a, b) => (a.status === b.status ? 0 : a.status === "In Progress" ? -1 : 1));
+    const { counts, topItems } = summarizeRoadmapItems(items.items);
 
     boards.push({
       scope,
@@ -57,7 +41,7 @@ export function snapshotRoadmap(now: string): RoadmapSnapshot {
       projectNumber: project.number,
       url: project.url,
       counts,
-      topItems: open.slice(0, 5),
+      topItems,
     });
   }
 

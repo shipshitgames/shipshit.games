@@ -4,12 +4,11 @@ import { Eyebrow } from "@/components/site/eyebrow";
 import { Button } from "@/components/ui/button";
 import { accentStyle } from "@/components/games/accent";
 import type { AccentToken, RoadmapBoard } from "@/lib/content/types";
-
-const COUNTS: { key: keyof RoadmapBoard["counts"]; label: string }[] = [
-  { key: "todo", label: "Todo" },
-  { key: "inProgress", label: "In Progress" },
-  { key: "done", label: "Done" },
-];
+import {
+  ROADMAP_COUNT_CATEGORIES,
+  roadmapCount,
+  roadmapStatusLabel,
+} from "@/lib/roadmap-status";
 
 /** Live-ish board state for the game: big counts, the open work, board link-outs. */
 export function GameRoadmap({
@@ -52,12 +51,12 @@ export function GameRoadmap({
         <div>
           <div
             data-testid="roadmap-counts"
-            className="grid grid-cols-3 gap-px overflow-hidden rounded-md border border-gunmetal bg-gunmetal"
+            className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-gunmetal bg-gunmetal sm:grid-cols-5"
           >
-            {COUNTS.map(({ key, label }) => (
+            {ROADMAP_COUNT_CATEGORIES.map(({ key, label }) => (
               <div key={key} className="bg-coal px-5 py-6">
                 <span className="block font-display text-5xl font-bold leading-none text-bone">
-                  {board.counts[key]}
+                  {roadmapCount(board.counts, key)}
                 </span>
                 <span className="mt-3 block font-display text-xs font-bold uppercase tracking-widest text-[var(--accent)]">
                   {label}
@@ -72,12 +71,14 @@ export function GameRoadmap({
                 <li key={item.title} className="flex items-center gap-3 px-5 py-3">
                   <span
                     className={`shrink-0 rounded-md border px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-widest ${
-                      item.status === "In Progress"
-                        ? "border-hellfire/60 bg-hellfire/10 text-hellfire"
-                        : "border-gunmetal bg-void text-ash"
+                      item.status === "Human Review"
+                        ? "border-bone/60 bg-bone/10 text-bone"
+                        : item.status === "In Progress"
+                          ? "border-hellfire/60 bg-hellfire/10 text-hellfire"
+                          : "border-gunmetal bg-void text-ash"
                     }`}
                   >
-                    {item.status}
+                    {roadmapStatusLabel(item.status)}
                   </span>
                   <span className="truncate font-mono text-sm text-ash">{item.title}</span>
                 </li>
