@@ -9,17 +9,17 @@ import { readFile } from "node:fs/promises";
 const mainSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
 const preloadSource = await readFile(new URL("../preload/index.ts", import.meta.url), "utf8");
 
-const LAB_CHANNELS = [
-  "lab:listGames",
-  "lab:get",
-  "lab:setSubject",
-  "lab:addVariant",
-  "lab:scoreVariant",
-  "lab:tagVariant",
-  "lab:annotateVariant",
-  "lab:removeVariant",
-  "lab:lockVariant",
-  "lab:clearLock",
+const LAB_CHANNEL_KEYS = [
+  "labListGames",
+  "labGet",
+  "labSetSubject",
+  "labAddVariant",
+  "labScoreVariant",
+  "labTagVariant",
+  "labAnnotateVariant",
+  "labRemoveVariant",
+  "labLockVariant",
+  "labClearLock",
 ];
 
 test("main constructs the art-lab store from the shared factory", () => {
@@ -30,9 +30,9 @@ test("main constructs the art-lab store from the shared factory", () => {
 });
 
 test("main handles every lab:* channel the preload exposes", () => {
-  for (const channel of LAB_CHANNELS) {
-    expect(mainSource).toContain(`ipcMain.handle("${channel}"`);
-    expect(preloadSource).toContain(`ipcRenderer.invoke("${channel}"`);
+  for (const channelKey of LAB_CHANNEL_KEYS) {
+    expect(mainSource).toContain(`ipcMain.handle(IPC_CHANNELS.${channelKey}`);
+    expect(preloadSource).toContain(`ipcRenderer.invoke(IPC_CHANNELS.${channelKey}`);
   }
 });
 

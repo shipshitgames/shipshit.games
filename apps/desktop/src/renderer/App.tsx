@@ -3,6 +3,28 @@ import { Terminal } from "@xterm/xterm";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import "@xterm/xterm/css/xterm.css";
 
+import type {
+  ArtLab,
+  ArtLabVariant,
+  FalModelInfo,
+  GalleryAsset,
+  GalleryResult,
+  GenResult,
+  GymLaunchResult,
+  GymProject,
+  GymSummary,
+  GymsState,
+  MapPreviewResult,
+  MapsGenOptions,
+  MapWriteResult,
+  Moodboard,
+  MoodboardItem,
+  PixelizeResult,
+  ProjectState,
+  ProjectSummary,
+  ResearchResult,
+  Settings,
+} from "../shared/ipc";
 import { ModelPreview } from "./ModelPreview";
 import { isModelResult } from "./model-preview-config";
 
@@ -13,307 +35,6 @@ import { isModelResult } from "./model-preview-config";
 type SectionId = "projects" | "gyms" | "gallery" | "maps" | "sprites" | "music" | "3d" | "moodboard" | "lab" | "research" | "codegen";
 type Group = "Generators" | "Art Direction" | "Ressources" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
-
-interface GenResult { ok: boolean; log: string; path: string | null; dataUrl: string | null; previewPath?: string | null; mediaType?: string | null }
-interface PixelizeResult { ok: boolean; dataUrl?: string; bytes?: number; height?: number; requestedCutout?: string; cutout?: { tool: string; reason?: string } | null; log?: string; error?: string }
-interface ResearchResult { ok: boolean; log: string; path: string | null; rules: string | null }
-interface ProjectAsset { id: string; kind: string; path: string; game: string | null }
-interface ProjectSummary {
-  id: string;
-  name: string;
-  slug: string;
-  repoPath: string;
-  source: "registered" | "discovered";
-  manifestPath: string;
-  isActive: boolean;
-  exists: boolean;
-  valid: boolean;
-  error: string | null;
-  assetCount: number;
-  kindCounts: Record<string, number>;
-  assets: ProjectAsset[];
-  catalogTruncated: boolean;
-}
-interface ProjectState { projects: ProjectSummary[]; activeProjectId: string; activeManifestPath: string | null }
-interface GymSummary {
-  id: string;
-  label: string;
-  kind: string;
-  description: string;
-  script: string | null;
-  command: string | null;
-  args: string[];
-  url: string | null;
-  cwd: string;
-}
-interface GymProject {
-  id: string;
-  name: string;
-  slug: string;
-  repoPath: string;
-  exists: boolean;
-  isActive: boolean;
-  declarationPath: string;
-  declarationExists: boolean;
-  error: string | null;
-  gyms: GymSummary[];
-}
-interface GymsState { projects: GymProject[]; activeProjectId: string }
-interface GymLaunchResult {
-  ok: boolean;
-  error?: string;
-  projectId?: string;
-  gymId?: string;
-  label?: string;
-  pid?: number | null;
-  command?: string | null;
-  args?: string[];
-  cwd?: string;
-  openedUrl?: boolean;
-  url?: string | null;
-}
-interface Settings {
-  defaultProvider: string;
-  defaultGame: string;
-  providerDefaults: Record<string, string>;
-  falModelDefaults: Record<string, string>;
-  activeProjectId?: string;
-  projects?: Array<{ id: string; name: string; slug: string; repoPath: string }>;
-}
-interface FalModelInfo { id: string; label: string; kinds: string[] }
-type TerminalStartResult =
-  | { ok: true; id: string; pid: number | null; shell: string; cwd: string; cols: number; rows: number }
-  | { ok: false; error: string };
-interface TerminalPayload { id: string; data: string }
-interface TerminalExitPayload { id: string; exitCode: number | null; signal: number | null }
-interface MoodboardImage { name: string; path: string; mime: string }
-interface MoodboardItem {
-  id: string;
-  type: "note" | "image";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  visualTarget: boolean;
-  text?: string;
-  image?: MoodboardImage;
-  dataUrl?: string | null;
-}
-interface Moodboard { game: string; items: MoodboardItem[]; updatedAt: string }
-interface ArtLabImageRef { path: string; mime: string }
-interface ArtLabVariant {
-  id: string;
-  direction: string;
-  prompt: string;
-  provider: string;
-  score: number;
-  tags: string[];
-  note: string;
-  locked: boolean;
-  image: ArtLabImageRef | null;
-  dataUrl?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-interface ArtLabLock {
-  game: string;
-  variantId: string;
-  subject: string;
-  kind: string;
-  direction: string;
-  prompt: string;
-  provider: string;
-  image: ArtLabImageRef | null;
-  dataUrl?: string | null;
-  lockedAt: string;
-}
-interface ArtLab {
-  game: string;
-  subject: string;
-  kind: string;
-  variants: ArtLabVariant[];
-  lock: ArtLabLock | null;
-  createdAt: string;
-  updatedAt: string;
-}
-interface ArtLabVariantInput {
-  direction: string;
-  prompt: string;
-  provider: string;
-  dataUrl?: string | null;
-  sourcePath?: string | null;
-  mime?: string;
-}
-interface GalleryAsset {
-  id: string;
-  assetId: string;
-  category: string;
-  type: string;
-  view: string | null;
-  path: string;
-  group: string;
-  dimensions: [number, number] | null;
-  scale: [number, number] | null;
-  filter: string | null;
-  role: string | null;
-  license: Record<string, unknown> | null;
-  cdnUrl?: string | null;
-  missing: boolean;
-  dataUrl: string | null;
-  bytes: number | null;
-  deferred: boolean;
-}
-interface GalleryResult {
-  ok: boolean;
-  error?: string;
-  root: string | null;
-  assetBaseUrl?: string | null;
-  source?: "manifest" | "filesystem";
-  manifestPath?: string | null;
-  game: string;
-  games: string[];
-  assets: GalleryAsset[];
-  embeddedBytes?: number;
-}
-interface MapValidationIssue { code: string; message: string; obstacleId?: string }
-interface MapValidationResult { ok: boolean; issues: MapValidationIssue[] }
-interface MapSummary {
-  id: string;
-  name: string;
-  rooms: number;
-  levels: number;
-  obstacles: number;
-  lights: number;
-  bounds: { kind: "square"; half: number } | { kind: "rect"; minX: number; maxX: number; minZ: number; maxZ: number };
-}
-interface MapsGenOptions {
-  id: string;
-  game?: string;
-  name?: string;
-  seed?: number;
-  rooms?: number;
-  levels?: number;
-  half?: number;
-  coverPerRoom?: number;
-  spawnRadius?: number;
-  spawn?: { x: number; z: number };
-}
-interface MapPreviewResult {
-  ok: boolean;
-  dataUrl: string;
-  svg: string;
-  moduleText: string;
-  summary: MapSummary;
-  validation: MapValidationResult;
-}
-interface MapWriteResult {
-  ok: boolean;
-  path?: string;
-  svgPath?: string;
-  game?: string;
-  summary: MapSummary;
-  validation: MapValidationResult;
-}
-
-declare global {
-  interface Window {
-    studio?: {
-      platform: string;
-      versions: Record<string, string>;
-      generate: (opts: {
-        id: string;
-        prompt: string;
-        game: string;
-        kind: string;
-        provider?: string;
-        model?: string;
-        projectId?: string;
-        views?: string;
-        frames?: number;
-        fps?: number;
-        anchor?: string;
-        scale?: number;
-        license?: string;
-        licenseUrl?: string;
-        category?: string;
-        volume?: number;
-        loop?: boolean;
-        bitrate?: number;
-        normalize?: boolean;
-        ktx2?: boolean;
-        draco?: boolean;
-        rig?: string;
-      }) => Promise<GenResult>;
-      pixelize: (opts: {
-        dataUrl?: string;
-        path?: string;
-        height?: number;
-        bgThreshold?: number;
-        cutout?: string;
-        palette?: string;
-      }) => Promise<PixelizeResult>;
-      listGames: () => Promise<string[]>;
-      onGenLog: (cb: (chunk: string) => void) => () => void;
-      research: (opts: { url: string; slug: string; provider?: string }) => Promise<ResearchResult>;
-      onResearchLog: (cb: (chunk: string) => void) => () => void;
-      transcodeAudio: (opts: { files: string[]; game: string; category: string; bitrate?: number; normalize?: boolean; projectId?: string }) => Promise<{ ok: boolean; log: string; outputs: string[] }>;
-      pickAudioFiles: () => Promise<string[]>;
-      onTranscodeLog: (cb: (chunk: string) => void) => () => void;
-      settings: { get: () => Promise<Settings>; set: (p: Partial<Settings>) => Promise<Settings> };
-      projects: {
-        list: () => Promise<ProjectState>;
-        add: () => Promise<ProjectState>;
-        remove: (id: string) => Promise<ProjectState>;
-        setActive: (id: string) => Promise<ProjectState>;
-      };
-      gyms: {
-        list: () => Promise<GymsState>;
-        launch: (projectId: string, gymId: string) => Promise<GymLaunchResult>;
-      };
-      keys: { status: () => Promise<Record<string, boolean>>; set: (provider: string, key: string) => Promise<Record<string, boolean>> };
-      models: { list: () => Promise<{ fal: FalModelInfo[]; defaultProviderByKind?: Record<string, string>; falImageKinds?: string[] }> };
-      terminal: {
-        start: (opts?: { cols?: number; rows?: number; cwd?: string }) => Promise<TerminalStartResult>;
-        write: (id: string, data: string) => Promise<boolean>;
-        resize: (id: string, size: { cols: number; rows: number }) => Promise<boolean>;
-        stop: (id: string) => Promise<boolean>;
-        onData: (cb: (payload: TerminalPayload) => void) => () => void;
-        onExit: (cb: (payload: TerminalExitPayload) => void) => () => void;
-      };
-      gallery: {
-        listGames: () => Promise<string[]>;
-        list: (game: string, opts?: { embedBudget?: number }) => Promise<GalleryResult>;
-        image: (assetPath: string) => Promise<{ dataUrl: string; bytes: number } | null>;
-      };
-      moodboard: {
-        listGames: () => Promise<string[]>;
-        get: (game: string) => Promise<Moodboard>;
-        addNote: (game: string, text: string) => Promise<Moodboard>;
-        importImages: (game: string) => Promise<Moodboard>;
-        updateItem: (game: string, item: Partial<MoodboardItem> & { id: string }) => Promise<Moodboard>;
-        setVisualTarget: (game: string, id: string, visualTarget: boolean) => Promise<Moodboard>;
-        removeItem: (game: string, id: string) => Promise<Moodboard>;
-      };
-      lab: {
-        listGames: () => Promise<string[]>;
-        get: (game: string) => Promise<ArtLab>;
-        setSubject: (game: string, subject: string, kind: string) => Promise<ArtLab>;
-        addVariant: (game: string, variant: ArtLabVariantInput) => Promise<ArtLab>;
-        scoreVariant: (game: string, id: string, score: number) => Promise<ArtLab>;
-        tagVariant: (game: string, id: string, tags: string[]) => Promise<ArtLab>;
-        annotateVariant: (game: string, id: string, note: string) => Promise<ArtLab>;
-        removeVariant: (game: string, id: string) => Promise<ArtLab>;
-        lockVariant: (game: string, id: string) => Promise<ArtLab>;
-        clearLock: (game: string) => Promise<ArtLab>;
-      };
-      maps: {
-        listGames: () => Promise<string[]>;
-        preview: (opts: MapsGenOptions) => Promise<MapPreviewResult>;
-        write: (opts: MapsGenOptions) => Promise<MapWriteResult>;
-      };
-    };
-  }
-}
 
 const SECTIONS: Section[] = [
   { id: "projects", label: "Projects", group: "Codegen", glyph: "⌂", blurb: "Local game repos, target manifests, and asset catalogs." },
