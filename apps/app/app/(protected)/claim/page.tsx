@@ -3,10 +3,13 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CheckCircle2, CircleAlert } from "lucide-react";
 
-import { readStudioPass } from "@/lib/entitlements";
+import {
+  hasSkillsProContentAccess,
+  readStudioPass,
+} from "@/lib/entitlements";
 import { createSkillsProAccessUrl, runFulfillment } from "@/lib/fulfillment";
 import { getStripe } from "@/lib/stripe";
-import { syncCheckoutSession } from "@/lib/stripe-sync";
+import { syncCheckoutSession, syncOneTimeCheckout } from "@/lib/stripe-sync";
 import { appUrl } from "@/lib/urls";
 
 export const dynamic = "force-dynamic";
@@ -49,11 +52,16 @@ export default async function ClaimPage({ searchParams }: ClaimPageProps) {
         error =
           "This checkout was completed with a different email. Sign in with the purchase email to claim it.";
       } else {
-        const result = await syncCheckoutSession(stripe, session, false);
+        const isOneTime = session.mode === "payment";
+        const result = isOneTime
+          ? await syncOneTimeCheckout(stripe, session)
+          : await syncCheckoutSession(stripe, session, false);
         if (result.skipped) {
           error = result.skipped;
         } else {
-          message = "Studio Pass claimed. Your access is active.";
+          message = isOneTime
+            ? "Skills Pro claimed. It's yours forever."
+            : "Studio Pass claimed. Your access is active.";
         }
       }
     } catch (claimError) {
@@ -66,9 +74,11 @@ export default async function ClaimPage({ searchParams }: ClaimPageProps) {
 
   const refreshedUser = await currentUser();
   const pass = readStudioPass(refreshedUser?.privateMetadata);
-  if (pass?.active && email) {
+  if (hasSkillsProContentAccess(refreshedUser?.privateMetadata) && email) {
     accessUrl = createSkillsProAccessUrl(userId, email);
-    if (!pass.skoolInviteSentAt || !pass.accessEmailSentAt) {
+    // Subscription fulfillment (Skool invite + access email). The one-time
+    // grant already ran its own fulfillment inside syncOneTimeCheckout above.
+    if (pass?.active && (!pass.skoolInviteSentAt || !pass.accessEmailSentAt)) {
       await runFulfillment({
         userId,
         email,

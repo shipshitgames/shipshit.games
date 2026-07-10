@@ -1,4 +1,4 @@
-import { STUDIO_PASS, isEnabled } from "@shipshitgames/shared";
+import { SKILLS_PRO_ONETIME, STUDIO_PASS, isEnabled } from "@shipshitgames/shared";
 
 import { createAccessToken } from "./access-token";
 import type { StudioPassEntitlement } from "./entitlements";
@@ -154,4 +154,91 @@ export async function runFulfillment(input: FulfillmentInput): Promise<Fulfillme
   }
 
   return result;
+}
+
+export type SkillsProOneTimeFulfillmentInput = {
+  userId: string;
+  email: string;
+  name?: string | null;
+  checkoutSessionId?: string;
+  stripeCustomerId?: string;
+};
+
+type OneTimeFulfillmentResult = {
+  accessEmailSent: boolean;
+  error?: string;
+};
+
+async function sendSkillsProOneTimeWebhook(
+  input: SkillsProOneTimeFulfillmentInput,
+  accessUrl: string
+) {
+  const webhookUrl = process.env.FULFILLMENT_WEBHOOK_URL;
+  if (!webhookUrl) return false;
+
+  await postJson(webhookUrl, {
+    source: "shipshitgames-app",
+    product: SKILLS_PRO_ONETIME.productKey,
+    email: input.email,
+    name: input.name,
+    skillsProAccessUrl: accessUrl,
+    stripeCustomerId: input.stripeCustomerId,
+    checkoutSessionId: input.checkoutSessionId,
+  });
+
+  return true;
+}
+
+async function sendSkillsProOneTimeEmail(
+  input: SkillsProOneTimeFulfillmentInput,
+  accessUrl: string
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.ACCESS_EMAIL_FROM;
+  if (!apiKey || !from) return false;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: input.email,
+      subject: "Your Ship Shit Games Skills Pro access",
+      text: `Skills Pro is yours — a one-time purchase, kept forever. Open ${accessUrl} to sign in and access the skills. (No subscription; this is the gaming Skills Pro content only.)`,
+      html: `
+        <div style="font-family:Inter,Arial,sans-serif;background:#0a0a0a;color:#e9e3d6;padding:32px">
+          <h1 style="font-family:Arial,sans-serif;text-transform:uppercase">Skills Pro is yours</h1>
+          <p>A one-time purchase, kept forever — the gaming agent skills, prompts, and QA loops we use to ship games.</p>
+          <p><a href="${accessUrl}" style="color:#ff6a00">Open Skills Pro</a></p>
+        </div>
+      `,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Resend returned ${response.status}`);
+  }
+
+  return true;
+}
+
+export async function runSkillsProOneTimeFulfillment(
+  input: SkillsProOneTimeFulfillmentInput
+): Promise<OneTimeFulfillmentResult> {
+  const accessUrl = createSkillsProAccessUrl(input.userId, input.email);
+
+  try {
+    const accessEmailSent =
+      (await sendSkillsProOneTimeWebhook(input, accessUrl)) ||
+      (await sendSkillsProOneTimeEmail(input, accessUrl));
+    return { accessEmailSent };
+  } catch (error) {
+    return {
+      accessEmailSent: false,
+      error: error instanceof Error ? error.message : "Fulfillment failed",
+    };
+  }
 }
