@@ -79,7 +79,7 @@ export const STUDIO_PASS = {
   shortName: "Studio Pass",
   productKey: "studio-pass",
   stripeProductMetadataKey: "studio_pass",
-  tagline: "Skills Pro, member assets, build breakdowns, and live studio workflows.",
+  tagline: "Skills Pro, hosted SaaS access, the Skool community, and every DEADROT game — one subscription.",
   listPriceUsd: 49,
   founderPriceUsd: 29,
   founderDiscountUsd: 20,
@@ -92,9 +92,9 @@ export const STUDIO_PASS = {
 
 export const STUDIO_PASS_FEATURES = [
   "Skills Pro: the agent skills, prompts, QA loops, and shipping workflows behind the studio.",
-  "Monthly access to member asset packs, prompt packs, and production notes as they ship.",
-  "Subscriber build breakdowns showing how DEADROT gets scoped, generated, reviewed, and shipped.",
-  "Member community access is included when the private community opens; early subscribers keep their founder seat.",
+  "Hosted SaaS access to the studio labs and generation tools; metered monthly generation credits are on the way.",
+  "Every DEADROT game unlocked on deadrot.com — the games are the proof-of-concept, included with your pass.",
+  "Skool community access is included when the private community opens; founder seats keep their price.",
   "app.shipshit.games account portal for signed access links, billing, and subscription state.",
 ] as const;
 
