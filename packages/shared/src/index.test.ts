@@ -3,6 +3,8 @@ import { expect, test } from "bun:test";
 import {
   GAMES,
   GAME_SLUGS,
+  SKILLS_PRO_ONETIME,
+  SKILLS_PRO_ONETIME_FEATURES,
   STATUS_LABELS,
   STUDIO_PASS,
   STUDIO_PASS_FEATURES,
@@ -99,4 +101,19 @@ test("formatUsd renders whole and fractional dollars", () => {
 test("STUDIO_PASS founder pricing is internally consistent", () => {
   expect(STUDIO_PASS.listPriceUsd - STUDIO_PASS.founderDiscountUsd).toBe(STUDIO_PASS.founderPriceUsd);
   expect(STUDIO_PASS_FEATURES.length).toBeGreaterThan(0);
+});
+
+test("SKILLS_PRO_ONETIME launch pricing is internally consistent", () => {
+  expect(SKILLS_PRO_ONETIME.listPriceUsd - SKILLS_PRO_ONETIME.launchDiscountUsd).toBe(
+    SKILLS_PRO_ONETIME.launchPriceUsd
+  );
+  expect(SKILLS_PRO_ONETIME.interval).toBe("one-time");
+  expect(SKILLS_PRO_ONETIME_FEATURES.length).toBeGreaterThan(0);
+});
+
+test("Skills Pro one-time is games-namespaced and distinct from the Studio Pass sub", () => {
+  expect(SKILLS_PRO_ONETIME.productKey).toBe("games-skills-pro");
+  expect(SKILLS_PRO_ONETIME.priceLookupKey).toContain("shipshitgames");
+  expect(SKILLS_PRO_ONETIME.productKey).not.toBe(STUDIO_PASS.productKey);
+  expect(SKILLS_PRO_ONETIME.priceEnvKey).not.toBe(STUDIO_PASS.priceEnvKey);
 });

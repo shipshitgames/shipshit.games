@@ -75,7 +75,7 @@ export const GAMES: Game[] = catalog.games;
 
 /** Studio subscription sold through Stripe and managed in app.shipshit.games. */
 export const STUDIO_PASS = {
-  name: "Skills Pro Studio Pass",
+  name: "Studio Pass",
   shortName: "Studio Pass",
   productKey: "studio-pass",
   stripeProductMetadataKey: "studio_pass",
@@ -96,6 +96,36 @@ export const STUDIO_PASS_FEATURES = [
   "Every DEADROT game unlocked on deadrot.com — the games are the proof-of-concept, included with your pass.",
   "Skool community access is included when the private community opens; founder seats keep their price.",
   "app.shipshit.games account portal for signed access links, billing, and subscription state.",
+] as const;
+
+/**
+ * One-time purchase sold on the shipshit.games games line: the gaming Skills
+ * Pro content ONLY (agent skills, prompts, QA loops, shipping workflows).
+ * Deliberately narrower than the Studio Pass subscription — no hosted SaaS
+ * generation, no DEADROT games, no Skool. Distinct Stripe product from any
+ * shipshit.dev/skills (dev) line; identity is games-namespaced.
+ */
+export const SKILLS_PRO_ONETIME = {
+  name: "Skills Pro",
+  shortName: "Skills Pro",
+  productKey: "games-skills-pro",
+  stripeProductId: "prod_UeXgHMcvrwmGq9",
+  tagline: "Every agent skill, prompt, and QA loop we use to ship games — yours once, kept forever.",
+  listPriceUsd: 29,
+  launchPriceUsd: 19,
+  launchDiscountUsd: 10,
+  launchMaxRedemptions: 1000,
+  interval: "one-time",
+  defaultCouponId: "SKILLSPRO10",
+  priceLookupKey: "shipshitgames-skills-pro-29-usd",
+  priceEnvKey: "STRIPE_SKILLS_PRO_ONETIME_PRICE_ID",
+  couponEnvKey: "STRIPE_SKILLS_PRO_ONETIME_COUPON_ID",
+} as const;
+
+export const SKILLS_PRO_ONETIME_FEATURES = [
+  "Every game-building agent skill: planning, scaffolding, implementation, review, QA, and ship loops.",
+  "The production prompts and workflows behind DEADROT — copy them, adapt them, ship your own games.",
+  "A one-time purchase you keep forever — no subscription. Skills only: no hosted SaaS generation, no games, no community.",
 ] as const;
 
 export const ACTIVE_SUBSCRIPTION_STATUSES = ["active", "trialing"] as const;
