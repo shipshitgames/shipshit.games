@@ -59,8 +59,8 @@ const MODULES = [
   },
   {
     icon: Users,
-    title: "Member drops",
-    body: "Get subscriber drops now; private community access is included when the member community opens.",
+    title: "Games + community",
+    body: "Every DEADROT game is unlocked with your pass, and Skool community access is included when it opens.",
   },
 ] as const;
 
@@ -79,9 +79,10 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
               Build games with the skills we use.
             </h1>
             <p className="mt-7 max-w-2xl text-lg leading-relaxed text-ash">
-              Monthly access to the Ship Shit Games pro package: Skills Pro,
-              member assets, production prompts, review loops, build
-              breakdowns, and the game-shipping process we use on live builds.
+              One subscription for the whole studio: Skills Pro, hosted SaaS
+              access, the Skool community when it opens, and every DEADROT game
+              unlocked on deadrot.com — plus the game-shipping process we use on
+              live builds.
             </p>
 
             <div className="mt-10 grid gap-4 sm:grid-cols-3">
