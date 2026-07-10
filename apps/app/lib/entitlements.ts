@@ -102,7 +102,7 @@ export function readSkillsProOneTime(
   };
 }
 
-export function hasSkillsProOneTime(metadata: unknown) {
+function hasSkillsProOneTime(metadata: unknown) {
   return Boolean(readSkillsProOneTime(metadata)?.active);
 }
 
