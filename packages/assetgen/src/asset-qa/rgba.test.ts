@@ -75,18 +75,44 @@ describe("asset QA RGBA primitives", () => {
   });
 
   test("remattes weighted-luma dark edges while preserving alpha and opaque contours", () => {
+    // A 3x3 opaque core so (2,2) is a genuine inner pixel; the fringeLuma delta
+    // is only meaningful when both edge and inner populations exist.
     const source = image(5, 5, [
+      [1, 1, 210, 170, 120, 255],
+      [2, 1, 220, 180, 130, 255],
+      [3, 1, 215, 175, 125, 255],
       [1, 2, 0, 0, 0, 128],
-      [2, 2, 210, 170, 120, 255],
-      [3, 2, 220, 180, 130, 255],
+      [2, 2, 230, 190, 140, 255],
+      [3, 2, 215, 175, 125, 255],
       [1, 3, 0, 0, 0, 255],
+      [2, 3, 220, 180, 130, 255],
+      [3, 3, 215, 175, 125, 255],
     ]);
     const before = edgeQualityMetrics(source);
+    assert.ok(before.innerPixels > 0 && before.edgePixels > 0);
     assert.equal(rematteDarkEdgePixels(source, { minLumaDelta: 20 }), 1);
     assert.equal(pixel(source, 1, 2)[3], 128);
     assert.ok((pixel(source, 1, 2)[0] ?? 0) > 200);
     assert.deepEqual(pixel(source, 1, 3), [0, 0, 0, 255]);
     assert.ok(edgeQualityMetrics(source).fringeLuma < before.fringeLuma);
+  });
+
+  test("reports a zero fringe-luma delta when an image has no edge or no inner pixels", () => {
+    const opaque = image(
+      4,
+      4,
+      Array.from({ length: 16 }, (_unused, index) => [index % 4, Math.floor(index / 4), 220, 200, 180, 255]),
+    );
+    const opaqueMetrics = edgeQualityMetrics(opaque);
+    assert.equal(opaqueMetrics.edgePixels, 0);
+    assert.equal(opaqueMetrics.innerPixels, 16);
+    assert.equal(opaqueMetrics.fringeLuma, 0);
+
+    const sparse = image(3, 3, [[1, 1, 220, 200, 180, 255]]);
+    const sparseMetrics = edgeQualityMetrics(sparse);
+    assert.equal(sparseMetrics.edgePixels, 1);
+    assert.equal(sparseMetrics.innerPixels, 0);
+    assert.equal(sparseMetrics.fringeLuma, 0);
   });
 
   test("measures and remattes conservative dark alpha fringe deterministically", () => {

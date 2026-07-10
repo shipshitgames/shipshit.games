@@ -164,7 +164,13 @@ export function webpEncodingKind(buffer: Buffer): WebpEncodingKind {
   return "unknown";
 }
 
-/** Atomically replace a target without leaving temporary files behind. */
+/**
+ * Replace a target through a same-directory temporary file and rename, so a
+ * process crash or full disk mid-write can never leave a half-written file
+ * visible at the target path, and failures leave no temporary files behind.
+ * Nothing is fsynced: power-loss durability is out of contract for this tool
+ * because targets live in git working trees and repair is idempotent.
+ */
 export async function writeFileAtomic(path: string, data: Buffer): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   const directory = await mkdtemp(join(dirname(path), `.${basename(path)}.asset-qa-`));

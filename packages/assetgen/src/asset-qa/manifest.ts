@@ -48,6 +48,15 @@ function assertKnownKeys(value: Record<string, unknown>, allowed: readonly strin
   if (unknown.length > 0) throw new Error(`${label} has unknown field(s): ${unknown.join(", ")}`);
 }
 
+// Mirrors the schema's $defs.relativePath: declared paths must be relative and
+// may not contain ".." segments, even ones that lexically stay under the root.
+// Physical containment (symlinks, resolution) is still re-checked in loadManifest.
+function validateRelativePath(value: unknown, label: string): void {
+  if (typeof value !== "string" || value.length === 0) throw new Error(`${label} must be a non-empty relative path`);
+  if (isAbsolute(value)) throw new Error(`${label} must be relative to the manifest root`);
+  if (value.split("/").includes("..")) throw new Error(`${label} must not contain ".." segments`);
+}
+
 function optionalFiniteNumber(value: unknown, label: string, options: { integer?: boolean; min?: number; max?: number } = {}): void {
   if (value === undefined) return;
   if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${label} must be a finite number`);
@@ -149,9 +158,7 @@ function validateBounds(value: unknown, label: string): void {
 function validateRepair(value: unknown, label: string): void {
   const repair = record(value, label);
   assertKnownKeys(repair, ["source", "expectedSource", "crop", "padHorizontalCells", "rematte", "output"], label);
-  if (repair.source !== undefined && (typeof repair.source !== "string" || repair.source.length === 0)) {
-    throw new Error(`${label}.source must be a non-empty relative path`);
-  }
+  if (repair.source !== undefined) validateRelativePath(repair.source, `${label}.source`);
   validateDimensions(repair.expectedSource, `${label}.expectedSource`);
   if (repair.expectedSource !== undefined) {
     const expected = record(repair.expectedSource, `${label}.expectedSource`);
@@ -160,7 +167,8 @@ function validateRepair(value: unknown, label: string): void {
   if (repair.crop !== undefined) {
     const crop = record(repair.crop, `${label}.crop`);
     assertKnownKeys(crop, ["bounds", "alpha", "padding", "alphaThreshold"], `${label}.crop`);
-    if ((crop.alpha === true) === (crop.bounds !== undefined)) {
+    if (crop.alpha !== undefined && crop.alpha !== true) throw new Error(`${label}.crop.alpha must be true when declared`);
+    if ((crop.alpha !== undefined) === (crop.bounds !== undefined)) {
       throw new Error(`${label}.crop must declare exactly one of alpha: true or bounds`);
     }
     if (crop.bounds !== undefined) validateBounds(crop.bounds, `${label}.crop.bounds`);
@@ -223,7 +231,7 @@ export function parseAssetQaManifest(value: unknown): AssetQaManifest {
     }
     if (ids.has(target.id)) throw new Error(`${label}.id duplicates ${JSON.stringify(target.id)}`);
     ids.add(target.id);
-    if (typeof target.path !== "string" || target.path.length === 0) throw new Error(`${label}.path must be a non-empty relative path`);
+    validateRelativePath(target.path, `${label}.path`);
     validateChecks(target.checks, `${label}.checks`);
     if (target.repair !== undefined) validateRepair(target.repair, `${label}.repair`);
   });
@@ -497,6 +505,9 @@ async function repairTarget(root: string, target: AssetQaTarget): Promise<AssetQ
   if (repair.rematte) {
     const maximum = repair.rematte.maxPasses ?? (repair.rematte.mode === "dark-edge" ? 12 : 2);
     let changed = 0;
+    // maxPasses bounds the pixel-changing passes. Convergence is only
+    // observable as a pass that changes nothing, so one extra verification
+    // pass beyond that budget is always allowed.
     do {
       passes += 1;
       if (repair.rematte.mode === "dark-edge") {
@@ -508,7 +519,7 @@ async function repairTarget(root: string, target: AssetQaTarget): Promise<AssetQ
         remattedPixels += result.remattedPixels;
         clearedPixels += result.clearedPixels;
       }
-    } while (changed > 0 && passes < maximum);
+    } while (changed > 0 && passes <= maximum);
     if (changed > 0) throw new Error(`${target.id}: ${repair.rematte.mode} rematte did not converge after ${passes} passes`);
     operations.push(`rematte-${repair.rematte.mode}`);
   }

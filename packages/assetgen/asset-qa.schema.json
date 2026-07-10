@@ -11,13 +11,16 @@
     "root": { "type": "string", "minLength": 1 },
     "targets": {
       "type": "array",
+      "description": "Target ids must be unique across the array. JSON Schema cannot express per-property uniqueness, so the manifest parser enforces it; uniqueItems only rejects fully identical entries.",
       "minItems": 1,
+      "uniqueItems": true,
       "items": { "$ref": "#/$defs/target" }
     }
   },
   "$defs": {
     "relativePath": {
       "type": "string",
+      "description": "Path relative to the manifest root. Absolute paths and \"..\" segments are rejected, even ones that would resolve back under the root.",
       "minLength": 1,
       "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
     },
@@ -74,6 +77,7 @@
     },
     "darkFringeOptions": {
       "type": "object",
+      "description": "alphaMin must be <= alphaMax. JSON Schema cannot compare two instance values, so the manifest parser enforces the ordering.",
       "additionalProperties": false,
       "properties": {
         "alphaMin": { "type": "number", "minimum": 0, "maximum": 255 },
@@ -153,7 +157,11 @@
       "required": ["mode"],
       "properties": {
         "mode": { "enum": ["dark-edge", "dark-fringe"] },
-        "maxPasses": { "type": "integer", "minimum": 1 },
+        "maxPasses": {
+          "type": "integer",
+          "description": "Maximum pixel-changing passes (defaults: dark-edge 12, dark-fringe 2). One extra zero-change pass may run to observe convergence.",
+          "minimum": 1
+        },
         "options": { "type": "object" }
       },
       "allOf": [

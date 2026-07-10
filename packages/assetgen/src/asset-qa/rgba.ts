@@ -288,12 +288,17 @@ export function edgeQualityMetrics(image: RgbaImage, options: EdgeQualityOptions
   }
   const averageEdgeLuma = edgeLuma / Math.max(1, edgePixels);
   const averageInnerLuma = innerLuma / Math.max(1, innerPixels);
+  // The inner/edge delta is only meaningful when both populations exist. A
+  // fully opaque image (no edge pixels) or an all-edge sprite (no inner
+  // pixels) reports 0 rather than comparing a real average against an empty
+  // one, which would guarantee a false pass or fail on maxFringeLuma.
+  const fringeLuma = edgePixels === 0 || innerPixels === 0 ? 0 : averageInnerLuma - averageEdgeLuma;
   return {
     edgePixels,
     averageEdgeLuma,
     innerPixels,
     averageInnerLuma,
-    fringeLuma: averageInnerLuma - averageEdgeLuma,
+    fringeLuma,
   };
 }
 

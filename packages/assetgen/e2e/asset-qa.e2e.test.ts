@@ -99,6 +99,46 @@ test("e2e: asset-qa check is deterministic and byte-for-byte read-only; repair i
   }
 });
 
+test("e2e: asset-qa repair converges when a single pass at maxPasses:1 fully repairs", async () => {
+  const root = await mkdtemp(join(tmpdir(), "assetgen-asset-qa-converge-"));
+  try {
+    const targetPath = join(root, "sprite.webp");
+    const manifestPath = join(root, "asset-qa.json");
+    // One dark fringe pixel that rematteDarkFringe repairs in a single pass.
+    const source = image(5, 5, [
+      [1, 1, 8, 8, 8, 120],
+      [2, 1, 235, 220, 190, 255],
+      [1, 2, 205, 35, 28, 255],
+      [2, 2, 235, 220, 190, 255],
+    ]);
+    await writeFile(targetPath, await encodeWebp(source, { format: "webp", lossless: true, exact: true }));
+    await writeManifest(manifestPath, {
+      schemaVersion: 1,
+      targets: [
+        {
+          id: "sprite",
+          path: "sprite.webp",
+          checks: { alpha: { maxDarkFringePixels: 0 }, webpEncoding: "lossless" },
+          repair: {
+            // maxPasses:1 budgets one mutating pass; the fix still allows a
+            // final zero-change pass to observe convergence instead of throwing.
+            rematte: { mode: "dark-fringe", maxPasses: 1 },
+            output: { format: "webp", lossless: true, exact: true },
+          },
+        },
+      ],
+    });
+
+    const repaired = await runAssetQaRepair({ manifestPath });
+    assert.equal(repaired.ok, true);
+    assert.equal(repaired.targets[0]?.changed, true);
+    assert.equal(repaired.targets[0]?.remattedPixels, 1);
+    assert.equal(repaired.targets[0]?.validation.metrics?.alpha.darkFringePixels, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("e2e: asset-qa repair applies a declared multi-cell pad and validates the output", async () => {
   const root = await mkdtemp(join(tmpdir(), "assetgen-asset-qa-pad-"));
   try {

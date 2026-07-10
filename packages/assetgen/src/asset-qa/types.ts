@@ -109,6 +109,10 @@ export interface AssetQaPadHorizontalCellsOperation {
 
 export interface AssetQaRematteOperation {
   mode: "dark-edge" | "dark-fringe";
+  /**
+   * Maximum pixel-changing passes (defaults: dark-edge 12, dark-fringe 2).
+   * One extra zero-change pass may run to observe convergence.
+   */
   maxPasses?: number;
   options?: EdgeQualityOptions & DarkFringeOptions;
 }
