@@ -277,7 +277,7 @@ test("e2e: asset-qa enforces physical root containment across symlinked director
   }
 });
 
-test("e2e: asset-qa repair fails malformed --target and --root flags instead of widening scope", async () => {
+test("e2e: asset-qa repair fails malformed or unknown arguments instead of widening scope", async () => {
   const root = await mkdtemp(join(tmpdir(), "assetgen-asset-qa-flags-"));
   try {
     const manifestPath = join(root, "asset-qa.json");
@@ -315,6 +315,16 @@ test("e2e: asset-qa repair fails malformed --target and --root flags instead of 
     const rootless = await runCli(["check", "--manifest", manifestPath, "--root"]);
     assert.equal(rootless.exitCode, 1);
     assert.match(rootless.stderr, /--root requires a directory path/);
+    const emptyRoot = await runCli(["repair", "--manifest", manifestPath, "--root", ""]);
+    assert.equal(emptyRoot.exitCode, 1);
+    assert.match(emptyRoot.stderr, /--root requires a directory path/);
+    const misspelledTarget = await runCli(["repair", "--manifest", manifestPath, "--targte", "sprite-a"]);
+    assert.equal(misspelledTarget.exitCode, 1);
+    assert.match(misspelledTarget.stderr, /unknown argument: --targte/);
+    await assert.rejects(
+      () => runAssetQaCheck({ manifestPath, root: "" }),
+      /root override must be a non-empty path/,
+    );
     assert.deepEqual(await readFile(join(root, "sprite-a.webp")), before.a);
     assert.deepEqual(await readFile(join(root, "sprite-b.webp")), before.b);
 

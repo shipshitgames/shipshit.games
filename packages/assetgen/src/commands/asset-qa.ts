@@ -3,50 +3,82 @@ import {
   runAssetQaRepair,
   type AssetQaCheckReport,
   type AssetQaRepairReport,
+  type AssetQaRunOptions,
   type AssetQaTargetReport,
 } from "../asset-qa/index.ts";
-import { flag, flagValues, has } from "./args.ts";
+
+type AssetQaAction = "check" | "repair";
+
+interface ParsedAssetQaArguments {
+  action: AssetQaAction;
+  json: boolean;
+  options: AssetQaRunOptions;
+}
 
 export async function runAssetQaCommand(argv: string[]): Promise<void> {
-  const action = argv[0];
-  const commandArgs = argv.slice(1);
-  const manifestPath = flag(commandArgs, "manifest");
-  if ((action !== "check" && action !== "repair") || !manifestPath || manifestPath.startsWith("--")) {
-    console.error(usage());
+  let parsed: ParsedAssetQaArguments;
+  try {
+    parsed = parseArguments(argv);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error(`[asset-qa] ${detail}`);
     process.exit(1);
   }
-
-  const targetIds = flagValues(commandArgs, "target");
-  // flagValues drops missing or flag-like values; an empty selection means
-  // "all targets", so a malformed --target must fail instead of widening scope.
-  if (targetIds.length !== commandArgs.filter((arg) => arg === "--target").length) {
-    console.error("[asset-qa] --target requires a target id");
-    process.exit(1);
-  }
-  const options = {
-    manifestPath,
-    root: flag(commandArgs, "root"),
-    targetIds,
-  };
-  if (has(commandArgs, "root") && (options.root === undefined || options.root.startsWith("-"))) {
-    console.error("[asset-qa] --root requires a directory path");
-    process.exit(1);
-  }
+  const { action, json, options } = parsed;
   try {
     if (action === "check") {
       const report = await runAssetQaCheck(options);
-      printCheckReport(report, has(commandArgs, "json"));
+      printCheckReport(report, json);
       if (!report.ok) process.exit(1);
       return;
     }
     const report = await runAssetQaRepair(options);
-    printRepairReport(report, has(commandArgs, "json"));
+    printRepairReport(report, json);
     if (!report.ok) process.exit(1);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error(`[asset-qa:${action}] ${detail}`);
     process.exit(1);
   }
+}
+
+function parseArguments(argv: string[]): ParsedAssetQaArguments {
+  const action = argv[0];
+  if (action !== "check" && action !== "repair") throw new Error(usage());
+
+  let manifestPath: string | undefined;
+  let root: string | undefined;
+  let json = false;
+  const targetIds: string[] = [];
+  for (let index = 1; index < argv.length; index += 1) {
+    const argument = argv[index]!;
+    if (argument === "--json") {
+      if (json) throw new Error("--json may be declared only once");
+      json = true;
+      continue;
+    }
+    if (argument !== "--manifest" && argument !== "--root" && argument !== "--target") {
+      throw new Error(`unknown argument: ${argument}`);
+    }
+
+    const value = argv[index + 1];
+    if (!value || value.startsWith("-")) {
+      const label = argument === "--target" ? "a target id" : argument === "--root" ? "a directory path" : "a manifest path";
+      throw new Error(`${argument} requires ${label}`);
+    }
+    index += 1;
+    if (argument === "--manifest") {
+      if (manifestPath !== undefined) throw new Error("--manifest may be declared only once");
+      manifestPath = value;
+    } else if (argument === "--root") {
+      if (root !== undefined) throw new Error("--root may be declared only once");
+      root = value;
+    } else {
+      targetIds.push(value);
+    }
+  }
+  if (manifestPath === undefined) throw new Error(usage());
+  return { action, json, options: { manifestPath, root, targetIds } };
 }
 
 function printCheckReport(report: AssetQaCheckReport, json: boolean): void {

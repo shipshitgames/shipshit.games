@@ -248,7 +248,10 @@ async function loadManifest(options: AssetQaRunOptions): Promise<LoadedManifest>
     throw new Error(`could not read asset QA manifest ${manifestPath}: ${detail}`);
   }
   const manifest = parseAssetQaManifest(parsed);
-  const root = options.root ? resolve(options.root) : resolve(dirname(manifestPath), manifest.root ?? ".");
+  if (options.root !== undefined && options.root.length === 0) {
+    throw new Error("asset QA root override must be a non-empty path");
+  }
+  const root = options.root !== undefined ? resolve(options.root) : resolve(dirname(manifestPath), manifest.root ?? ".");
   let realRoot: string;
   try {
     realRoot = await realpath(root);

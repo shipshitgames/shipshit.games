@@ -60,7 +60,7 @@ is a small complete example. Editors can use
 Run the studio CLI from the product repository:
 
 ```bash
-# CI/pre-commit: read only
+# Local/pre-commit dogfood: read only
 bun <studio-repo>/packages/assetgen/src/cli.ts asset-qa check \
   --manifest packages/assets/asset-qa.json
 
@@ -72,6 +72,15 @@ bun <studio-repo>/packages/assetgen/src/cli.ts asset-qa repair \
 bun <studio-repo>/packages/assetgen/src/cli.ts asset-qa check \
   --manifest packages/assets/asset-qa.json --target sample-sprite --json
 ```
+
+The source-path form above is for local sibling checkouts only. A standalone
+product-repository CI checkout does not contain `<studio-repo>`, and
+`@shipshitgames/assetgen` is currently private. Do not add a sibling-path
+command to product CI. The CI integration prerequisite is a released,
+version-pinned Ship Shit Games CLI surface that exposes the same
+`asset-qa check|repair` arguments and report contract. Until that surface is
+published, the Deadrot rollout can commit and run the manifest locally, but its
+CI gate must remain unchanged.
 
 `root` is resolved relative to the manifest. `--root` overrides it and is
 resolved from the current working directory. Every target and repair source
@@ -149,8 +158,8 @@ any of these product paths.
 | `packages/assets/scripts/lib/alpha-fringe.mjs` fringe classifier / neighbor scan / replacement scan / measure / rematte / encoding detector | Public `isDarkFringePixel`, `hasTransparentNeighbor`, `replacementColorNear`, `measureDarkFringe`, `rematteDarkFringe`, and `webpEncodingKind` exports. |
 | All three fix scripts' `decodePam`, PAM header/buffer builders, `mkdtemp` cleanup, `cwebp` invocation, output existence checks, and rename logic | `decodePamRgba`, `encodePamRgba`, `decodeImageFile`, `encodeWebp`, `withTemporaryDirectory`, and `writeFileAtomic`; normally invoked through the manifest runner instead of product code. |
 | `fix-warline-portal-prop-margins.mjs` | One target per portal prop. Keep its atlas path and connected-component bounds in Deadrot's manifest as `repair.source` + `repair.crop.bounds`, keep `padding: 32`, declare `alpha.minMargins: 24` and `alpha.maxBorderPixels: 0`, and declare lossless WebP output. Replace `--check` with `asset-qa check`; replace the default mutation path with `asset-qa repair`. |
-| `fix-scourge-survivors-edge-quality.mjs` rematte targets | One target per runtime sprite with `repair.rematte.mode: "dark-edge"`; move the existing per-target `minLuma`, `minLumaDelta`, and `includeOpaque` values unchanged into `repair.rematte.options`. Declare a reviewed `alpha.maxFringeLuma` acceptance threshold instead of logging an unenforced before/after number. |
-| `fix-scourge-survivors-edge-quality.mjs` tier sheets | One target per tier sheet with its existing source dimensions in `repair.expectedSource`, `columns: 5`, 24px padding, `targetCellWidth: 483`, and `targetHeight: 772`. Declare final dimensions `2415x772`, `alpha.maxBorderPixels: 0`, minimum margins, and lossless output. |
+| `fix-scourge-survivors-edge-quality.mjs` rematte targets | One target per runtime sprite with `repair.rematte.mode: "dark-edge"`; move the existing per-target `minLuma`, `minLumaDelta`, and `includeOpaque` values unchanged into `repair.rematte.options`. Pin the current reviewed `alpha.maxFringeLuma` ceilings: vector `4`, ranger `8`, muzzle flash `14`, enemy spit `9`. Declare `alpha.maxBorderPixels: 0` and lossless WebP. |
+| `fix-scourge-survivors-edge-quality.mjs` tier sheets | The committed Deadrot sheets are already the final `2415x772` outputs and their matching unpadded inputs are not preserved at distinct paths. Migrate them as check-only targets with dimensions `2415x772`, `alpha.minMargins: 24`, `alpha.maxBorderPixels: 0`, and lossless WebP. Do not declare an in-place `padHorizontalCells` repair: it is not repeatable from the final target. A future repair requires restoring immutable, matching source files first, then naming those distinct files in `repair.source` with `expectedSource` `2175x724` (SMG) / `2172x724` (cannon), `columns: 5`, 24px padding, `targetCellWidth: 483`, and `targetHeight: 772`. |
 | `fix-brand-alpha-fringe.mjs` brand marks | One target per mark with `alpha.maxDarkFringePixels: 0`, `repair.rematte.mode: "dark-fringe"`, and lossy WebP output at quality 92 / alpha quality 100 (the codec contract supplies alpha quality 100). Do not require lossless encoding for the brand targets. |
 | `fix-brand-alpha-fringe.mjs` pickup sprites | One target per pickup with `webpEncoding: "lossless"` and a lossless output repair. No rematte operation is required unless that target also declares a fringe threshold. |
 
@@ -161,17 +170,23 @@ Transfer the existing declarations without changing their values:
   crops are `command-table.webp` at `(439,566)..(1001,935)`, `green-lift.webp`
   at `(1216,47)..(1488,482)`, and `red-pit.webp` at
   `(1055,540)..(1468,944)`. All use 32px repair crop padding and a 24px minimum
-  validation margin.
+  validation margin. Their checked final dimensions are `627x434`, `337x500`,
+  and `478x469`, respectively; all require zero border pixels and lossless
+  WebP.
 - Dark-edge targets:
   `players/pyre/vector/side.webp`, `players/pyre/ranger/side.webp`, and
   `projectiles/scourge/enemy-spit.webp` retain `minLumaDelta: 18`.
   `fx/pyre/muzzle-flash.webp` retains `includeOpaque: true`, `minLuma: 50`,
   and `minLumaDelta: 10`. These paths are under
-  `games/scourge-survivors/`.
+  `games/scourge-survivors/`. Their `maxFringeLuma` ceilings are `4`, `8`, `9`,
+  and `14`, respectively (vector, ranger, enemy spit, muzzle flash).
 - Tier sheets:
-  `games/scourge-survivors/weapons/pyre/smg-tiers.webp` retains expected source
-  `2175x724`; `cannon-tiers.webp` retains `2172x724`. Both use five columns,
-  24px on every edge, 483px target cells, and a `2415x772` final canvas.
+  `games/scourge-survivors/weapons/pyre/smg-tiers.webp` and
+  `cannon-tiers.webp` are currently final `2415x772` lossless files with at
+  least 24px alpha margins and zero border pixels, so their initial manifest
+  entries are check-only. `2175x724` and `2172x724` are historical source
+  dimensions, not valid `expectedSource` declarations unless matching source
+  files are restored at paths distinct from the targets.
 - Brand fringe targets:
   `brand/wordmark.webp`, `brand/title.webp`, and `brand/mark.webp` retain lossy
   quality 92 after dark-fringe repair.
@@ -181,17 +196,20 @@ Transfer the existing declarations without changing their values:
   lossless WebP. The latter two paths share the same
   `games/scourge-survivors/` prefix.
 
-After the product manifest passes both modes, Deadrot can replace the three
-one-off package scripts with two package aliases:
+Deadrot can first replace the three one-off package scripts with local-only
+dogfood aliases (the path matches the existing sibling `assets:clean-sprites`
+contract):
 
 ```json
 {
   "scripts": {
-    "assets:qa": "bun <studio-repo>/packages/assetgen/src/cli.ts asset-qa check --manifest asset-qa.json",
-    "assets:qa:repair": "bun <studio-repo>/packages/assetgen/src/cli.ts asset-qa repair --manifest asset-qa.json"
+    "assets:qa": "bun ../../../shipshitgames/packages/assetgen/src/cli.ts asset-qa check --manifest asset-qa.json",
+    "assets:qa:repair": "bun ../../../shipshitgames/packages/assetgen/src/cli.ts asset-qa repair --manifest asset-qa.json"
   }
 }
 ```
 
-Add `assets:qa` to the product's existing read-only asset gate. Keep
-`assets:qa:repair` manual: CI must never invoke the mutation action.
+Keep `assets:qa:repair` manual. Add the read-only `assets:qa` action to the
+product's existing `assets:check` gate only after its command prefix is replaced
+with a version-pinned published CLI that exists in an isolated Deadrot CI
+checkout. CI must never invoke the mutation action.
