@@ -72,7 +72,17 @@ test("ssg new stamps a complete, valid game repo", () => {
   const dir = join(base, "game");
 
   // entry points
-  for (const file of ["AGENTS.md", ".gitignore", ".codex/instructions.md", ".gitmodules"]) {
+  for (const file of [
+    "AGENTS.md",
+    ".gitignore",
+    ".codex/instructions.md",
+    ".gitmodules",
+    ".github/ISSUE_TEMPLATE/bug.yml",
+    ".github/ISSUE_TEMPLATE/feature.yml",
+    ".github/ISSUE_TEMPLATE/task.yml",
+    ".github/ISSUE_TEMPLATE/config.yml",
+    ".github/pull_request_template.md",
+  ]) {
     assert.ok(existsSync(join(dir, file)), `missing ${file}`);
   }
 

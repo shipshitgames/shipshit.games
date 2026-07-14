@@ -183,6 +183,8 @@ test("buildPlan maps template prefixes, genre dir, gitkeeps, symlinks, and gitmo
       "dot-agents/memory/MEMORY.md.tmpl",
       "dot-agents/skills/worktree/scripts/create-worktree.sh",
       "dot-codex/instructions.md.tmpl",
+      "dot-github/ISSUE_TEMPLATE/bug.yml",
+      "dot-github/pull_request_template.md",
     ],
     genreFiles: ["SKILL.md.tmpl", "plugin.json.tmpl"],
     options: { genre: "survivors", submodule: true, lorePath: ".lore", loreUrl: "u" },
@@ -193,6 +195,8 @@ test("buildPlan maps template prefixes, genre dir, gitkeeps, symlinks, and gitmo
   assert.ok(byPath.has(".gitignore"));
   assert.ok(byPath.has(".agents/memory/MEMORY.md"));
   assert.ok(byPath.has(".codex/instructions.md"));
+  assert.ok(byPath.has(".github/ISSUE_TEMPLATE/bug.yml"));
+  assert.ok(byPath.has(".github/pull_request_template.md"));
 
   const worktreeScript = byPath.get(".agents/skills/worktree/scripts/create-worktree.sh");
   assert.ok(worktreeScript);
@@ -230,6 +234,8 @@ test("scaffold (dry-run) lists planned paths without writing", () => {
   assert.equal(result.dryRun, true);
   assert.ok(result.created.includes("AGENTS.md"));
   assert.ok(result.created.includes(".agents/skills/shooter/SKILL.md"));
+  assert.ok(result.created.includes(".github/ISSUE_TEMPLATE/feature.yml"));
+  assert.ok(result.created.includes(".github/pull_request_template.md"));
   assert.ok(!existsSync(dir));
 });
 
@@ -250,6 +256,11 @@ test("scaffold stamps the full tree, symlinks, gitmodules, and git repo", () => 
   assert.ok(existsSync(join(dir, "AGENTS.md")));
   assert.ok(existsSync(join(dir, ".gitignore")));
   assert.ok(existsSync(join(dir, ".codex/instructions.md")));
+  assert.ok(existsSync(join(dir, ".github/ISSUE_TEMPLATE/bug.yml")));
+  assert.ok(existsSync(join(dir, ".github/ISSUE_TEMPLATE/feature.yml")));
+  assert.ok(existsSync(join(dir, ".github/ISSUE_TEMPLATE/task.yml")));
+  assert.ok(existsSync(join(dir, ".github/ISSUE_TEMPLATE/config.yml")));
+  assert.ok(existsSync(join(dir, ".github/pull_request_template.md")));
 
   // memory seed references the two boundary docs AGENTS.md must point at
   const agents = readFileSync(join(dir, "AGENTS.md"), "utf8");
