@@ -1,6 +1,6 @@
-import { getKey, missingKeyMessage } from "./keys.ts";
-import { downloadGeneratedAsset, outputUrl } from "./media.ts";
-import type { GeneratedAsset } from "./media.ts";
+import { getKey, missingKeyMessage } from "./keys";
+import { downloadGeneratedAsset, outputUrl } from "./media";
+import type { GeneratedAsset } from "./media";
 
 /**
  * Dependency-light Replicate client shared by assetgen and server routes.

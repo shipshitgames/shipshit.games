@@ -2,7 +2,7 @@ import { beforeEach, expect, mock, test } from "bun:test";
 
 const count = mock(async () => 0);
 const readAssetImage = mock(async () => null as Buffer | null);
-const saveAsset = mock(async () => ({
+const saveAsset = mock(async (_asset: unknown, _image: Buffer) => ({
   id: "asset-1",
   subject: "Warden",
   description: null,
@@ -21,8 +21,8 @@ const saveAsset = mock(async () => ({
   sliceIndex: null,
   createdAt: "2026-07-16T00:00:00.000Z",
 }));
-const uploadReplicateFile = mock(async () => "https://files.replicate.com/reference.png");
-const generateReplicateAsset = mock(async () => ({
+const uploadReplicateFile = mock(async (_image: Buffer, _deps?: unknown) => "https://files.replicate.com/reference.png");
+const generateReplicateAsset = mock(async (_prompt: string, _opts: unknown, _deps?: unknown) => ({
   data: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
   mediaType: "image/png",
   extension: "png",
