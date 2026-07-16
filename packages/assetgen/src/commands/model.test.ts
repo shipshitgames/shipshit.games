@@ -122,8 +122,10 @@ test("model register records static imported models without fabricating AI prove
 
   assert.equal(result.entry.provenance, undefined);
   assert.equal(result.entry.license.type, "hand-authored");
-  assert.equal(result.entry.license.rig.rigged, false);
-  assert.equal(result.entry.license.rig.source, "none");
+  const rig = result.entry.license.rig;
+  assert.ok(rig);
+  assert.equal(rig.rigged, false);
+  assert.equal(rig.source, "none");
 });
 
 test("model register rejects rig metadata that contradicts the optimized model", async () => {
