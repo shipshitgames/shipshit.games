@@ -19,6 +19,22 @@ The product roadmap for provider-backed generation, self-hosted/open model
 adapters, and Unreal/Unity export targets lives in
 [`docs/asset-generation-roadmap.md`](../../docs/asset-generation-roadmap.md).
 
+## `asset-qa` — declarative image validation and repair
+
+Product repositories can declare transparent-margin, border, fringe/luma,
+dimensions, and lossless/lossy WebP requirements in an `asset-qa.json`
+manifest. The check action is deterministic and strictly read-only; mutation is
+available only through the explicit repair action.
+
+```bash
+bun packages/assetgen/src/cli.ts asset-qa check --manifest <product>/asset-qa.json
+bun packages/assetgen/src/cli.ts asset-qa repair --manifest <product>/asset-qa.json
+```
+
+The reusable primitives, manifest schema, integration guarantees, and precise
+Deadrot July-script migration map are documented in
+[`ASSET-QA.md`](./ASSET-QA.md).
+
 ## Use
 
 ```bash
