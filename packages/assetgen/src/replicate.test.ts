@@ -148,7 +148,7 @@ test("waitForReplicatePrediction enforces the overall timeout before polling", a
         fetchImpl: (async () => {
           fetched = true;
           return new Response();
-        }) as typeof fetch,
+        }) as unknown as typeof fetch,
       },
     ),
     /replicate: timed out after 0s/,
