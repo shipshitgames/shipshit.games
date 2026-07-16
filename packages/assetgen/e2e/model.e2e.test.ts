@@ -29,9 +29,54 @@ async function runCli(
   return { exitCode, stdout, stderr };
 }
 
+async function runRawCli(args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  const proc = Bun.spawn(["bun", "src/cli.ts", ...args], {
+    cwd: pkgDir,
+    env: process.env,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return { exitCode, stdout, stderr };
+}
+
 function assertGlbMagic(data: Buffer, label: string): void {
   assert.equal(data.readUInt32LE(0), GLB_MAGIC, `${label} missing GLB magic`);
 }
+
+test("e2e: model generate stages a reviewable draft by default", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-model-e2e-command-"));
+  try {
+    const result = await runRawCli([
+      "model",
+      "generate",
+      "--id",
+      "e2e-draft-golem",
+      "--prompt",
+      "a stone golem",
+      "--provider",
+      "mock",
+      "--repo",
+      repo,
+      "--usage-log",
+      "off",
+    ]);
+    assert.equal(result.exitCode, 0, `cli failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    assert.equal(existsSync(join(repo, "src/assets/drafts/models/e2e-draft-golem.glb")), true);
+    const drafts = JSON.parse(await readFile(join(repo, "src/assets/drafts/drafts.json"), "utf8"));
+    assert.equal(drafts.assets[0].id, "e2e-draft-golem");
+    assert.equal(drafts.assets[0].kind, "model");
+    assert.equal(drafts.assets[0].provider, "mock");
+    assert.match(drafts.assets[0].provenance.promptHash, /^[0-9a-f]{16}$/);
+    assert.equal(existsSync(join(repo, "src/assets/assets.json")), false);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
 
 test("e2e: mock model generation optimizes the GLB and records model metadata", async () => {
   const repo = await mkdtemp(join(tmpdir(), "assetgen-model-e2e-mock-"));

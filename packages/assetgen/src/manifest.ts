@@ -57,8 +57,17 @@ export interface AssetEntry {
   textures?: number;
   skins?: number;
   joints?: number;
+  /** Preserved raw/optimized model lineage and the optimization report used at registration. */
+  modelTrace?: ModelTrace;
   /** Required provenance/license record (issue #17): no generator may skip this. */
   license: AssetLicenseRecord;
+}
+
+export interface ModelTrace {
+  report: string;
+  source: string;
+  sourceSha256: string;
+  optimizedSha256: string;
 }
 
 /** What the mandatory gltf-transform optimize actually applied to a 3D model (issue #20). */

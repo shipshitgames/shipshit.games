@@ -128,6 +128,32 @@ test("manifest-resolves checks animation and preview references too", async () =
   }
 });
 
+test("manifest-resolves checks model trace source and report references", async () => {
+  const { dir, assetsRoot } = await fixture(
+    [
+      entry({
+        id: "golem",
+        kind: "model",
+        path: "models/golem.glb",
+        modelTrace: {
+          source: "sources/models/golem.glb",
+          report: "sources/models/golem.optimize.json",
+          sourceSha256: "source-hash",
+          optimizedSha256: "optimized-hash",
+        },
+      }),
+    ],
+    ["models/golem.glb", "sources/models/golem.glb"],
+  );
+  try {
+    const result = byCheck(await run(assetsRoot), "manifest-resolves");
+    assert.equal(result.status, "fail");
+    assert.match(result.messages.join("\n"), /modelTrace\.report "sources\/models\/golem\.optimize\.json" not found/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 // ── orphan-webps ────────────────────────────────────────────────────────────
 
 test("orphan-webps fails on a webp the manifest never references", async () => {

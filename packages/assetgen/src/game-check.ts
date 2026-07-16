@@ -99,6 +99,12 @@ function entryFileRefs(entry: AssetEntry): { field: string; value: string }[] {
   if (typeof entry.path === "string" && entry.path) refs.push({ field: "path", value: entry.path });
   if (typeof entry.animation === "string" && entry.animation) refs.push({ field: "animation", value: entry.animation });
   if (typeof entry.preview === "string" && entry.preview) refs.push({ field: "preview", value: entry.preview });
+  if (typeof entry.modelTrace?.source === "string" && entry.modelTrace.source) {
+    refs.push({ field: "modelTrace.source", value: entry.modelTrace.source });
+  }
+  if (typeof entry.modelTrace?.report === "string" && entry.modelTrace.report) {
+    refs.push({ field: "modelTrace.report", value: entry.modelTrace.report });
+  }
   return refs;
 }
 

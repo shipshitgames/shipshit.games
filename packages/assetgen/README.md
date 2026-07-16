@@ -117,6 +117,43 @@ auto-fills `dimensions`, `frameSize`, `frames`, `fps`, `anchor`, `scale`,
 `views`, `sheet`, and `license` fields in `assets.json`, and writes a
 `previews/<id>-billboard.html` file for the desktop billboard preview.
 
+## Model workflow
+
+The explicit model CLI wraps the same provider, optimization, provenance, and
+manifest primitives as `generate --kind model`:
+
+```bash
+# Provider-backed generation stages a reviewable draft by default.
+bun packages/assetgen/src/cli.ts model generate \
+  --id breach-golem --prompt "a parasite-taken siege golem" \
+  --provider mock --repo ./games/example
+
+# Imported/provider GLB: preserve the source, optimize the runtime copy, and
+# write a hash-addressed trace report beside it.
+bun packages/assetgen/src/cli.ts model optimize \
+  --in ./sources/breach-golem.glb --out ./build/breach-golem.glb
+
+# Registration verifies the runtime GLB and raw source against that report,
+# copies the optimized model into src/assets/models, and records license state.
+bun packages/assetgen/src/cli.ts model register \
+  --in ./build/breach-golem.glb --id breach-golem \
+  --provider tripo --model v2.5 --license "commercial plan; reviewed" \
+  --license-type ai-generated --rig tripo \
+  --repo ./games/example
+
+# Emit a review target. GLB/GLTF inputs get a browser viewer; images, audio,
+# and export packs emit their direct file target. Add --open to launch it.
+bun packages/assetgen/src/cli.ts preview --in ./build/breach-golem.glb
+```
+
+Pass `model generate --publish` only when the generated model should bypass the
+draft review lane. `model optimize --report <path>` and `model register --report
+<path>` override the default `<runtime.glb>.optimize.json` trace location.
+Registration preserves the raw GLB and normalized trace report under
+`src/assets/sources/models` alongside the optimized runtime model. The source
+directory is excluded from runtime asset indexes. Imported models only receive
+AI disclosure or prompt provenance when explicitly supplied.
+
 ## Draft & promote (issue #54)
 
 By default `generate` writes straight into `src/assets/assets.json`. Pass
