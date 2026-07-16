@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
+import {
+  generateReplicateAsset,
+  missingReplicateKeyMessage,
+  resolveReplicateKey,
+  uploadReplicateFile,
+} from "@shipshitgames/assetgen/replicate";
 import { GAMES } from "@shipshitgames/shared";
 import { requireAuth } from "@/lib/auth";
 import { assetUrl, readAssetImage, saveAsset } from "@/lib/assets";
 import { aspectRatioFor, SHEET_POSES, spritePrompt } from "@/lib/asset-prompt";
 import { db } from "@/lib/db";
-import { getReplicateToken, MODEL, runPrediction, uploadReference } from "@/lib/replicate";
 
 export const runtime = "nodejs";
 // Generation polls Replicate for minutes per image.
 export const maxDuration = 300;
 
+const MODEL = "google/nano-banana-2";
 const MAX_BATCH = 4;
 // Each render is paid Replicate spend; cap per user per hour (DB-counted, so
 // it holds across serverless instances).
@@ -45,12 +51,11 @@ export async function POST(req: Request) {
     );
   }
 
-  const token = getReplicateToken();
+  const token = resolveReplicateKey();
   if (!token) {
     return NextResponse.json(
       {
-        error:
-          "No Replicate key found. Set REPLICATE_API_TOKEN or run: security add-generic-password -a shipshit -s shipshit-replicate -w <KEY>",
+        error: missingReplicateKeyMessage().message,
       },
       { status: 503 },
     );
@@ -64,7 +69,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `source asset not found: ${sourceId}` }, { status: 404 });
     }
     try {
-      referenceUrl = await uploadReference(token, source);
+      referenceUrl = await uploadReplicateFile(source, { resolveKey: () => token });
     } catch (e) {
       return NextResponse.json(
         { error: e instanceof Error ? e.message : "upload failed" },
@@ -83,9 +88,22 @@ export async function POST(req: Request) {
     fromReference: Boolean(referenceUrl),
   });
   const aspectRatio = aspectRatioFor(sheetPoses);
+  const input: Record<string, unknown> = { aspect_ratio: aspectRatio };
+  if (referenceUrl) input.image_input = [referenceUrl];
 
   const results = await Promise.allSettled(
-    Array.from({ length: batch }, () => runPrediction(token, fullPrompt, aspectRatio, referenceUrl)),
+    Array.from({ length: batch }, () =>
+      generateReplicateAsset(
+        fullPrompt,
+        {
+          model: MODEL,
+          input,
+          timeoutMs: 280_000,
+          pollIntervalMs: 1_500,
+        },
+        { resolveKey: () => token },
+      ),
+    ),
   );
 
   const saved = [];
@@ -93,11 +111,6 @@ export async function POST(req: Request) {
   for (const result of results) {
     if (result.status === "rejected") {
       errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
-      continue;
-    }
-    const imageRes = await fetch(result.value);
-    if (!imageRes.ok) {
-      errors.push(`Image download failed (${imageRes.status})`);
       continue;
     }
     try {
@@ -115,7 +128,7 @@ export async function POST(req: Request) {
           model: MODEL,
           ownerId: auth.userId,
         },
-        Buffer.from(await imageRes.arrayBuffer()),
+        result.value.data,
       );
       saved.push({ ...record, url: assetUrl(record) });
     } catch (e) {
