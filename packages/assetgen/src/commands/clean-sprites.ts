@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 
+import { alphaBounds as measureAlphaBounds } from "../asset-qa/rgba.ts";
+
 type ArgValue = string | boolean | undefined;
 type ParsedArgs = Record<string, ArgValue>;
 type ChromaKeyName = "magenta" | "green" | "blue";
@@ -321,22 +323,10 @@ function keyName(key: Rgb): ChromaKeyName | "custom" {
 }
 
 function alphaBounds(pixels: Buffer, width: number, height: number): Bounds | null {
-  let left = width;
-  let top = height;
-  let right = -1;
-  let bottom = -1;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const alpha = pixels[(y * width + x) * 4 + 3] ?? 0;
-      if (alpha <= 4) continue;
-      left = Math.min(left, x);
-      top = Math.min(top, y);
-      right = Math.max(right, x);
-      bottom = Math.max(bottom, y);
-    }
-  }
-  if (right < left || bottom < top) return null;
-  return { left, top, right, bottom };
+  const bounds = measureAlphaBounds({ data: pixels, width, height }, 4);
+  return bounds
+    ? { left: bounds.minX, top: bounds.minY, right: bounds.maxX, bottom: bounds.maxY }
+    : null;
 }
 
 function padBounds(bounds: Bounds, width: number, height: number, padding: number): Bounds {
