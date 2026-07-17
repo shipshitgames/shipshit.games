@@ -58,16 +58,69 @@ model User {
 
 /// Audit log of every verified webhook delivery (stripe | clerk | github).
 model WebhookEvent {
-  id         String   @id @default(uuid())
-  source     String
-  externalId String?
-  type       String
-  payload    Json
-  receivedAt DateTime @default(now())
+  id             String    @id @default(uuid())
+  source         String
+  externalId     String?
+  type           String
+  payload        Json
+  status         String    @default("pending")
+  attempts       Int       @default(0)
+  eventCreatedAt DateTime?
+  lastAttemptAt  DateTime?
+  processedAt    DateTime?
+  error          String?
+  receivedAt     DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([source, externalId])
   @@index([source, type])
+  @@index([source, status])
   @@index([receivedAt(sort: Desc)])
+}
+
+/// Canonical durable Studio Pass state. Stripe webhooks are the only writer;
+/// app surfaces read this through the authenticated billing API.
+model StudioPassSubscription {
+  userId               String   @id
+  stripeCustomerId     String
+  stripeSubscriptionId String   @unique
+  stripePriceId        String?
+  status               String
+  active               Boolean
+  currentPeriodEnd     DateTime?
+  checkoutSessionId    String?
+  claimedAt            DateTime?
+  stripeEventCreatedAt BigInt
+  stripeEventRank      Int
+  stripeEventId        String
+  skoolInviteSentAt    DateTime?
+  accessEmailSentAt    DateTime?
+  fulfillmentError     String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([stripeCustomerId])
+  @@index([active, status])
+}
+
+/// Canonical durable one-time Skills Pro purchase and refund state.
+model SkillsProPurchase {
+  userId               String   @id
+  active               Boolean  @default(true)
+  stripeCustomerId     String?
+  stripePaymentIntentId String?  @unique
+  checkoutSessionId    String?  @unique
+  purchasedAt          DateTime
+  stripeEventCreatedAt BigInt
+  stripeEventRank      Int
+  stripeEventId        String
+  accessEmailSentAt    DateTime?
+  fulfillmentError     String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([stripeCustomerId])
+  @@index([active])
 }
 
 /// Commits ingested from GitHub push webhooks; feeds /v1/stats/commits.

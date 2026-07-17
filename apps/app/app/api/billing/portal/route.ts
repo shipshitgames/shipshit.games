@@ -1,7 +1,7 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-import { readStudioPass } from "@/lib/entitlements";
+import { readBillingEntitlements } from "@/lib/billing";
 import { getStripe } from "@/lib/stripe";
 import { appUrl } from "@/lib/urls";
 
@@ -13,8 +13,7 @@ export async function POST() {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const user = await currentUser();
-  const pass = readStudioPass(user?.privateMetadata);
+  const { studioPass: pass } = await readBillingEntitlements();
   if (!pass?.stripeCustomerId) {
     return NextResponse.redirect(`${appUrl()}/dashboard`, 303);
   }

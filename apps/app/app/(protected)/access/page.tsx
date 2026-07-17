@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import { KeyRound, Lock, Users } from "lucide-react";
 
 import { StatusPill } from "@/components/status-pill";
+import { readBillingEntitlements } from "@/lib/billing";
 import { createSkillsProAccessUrl } from "@/lib/fulfillment";
-import { hasActiveStudioPass, primaryEmail, readStudioPass } from "@/lib/entitlements";
+import { hasSkillsProContentAccess, primaryEmail } from "@/lib/entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +16,14 @@ export const metadata: Metadata = {
 };
 
 export default async function AccessPage() {
-  const [{ userId }, user] = await Promise.all([auth(), currentUser()]);
+  const [{ userId }, user, entitlements] = await Promise.all([
+    auth(),
+    currentUser(),
+    readBillingEntitlements(),
+  ]);
   const email = primaryEmail(user);
-  const pass = readStudioPass(user?.privateMetadata);
-  const active = hasActiveStudioPass(user?.privateMetadata);
+  const pass = entitlements.studioPass;
+  const active = hasSkillsProContentAccess(entitlements);
   const skillsUrl = active && userId && email ? createSkillsProAccessUrl(userId, email) : null;
 
   return (

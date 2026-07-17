@@ -5,11 +5,10 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 
 import {
   hasSkillsProContentAccess,
-  readStudioPass,
 } from "@/lib/entitlements";
-import { createSkillsProAccessUrl, runFulfillment } from "@/lib/fulfillment";
+import { readBillingEntitlements } from "@/lib/billing";
+import { createSkillsProAccessUrl } from "@/lib/fulfillment";
 import { getStripe } from "@/lib/stripe";
-import { syncCheckoutSession, syncOneTimeCheckout } from "@/lib/stripe-sync";
 import { appUrl } from "@/lib/urls";
 
 export const dynamic = "force-dynamic";
@@ -40,29 +39,19 @@ export default async function ClaimPage({ searchParams }: ClaimPageProps) {
   let message = "Your account is ready.";
   let accessUrl: string | null = null;
   let error: string | null = null;
+  let checkoutMode: "payment" | "subscription" | "setup" | null = null;
 
   if (sessionId) {
     try {
       const stripe = getStripe();
       const session = await stripe.checkout.sessions.retrieve(sessionId);
+      checkoutMode = session.mode;
       const checkoutEmail =
         session.customer_details?.email ?? session.customer_email ?? null;
 
       if (checkoutEmail && email && checkoutEmail.toLowerCase() !== email.toLowerCase()) {
         error =
           "This checkout was completed with a different email. Sign in with the purchase email to claim it.";
-      } else {
-        const isOneTime = session.mode === "payment";
-        const result = isOneTime
-          ? await syncOneTimeCheckout(stripe, session)
-          : await syncCheckoutSession(stripe, session, false);
-        if (result.skipped) {
-          error = result.skipped;
-        } else {
-          message = isOneTime
-            ? "Skills Pro claimed. It's yours forever."
-            : "Studio Pass claimed. Your access is active.";
-        }
       }
     } catch (claimError) {
       error =
@@ -72,23 +61,16 @@ export default async function ClaimPage({ searchParams }: ClaimPageProps) {
     }
   }
 
-  const refreshedUser = await currentUser();
-  const pass = readStudioPass(refreshedUser?.privateMetadata);
-  if (hasSkillsProContentAccess(refreshedUser?.privateMetadata) && email) {
+  const entitlements = await readBillingEntitlements();
+  if (hasSkillsProContentAccess(entitlements) && email) {
     accessUrl = createSkillsProAccessUrl(userId, email);
-    // Subscription fulfillment (Skool invite + access email). The one-time
-    // grant already ran its own fulfillment inside syncOneTimeCheckout above.
-    if (pass?.active && (!pass.skoolInviteSentAt || !pass.accessEmailSentAt)) {
-      await runFulfillment({
-        userId,
-        email,
-        name: refreshedUser?.fullName,
-        entitlement: pass,
-        checkoutSessionId: pass.checkoutSessionId,
-        stripeCustomerId: pass.stripeCustomerId,
-        stripeSubscriptionId: pass.stripeSubscriptionId,
-      });
-    }
+    message =
+      checkoutMode === "payment"
+        ? "Skills Pro claimed. It's yours forever."
+        : "Studio Pass claimed. Your access is active.";
+  } else if (sessionId && !error) {
+    message =
+      "Payment received. Stripe fulfillment is still processing; refresh this page in a moment.";
   }
 
   return (

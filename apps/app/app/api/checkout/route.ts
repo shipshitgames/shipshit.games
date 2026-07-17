@@ -2,7 +2,8 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { STUDIO_PASS } from "@shipshitgames/shared";
 
-import { readStudioPass, primaryEmail } from "@/lib/entitlements";
+import { readBillingEntitlements } from "@/lib/billing";
+import { primaryEmail } from "@/lib/entitlements";
 import { founderCouponId, studioPassPriceId } from "@/lib/studio-pass";
 import { getStripe } from "@/lib/stripe";
 import { appUrl } from "@/lib/urls";
@@ -24,7 +25,7 @@ export async function POST() {
   }
 
   const stripe = getStripe();
-  const pass = readStudioPass(user?.privateMetadata);
+  const { studioPass: pass } = await readBillingEntitlements();
   const couponId = await founderCouponId(stripe);
   const baseUrl = appUrl();
 
