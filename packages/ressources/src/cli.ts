@@ -18,6 +18,7 @@ import {
   type InventoryOptions,
 } from "./inventory";
 import { distill } from "./distill";
+import { generateRulesReport } from "./reports";
 import { promoteSkill } from "./skill-promoter";
 import { fetchTranscript } from "./transcript";
 import type { DerivativeKind, TranscriptRightsStatus } from "./types";
@@ -123,7 +124,9 @@ commands:
   new-transcript    create transcript markdown plus sidecar metadata
   new-derivative    create a skill/app/tool/rule candidate
   promote-skill     promote a reviewed skill candidate into .agents/skills
-  sync-channel      sync YouTube channel video metadata with yt-dlp
+  source-sync       sync YouTube channel video metadata with yt-dlp
+  rules-report      report derivative rules by source, topic, and status
+  sync-channel      compatibility alias for source-sync
 
 examples:
   bun packages/ressources/src/cli.ts sources
@@ -136,7 +139,8 @@ examples:
   bun packages/ressources/src/cli.ts new-transcript --source ai-oriented-dev --url <youtube-url> --title "Title"
   bun packages/ressources/src/cli.ts new-derivative --kind skill --slug my-skill --title "My Skill" --source-transcript transcripts/source/video.resource.json
   bun packages/ressources/src/cli.ts promote-skill --candidate packages/ressources/derivatives/skills/my-skill.resource.json --dry-run
-  bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50`);
+  bun packages/ressources/src/cli.ts source-sync --source ai-oriented-dev --limit 50
+  bun packages/ressources/src/cli.ts rules-report --out rules-report.md`);
 }
 
 async function run(): Promise<void> {
@@ -257,12 +261,30 @@ async function run(): Promise<void> {
       return;
     }
 
+    case "source-sync":
     case "sync-channel": {
       const sourceSlug = flag("source");
-      if (!sourceSlug) throw new Error("sync-channel requires --source");
+      if (!sourceSlug) throw new Error("source-sync requires --source");
       const limit = Number(flag("limit") ?? "50");
-      const synced = await syncChannelVideos(sourceSlug, limit);
+      const root = flag("root");
+      const synced = await syncChannelVideos(sourceSlug, limit, {
+        sourcesDir: root ? resolve(root, "sources") : undefined,
+      });
       console.log(`[sync] ${synced.sourceSlug} videos=${synced.videos.length}`);
+      return;
+    }
+
+    case "rules-report": {
+      const report = await generateRulesReport(inventoryOptions());
+      const output = flag("out");
+      if (!output) {
+        console.log(report);
+        return;
+      }
+      const outputPath = resolve(output);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, report, "utf8");
+      console.log(`[rules-report] ${outputPath}`);
       return;
     }
 

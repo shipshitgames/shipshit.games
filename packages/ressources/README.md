@@ -73,7 +73,7 @@ brew install yt-dlp   # or: pipx install yt-dlp
 (`--write-auto-subs`) English captions and prefers the manual track — higher
 quality, and it sidesteps the auto-caption endpoint's HTTP 429 rate limiting.
 Point `RESSOURCES_YT_DLP` at a custom binary if it is not on `PATH`; every
-yt-dlp call (`fetchTranscript` and `sync-channel`) honors it. Note that
+yt-dlp call (`fetchTranscript` and `source-sync`) honors it. Note that
 `distill` shells out to `codex`, not yt-dlp, so it is unaffected — and its
 `distill --transcript-file <path>` form is a separate no-network path that
 distills text you already have.
@@ -121,9 +121,24 @@ bun packages/ressources/src/cli.ts promote-skill \
   --candidate packages/ressources/derivatives/skills/ai-oriented-level-design-loop.resource.json \
   --approve
 
-# optional: sync video metadata when yt-dlp is installed
-bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50
+# sync stable channel-video metadata when yt-dlp is installed
+bun packages/ressources/src/cli.ts source-sync --source ai-oriented-dev --limit 50
+
+# report derivative rules and source coverage without reading transcript text
+bun packages/ressources/src/cli.ts rules-report
+bun packages/ressources/src/cli.ts rules-report --out rules-report.md
 ```
+
+`source-sync` writes `sources/<slug>/videos.json`, de-duplicates video IDs, and
+sorts entries by upload date then video ID for deterministic review. It fails
+with an installation hint when `yt-dlp` is unavailable. The old `sync-channel`
+name remains as a compatibility alias.
+
+`rules-report` reads source, transcript-sidecar, and derivative JSON manifests
+only. Its compact Markdown output groups rules by source, topic, and review
+status, includes source-coverage counts, and never reads or reproduces raw
+transcript text. Both commands accept `--root <library-dir>` for fixture or
+alternate library trees.
 
 ## Skill Promotion
 
