@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import {
   createDerivative,
   createTranscriptResource,
+  loadSources,
   syncChannelVideos,
   validateLibrary,
 } from "./library";
@@ -18,8 +19,14 @@ import {
   type InventoryOptions,
 } from "./inventory";
 import { distill } from "./distill";
+import { distillSource, type DuplicatePolicy } from "./distill-flow";
+import { packageRoot } from "./paths";
 import { fetchTranscript } from "./transcript";
-import type { DerivativeKind, TranscriptRightsStatus } from "./types";
+import type {
+  DerivativeKind,
+  SourceManifest,
+  TranscriptRightsStatus,
+} from "./types";
 
 const argv = process.argv.slice(2);
 const command = argv[0] ?? "help";
@@ -70,18 +77,93 @@ function emitInventory<Item>(inventory: Inventory<Item>, table: string): void {
 }
 
 async function runDistill(): Promise<void> {
+  const sourceSlug = flag("source");
   const url = flag("url");
   const transcriptFile = flag("transcript-file");
-  const out = resolve(flag("out") ?? "rules.generated.md");
+  const root = resolve(flag("root") ?? packageRoot);
   const outTranscript = flag("out-transcript");
-  const provider = flag("provider") ?? "codex";
+  const rightsFlag = flag("rights");
+  const duplicateFlag = flag("duplicate");
+  const providerFlag = flag("provider");
+  const provider = providerFlag ?? "codex";
   let title = flag("title");
 
+  if (argv.includes("--url") && !url) {
+    throw new Error("--url requires a source URL");
+  }
+  if (argv.includes("--transcript-file") && !transcriptFile) {
+    throw new Error("--transcript-file requires a path");
+  }
+  if (argv.includes("--source") && !sourceSlug) {
+    throw new Error("--source requires a source manifest slug");
+  }
+  if (argv.includes("--out-transcript") && !outTranscript) {
+    throw new Error("--out-transcript requires a destination path");
+  }
+  if (argv.includes("--rights") && !rightsFlag) {
+    throw new Error("--rights requires a reviewed transcript rights status");
+  }
+  if (argv.includes("--duplicate") && !duplicateFlag) {
+    throw new Error("--duplicate requires skip, overwrite, or versioned");
+  }
+  if (argv.includes("--slug") && !flag("slug")) {
+    throw new Error("--slug requires a non-empty slug");
+  }
+  if (argv.includes("--title") && !title) {
+    throw new Error("--title requires a non-empty title");
+  }
+  if (argv.includes("--provider") && !providerFlag) {
+    throw new Error("--provider requires codex or mock");
+  }
+  if (!["codex", "mock"].includes(provider)) {
+    throw new Error(`unknown provider: ${provider} (use codex | mock)`);
+  }
+  const rightsValues: TranscriptRightsStatus[] = [
+    "user-provided",
+    "public-captions",
+    "official-api",
+    "permissioned",
+    "unknown",
+  ];
+  if (rightsFlag && !rightsValues.includes(rightsFlag as TranscriptRightsStatus)) {
+    throw new Error(`unknown transcript rights status: ${rightsFlag}`);
+  }
+  const duplicateValues: DuplicatePolicy[] = ["skip", "overwrite", "versioned"];
+  if (duplicateFlag && !duplicateValues.includes(duplicateFlag as DuplicatePolicy)) {
+    throw new Error(`unknown duplicate policy: ${duplicateFlag}`);
+  }
+  if (sourceSlug && transcriptFile && !title) {
+    throw new Error("source-aware distill with --transcript-file requires --title");
+  }
+  if (sourceSlug && transcriptFile && !url) {
+    throw new Error("source-aware distill with --transcript-file requires --url");
+  }
+  if (sourceSlug && outTranscript && !rightsFlag) {
+    throw new Error("source-aware distill requires explicit --rights with --out-transcript");
+  }
+  if (sourceSlug && flag("out")) {
+    throw new Error(
+      "source-aware distill writes canonical derivatives/rules output; use --slug instead of --out",
+    );
+  }
   if (!url && !transcriptFile) {
     throw new Error(
       "distill requires --url <youtube-url> or --transcript-file <path>; " +
-        "optional flags: --out, --out-transcript, --provider codex|mock, --title",
+        "source-aware flags: --source, --slug, --out-transcript, --rights, " +
+        "--duplicate skip|overwrite|versioned, --provider codex|mock",
     );
+  }
+  if (!sourceSlug && (rightsFlag || duplicateFlag || flag("slug"))) {
+    throw new Error("--rights, --duplicate, and --slug require source-aware distill with --source");
+  }
+
+  let resolvedSource: SourceManifest | undefined;
+  if (sourceSlug) {
+    const sources = await loadSources(resolve(root, "sources"));
+    resolvedSource = sources.find((source) => source.slug === sourceSlug);
+    if (!resolvedSource) {
+      throw new Error(`unknown source: ${sourceSlug}`);
+    }
   }
 
   const log = (message: string) => console.log(message);
@@ -96,6 +178,33 @@ async function runDistill(): Promise<void> {
     title ??= result.title;
   }
 
+  if (sourceSlug) {
+    if (!title?.trim()) {
+      throw new Error("source-aware distill requires a non-empty transcript title");
+    }
+    const inferredRights: TranscriptRightsStatus = transcriptFile
+      ? "user-provided"
+      : "public-captions";
+    const result = await distillSource({
+      sourceSlug,
+      transcript,
+      title,
+      url,
+      slug: flag("slug"),
+      provider,
+      rightsStatus: (rightsFlag as TranscriptRightsStatus | undefined) ?? inferredRights,
+      rightsExplicit: Boolean(rightsFlag),
+      outTranscriptPath: outTranscript ? resolve(outTranscript) : undefined,
+      duplicatePolicy: (duplicateFlag ?? "skip") as DuplicatePolicy,
+      root,
+      source: resolvedSource,
+      log,
+    });
+    console.log(`[distill-${result.status}] ${result.rulesPath}`);
+    return;
+  }
+
+  const out = resolve(flag("out") ?? "rules.generated.md");
   if (outTranscript) {
     const transcriptOut = resolve(outTranscript);
     await mkdir(dirname(transcriptOut), { recursive: true });
@@ -129,8 +238,8 @@ examples:
   bun packages/ressources/src/cli.ts transcripts --json
   bun packages/ressources/src/cli.ts derivatives
   bun packages/ressources/src/cli.ts validate
-  bun packages/ressources/src/cli.ts distill --url <youtube-url> --out rules.md
-  bun packages/ressources/src/cli.ts distill --transcript-file transcript.txt --title "Title" --out rules.md
+  bun packages/ressources/src/cli.ts distill --source <slug> --url <youtube-url> --duplicate skip
+  bun packages/ressources/src/cli.ts distill --source <slug> --transcript-file transcript.txt --title "Title" --url <source-url> --rights user-provided --out-transcript packages/ressources/transcripts/<slug>/title.transcript.md
   bun packages/ressources/src/cli.ts new-transcript --source ai-oriented-dev --url <youtube-url> --title "Title"
   bun packages/ressources/src/cli.ts new-derivative --kind skill --slug my-skill --title "My Skill" --source-transcript transcripts/source/video.resource.json
   bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50`);

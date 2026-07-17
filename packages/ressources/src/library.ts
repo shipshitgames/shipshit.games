@@ -200,7 +200,14 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
     }
 
     let transcriptExists = false;
-    if (typeof transcript.transcriptPath === "string" && transcript.transcriptPath.length > 0) {
+    const hasTranscriptPath =
+      typeof transcript.transcriptPath === "string" && transcript.transcriptPath.length > 0;
+    const hasTranscriptFormat =
+      typeof transcript.transcriptFormat === "string" && transcript.transcriptFormat.length > 0;
+    if (hasTranscriptPath !== hasTranscriptFormat) {
+      errors.push(`${label} must set transcriptPath and transcriptFormat together`);
+    }
+    if (hasTranscriptPath) {
       transcriptExists = await exists(resolve(contentRoot, transcript.transcriptPath));
       if (!transcriptExists) {
         errors.push(`${label} transcriptPath does not exist: ${transcript.transcriptPath}`);
@@ -235,7 +242,10 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
   const derivatives = await loadDerivatives(dvDir);
   const transcriptPaths = new Set(
     transcripts
-      .filter((transcript) => typeof transcript?.transcriptPath === "string" && transcript.transcriptPath.length > 0)
+      .filter(
+        (transcript): transcript is TranscriptResource & { transcriptPath: string } =>
+          typeof transcript?.transcriptPath === "string" && transcript.transcriptPath.length > 0,
+      )
       .map((transcript) => toContentRelative(resolve(contentRoot, transcript.transcriptPath))),
   );
   const transcriptSidecars = new Set(

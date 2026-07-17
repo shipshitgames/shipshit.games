@@ -11,8 +11,6 @@
     "title",
     "url",
     "capturedAt",
-    "transcriptPath",
-    "transcriptFormat",
     "rights",
     "tags",
     "derivatives"

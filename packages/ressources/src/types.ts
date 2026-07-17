@@ -49,8 +49,8 @@ export interface TranscriptResource {
   title: string;
   url: string;
   capturedAt: string;
-  transcriptPath: string;
-  transcriptFormat: "markdown" | "plain-text" | "youtube-timedtext";
+  transcriptPath?: string;
+  transcriptFormat?: "markdown" | "plain-text" | "youtube-timedtext";
   rights: {
     status: TranscriptRightsStatus;
     notes: string;
