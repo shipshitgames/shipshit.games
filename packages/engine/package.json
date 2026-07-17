@@ -37,11 +37,18 @@
     "test": "bun test src ENGINE-EXTRACTION-BOUNDARY.test.ts CANONICAL-ENGINE.test.ts",
     "test:coverage": "bun test src --coverage",
     "e2e": "bun test tests/e2e",
+    "smoke:package": "bun tests/package-smoke.mjs",
     "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "peerDependencies": {
-    "three": "^0.169.0"
+    "partykit": "0.0.115",
+    "three": ">=0.169.0 <0.185.0"
+  },
+  "peerDependenciesMeta": {
+    "partykit": {
+      "optional": true
+    }
   },
   "optionalDependencies": {
     "@dimforge/rapier2d-compat": "^0.19.3",
