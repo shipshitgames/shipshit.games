@@ -1,8 +1,9 @@
 import { beforeEach, expect, mock, test } from "bun:test";
+import { handleAssetGenerate, type AssetGenerateDeps } from "./asset-generate";
 
 const count = mock(async () => 0);
 const readAssetImage = mock(async () => null as Buffer | null);
-const saveAsset = mock(async (_asset: unknown, _image: Buffer) => ({
+const saveAsset = mock(async (_asset: Parameters<AssetGenerateDeps["saveAsset"]>[0], _image: Buffer) => ({
   id: "asset-1",
   subject: "Warden",
   description: null,
@@ -31,50 +32,25 @@ const generateReplicateAsset = mock(async (_prompt: string, _opts: unknown, _dep
 
 let replicateKey: string | undefined = "unit-key";
 
-mock.module("next/server", () => ({
-  NextResponse: class NextResponse extends Response {
-    static json(body: unknown, init?: ResponseInit): Response {
-      return Response.json(body, init);
-    }
-  },
-}));
-
-mock.module("@shipshitgames/shared", () => ({
-  GAMES: [{ slug: "scourge-survivors", title: "Scourge Survivors" }],
-}));
-
-mock.module("@/lib/auth", () => ({
+const deps: AssetGenerateDeps = {
   requireAuth: async () => ({ userId: "user-1" }),
-}));
-
-mock.module("@/lib/assets", () => ({
-  assetUrl: ({ id }: { id: string }) => `/v1/assets/${id}/file`,
-  readAssetImage,
-  saveAsset,
-}));
-
-mock.module("@/lib/asset-prompt", () => ({
-  SHEET_POSES: ["idle", "attacking", "running", "jumping"],
-  aspectRatioFor: (sheetPoses?: readonly string[]) => (sheetPoses?.length ? "21:9" : "1:1"),
-  spritePrompt: ({ subject }: { subject: string }) => `sprite: ${subject}`,
-}));
-
-mock.module("@/lib/db", () => ({
-  db: { asset: { count } },
-}));
-
-mock.module("@shipshitgames/assetgen/replicate", () => ({
+  games: [{ slug: "scourge-survivors", title: "Scourge Survivors" }],
+  countAssets: count,
   resolveReplicateKey: () => replicateKey,
   missingReplicateKeyMessage: () =>
     new Error(
       "No Replicate key. Set REPLICATE_API_TOKEN, or store it the shipcode way:\n" +
         "  security add-generic-password -a shipshit -s shipshit-replicate -w <KEY>",
     ),
+  readAssetImage,
   uploadReplicateFile,
+  sheetPoses: ["idle", "attacking", "running", "jumping"],
+  aspectRatioFor: (sheetPoses) => (sheetPoses?.length ? "21:9" : "1:1"),
+  spritePrompt: ({ subject }) => `sprite: ${subject}`,
   generateReplicateAsset,
-}));
-
-const { POST } = await import("../app/v1/assets/generate/route");
+  saveAsset,
+  assetUrl: ({ id }) => `/v1/assets/${id}/file`,
+};
 
 beforeEach(() => {
   replicateKey = "unit-key";
@@ -95,12 +71,13 @@ beforeEach(() => {
 });
 
 async function post(body: Record<string, unknown>): Promise<Response> {
-  return POST(
+  return handleAssetGenerate(
     new Request("https://api.shipshit.games/v1/assets/generate", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     }),
+    deps,
   );
 }
 
