@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "slug": "fixture-transcript",
+  "sourceSlug": "fixture-source",
+  "sourceKind": "article",
+  "title": "Copyright-Safe Fixture Transcript",
+  "url": "https://example.com/fixture-source",
+  "capturedAt": "2026-07-17T00:00:00.000Z",
+  "transcriptPath": "transcripts/fixture-source/fixture-transcript.transcript.md",
+  "transcriptFormat": "markdown",
+  "rights": {
+    "status": "user-provided",
+    "notes": "Original placeholder text created for repository validation tests."
+  },
+  "tags": ["testing"],
+  "derivatives": {
+    "rulesPath": "derivatives/rules/fixture-rule.md",
+    "skillCandidates": [],
+    "appCandidates": [],
+    "toolCandidates": []
+  }
+}

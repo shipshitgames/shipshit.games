@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "slug": "fixture-rule",
+  "kind": "rule",
+  "title": "Copyright-Safe Fixture Rule",
+  "status": "candidate",
+  "sourceTranscripts": [
+    "transcripts/fixture-source/fixture-transcript.resource.json"
+  ],
+  "outputPath": "derivatives/rules/fixture-rule.md",
+  "summary": "Validate resource records before promotion.",
+  "tags": ["testing"]
+}

@@ -22,6 +22,7 @@
     "e2e": "turbo run e2e",
     "ci": "bun run ci:scaffold && bun run ci:engine && bun run lint && bun run typecheck && bun run test:coverage && bun run build",
     "ci:engine": "bun run --cwd packages/engine build && bun run --cwd packages/engine typecheck && bun run --cwd packages/engine e2e",
+    "ci:ressources": "bun run --cwd packages/ressources ci",
     "ci:scaffold": "bun scripts/scaffold-smoke.mjs",
     "check:design": "bun packages/assetgen/src/cli.ts check-design",
     "check:token-staleness": "bun packages/assetgen/src/cli.ts check-token-staleness",

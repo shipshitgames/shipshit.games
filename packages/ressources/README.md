@@ -238,3 +238,16 @@ pass.
 Point `validate` at another library tree with `--root <dir>` (it expects
 `<dir>/sources`, `<dir>/transcripts`, and `<dir>/derivatives`); the schemas in
 this package stay the canonical rules used for the check.
+
+## CI Fixtures
+
+The committed `fixtures/valid` and `fixtures/invalid` libraries use original
+placeholder text and `example.com` URLs, so CI can exercise source, transcript,
+and derivative records without storing third-party material. The focused gate
+typechecks the package, validates the real and valid-fixture libraries, asserts
+useful errors for every invalid record kind, and smoke-tests `new-transcript`,
+`new-derivative`, and mock distillation in a temporary package copy:
+
+```bash
+bun run ci:ressources
+```

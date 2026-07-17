@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "slug": "fixture-source",
+  "kind": "article",
+  "title": "Copyright-Safe Fixture Source",
+  "url": "https://example.com/fixture-source",
+  "priority": "reference",
+  "status": "active",
+  "topics": ["testing"],
+  "rights": {
+    "transcriptPolicy": "user-provided",
+    "storeRawTranscript": true,
+    "notes": "Original placeholder text created for repository validation tests."
+  },
+  "desiredOutputs": ["rule"],
+  "notes": ["This fixture contains no third-party source material."]
+}
