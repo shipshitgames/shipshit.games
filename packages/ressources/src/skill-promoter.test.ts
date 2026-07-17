@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { renderDerivativeCandidate } from "./library";
 import { promoteSkill } from "./skill-promoter";
 
 const cliPath = resolve(dirname(fileURLToPath(import.meta.url)), "cli.ts");
@@ -90,7 +91,7 @@ async function writeFixture(root: string, overrides: Record<string, unknown> = {
       "",
       "- A promoted result.",
       "",
-      "## Promotion Checklist",
+      "## Verification",
       "",
       "- Confirm the fixture result.",
       "",
@@ -138,6 +139,69 @@ test("dry-run renders a reviewable skill diff without writing or copying transcr
     assert.match(result.content, /fixture-rule\.resource\.json/);
     assert.doesNotMatch(result.content, /RAW TRANSCRIPT SENTINEL/);
     await assert.rejects(readFile(result.targetPath, "utf8"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("promotes the canonical generated skill scaffold after review", async () => {
+  const root = await mkdtemp(join(tmpdir(), "skill-promoter-scaffold-"));
+  const skillsRoot = join(root, "skills");
+  try {
+    const candidateManifestPath = await writeFixture(root);
+    const candidatePath = join(root, "derivatives", "skills", "fixture-skill.md");
+    const scaffold = renderDerivativeCandidate(
+      {
+        kind: "skill",
+        slug: "fixture-skill",
+        title: "Fixture Skill",
+        sourceTranscripts: ["transcripts/fixture-source/fixture.resource.json"],
+        sourceRules: ["derivatives/rules/fixture-rule.resource.json"],
+      },
+      "Promote a reviewed fixture into a repeatable workflow.",
+    );
+    await writeFile(
+      candidatePath,
+      scaffold.replace("- Pending review.", "- Reviewed against the fixture workflow."),
+      "utf8",
+    );
+
+    const result = await promoteSkill({
+      candidateManifestPath,
+      libraryRoot: root,
+      skillsRoot,
+      dryRun: true,
+    });
+
+    assert.match(result.content, /## Trigger Rules/);
+    assert.match(result.content, /## Verification/);
+    assert.match(result.content, /Run the smallest relevant checks permitted by the repository\./);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects a pending-review placeholder mixed with reviewer notes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "skill-promoter-pending-"));
+  const skillsRoot = join(root, "skills");
+  try {
+    const candidateManifestPath = await writeFixture(root);
+    const candidatePath = join(root, "derivatives", "skills", "fixture-skill.md");
+    await writeFile(
+      candidatePath,
+      `${await readFile(candidatePath, "utf8")}\n## Implementation Notes\n\n- Pending review.\n- TODO: confirm one edge case.\n`,
+      "utf8",
+    );
+
+    await assert.rejects(
+      promoteSkill({
+        candidateManifestPath,
+        libraryRoot: root,
+        skillsRoot,
+        dryRun: true,
+      }),
+      /pending-review placeholder/,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

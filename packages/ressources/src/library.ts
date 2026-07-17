@@ -368,18 +368,7 @@ function derivativeDir(kind: DerivativeKind): string {
   return resolve(derivativesDir, kind === "rule" ? "rules" : `${kind}s`);
 }
 
-export async function createDerivative(input: NewDerivativeInput): Promise<DerivativeManifest> {
-  const dir = derivativeDir(input.kind);
-  const slug = slugify(input.slug);
-  if (!slug) throw new Error("derivative slug is required");
-
-  const outputPath = resolve(dir, `${slug}.md`);
-  const sidecarPath = resolve(dir, `${slug}.resource.json`);
-  if (!input.force && ((await exists(outputPath)) || (await exists(sidecarPath)))) {
-    throw new Error(`derivative already exists: ${relativeToPackage(outputPath)}; pass --force to overwrite`);
-  }
-
-  const summary = input.summary ?? "Candidate distilled from source transcripts. Review before promoting.";
+export function renderDerivativeCandidate(input: NewDerivativeInput, summary: string): string {
   const skillSections =
     input.kind === "skill"
       ? [
@@ -412,7 +401,8 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
           "- Name the concrete Ship Shit Games package, app, or tool this should affect.",
           "",
         ];
-  const body = [
+
+  return [
     `# ${input.title}`,
     "",
     `Status: candidate`,
@@ -452,6 +442,21 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
         ]
       : []),
   ].join("\n");
+}
+
+export async function createDerivative(input: NewDerivativeInput): Promise<DerivativeManifest> {
+  const dir = derivativeDir(input.kind);
+  const slug = slugify(input.slug);
+  if (!slug) throw new Error("derivative slug is required");
+
+  const outputPath = resolve(dir, `${slug}.md`);
+  const sidecarPath = resolve(dir, `${slug}.resource.json`);
+  if (!input.force && ((await exists(outputPath)) || (await exists(sidecarPath)))) {
+    throw new Error(`derivative already exists: ${relativeToPackage(outputPath)}; pass --force to overwrite`);
+  }
+
+  const summary = input.summary ?? "Candidate distilled from source transcripts. Review before promoting.";
+  const body = renderDerivativeCandidate(input, summary);
 
   const manifest: DerivativeManifest = {
     schemaVersion: 1,

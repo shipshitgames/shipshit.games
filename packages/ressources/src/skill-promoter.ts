@@ -238,7 +238,7 @@ function renderSkill(
     "promotion checklist",
   );
   const guidance = firstSection(sections, "implementation notes");
-  if (guidance === "- Pending review.") {
+  if (guidance?.split("\n").some((line) => line.trim() === "- Pending review.")) {
     throw new Error("candidate still contains a pending-review placeholder; complete review before promotion");
   }
   const sourceReferences = [...manifest.sourceTranscripts, ...(manifest.sourceRules ?? [])];
