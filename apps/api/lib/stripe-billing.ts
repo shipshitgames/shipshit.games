@@ -1,5 +1,6 @@
 import {
   isActiveSubscriptionStatus,
+  isEnabled,
   SKILLS_PRO_ONETIME,
   STUDIO_PASS,
   type BillingVersion,
@@ -122,7 +123,12 @@ async function recordStudioFulfillment(
   event: Stripe.Event,
 ) {
   if (!entitlement.active || !customer.email) return;
-  if (entitlement.skoolInviteSentAt && entitlement.accessEmailSentAt) return;
+  if (
+    entitlement.accessEmailSentAt &&
+    (entitlement.skoolInviteSentAt || !isEnabled("skoolFulfillment"))
+  ) {
+    return;
+  }
 
   const input: BillingFulfillmentInput = {
     eventId: event.id,

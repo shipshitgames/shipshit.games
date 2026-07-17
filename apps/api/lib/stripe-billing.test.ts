@@ -136,7 +136,12 @@ class MemoryBillingRepository implements BillingRepository {
   }
 }
 
-function harness() {
+function harness(
+  studioFulfillmentResult = {
+    skoolInviteSent: true,
+    accessEmailSent: true,
+  },
+) {
   const repository = new MemoryBillingRepository();
   const subscriptions = new Map<string, Stripe.Subscription>();
   const customers = new Map<string, Stripe.Customer>([
@@ -185,7 +190,7 @@ function harness() {
   const fulfillment: BillingFulfillment = {
     async fulfillStudioPass() {
       studioFulfillments += 1;
-      return { skoolInviteSent: true, accessEmailSent: true };
+      return studioFulfillmentResult;
     },
     async fulfillSkillsPro() {
       skillsFulfillments += 1;
@@ -201,6 +206,58 @@ function harness() {
     skillsFulfillments: () => skillsFulfillments,
   };
 }
+
+test("does not resend Studio Pass access when Skool fulfillment is disabled", async () => {
+  const previousFlag = process.env.SKOOL_FULFILLMENT_ENABLED;
+  delete process.env.SKOOL_FULFILLMENT_ENABLED;
+
+  try {
+    const h = harness({
+      skoolInviteSent: false,
+      accessEmailSent: true,
+    });
+    const activeSubscription = subscription("active", 200);
+    h.subscriptions.set(activeSubscription.id, activeSubscription);
+
+    await processStripeBillingEvent(
+      h.stripe,
+      h.repository,
+      h.fulfillment,
+      event(
+        "evt_create",
+        100,
+        "customer.subscription.created",
+        activeSubscription,
+      ),
+    );
+    await processStripeBillingEvent(
+      h.stripe,
+      h.repository,
+      h.fulfillment,
+      event("evt_renew", 200, "invoice.paid", {
+        parent: {
+          subscription_details: {
+            subscription: activeSubscription.id,
+          },
+        },
+      }),
+    );
+
+    expect(h.studioFulfillments()).toBe(1);
+    expect(
+      h.repository.studioPass.get("user_1")?.accessEmailSentAt,
+    ).toBeDefined();
+    expect(
+      h.repository.studioPass.get("user_1")?.skoolInviteSentAt,
+    ).toBeUndefined();
+  } finally {
+    if (previousFlag === undefined) {
+      delete process.env.SKOOL_FULFILLMENT_ENABLED;
+    } else {
+      process.env.SKOOL_FULFILLMENT_ENABLED = previousFlag;
+    }
+  }
+});
 
 test("subscription create, renewal, cancellation, duplicate, and reordering converge", async () => {
   const h = harness();
