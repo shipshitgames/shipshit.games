@@ -18,6 +18,7 @@ import {
   type InventoryOptions,
 } from "./inventory";
 import { distill } from "./distill";
+import { promoteSkill } from "./skill-promoter";
 import { fetchTranscript } from "./transcript";
 import type { DerivativeKind, TranscriptRightsStatus } from "./types";
 
@@ -121,6 +122,7 @@ commands:
   distill           fetch/read a transcript and distill reusable build rules
   new-transcript    create transcript markdown plus sidecar metadata
   new-derivative    create a skill/app/tool/rule candidate
+  promote-skill     promote a reviewed skill candidate into .agents/skills
   sync-channel      sync YouTube channel video metadata with yt-dlp
 
 examples:
@@ -133,6 +135,7 @@ examples:
   bun packages/ressources/src/cli.ts distill --transcript-file transcript.txt --title "Title" --out rules.md
   bun packages/ressources/src/cli.ts new-transcript --source ai-oriented-dev --url <youtube-url> --title "Title"
   bun packages/ressources/src/cli.ts new-derivative --kind skill --slug my-skill --title "My Skill" --source-transcript transcripts/source/video.resource.json
+  bun packages/ressources/src/cli.ts promote-skill --candidate packages/ressources/derivatives/skills/my-skill.resource.json --dry-run
   bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50`);
 }
 
@@ -212,21 +215,45 @@ async function run(): Promise<void> {
       const slug = flag("slug");
       const title = flag("title");
       const sourceTranscripts = allFlags("source-transcript");
+      const sourceRules = allFlags("source-rule");
       if (!kind || !["rule", "skill", "app", "tool"].includes(kind)) {
         throw new Error("new-derivative requires --kind rule|skill|app|tool");
       }
-      if (!slug || !title || sourceTranscripts.length === 0) {
-        throw new Error("new-derivative requires --slug, --title, and at least one --source-transcript");
+      if (!slug || !title || sourceTranscripts.length + sourceRules.length === 0) {
+        throw new Error(
+          "new-derivative requires --slug, --title, and at least one --source-transcript or --source-rule",
+        );
       }
       const derivative = await createDerivative({
         kind,
         slug,
         title,
         sourceTranscripts,
+        sourceRules,
         summary: flag("summary"),
         force: boolFlag("force"),
       });
       console.log(`[derivative] ${derivative.outputPath}`);
+      return;
+    }
+
+    case "promote-skill": {
+      const candidateManifestPath = flag("candidate");
+      if (!candidateManifestPath) {
+        throw new Error(
+          "promote-skill requires --candidate <derivatives/skills/*.resource.json> and either --dry-run or --approve",
+        );
+      }
+      const result = await promoteSkill({
+        candidateManifestPath,
+        libraryRoot: flag("root") ? resolve(flag("root")!) : undefined,
+        skillsRoot: flag("skills-root") ? resolve(flag("skills-root")!) : undefined,
+        dryRun: boolFlag("dry-run"),
+        approve: boolFlag("approve"),
+      });
+      console.log(result.diff);
+      if (result.wrote) console.log(`[skill-promoted] ${result.targetPath}`);
+      else if (!result.changed) console.log(`[skill-current] ${result.targetPath}`);
       return;
     }
 

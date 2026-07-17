@@ -18,7 +18,17 @@ Use this skill when...
 3. Apply it to the requested game-building task.
 4. Verify outputs in the relevant package or app.
 
-## Promotion Checklist
+## Inputs
+
+- The user's task and target repository context.
+- Any task-specific files required by the reviewed workflow.
+
+## Outputs
+
+- The completed work product.
+- Verification evidence and unresolved blockers.
+
+## Verification
 
 - The workflow is repeatable.
 - The skill names concrete inputs and outputs.
