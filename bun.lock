@@ -179,12 +179,17 @@
       },
       "optionalDependencies": {
         "@dimforge/rapier2d-compat": "^0.19.3",
+        "@types/howler": "^2.2.12",
         "howler": "^2.2.4",
         "partysocket": "^1.1.19",
       },
       "peerDependencies": {
-        "three": "^0.169.0",
+        "partykit": "0.0.115",
+        "three": ">=0.169.0 <0.185.0",
       },
+      "optionalPeers": [
+        "partykit",
+      ],
     },
     "packages/ressources": {
       "name": "@shipshitgames/ressources",

@@ -128,6 +128,23 @@ test('deriveSheet passes through caller-supplied clips', () => {
   expect(Object.keys(sheet.clips)).toEqual(['run'])
 })
 
+test('deriveSheet accepts JSON-inferred geometry arrays', () => {
+  const entry = JSON.parse(
+    '{"id":"json-sprite","kind":"sprite","path":"json.webp","frameSize":[16,16],"dimensions":[32,16]}',
+  ) as { id: string; kind: string; path: string; frameSize: number[]; dimensions: number[] }
+
+  expect(deriveSheet(entry).size).toEqual([32, 16])
+})
+
+test('deriveSheet rejects malformed manifest geometry arrays', () => {
+  expect(() =>
+    deriveSheet({ id: 'x', kind: 'sprite', path: 'x.webp', frameSize: [16], dimensions: [32, 16] }),
+  ).toThrow('frameSize must contain exactly two positive numbers')
+  expect(() =>
+    deriveSheet({ id: 'x', kind: 'sprite', path: 'x.webp', frameSize: [0, 16], dimensions: [32, 16] }),
+  ).toThrow('frameSize must contain exactly two positive numbers')
+})
+
 test('deriveSheet throws when geometry is insufficient', () => {
   expect(() => deriveSheet({ id: 'x', kind: 'sprite', path: 'x.webp' })).toThrow('lacks sprite geometry')
 })

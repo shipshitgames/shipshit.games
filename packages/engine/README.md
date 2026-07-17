@@ -32,7 +32,16 @@ status of the duplicate `deadrot.com/packages/engine` package and the intentiona
 npm i @shipshitgames/engine three
 ```
 
-`three` is a **peer dependency** — bring your own (dedupe to a single copy). Ships as raw TypeScript (`main`/`types` → `./src/index.ts`); consume it through a TS-aware bundler such as Vite.
+`three` is a **peer dependency** — bring your own (dedupe to a single copy).
+Engine `0.3.x` supports `three >=0.169.0 <0.185.0`; CI installs and typechecks
+the packed engine tarball against `three`/`@types/three` pairs at both `0.169`
+and `0.184`. Expanding that range requires the same clean-consumer matrix,
+while dropping a supported version is a semver-breaking change.
+The stable `Engine Package` aggregate check is the branch-protection target for
+that matrix.
+
+The package ships as raw TypeScript (`main`/`types` → `./src/index.ts`); consume
+it through a TS-aware bundler such as Vite.
 
 ## What's in 0.1.0
 
@@ -160,6 +169,11 @@ export default createRoomServer({
   onGameMessage: (msg, sender, api) => api.broadcast(msg),
 })
 ```
+
+`partykit` is an optional peer used only for the `./net/server` TypeScript
+contract. Install the matching PartyKit version in projects that import that
+subpath; root-only engine consumers do not receive the Workers development
+stack.
 
 Reserved `t` values (`welcome`, `join`, `leave`, `state`, `name`, `hit`) belong to the base transport on both ends. `partysocket` ships as an **`optionalDependencies` entry** — package managers install it by default but tolerate it being absent (e.g. `--omit=optional`). `NetClient`'s default socket factory lazy-imports it and throws a descriptive error when it's missing; pass your own `createSocket` to use a different socket entirely.
 
