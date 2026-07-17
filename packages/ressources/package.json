@@ -17,6 +17,7 @@
     "research": "./src/cli.ts"
   },
   "scripts": {
+    "ci": "bun run typecheck && bun src/cli.ts validate && bun run test",
     "rules": "bun src/cli.ts distill",
     "distill": "bun src/cli.ts distill",
     "list": "bun src/cli.ts sources",

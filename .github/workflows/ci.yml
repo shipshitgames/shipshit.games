@@ -71,6 +71,9 @@ jobs:
       - name: Engine Package Check
         run: bun run ci:engine
 
+      - name: Ressources CLI Check
+        run: bun run ci:ressources
+
       - name: Lint
         run: bun run lint
 

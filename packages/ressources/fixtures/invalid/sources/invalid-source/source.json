@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "slug": "invalid-source",
+  "kind": "podcast",
+  "title": "Invalid Fixture Source",
+  "url": "https://example.com/invalid-source",
+  "priority": "reference",
+  "status": "active",
+  "topics": ["testing"],
+  "rights": {
+    "transcriptPolicy": "user-provided",
+    "storeRawTranscript": true,
+    "notes": "Original placeholder text created for repository validation tests."
+  },
+  "desiredOutputs": ["rule"],
+  "notes": ["The unsupported kind is intentional."]
+}
