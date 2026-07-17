@@ -179,6 +179,7 @@
       },
       "optionalDependencies": {
         "@dimforge/rapier2d-compat": "^0.19.3",
+        "@types/howler": "^2.2.12",
         "howler": "^2.2.4",
         "partysocket": "^1.1.19",
       },

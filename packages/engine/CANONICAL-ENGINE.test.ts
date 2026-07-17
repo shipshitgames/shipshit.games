@@ -45,6 +45,7 @@ test("engine package pins the documented Three.js compatibility matrix", () => {
   expect(pkg.peerDependencies.partykit).toBe("0.0.115");
   expect(pkg.peerDependenciesMeta.partykit.optional).toBe(true);
   expect(pkg.optionalDependencies.partykit).toBeUndefined();
+  expect(pkg.optionalDependencies["@types/howler"]).toBe("^2.2.12");
   expect(pkg.scripts["smoke:package"]).toBe("bun tests/package-smoke.mjs");
   expect(contract).toContain("Engine `0.3.x` supports `three >=0.169.0 <0.185.0`");
   expect(contract).toContain("installs the tarball into a clean consumer");

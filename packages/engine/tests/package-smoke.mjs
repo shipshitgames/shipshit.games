@@ -247,7 +247,13 @@ console.log("minimal engine consumer passed without optional dependencies");
     );
 
     run("bun", ["install", "--omit=optional"], { cwd: minimalConsumerDir });
-    for (const dependency of ["@dimforge/rapier2d-compat", "howler", "partykit", "partysocket"]) {
+    for (const dependency of [
+      "@dimforge/rapier2d-compat",
+      "@types/howler",
+      "howler",
+      "partykit",
+      "partysocket",
+    ]) {
       if (existsSync(join(minimalConsumerDir, "node_modules", dependency))) {
         throw new Error(`minimal consumer unexpectedly installed ${dependency}`);
       }
