@@ -200,17 +200,23 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
     }
 
     let transcriptExists = false;
-    const hasTranscriptPath =
-      typeof transcript.transcriptPath === "string" && transcript.transcriptPath.length > 0;
-    const hasTranscriptFormat =
-      typeof transcript.transcriptFormat === "string" && transcript.transcriptFormat.length > 0;
+    const transcriptPath =
+      typeof transcript.transcriptPath === "string" && transcript.transcriptPath.length > 0
+        ? transcript.transcriptPath
+        : undefined;
+    const transcriptFormat =
+      typeof transcript.transcriptFormat === "string" && transcript.transcriptFormat.length > 0
+        ? transcript.transcriptFormat
+        : undefined;
+    const hasTranscriptPath = transcriptPath !== undefined;
+    const hasTranscriptFormat = transcriptFormat !== undefined;
     if (hasTranscriptPath !== hasTranscriptFormat) {
       errors.push(`${label} must set transcriptPath and transcriptFormat together`);
     }
-    if (hasTranscriptPath) {
-      transcriptExists = await exists(resolve(contentRoot, transcript.transcriptPath));
+    if (transcriptPath) {
+      transcriptExists = await exists(resolve(contentRoot, transcriptPath));
       if (!transcriptExists) {
-        errors.push(`${label} transcriptPath does not exist: ${transcript.transcriptPath}`);
+        errors.push(`${label} transcriptPath does not exist: ${transcriptPath}`);
       }
     }
 
