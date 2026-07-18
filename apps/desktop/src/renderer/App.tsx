@@ -27,6 +27,7 @@ import type {
 } from "../shared/ipc";
 import { ModelPreview } from "./ModelPreview";
 import { isModelResult } from "./model-preview-config";
+import { GameSelect, useProjectTarget, useStreamingTask } from "./pane-machinery";
 
 // Studio cockpit. Sprites is wired to @shipshitgames/assetgen via the studio IPC bridge with a
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
@@ -117,22 +118,22 @@ function SettingsPane() {
   const [falModelKinds, setFalModelKinds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
-    window.studio?.settings.get().then((s) => setSettings(withSettingsDefaults(s))).catch(() => {});
-    window.studio?.keys.status().then(setStatus).catch(() => {});
-    window.studio?.models?.list().then((m) => {
+    window.studio.settings.get().then((s) => setSettings(withSettingsDefaults(s))).catch(() => {});
+    window.studio.keys.status().then(setStatus).catch(() => {});
+    window.studio.models.list().then((m) => {
       setFalModels(m?.fal || []);
       setCatalogDefaults(m?.defaultProviderByKind || {});
       setFalModelKinds(new Set(m?.falImageKinds || []));
     }).catch(() => {});
-    window.studio?.projects.list().then((state) => {
+    window.studio.projects.list().then((state) => {
       const slugs = state.projects.map((project) => project.slug);
       if (slugs.length) setGames(slugs);
     }).catch(() => {
-      window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
+      window.studio.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
     });
   }, []);
 
-  const update = (p: Partial<Settings>) => window.studio?.settings.set(p).then((s) => setSettings(withSettingsDefaults(s))).catch(() => {});
+  const update = (p: Partial<Settings>) => window.studio.settings.set(p).then((s) => setSettings(withSettingsDefaults(s))).catch(() => {});
   const updateKindProvider = (kind: string, provider: string) => update({
     providerDefaults: { ...settings.providerDefaults, [kind]: provider },
   });
@@ -146,7 +147,7 @@ function SettingsPane() {
   const saveKey = (provider: string) => {
     const key = inputs[provider];
     if (!key) return;
-    window.studio?.keys.set(provider, key).then((s) => { setStatus(s); setInputs((k) => ({ ...k, [provider]: "" })); }).catch(() => {});
+    window.studio.keys.set(provider, key).then((s) => { setStatus(s); setInputs((k) => ({ ...k, [provider]: "" })); }).catch(() => {});
   };
 
   return (
@@ -215,11 +216,10 @@ function ProjectsPane() {
   const current = activeProject(projectState);
 
   useEffect(() => {
-    window.studio?.projects.list().then(setProjectState).catch((e) => setError(String((e as Error)?.message ?? e)));
+    window.studio.projects.list().then(setProjectState).catch((e) => setError(String((e as Error)?.message ?? e)));
   }, []);
 
   async function addProject() {
-    if (!window.studio?.projects) { setError("studio bridge unavailable"); return; }
     setBusy(true);
     setError("");
     try {
@@ -232,7 +232,6 @@ function ProjectsPane() {
   }
 
   async function setActiveProject(id: string) {
-    if (!window.studio?.projects) return;
     setBusy(true);
     setError("");
     try {
@@ -245,7 +244,6 @@ function ProjectsPane() {
   }
 
   async function removeProject(id: string) {
-    if (!window.studio?.projects) return;
     setBusy(true);
     setError("");
     try {
@@ -331,10 +329,6 @@ function GymsPane() {
   const project = activeGymProject(state, projectId);
 
   const load = useCallback(async () => {
-    if (!window.studio?.gyms) {
-      setError("studio bridge unavailable");
-      return;
-    }
     setBusy(true);
     setError("");
     try {
@@ -353,10 +347,7 @@ function GymsPane() {
   }, [load]);
 
   async function launch(gym: GymSummary) {
-    if (!window.studio?.gyms || !project) {
-      setError("studio bridge unavailable");
-      return;
-    }
+    if (!project) return;
     setLaunching(gym.id);
     setMessage(null);
     setError("");
@@ -481,7 +472,6 @@ function PixelizePanel({ source }: { source: { dataUrl?: string | null; path?: s
   const hasSource = !!(source.dataUrl || source.path);
 
   async function run() {
-    if (!window.studio?.pixelize) { setErr("studio bridge unavailable — restart the app"); return; }
     if (!hasSource) { setErr("nothing to pixelize — generate a sprite first"); return; }
     setBusy(true);
     setErr("");
@@ -558,10 +548,6 @@ function PixelizePanel({ source }: { source: { dataUrl?: string | null; path?: s
 function SpritesPane() {
   const [id, setId] = useState("swarm-husk");
   const [prompt, setPrompt] = useState("a rotting bio-husk of the Scourge, mid-lunge, gore");
-  const [game, setGame] = useState("scourge-survivors");
-  const [games, setGames] = useState<string[]>(["scourge-survivors"]);
-  const [projectState, setProjectState] = useState<ProjectState>(EMPTY_PROJECT_STATE);
-  const [projectId, setProjectId] = useState("");
   const [provider, setProvider] = useState("codex");
   const [falModel, setFalModel] = useState("");
   const [views, setViews] = useState("front,side,back");
@@ -569,68 +555,34 @@ function SpritesPane() {
   const [fps, setFps] = useState(8);
   const [scale, setScale] = useState(1);
   const [license, setLicense] = useState("ai-generated; review before shipping");
-  const [busy, setBusy] = useState(false);
-  const [log, setLog] = useState("");
-  const [result, setResult] = useState<GenResult | null>(null);
-  const selectedProject = projectState.projects.find((project) => project.id === projectId) || activeProject(projectState);
+  const target = useProjectTarget();
+  const task = useStreamingTask<GenResult>(window.studio.onGenLog);
+  const { game, selectedProject } = target;
+  const { busy, log, result, setLog } = task;
 
   useEffect(() => {
-    window.studio?.settings.get().then((s) => {
-      const next = withSettingsDefaults(s);
-      setProvider(next.providerDefaults.sprite || next.defaultProvider);
-      setFalModel(next.falModelDefaults.sprite || "");
-      setGame(next.defaultGame);
-    }).catch(() => {});
-    window.studio?.projects.list().then((state) => {
-      setProjectState(state);
-      const current = activeProject(state);
-      if (current) {
-        setProjectId(current.id);
-        setGame(current.slug);
-        setGames(state.projects.map((project) => project.slug));
-      }
-    }).catch(() => {
-      window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
-    });
-    const off = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
-    return () => { off?.(); };
-  }, []);
-
-  async function changeProject(id: string) {
-    setProjectId(id);
-    const next = await window.studio?.projects.setActive(id);
-    if (!next) return;
-    setProjectState(next);
-    const current = activeProject(next);
-    if (current) setGame(current.slug);
-  }
+    if (!target.settings) return;
+    const next = withSettingsDefaults(target.settings);
+    setProvider(next.providerDefaults.sprite || next.defaultProvider);
+    setFalModel(next.falModelDefaults.sprite || "");
+  }, [target.settings]);
 
   async function generate() {
-    if (!window.studio?.generate) { setLog("studio bridge unavailable — restart the app"); return; }
     if (selectedProject && !selectedProject.valid) { setLog(selectedProject.error || "invalid project manifest"); return; }
-    setBusy(true);
-    setResult(null);
-    setLog("");
-    try {
-      setResult(await window.studio.generate({
-        id,
-        prompt,
-        game: selectedProject?.slug || game,
-        projectId: selectedProject?.id,
-        kind: "sprite",
-        provider,
-        views,
-        frames,
-        fps,
-        anchor: "0.5,1",
-        scale,
-        license,
-      }));
-    } catch (e) {
-      setLog(String((e as Error)?.message ?? e));
-    } finally {
-      setBusy(false);
-    }
+    await task.run(() => window.studio.generate({
+      id,
+      prompt,
+      game: selectedProject?.slug || game,
+      projectId: selectedProject?.id,
+      kind: "sprite",
+      provider,
+      views,
+      frames,
+      fps,
+      anchor: "0.5,1",
+      scale,
+      license,
+    }));
   }
 
   return (
@@ -642,16 +594,7 @@ function SpritesPane() {
         <label className="gen-field gen-grow"><span>Prompt</span>
           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
         </label>
-        <label className="gen-field"><span>Game</span>
-          <select value={selectedProject ? selectedProject.id : game} onChange={(e) => {
-            if (projectState.projects.length) void changeProject(e.target.value);
-            else setGame(e.target.value);
-          }}>
-            {projectState.projects.length
-              ? projectState.projects.map((project) => <option key={project.id} value={project.id}>{project.name} · {project.slug}</option>)
-              : games.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select>
-        </label>
+        <GameSelect target={target} />
         <div className="gen-row">
           <label className="gen-field"><span>Views</span>
             <select value={views} onChange={(e) => setViews(e.target.value)}>
@@ -677,8 +620,6 @@ function SpritesPane() {
           <input value={license} onChange={(e) => setLicense(e.target.value)} />
         </label>
         <div className="gen-active">sprite provider <b>{provider}</b>{provider === "fal" && <> · model <b>{falModel || "flux dev default"}</b></>} · change in Settings (topbar ⚙)</div>
-        {selectedProject?.manifestPath && <div className="gen-manifest">manifest {selectedProject.manifestPath}</div>}
-        {selectedProject && !selectedProject.valid && <div className="project-error">{selectedProject.error}</div>}
         <button className="gen-btn" type="button" disabled={busy || !id || !prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
           {busy ? "Forging…" : "Generate"}
         </button>
@@ -709,74 +650,36 @@ const MODEL_PROVIDERS = ["meshy", "tripo", "mock"];
 function ModelPane() {
   const [id, setId] = useState("stone-golem");
   const [prompt, setPrompt] = useState("a hulking moss-covered stone golem, game-ready, neutral T-pose");
-  const [game, setGame] = useState("scourge-survivors");
-  const [games, setGames] = useState<string[]>(["scourge-survivors"]);
-  const [projectState, setProjectState] = useState<ProjectState>(EMPTY_PROJECT_STATE);
-  const [projectId, setProjectId] = useState("");
   const [provider, setProvider] = useState("meshy");
   const [rig, setRig] = useState("");
   const [draco, setDraco] = useState(true);
   const [ktx2, setKtx2] = useState(false);
   const [license, setLicense] = useState("ai-generated; review 3D + rig license before shipping");
-  const [busy, setBusy] = useState(false);
-  const [log, setLog] = useState("");
-  const [result, setResult] = useState<GenResult | null>(null);
-  const selectedProject = projectState.projects.find((project) => project.id === projectId) || activeProject(projectState);
+  const target = useProjectTarget();
+  const task = useStreamingTask<GenResult>(window.studio.onGenLog);
+  const { game, selectedProject } = target;
+  const { busy, log, result, setLog } = task;
 
   useEffect(() => {
-    window.studio?.settings.get().then((s) => {
-      const next = withSettingsDefaults(s);
-      setProvider(next.providerDefaults.model || next.providerDefaults["3d"] || "meshy");
-      setGame(next.defaultGame);
-    }).catch(() => {});
-    window.studio?.projects.list().then((state) => {
-      setProjectState(state);
-      const current = activeProject(state);
-      if (current) {
-        setProjectId(current.id);
-        setGame(current.slug);
-        setGames(state.projects.map((project) => project.slug));
-      }
-    }).catch(() => {
-      window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
-    });
-    const off = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
-    return () => { off?.(); };
-  }, []);
-
-  async function changeProject(id: string) {
-    setProjectId(id);
-    const next = await window.studio?.projects.setActive(id);
-    if (!next) return;
-    setProjectState(next);
-    const current = activeProject(next);
-    if (current) setGame(current.slug);
-  }
+    if (!target.settings) return;
+    const next = withSettingsDefaults(target.settings);
+    setProvider(next.providerDefaults.model || next.providerDefaults["3d"] || "meshy");
+  }, [target.settings]);
 
   async function generate() {
-    if (!window.studio?.generate) { setLog("studio bridge unavailable — restart the app"); return; }
     if (selectedProject && !selectedProject.valid) { setLog(selectedProject.error || "invalid project manifest"); return; }
-    setBusy(true);
-    setResult(null);
-    setLog("");
-    try {
-      setResult(await window.studio.generate({
-        id,
-        prompt,
-        game: selectedProject?.slug || game,
-        projectId: selectedProject?.id,
-        kind: "model",
-        provider,
-        draco,
-        ktx2,
-        rig: rig.trim() || undefined,
-        license,
-      }));
-    } catch (e) {
-      setLog(String((e as Error)?.message ?? e));
-    } finally {
-      setBusy(false);
-    }
+    await task.run(() => window.studio.generate({
+      id,
+      prompt,
+      game: selectedProject?.slug || game,
+      projectId: selectedProject?.id,
+      kind: "model",
+      provider,
+      draco,
+      ktx2,
+      rig: rig.trim() || undefined,
+      license,
+    }));
   }
 
   const showPreview = !!result?.dataUrl && isModelResult(result?.mediaType);
@@ -790,16 +693,7 @@ function ModelPane() {
         <label className="gen-field gen-grow"><span>Prompt</span>
           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
         </label>
-        <label className="gen-field"><span>Game</span>
-          <select value={selectedProject ? selectedProject.id : game} onChange={(e) => {
-            if (projectState.projects.length) void changeProject(e.target.value);
-            else setGame(e.target.value);
-          }}>
-            {projectState.projects.length
-              ? projectState.projects.map((project) => <option key={project.id} value={project.id}>{project.name} · {project.slug}</option>)
-              : games.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select>
-        </label>
+        <GameSelect target={target} />
         <div className="gen-row">
           <label className="gen-field"><span>Provider</span>
             <select value={provider} onChange={(e) => setProvider(e.target.value)}>
@@ -818,8 +712,6 @@ function ModelPane() {
           <input value={license} onChange={(e) => setLicense(e.target.value)} />
         </label>
         <div className="gen-active">3D provider <b>{provider}</b> · optimize: Draco {draco ? "on" : "off"} · textures {ktx2 ? "KTX2→WebP fallback" : "WebP"} · change defaults in Settings (topbar ⚙)</div>
-        {selectedProject?.manifestPath && <div className="gen-manifest">manifest {selectedProject.manifestPath}</div>}
-        {selectedProject && !selectedProject.valid && <div className="project-error">{selectedProject.error}</div>}
         <button className="gen-btn" type="button" disabled={busy || !id || !prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
           {busy ? "Sculpting…" : "Generate"}
         </button>
@@ -845,28 +737,15 @@ function ResearchPane() {
   const [url, setUrl] = useState("");
   const [slug, setSlug] = useState("");
   const [provider, setProvider] = useState("codex");
-  const [busy, setBusy] = useState(false);
-  const [log, setLog] = useState("");
-  const [result, setResult] = useState<ResearchResult | null>(null);
-
-  useEffect(() => {
-    // Ressources distills with codex | mock only, not the image-gen providers.
-    const off = window.studio?.onResearchLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
-    return () => { off?.(); };
-  }, []);
+  const task = useStreamingTask<ResearchResult>(window.studio.onResearchLog);
+  const { busy, log, result } = task;
 
   async function distill() {
-    if (!window.studio?.research) { setLog("studio bridge unavailable — restart the app"); return; }
-    setBusy(true);
-    setResult(null);
-    setLog("");
-    try {
-      setResult(await window.studio.research({ url: url.trim(), slug: (slug.trim() || slugFromUrl(url)), provider }));
-    } catch (e) {
-      setLog(String((e as Error)?.message ?? e));
-    } finally {
-      setBusy(false);
-    }
+    await task.run(() => window.studio.research({
+      url: url.trim(),
+      slug: slug.trim() || slugFromUrl(url),
+      provider,
+    }));
   }
 
   return (
@@ -926,16 +805,9 @@ const defaultProviderForCategory = (category: "sfx" | "music" | "voice") => AUDI
 function MusicPane() {
   const [mode, setMode] = useState<"generate" | "transcode">("generate");
   const [files, setFiles] = useState<string[]>([]);
-  const [game, setGame] = useState("scourge-survivors");
-  const [games, setGames] = useState<string[]>(["scourge-survivors"]);
-  const [projectState, setProjectState] = useState<ProjectState>(EMPTY_PROJECT_STATE);
-  const [projectId, setProjectId] = useState("");
   const [category, setCategory] = useState<"sfx" | "music" | "voice">("music");
   const [bitrate, setBitrate] = useState(128);
   const [normalize, setNormalize] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [log, setLog] = useState("");
-  const [result, setResult] = useState<{ ok: boolean; log: string; outputs: string[] } | null>(null);
   // Generate-mode state (shares category/bitrate/normalize with transcode).
   const [genId, setGenId] = useState("impact-hit");
   const [prompt, setPrompt] = useState("a brutal metallic impact hit, short and punchy");
@@ -943,27 +815,13 @@ function MusicPane() {
   const [loop, setLoop] = useState(true);
   const [volume, setVolume] = useState(1);
   const [license, setLicense] = useState("perpetual commercial; review before shipping");
-  const [genBusy, setGenBusy] = useState(false);
-  const [genResult, setGenResult] = useState<GenResult | null>(null);
-  const selectedProject = projectState.projects.find((project) => project.id === projectId) || activeProject(projectState);
-
-  useEffect(() => {
-    window.studio?.settings.get().then((s) => setGame(s.defaultGame)).catch(() => {});
-    window.studio?.projects.list().then((state) => {
-      setProjectState(state);
-      const current = activeProject(state);
-      if (current) {
-        setProjectId(current.id);
-        setGame(current.slug);
-        setGames(state.projects.map((project) => project.slug));
-      }
-    }).catch(() => {
-      window.studio?.listGames().then((g) => g?.length && setGames(g)).catch(() => {});
-    });
-    const offTranscode = window.studio?.onTranscodeLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
-    const offGen = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
-    return () => { offTranscode?.(); offGen?.(); };
-  }, []);
+  const target = useProjectTarget();
+  const transcodeTask = useStreamingTask<{ ok: boolean; log: string; outputs: string[] }>(window.studio.onTranscodeLog);
+  const generateTask = useStreamingTask<GenResult>(window.studio.onGenLog);
+  const { game, selectedProject } = target;
+  const { busy, result } = transcodeTask;
+  const { busy: genBusy, result: genResult } = generateTask;
+  const log = mode === "generate" ? generateTask.log : transcodeTask.log;
 
   // Pick a sensible default provider + loop default when the category changes.
   function changeCategory(next: "sfx" | "music" | "voice") {
@@ -972,68 +830,45 @@ function MusicPane() {
     setLoop(next === "music");
   }
 
-  async function changeProject(id: string) {
-    setProjectId(id);
-    const next = await window.studio?.projects.setActive(id);
-    if (!next) return;
-    setProjectState(next);
-    const current = activeProject(next);
-    if (current) setGame(current.slug);
-  }
-
   async function pick() {
-    const f = await window.studio?.pickAudioFiles();
+    const f = await window.studio.pickAudioFiles();
     if (f?.length) setFiles(f);
   }
 
   async function transcode() {
-    if (!window.studio?.transcodeAudio) { setLog("studio bridge unavailable — restart the app"); return; }
-    if (selectedProject && !selectedProject.valid) { setLog(selectedProject.error || "invalid project manifest"); return; }
-    setBusy(true);
-    setResult(null);
-    setLog("");
-    try {
-      setResult(await window.studio.transcodeAudio({
-        files,
-        game: selectedProject?.slug || game,
-        projectId: selectedProject?.id,
-        category,
-        bitrate,
-        normalize,
-      }));
-    } catch (e) {
-      setLog(String((e as Error)?.message ?? e));
-    } finally {
-      setBusy(false);
+    if (selectedProject && !selectedProject.valid) {
+      transcodeTask.setLog(selectedProject.error || "invalid project manifest");
+      return;
     }
+    await transcodeTask.run(() => window.studio.transcodeAudio({
+      files,
+      game: selectedProject?.slug || game,
+      projectId: selectedProject?.id,
+      category,
+      bitrate,
+      normalize,
+    }));
   }
 
   async function generate() {
-    if (!window.studio?.generate) { setLog("studio bridge unavailable — restart the app"); return; }
-    if (selectedProject && !selectedProject.valid) { setLog(selectedProject.error || "invalid project manifest"); return; }
-    setGenBusy(true);
-    setGenResult(null);
-    setLog("");
-    try {
-      setGenResult(await window.studio.generate({
-        id: genId,
-        prompt,
-        game: selectedProject?.slug || game,
-        projectId: selectedProject?.id,
-        kind: category,
-        provider,
-        category,
-        bitrate,
-        normalize,
-        loop,
-        volume,
-        license,
-      }));
-    } catch (e) {
-      setLog(String((e as Error)?.message ?? e));
-    } finally {
-      setGenBusy(false);
+    if (selectedProject && !selectedProject.valid) {
+      generateTask.setLog(selectedProject.error || "invalid project manifest");
+      return;
     }
+    await generateTask.run(() => window.studio.generate({
+      id: genId,
+      prompt,
+      game: selectedProject?.slug || game,
+      projectId: selectedProject?.id,
+      kind: category,
+      provider,
+      category,
+      bitrate,
+      normalize,
+      loop,
+      volume,
+      license,
+    }));
   }
 
   const providerOptions = AUDIO_PROVIDERS_BY_CATEGORY[category];
@@ -1045,18 +880,7 @@ function MusicPane() {
           <button className={"set-btn" + (mode === "generate" ? " is-active" : "")} type="button" onClick={() => setMode("generate")}>Generate from prompt</button>
           <button className={"set-btn" + (mode === "transcode" ? " is-active" : "")} type="button" onClick={() => setMode("transcode")}>Transcode a file</button>
         </div>
-        <label className="gen-field"><span>Game</span>
-          <select value={selectedProject ? selectedProject.id : game} onChange={(e) => {
-            if (projectState.projects.length) void changeProject(e.target.value);
-            else setGame(e.target.value);
-          }}>
-            {projectState.projects.length
-              ? projectState.projects.map((project) => <option key={project.id} value={project.id}>{project.name} · {project.slug}</option>)
-              : games.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select>
-        </label>
-        {selectedProject?.manifestPath && <div className="gen-manifest">manifest {selectedProject.manifestPath}</div>}
-        {selectedProject && !selectedProject.valid && <div className="project-error">{selectedProject.error}</div>}
+        <GameSelect target={target} />
         <label className="gen-field"><span>Category → src/assets/audio/&lt;category&gt;/</span>
           <select value={category} onChange={(e) => changeCategory(e.target.value as "sfx" | "music" | "voice")}>
             <option value="sfx">sfx</option>
@@ -1185,7 +1009,7 @@ function TerminalPane() {
       } catch {}
       const id = sessionRef.current;
       if (id) {
-        void window.studio?.terminal.resize(id, { cols: terminal.cols, rows: terminal.rows });
+        void window.studio.terminal.resize(id, { cols: terminal.cols, rows: terminal.rows });
       }
     };
     const resize = () => {
@@ -1202,12 +1026,12 @@ function TerminalPane() {
 
     const input = terminal.onData((data) => {
       const id = sessionRef.current;
-      if (id) void window.studio?.terminal.write(id, data);
+      if (id) void window.studio.terminal.write(id, data);
     });
-    const offData = window.studio?.terminal.onData(({ id, data }) => {
+    const offData = window.studio.terminal.onData(({ id, data }) => {
       if (id === sessionRef.current) terminal.write(data);
     });
-    const offExit = window.studio?.terminal.onExit(({ id, exitCode, signal }) => {
+    const offExit = window.studio.terminal.onExit(({ id, exitCode, signal }) => {
       if (id !== sessionRef.current) return;
       setStatus(`exited ${exitCode ?? signal ?? ""}`.trim());
       terminal.writeln(`\r\n[terminal exited ${exitCode ?? signal ?? "unknown"}]`);
@@ -1215,12 +1039,6 @@ function TerminalPane() {
     });
 
     async function start() {
-      if (!window.studio?.terminal) {
-        setStatus("bridge unavailable");
-        terminal.writeln("studio terminal bridge unavailable");
-        return;
-      }
-
       resize();
       await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
       fitTerminal();
@@ -1240,10 +1058,10 @@ function TerminalPane() {
     return () => {
       const id = sessionRef.current;
       sessionRef.current = null;
-      if (id) void window.studio?.terminal.stop(id);
+      if (id) void window.studio.terminal.stop(id);
       input.dispose();
-      offData?.();
-      offExit?.();
+      offData();
+      offExit();
       resizeObserver.disconnect();
       window.removeEventListener("resize", resize);
       if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
@@ -1287,14 +1105,14 @@ function MoodboardPane() {
   } | null>(null);
 
   useEffect(() => {
-    window.studio?.settings.get().then((s) => s.defaultGame && setGame(s.defaultGame)).catch(() => {});
-    window.studio?.moodboard.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
+    window.studio.settings.get().then((s) => s.defaultGame && setGame(s.defaultGame)).catch(() => {});
+    window.studio.moodboard.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
   }, []);
 
   useEffect(() => {
     let live = true;
     setError("");
-    window.studio?.moodboard.get(game)
+    window.studio.moodboard.get(game)
       .then((next) => { if (live) setBoard(next); })
       .catch((e) => { if (live) setError(String((e as Error)?.message ?? e)); });
     return () => { live = false; };
@@ -1302,7 +1120,6 @@ function MoodboardPane() {
 
   async function addNote() {
     if (!note.trim()) return;
-    if (!window.studio?.moodboard) { setError("studio bridge unavailable"); return; }
     try {
       setBoard(await window.studio.moodboard.addNote(game, note));
       setNote("");
@@ -1312,7 +1129,6 @@ function MoodboardPane() {
   }
 
   async function importImages() {
-    if (!window.studio?.moodboard) { setError("studio bridge unavailable"); return; }
     try {
       setBoard(await window.studio.moodboard.importImages(game));
     } catch (e) {
@@ -1321,12 +1137,10 @@ function MoodboardPane() {
   }
 
   async function toggleTarget(item: MoodboardItem) {
-    if (!window.studio?.moodboard) return;
     setBoard(await window.studio.moodboard.setVisualTarget(game, item.id, !item.visualTarget));
   }
 
   async function removeItem(item: MoodboardItem) {
-    if (!window.studio?.moodboard) return;
     setBoard(await window.studio.moodboard.removeItem(game, item.id));
   }
 
@@ -1363,12 +1177,11 @@ function MoodboardPane() {
     if (!activeDrag || activeDrag.pointerId !== e.pointerId) return;
     drag.current = null;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
-    if (!window.studio?.moodboard) return;
     setBoard(await window.studio.moodboard.updateItem(game, { id: activeDrag.id, x: activeDrag.nextX, y: activeDrag.nextY }));
   }
 
   async function updateNote(item: MoodboardItem, text: string) {
-    if (!window.studio?.moodboard || text.trim() === (item.text || "").trim()) return;
+    if (text.trim() === (item.text || "").trim()) return;
     setBoard(await window.studio.moodboard.updateItem(game, { id: item.id, text }));
   }
 
@@ -1511,28 +1324,28 @@ function LabPane() {
   kindsRef.current = kinds;
 
   useEffect(() => {
-    window.studio?.settings.get().then((s) => {
+    window.studio.settings.get().then((s) => {
       if (s.defaultGame) setGame(s.defaultGame);
       const next = withSettingsDefaults(s);
       const fallback = next.providerDefaults.sprite || next.defaultProvider;
       // Never seed an audio-only provider into an image-only pane.
       setProvider(LAB_PROVIDERS.some((p) => p.id === fallback) ? fallback : LAB_PROVIDERS[0].id);
     }).catch(() => {});
-    window.studio?.models?.list().then((m) => {
+    window.studio.models.list().then((m) => {
       const list = m?.falImageKinds?.length ? m.falImageKinds : LAB_KINDS;
       setKinds(list);
       // If a stale/non-image kind is selected, snap to the first real one.
       setKind((k) => (list.includes(k) ? k : list[0]));
     }).catch(() => {});
-    window.studio?.lab.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
-    const off = window.studio?.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
-    return () => { off?.(); };
+    window.studio.lab.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
+    const off = window.studio.onGenLog((chunk) => setLog((l) => (l + chunk).slice(-8000)));
+    return () => { off(); };
   }, []);
 
   useEffect(() => {
     let live = true;
     setError("");
-    window.studio?.lab.get(game)
+    window.studio.lab.get(game)
       .then((next) => {
         if (!live) return;
         setLab(next);
@@ -1550,13 +1363,11 @@ function LabPane() {
   const subjectDirty = subject.trim() !== (lab.subject || "").trim() || kind !== (lab.kind || "sprite");
 
   async function saveSubject() {
-    if (!window.studio?.lab) { setError("studio bridge unavailable"); return; }
     try { setLab(await window.studio.lab.setSubject(game, subject, kind)); }
     catch (e) { setError(String((e as Error)?.message ?? e)); }
   }
 
   async function generateVariant() {
-    if (!window.studio?.generate || !window.studio.lab) { setLog("studio bridge unavailable — restart the app"); return; }
     const base = subject.trim();
     if (!base) { setError("set a subject first"); return; }
     setBusy(true);
@@ -1589,10 +1400,9 @@ function LabPane() {
   }
 
   // Every variant mutation funnels through here so a rejected IPC call surfaces an
-  // error instead of silently no-op'ing — and a dead bridge says so out loud.
+  // error instead of silently no-op'ing.
   async function runMutation(fn: (lab: NonNullable<typeof window.studio>["lab"]) => Promise<ArtLab>) {
-    const api = window.studio?.lab;
-    if (!api) { setError("studio bridge unavailable — restart the app"); return; }
+    const api = window.studio.lab;
     try { setError(""); setLab(await fn(api)); }
     catch (e) { setError(String((e as Error)?.message ?? e)); }
   }
@@ -1743,10 +1553,6 @@ function GalleryPane() {
   const [lightbox, setLightbox] = useState<string | null>(null);
 
   const load = useCallback(async (target: string) => {
-    if (!window.studio?.gallery) {
-      setResult({ ...GALLERY_EMPTY, error: "studio bridge unavailable — restart the app" });
-      return;
-    }
     setBusy(true);
     setExtra({});
     setCompare([]);
@@ -1761,7 +1567,7 @@ function GalleryPane() {
   }, []);
 
   useEffect(() => {
-    window.studio?.settings.get().then((s) => {
+    window.studio.settings.get().then((s) => {
       const target = s.defaultGame || "scourge-survivors";
       setGame(target);
       void load(target);
@@ -1771,7 +1577,7 @@ function GalleryPane() {
   // Lazily pull thumbnails the main process deferred past its inline byte budget.
   useEffect(() => {
     const deferred = result.assets.filter((a) => a.deferred && !a.dataUrl && !extra[a.path]);
-    if (!deferred.length || !window.studio?.gallery) return;
+    if (!deferred.length) return;
     let cancelled = false;
     (async () => {
       const queue = [...deferred];
@@ -1780,7 +1586,7 @@ function GalleryPane() {
           const next = queue.shift();
           if (!next) break;
           try {
-            const img = await window.studio?.gallery.image(next.path);
+            const img = await window.studio.gallery.image(next.path);
             if (img?.dataUrl && !cancelled) setExtra((prev) => ({ ...prev, [next.path]: img.dataUrl }));
           } catch {}
         }
@@ -2045,14 +1851,14 @@ function MapsPane() {
   );
 
   useEffect(() => {
-    window.studio?.settings.get().then((s) => s.defaultGame && setGame(s.defaultGame)).catch(() => {});
-    window.studio?.maps.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
+    window.studio.settings.get().then((s) => s.defaultGame && setGame(s.defaultGame)).catch(() => {});
+    window.studio.maps.listGames().then((list) => list?.length && setGames(list)).catch(() => {});
   }, []);
 
   // Live preview — the generator is pure + in-process, so it is cheap to re-seed
   // on every input change. Failures surface in the validation panel, not a throw.
   useEffect(() => {
-    if (!window.studio?.maps || !id.trim()) { setPreview(null); return; }
+    if (!id.trim()) { setPreview(null); return; }
     let live = true;
     setError("");
     window.studio.maps.preview(options)
@@ -2062,7 +1868,6 @@ function MapsPane() {
   }, [options, id]);
 
   async function write() {
-    if (!window.studio?.maps) { setError("studio bridge unavailable — restart the app"); return; }
     if (!id.trim()) return;
     setBusy(true);
     setError("");
