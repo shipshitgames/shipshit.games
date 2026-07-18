@@ -22,7 +22,13 @@ import type {
   PixelizeResult,
   ProjectState,
   ProjectSummary,
+  ResourceDerivativeItem,
+  ResourceSourceItem,
+  ResourceTranscriptItem,
   ResearchResult,
+  ResourcesOverview,
+  ResourcesPreviewResult,
+  ResourcesValidationResult,
   Settings,
 } from "../shared/ipc";
 import { ModelPreview } from "./ModelPreview";
@@ -32,8 +38,8 @@ import { isModelResult } from "./model-preview-config";
 // live streaming log. Provider + keys are configured once in Settings (topbar gear).
 // Default provider = codex CLI (your subscription — no API key).
 
-type SectionId = "projects" | "gyms" | "gallery" | "maps" | "sprites" | "music" | "3d" | "moodboard" | "lab" | "research" | "codegen";
-type Group = "Generators" | "Art Direction" | "Ressources" | "Codegen";
+type SectionId = "projects" | "gyms" | "gallery" | "maps" | "sprites" | "music" | "3d" | "moodboard" | "lab" | "resources" | "codegen";
+type Group = "Generators" | "Art Direction" | "Resources" | "Codegen";
 type Section = { id: SectionId; label: string; group: Group; glyph: string; blurb: string };
 
 const SECTIONS: Section[] = [
@@ -46,10 +52,10 @@ const SECTIONS: Section[] = [
   { id: "gallery", label: "Gallery", group: "Art Direction", glyph: "▤", blurb: "Review and compare every generated asset in a game's pack — sprites, tiers, textures, UI." },
   { id: "moodboard", label: "Moodboard", group: "Art Direction", glyph: "▦", blurb: "Per-game reference boards for notes, images, and locked visual targets." },
   { id: "lab", label: "Lab", group: "Art Direction", glyph: "⌖", blurb: "Forge styled variants of one subject, score and tag them, then lock the winning look as the game's style target." },
-  { id: "research", label: "Rules", group: "Ressources", glyph: "📖", blurb: "Distill a YouTube game-dev tutorial into a reusable build ruleset." },
+  { id: "resources", label: "Resources", group: "Resources", glyph: "📖", blurb: "Inspect sources, transcript records, derivative candidates, and distill reviewed build rules." },
   { id: "codegen", label: "Codegen", group: "Codegen", glyph: "λ", blurb: "Plan → Review → Execute → Verify → Ship over the local CLI." },
 ];
-const GROUPS: Group[] = ["Generators", "Art Direction", "Ressources", "Codegen"];
+const GROUPS: Group[] = ["Generators", "Art Direction", "Resources", "Codegen"];
 
 const PROVIDERS = [
   { id: "codex", label: "Codex CLI — your subscription (no key)" },
@@ -841,13 +847,62 @@ function slugFromUrl(url: string): string {
   return m ? m[1].toLowerCase() : "ruleset";
 }
 
-function ResearchPane() {
+const EMPTY_RESOURCES_OVERVIEW: ResourcesOverview = {
+  ok: false,
+  error: null,
+  sources: { schemaVersion: 1, count: 0, items: [], errors: [], warnings: [] },
+  transcripts: { schemaVersion: 1, count: 0, items: [], errors: [], warnings: [] },
+  derivatives: { schemaVersion: 1, count: 0, items: [], errors: [], warnings: [] },
+};
+
+type ResourceInventoryTab = "sources" | "transcripts" | "derivatives";
+
+function ResourcesPane() {
   const [url, setUrl] = useState("");
   const [slug, setSlug] = useState("");
   const [provider, setProvider] = useState("codex");
-  const [busy, setBusy] = useState(false);
+  const [distillBusy, setDistillBusy] = useState(false);
+  const [inventoryBusy, setInventoryBusy] = useState(false);
+  const [actionBusy, setActionBusy] = useState("");
   const [log, setLog] = useState("");
   const [result, setResult] = useState<ResearchResult | null>(null);
+  const [overview, setOverview] = useState<ResourcesOverview>(EMPTY_RESOURCES_OVERVIEW);
+  const [validation, setValidation] = useState<ResourcesValidationResult | null>(null);
+  const [tab, setTab] = useState<ResourceInventoryTab>("sources");
+  const [preview, setPreview] = useState<ResourcesPreviewResult | null>(null);
+  const [selectedDerivative, setSelectedDerivative] = useState<ResourceDerivativeItem | null>(null);
+  const [reviewedSkillPath, setReviewedSkillPath] = useState("");
+
+  const loadOverview = useCallback(async () => {
+    if (!window.studio?.resources) {
+      setOverview({ ...EMPTY_RESOURCES_OVERVIEW, error: "studio bridge unavailable — restart the app" });
+      return;
+    }
+    setInventoryBusy(true);
+    try {
+      setOverview(await window.studio.resources.list());
+    } catch (error) {
+      setOverview({
+        ...EMPTY_RESOURCES_OVERVIEW,
+        error: String((error as Error)?.message ?? error),
+      });
+    } finally {
+      setInventoryBusy(false);
+    }
+  }, []);
+
+  const validateResources = useCallback(async () => {
+    if (!window.studio?.resources) return;
+    setActionBusy("validate");
+    setLog("");
+    try {
+      setValidation(await window.studio.resources.validate());
+    } catch (error) {
+      setLog(String((error as Error)?.message ?? error));
+    } finally {
+      setActionBusy("");
+    }
+  }, []);
 
   useEffect(() => {
     // Ressources distills with codex | mock only, not the image-gen providers.
@@ -855,9 +910,14 @@ function ResearchPane() {
     return () => { off?.(); };
   }, []);
 
+  useEffect(() => {
+    void loadOverview();
+    void validateResources();
+  }, [loadOverview, validateResources]);
+
   async function distill() {
     if (!window.studio?.research) { setLog("studio bridge unavailable — restart the app"); return; }
-    setBusy(true);
+    setDistillBusy(true);
     setResult(null);
     setLog("");
     try {
@@ -865,34 +925,220 @@ function ResearchPane() {
     } catch (e) {
       setLog(String((e as Error)?.message ?? e));
     } finally {
-      setBusy(false);
+      setDistillBusy(false);
     }
   }
 
+  async function previewDerivativeItem(item: ResourceDerivativeItem) {
+    if (!window.studio?.resources) return;
+    setActionBusy(`preview:${item.path}`);
+    setSelectedDerivative(item);
+    setReviewedSkillPath("");
+    try {
+      setPreview(await window.studio.resources.preview(item.outputPath));
+    } catch (error) {
+      setPreview({ ok: false, path: null, content: null, error: String((error as Error)?.message ?? error) });
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  async function revealDerivative(item: ResourceDerivativeItem) {
+    if (!window.studio?.resources) return;
+    const revealed = await window.studio.resources.reveal(item.outputPath || item.path);
+    if (!revealed.ok) setLog(revealed.error || "could not reveal derivative");
+  }
+
+  async function promoteSkill(item: ResourceDerivativeItem, approve: boolean) {
+    if (!window.studio?.resources || item.kind !== "skill") return;
+    setActionBusy(`${approve ? "approve" : "review"}:${item.path}`);
+    setLog("");
+    try {
+      const action = await window.studio.resources.promoteSkill(item.path, approve);
+      setLog(action.log || action.error || "");
+      if (action.ok && !approve) setReviewedSkillPath(item.path);
+      if (action.ok && approve) {
+        setReviewedSkillPath("");
+        await loadOverview();
+      }
+    } catch (error) {
+      setLog(String((error as Error)?.message ?? error));
+    } finally {
+      setActionBusy("");
+    }
+  }
+
+  const validationCounts = validation?.counts;
+  const validationLabel = actionBusy === "validate"
+    ? "validating"
+    : validation?.ok
+      ? "valid"
+      : validation
+        ? "needs attention"
+        : "not checked";
+
   return (
-    <div className="gen">
-      <div className="gen-form">
-        <label className="gen-field gen-grow"><span>YouTube URL</span>
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
-        </label>
-        <label className="gen-field"><span>Rules file slug</span>
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={url ? slugFromUrl(url) : "ruleset"} />
-        </label>
-        <label className="gen-field"><span>Provider</span>
-          <select value={provider} onChange={(e) => setProvider(e.target.value)}>
-            <option value="codex">codex — your subscription (no key)</option>
-            <option value="mock">mock — offline (transcript only)</option>
-          </select>
-        </label>
-        <button className="gen-btn" type="button" disabled={busy || !url.trim()} onClick={distill}>
-          {busy ? "Distilling…" : "Distill rules"}
-        </button>
-        <p className="gen-note">Transcript via yt-dlp (recommended) → distilled to docs/rules/&lt;slug&gt;.md. Codex runs take a minute — watch the log.</p>
+    <div className="resources">
+      <div className="resources-toolbar">
+        <div className={"resources-validation " + (validation?.ok ? "is-valid" : validation ? "is-invalid" : "")}>
+          <span className="resources-status-dot" />
+          <strong>{validationLabel}</strong>
+          {validationCounts && (
+            <span>
+              {validationCounts.sources} sources · {validationCounts.transcripts} transcripts · {validationCounts.derivatives} derivatives
+            </span>
+          )}
+        </div>
+        <div className="resources-toolbar-actions">
+          <button className="set-btn" type="button" disabled={inventoryBusy} onClick={() => void loadOverview()}>
+            {inventoryBusy ? "Loading…" : "Reload inventory"}
+          </button>
+          <button className="set-btn" type="button" disabled={actionBusy === "validate"} onClick={() => void validateResources()}>
+            Validate
+          </button>
+        </div>
       </div>
-      <div className="gen-preview">
-        {result?.rules ? <pre className="gen-rules">{result.rules}</pre> : <div className="gen-preview-empty">{busy ? "distilling…" : "ruleset preview"}</div>}
-        {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
-        {result?.path && <div className="gen-path">{result.path}</div>}
+
+      <div className="resources-layout">
+        <aside className="resources-inventory">
+          <div className="resources-tabs" role="tablist" aria-label="Resource inventory">
+            {(["sources", "transcripts", "derivatives"] as ResourceInventoryTab[]).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                role="tab"
+                aria-selected={tab === kind}
+                className={tab === kind ? "is-active" : ""}
+                onClick={() => setTab(kind)}
+              >
+                {kind} <b>{overview[kind].count}</b>
+              </button>
+            ))}
+          </div>
+
+          <div className="resources-list">
+            {overview.error && <div className="resources-error">{overview.error}</div>}
+            {tab === "sources" && overview.sources.items.map((item: ResourceSourceItem) => (
+              <article className="resource-card" key={item.path}>
+                <div className="resource-card-head">
+                  <strong>{item.title}</strong>
+                  <span>{item.status}</span>
+                </div>
+                <p>{item.slug} · {item.kind} · {item.transcriptCount} transcripts</p>
+                <div className="resource-tags">
+                  {item.topics.slice(0, 4).map((topic) => <span key={topic}>{topic}</span>)}
+                </div>
+              </article>
+            ))}
+            {tab === "transcripts" && overview.transcripts.items.map((item: ResourceTranscriptItem) => (
+              <article className="resource-card" key={item.path}>
+                <div className="resource-card-head">
+                  <strong>{item.title}</strong>
+                  <span className={item.rightsStatus ? "is-rights" : ""}>{item.rightsStatus || "rights unknown"}</span>
+                </div>
+                <p>{item.sourceSlug} · {item.transcriptFormat} · {item.derivativeCount} candidates</p>
+                <code>{item.path}</code>
+              </article>
+            ))}
+            {tab === "derivatives" && overview.derivatives.items.map((item: ResourceDerivativeItem) => (
+              <article
+                className={"resource-card is-actionable" + (selectedDerivative?.path === item.path ? " is-selected" : "")}
+                key={item.path}
+              >
+                <div className="resource-card-head">
+                  <strong>{item.title}</strong>
+                  <span>{item.kind} · {item.status}</span>
+                </div>
+                <p>{item.summary || `${item.sourceTranscriptCount} source transcripts`}</p>
+                <div className="resource-card-actions">
+                  <button
+                    className="set-btn"
+                    type="button"
+                    disabled={actionBusy === `preview:${item.path}`}
+                    onClick={() => void previewDerivativeItem(item)}
+                  >
+                    Review
+                  </button>
+                  <button className="set-btn" type="button" onClick={() => void revealDerivative(item)}>Reveal</button>
+                  {item.kind === "skill" && (
+                    <button
+                      className="set-btn"
+                      type="button"
+                      disabled={actionBusy === `review:${item.path}`}
+                      onClick={() => void promoteSkill(item, false)}
+                    >
+                      Promotion check
+                    </button>
+                  )}
+                  {item.kind === "skill" && reviewedSkillPath === item.path && (
+                    <button
+                      className="gen-btn resource-approve"
+                      type="button"
+                      disabled={actionBusy === `approve:${item.path}`}
+                      onClick={() => void promoteSkill(item, true)}
+                    >
+                      Promote reviewed skill
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))}
+            {!inventoryBusy && overview[tab].items.length === 0 && (
+              <div className="resources-empty">No {tab} in the manifest inventory.</div>
+            )}
+          </div>
+          <p className="resources-rights-note">
+            Transcript bodies are never loaded into this pane. Only sidecar metadata and explicit rights status cross IPC.
+          </p>
+        </aside>
+
+        <section className="resources-workspace">
+          <div className="resources-distill">
+            <div className="resources-section-head">
+              <div>
+                <span>Distill</span>
+                <strong>Source → reviewed rules</strong>
+              </div>
+              <span>streaming CLI</span>
+            </div>
+            <div className="resources-distill-fields">
+              <label className="gen-field gen-grow"><span>YouTube URL</span>
+                <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
+              </label>
+              <label className="gen-field"><span>Rules file slug</span>
+                <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={url ? slugFromUrl(url) : "ruleset"} />
+              </label>
+              <label className="gen-field"><span>Provider</span>
+                <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+                  <option value="codex">codex — subscription</option>
+                  <option value="mock">mock — offline</option>
+                </select>
+              </label>
+              <button className="gen-btn" type="button" disabled={distillBusy || !url.trim()} onClick={distill}>
+                {distillBusy ? "Distilling…" : "Distill rules"}
+              </button>
+            </div>
+          </div>
+
+          <div className="resources-preview">
+            <div className="resources-section-head">
+              <div>
+                <span>Review</span>
+                <strong>{selectedDerivative?.title || (result?.path ? "Generated rules" : "Derivative preview")}</strong>
+              </div>
+              {(preview?.path || result?.path) && <code>{preview?.path || result?.path}</code>}
+            </div>
+            {preview?.content || result?.rules ? (
+              <pre className="gen-rules">{preview?.content || result?.rules}</pre>
+            ) : (
+              <div className="resources-preview-empty">
+                {distillBusy ? "distilling…" : "Select a derivative or distill a source to review its output."}
+              </div>
+            )}
+            {preview && !preview.ok && <div className="resources-error">{preview.error}</div>}
+            {(log || result) && <pre className={"gen-log" + (result && !result.ok ? " is-err" : "")}>{log || "—"}</pre>}
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -2185,7 +2431,7 @@ export default function App() {
             <p className="pane-blurb">{section.blurb}</p>
           </header>
           <div className="pane-body">
-            {active === "projects" ? <ProjectsPane /> : active === "gyms" ? <GymsPane /> : active === "gallery" ? <GalleryPane /> : active === "maps" ? <MapsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "3d" ? <ModelPane /> : active === "moodboard" ? <MoodboardPane /> : active === "lab" ? <LabPane /> : active === "research" ? <ResearchPane /> : (
+            {active === "projects" ? <ProjectsPane /> : active === "gyms" ? <GymsPane /> : active === "gallery" ? <GalleryPane /> : active === "maps" ? <MapsPane /> : active === "sprites" ? <SpritesPane /> : active === "music" ? <MusicPane /> : active === "3d" ? <ModelPane /> : active === "moodboard" ? <MoodboardPane /> : active === "lab" ? <LabPane /> : active === "resources" ? <ResourcesPane /> : (
               <div className="placeholder-card">
                 <div className="placeholder-glyph" aria-hidden="true">{section.glyph}</div>
                 <p><strong>{section.label}</strong> workspace coming online.</p>

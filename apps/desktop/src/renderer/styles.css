@@ -168,6 +168,91 @@ body {
 }
 .gen-path { font-family: var(--font-mono); font-size: 11px; color: var(--hellfire); word-break: break-all; }
 
+/* ---- Resources: package inventory, validation, distillation, promotion ---- */
+.resources { display: flex; flex-direction: column; gap: 16px; width: 100%; min-height: 620px; }
+.resources-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 12px;
+  background: var(--coal); border: 1px solid var(--gunmetal); border-radius: 2px;
+}
+.resources-toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.resources-validation { display: flex; align-items: center; gap: 9px; min-width: 0; font-family: var(--font-mono); font-size: 11px; color: var(--ash); }
+.resources-validation strong { color: var(--bone); text-transform: uppercase; letter-spacing: 0.08em; }
+.resources-validation > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resources-status-dot { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--gunmetal); }
+.resources-validation.is-valid .resources-status-dot { background: #5e9f68; box-shadow: 0 0 10px rgba(94, 159, 104, 0.42); }
+.resources-validation.is-invalid .resources-status-dot { background: var(--blood); box-shadow: 0 0 10px color-mix(in srgb, var(--blood) 50%, transparent); }
+.resources-layout { display: grid; grid-template-columns: minmax(300px, 0.9fr) minmax(440px, 1.6fr); gap: 18px; min-height: 0; }
+.resources-inventory, .resources-workspace { min-width: 0; }
+.resources-inventory {
+  display: flex; flex-direction: column; min-height: 560px; overflow: hidden;
+  background: color-mix(in srgb, var(--void) 92%, var(--iron)); border: 1px solid var(--gunmetal); border-radius: 2px;
+}
+.resources-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--gunmetal); }
+.resources-tabs button {
+  padding: 10px 8px; color: var(--ash); background: var(--coal); border: 0; border-right: 1px solid var(--gunmetal);
+  font: 700 10px var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
+}
+.resources-tabs button:last-child { border-right: 0; }
+.resources-tabs button:hover, .resources-tabs button.is-active { color: var(--bone); background: var(--iron); }
+.resources-tabs button.is-active { box-shadow: inset 0 -2px var(--blood); }
+.resources-tabs b { color: var(--hellfire); }
+.resources-list { display: flex; flex: 1; flex-direction: column; gap: 8px; min-height: 0; padding: 10px; overflow-y: auto; }
+.resource-card {
+  display: flex; flex-direction: column; gap: 7px; padding: 10px; background: var(--coal);
+  border: 1px solid color-mix(in srgb, var(--gunmetal) 72%, transparent); border-radius: 2px;
+}
+.resource-card.is-actionable { cursor: default; }
+.resource-card.is-selected { border-color: var(--hellfire); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hellfire) 30%, transparent); }
+.resource-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.resource-card-head strong { min-width: 0; font-size: 12px; color: var(--bone); }
+.resource-card-head span {
+  flex: 0 0 auto; padding: 2px 5px; color: var(--ash); border: 1px solid var(--gunmetal); border-radius: 2px;
+  font: 9px var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em;
+}
+.resource-card-head span.is-rights { color: #9dbf8f; border-color: rgba(94, 159, 104, 0.5); }
+.resource-card p { margin: 0; color: color-mix(in srgb, var(--ash) 78%, var(--void)); font-size: 11px; line-height: 1.45; }
+.resource-card code { overflow: hidden; color: var(--hellfire); font: 10px var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.resource-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.resource-tags span { padding: 2px 5px; color: var(--ash); background: var(--iron); font: 9px var(--font-mono); border-radius: 2px; }
+.resource-card-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.resource-card-actions .set-btn { padding: 5px 8px; font-size: 9px; }
+.resource-card-actions .resource-approve { width: 100%; margin: 2px 0 0; padding: 8px; font-size: 10px; }
+.resources-empty, .resources-preview-empty {
+  display: flex; min-height: 160px; align-items: center; justify-content: center; padding: 18px; text-align: center;
+  color: color-mix(in srgb, var(--ash) 68%, var(--void)); border: 1px dashed var(--gunmetal);
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.resources-rights-note {
+  margin: 0; padding: 10px; color: color-mix(in srgb, var(--ash) 68%, var(--void)); background: var(--coal);
+  border-top: 1px solid var(--gunmetal); font-size: 10px; line-height: 1.45;
+}
+.resources-workspace { display: flex; flex-direction: column; gap: 14px; }
+.resources-distill, .resources-preview {
+  display: flex; flex-direction: column; gap: 12px; padding: 14px; background: var(--coal);
+  border: 1px solid var(--gunmetal); border-radius: 2px;
+}
+.resources-distill-fields { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(140px, 0.8fr); gap: 10px 12px; align-items: end; }
+.resources-distill-fields .gen-btn { margin: 0; }
+.resources-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.resources-section-head > div { display: flex; flex-direction: column; gap: 3px; }
+.resources-section-head span { color: var(--hellfire); font: 9px var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; }
+.resources-section-head strong { color: var(--bone); font-family: var(--font-display); font-size: 13px; letter-spacing: 0.04em; }
+.resources-section-head code {
+  max-width: 52%; overflow: hidden; color: color-mix(in srgb, var(--ash) 68%, var(--void));
+  font: 9px var(--font-mono); text-overflow: ellipsis; white-space: nowrap;
+}
+.resources-preview { flex: 1; min-height: 300px; }
+.resources-preview .gen-rules { max-height: 420px; }
+.resources-preview .gen-log { max-height: 150px; }
+.resources-error {
+  padding: 9px 10px; color: color-mix(in srgb, var(--blood-hot) 70%, var(--bone)); background: color-mix(in srgb, var(--blood) 10%, var(--void));
+  border: 1px solid color-mix(in srgb, var(--blood) 48%, transparent); font: 10px/1.45 var(--font-mono);
+}
+@media (max-width: 1120px) {
+  .resources-layout { grid-template-columns: 1fr; }
+  .resources-inventory { min-height: 420px; }
+}
+
 /* ---- Terminal (xterm-backed) ---- */
 .terminal { display: flex; flex-direction: column; border-top: 1px solid var(--gunmetal); background: color-mix(in srgb, var(--void) 92%, var(--iron)); min-height: 0; }
 .terminal-bar { display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-bottom: 1px solid color-mix(in srgb, var(--gunmetal) 55%, transparent); background: var(--coal); }

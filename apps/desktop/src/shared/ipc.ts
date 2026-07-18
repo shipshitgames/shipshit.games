@@ -10,6 +10,11 @@ export const IPC_INVOKE_CHANNELS = {
   studioPixelize: "studio:pixelize",
   studioListGames: "studio:listGames",
   studioResearch: "studio:research",
+  resourcesList: "resources:list",
+  resourcesValidate: "resources:validate",
+  resourcesPreview: "resources:preview",
+  resourcesReveal: "resources:reveal",
+  resourcesPromoteSkill: "resources:promoteSkill",
   studioTranscodeAudio: "studio:transcodeAudio",
   studioPickAudioFiles: "studio:pickAudioFiles",
   settingsGet: "settings:get",
@@ -124,6 +129,90 @@ export interface ResearchResult {
   log: string;
   path: string | null;
   rules: string | null;
+}
+
+export interface ResourceSourceItem {
+  slug: string;
+  title: string;
+  kind: string;
+  priority: string;
+  status: string;
+  url: string;
+  topics: string[];
+  desiredOutputs: string[];
+  transcriptPolicy: string;
+  storeRawTranscript: boolean;
+  transcriptCount: number;
+  path: string;
+}
+
+export interface ResourceTranscriptItem {
+  slug: string;
+  sourceSlug: string;
+  title: string;
+  sourceKind: string;
+  url: string;
+  capturedAt: string;
+  transcriptFormat: string;
+  transcriptPath: string;
+  rightsStatus: string;
+  tags: string[];
+  derivativeCount: number;
+  path: string;
+}
+
+export interface ResourceDerivativeItem {
+  slug: string;
+  kind: "rule" | "skill" | "app" | "tool";
+  title: string;
+  status: string;
+  summary: string;
+  sourceTranscripts: string[];
+  sourceTranscriptCount: number;
+  outputPath: string;
+  tags: string[];
+  path: string;
+}
+
+export interface ResourceInventory<Item> {
+  schemaVersion: 1;
+  count: number;
+  items: Item[];
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ResourcesOverview {
+  ok: boolean;
+  error: string | null;
+  sources: ResourceInventory<ResourceSourceItem>;
+  transcripts: ResourceInventory<ResourceTranscriptItem>;
+  derivatives: ResourceInventory<ResourceDerivativeItem>;
+}
+
+export interface ResourcesValidationResult {
+  ok: boolean;
+  log: string;
+  counts: {
+    sources: number;
+    transcripts: number;
+    derivatives: number;
+  } | null;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ResourcesPreviewResult {
+  ok: boolean;
+  path: string | null;
+  content: string | null;
+  error?: string;
+}
+
+export interface ResourcesActionResult {
+  ok: boolean;
+  log: string;
+  error?: string;
 }
 
 export interface ProjectAsset {
@@ -418,6 +507,13 @@ export interface StudioApi {
   onGenLog: (cb: (chunk: string) => void) => () => void;
   research: (opts: { url: string; slug: string; provider?: string }) => Promise<ResearchResult>;
   onResearchLog: (cb: (chunk: string) => void) => () => void;
+  resources: {
+    list: () => Promise<ResourcesOverview>;
+    validate: () => Promise<ResourcesValidationResult>;
+    preview: (path: string) => Promise<ResourcesPreviewResult>;
+    reveal: (path: string) => Promise<{ ok: boolean; error?: string }>;
+    promoteSkill: (candidatePath: string, approve: boolean) => Promise<ResourcesActionResult>;
+  };
   transcodeAudio: (opts: {
     files: string[];
     game: string;

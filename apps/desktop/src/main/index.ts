@@ -26,6 +26,13 @@ import { DEFAULT_GAME, DEFAULTS, normalizeSettings } from "./settings";
 import { buildGenerateArgs } from "./generate-args";
 import { buildPixelizeArgs, decodePixelizeDataUrl, parsePixelizeCutout } from "./pixelize-args";
 import { parseGenerateResult, dataUrlFor } from "./generate-result";
+import {
+  parseResourceInventory,
+  parseResourceValidation,
+  RESOURCE_INVENTORY_KINDS,
+  resolveResourceDerivativePath,
+  resolveSkillCandidatePath,
+} from "./resources";
 // Single, shared manifest writer + license validator (issue #17). The Electron
 // main process is bundled from TypeScript (vite-plugin-electron), so it imports
 // assetgen's register() directly — no CommonJS shim, one writer for both runtimes.
@@ -65,7 +72,8 @@ const DEADROT_GAMES_ROOT = path.join(WORKSPACE, "deadrotcom", "apps", "games");
 const LEGACY_GAMES_ROOT = path.join(WORKSPACE, "games");
 const GAMES_ROOT = fs.existsSync(DEADROT_GAMES_ROOT) ? DEADROT_GAMES_ROOT : LEGACY_GAMES_ROOT;
 const ASSETGEN = path.join(STUDIO_REPO, "packages", "assetgen", "src", "cli.ts");
-const RESSOURCES = path.join(STUDIO_REPO, "packages", "ressources", "src", "cli.ts");
+const RESSOURCES_ROOT = path.join(STUDIO_REPO, "packages", "ressources");
+const RESSOURCES = path.join(RESSOURCES_ROOT, "src", "cli.ts");
 // The Studio shells out to `bun` against TS source in the monorepo, so it must run
 // from a checked-out repo (dev via `electron .`). If STUDIO_REPO mis-resolves — e.g.
 // a packaged .dmg, where app.getAppPath() points inside the asar — surface it once at
@@ -114,6 +122,70 @@ const gallery = createGallery({
   assetsRoot: () => ASSETS_PKG_CANDIDATES.find((p) => fs.existsSync(path.join(p, "games"))) || null,
   assetBaseUrl: () => readAssetBaseUrl(process.env),
 });
+
+function runResourcesCommand(
+  args: string[],
+  send: ((chunk: string) => void) | null = null,
+  timeoutMs = 60_000,
+): Promise<{ code: number | null; stdout: string; stderr: string; log: string }> {
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn("bun", [RESSOURCES, ...args], { cwd: STUDIO_REPO, env: process.env });
+    } catch (error) {
+      const message = `spawn failed: ${error}\n`;
+      send?.(message);
+      resolve({ code: -1, stdout: "", stderr: message, log: message });
+      return;
+    }
+
+    let stdout = "";
+    let stderr = "";
+    const onStdout = (data) => {
+      const chunk = data.toString();
+      stdout += chunk;
+      send?.(chunk);
+    };
+    const onStderr = (data) => {
+      const chunk = data.toString();
+      stderr += chunk;
+      send?.(chunk);
+    };
+    child.stdout.on("data", onStdout);
+    child.stderr.on("data", onStderr);
+    child.on("error", (error) => {
+      const chunk = `\nprocess error: ${error}\n`;
+      stderr += chunk;
+      send?.(chunk);
+    });
+    const killer = setTimeout(() => {
+      try {
+        child.kill("SIGKILL");
+        const chunk = `\n[timed out after ${Math.round(timeoutMs / 1000)}s]\n`;
+        stderr += chunk;
+        send?.(chunk);
+      } catch {}
+    }, timeoutMs);
+    child.on("close", (code) => {
+      clearTimeout(killer);
+      resolve({ code, stdout, stderr, log: `${stdout}${stderr}` });
+    });
+  });
+}
+
+function emptyResourceInventory(kind: string, error: string) {
+  return { schemaVersion: 1 as const, kind, count: 0, items: [], errors: [error], warnings: [] };
+}
+
+function realDerivativePath(relativePath: unknown): string {
+  const resolved = resolveResourceDerivativePath(RESSOURCES_ROOT, relativePath);
+  const derivativeRoot = fs.realpathSync(path.join(RESSOURCES_ROOT, "derivatives"));
+  const actual = fs.realpathSync(resolved);
+  if (actual !== derivativeRoot && !actual.startsWith(`${derivativeRoot}${path.sep}`)) {
+    throw new Error("derivative path resolves outside packages/ressources/derivatives");
+  }
+  return actual;
+}
 
 // ---- settings (non-secret) ----
 // Defaults + normalization live in ./settings (pure, bun-testable); this block
@@ -487,6 +559,111 @@ ipcMain.handle(IPC_CHANNELS.studioPixelize, async (_e, payload = {}) => {
     return { ok: false, error: String((err as Error)?.message ?? err) };
   } finally {
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+  }
+});
+
+ipcMain.handle(IPC_CHANNELS.resourcesList, async () => {
+  try {
+    const results = await Promise.all(
+      RESOURCE_INVENTORY_KINDS.map(async (kind) => {
+        const result = await runResourcesCommand([kind, "--json"]);
+        return { kind, result, inventory: parseResourceInventory(kind, result.stdout) };
+      }),
+    );
+    const byKind = Object.fromEntries(results.map(({ kind, inventory }) => [kind, inventory]));
+    const failed = results.filter(({ result, inventory }) => result.code !== 0 || inventory.errors.length > 0);
+    return {
+      ok: failed.length === 0,
+      error: failed.length
+        ? failed.map(({ kind, result }) => `${kind} inventory exited ${result.code}`).join("; ")
+        : null,
+      sources: byKind.sources,
+      transcripts: byKind.transcripts,
+      derivatives: byKind.derivatives,
+    };
+  } catch (error) {
+    const message = String((error as Error)?.message ?? error);
+    return {
+      ok: false,
+      error: message,
+      sources: emptyResourceInventory("sources", message),
+      transcripts: emptyResourceInventory("transcripts", message),
+      derivatives: emptyResourceInventory("derivatives", message),
+    };
+  }
+});
+
+ipcMain.handle(IPC_CHANNELS.resourcesValidate, async (e) => {
+  const send = (chunk) => {
+    if (!e.sender.isDestroyed()) e.sender.send(IPC_CHANNELS.studioResearchLog, chunk);
+  };
+  send("$ ressources validate\n");
+  const result = await runResourcesCommand(["validate"], send);
+  send(`\n[exit ${result.code}]\n`);
+  return parseResourceValidation(result.code, result.log);
+});
+
+ipcMain.handle(IPC_CHANNELS.resourcesPreview, async (_e, payload = {}) => {
+  try {
+    const previewPath = realDerivativePath(payload.path);
+    if (![".md", ".json"].includes(path.extname(previewPath).toLowerCase())) {
+      throw new Error("only derivative Markdown and JSON files can be previewed");
+    }
+    const stats = fs.statSync(previewPath);
+    if (!stats.isFile() || stats.size > 256 * 1024) {
+      throw new Error("derivative preview must be a file no larger than 256 KB");
+    }
+    return {
+      ok: true,
+      path: previewPath,
+      content: await fs.promises.readFile(previewPath, "utf8"),
+    };
+  } catch (error) {
+    return { ok: false, path: null, content: null, error: String((error as Error)?.message ?? error) };
+  }
+});
+
+ipcMain.handle(IPC_CHANNELS.resourcesReveal, (_e, payload = {}) => {
+  try {
+    electronShell.showItemInFolder(realDerivativePath(payload.path));
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: String((error as Error)?.message ?? error) };
+  }
+});
+
+ipcMain.handle(IPC_CHANNELS.resourcesPromoteSkill, async (e, payload = {}) => {
+  const send = (chunk) => {
+    if (!e.sender.isDestroyed()) e.sender.send(IPC_CHANNELS.studioResearchLog, chunk);
+  };
+  try {
+    const declaredPath = resolveSkillCandidatePath(RESSOURCES_ROOT, payload.candidatePath);
+    const candidatePath = realDerivativePath(payload.candidatePath);
+    const skillsRoot = fs.realpathSync(path.join(RESSOURCES_ROOT, "derivatives", "skills"));
+    if (
+      candidatePath !== declaredPath ||
+      !candidatePath.startsWith(`${skillsRoot}${path.sep}`) ||
+      !candidatePath.endsWith(".resource.json")
+    ) {
+      throw new Error("skill candidate resolves outside derivatives/skills");
+    }
+    const mode = payload.approve === true ? "--approve" : "--dry-run";
+    send(`$ ressources promote-skill --candidate ${payload.candidatePath} ${mode}\n`);
+    const result = await runResourcesCommand(
+      ["promote-skill", "--candidate", candidatePath, mode],
+      send,
+      120_000,
+    );
+    send(`\n[exit ${result.code}]\n`);
+    return {
+      ok: result.code === 0,
+      log: result.log,
+      ...(result.code === 0 ? {} : { error: `skill promotion ${mode} exited ${result.code}` }),
+    };
+  } catch (error) {
+    const message = String((error as Error)?.message ?? error);
+    send(`${message}\n`);
+    return { ok: false, log: message, error: message };
   }
 });
 
