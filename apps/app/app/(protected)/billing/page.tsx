@@ -1,4 +1,6 @@
+import { auth } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { CreditCard } from "lucide-react";
 
 import { StatusPill } from "@/components/status-pill";
@@ -13,7 +15,9 @@ export const metadata: Metadata = {
 };
 
 export default async function BillingPage() {
-  const { studioPass: pass } = await readBillingEntitlements();
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+  const { studioPass: pass } = await readBillingEntitlements(userId);
 
   return (
     <main className="min-h-[calc(100vh-4rem)] px-6 py-12">

@@ -1,5 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { KeyRound, Lock, Users } from "lucide-react";
 
 import { StatusPill } from "@/components/status-pill";
@@ -16,11 +17,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AccessPage() {
-  const [{ userId }, user, entitlements] = await Promise.all([
+  const [{ userId }, user] = await Promise.all([
     auth(),
     currentUser(),
-    readBillingEntitlements(),
   ]);
+  if (!userId) redirect("/sign-in");
+  const entitlements = await readBillingEntitlements(userId);
   const email = primaryEmail(user);
   const pass = entitlements.studioPass;
   const active = hasSkillsProContentAccess(entitlements);

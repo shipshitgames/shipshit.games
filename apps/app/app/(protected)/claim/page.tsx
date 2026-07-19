@@ -61,7 +61,7 @@ export default async function ClaimPage({ searchParams }: ClaimPageProps) {
     }
   }
 
-  const entitlements = await readBillingEntitlements();
+  const entitlements = await readBillingEntitlements(userId);
   if (hasSkillsProContentAccess(entitlements) && email) {
     accessUrl = createSkillsProAccessUrl(userId, email);
     message =

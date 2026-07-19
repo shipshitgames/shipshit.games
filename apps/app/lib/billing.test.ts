@@ -1,4 +1,5 @@
 import { beforeEach, expect, mock, test } from "bun:test";
+import type { BillingEntitlements } from "@shipshitgames/shared";
 
 const apiFetch = mock(async () => Response.json({}));
 
@@ -23,7 +24,7 @@ test("returns entitlements only when the API subject matches the expected user",
       stripeEventId: "evt_1",
       updatedAt: "2026-07-19T00:00:00.000Z",
     },
-  };
+  } satisfies BillingEntitlements;
   apiFetch.mockImplementationOnce(async () =>
     Response.json({ userId: "user_signed", entitlements }),
   );
