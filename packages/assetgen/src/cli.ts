@@ -4,6 +4,8 @@ type CommandLoader = () => Promise<CommandRunner>;
 
 const COMMANDS: Record<string, CommandLoader> = {
   generate: async () => (await import("./commands/generate.ts")).runGenerate,
+  model: async () => (await import("./commands/model.ts")).runModelCommand,
+  preview: async () => (await import("./commands/preview.ts")).runPreviewCommand,
   expand: async () => (await import("./commands/expand.ts")).runExpand, // #71
   "import-aseprite": async () => (await import("./commands/import-aseprite.ts")).runImportAseprite, // #78
 

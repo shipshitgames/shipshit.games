@@ -47,6 +47,7 @@
     "@gltf-transform/extensions": "4.4.0",
     "@gltf-transform/functions": "4.4.0",
     "draco3dgltf": "1.5.7",
+    "meshoptimizer": "1.2.0",
     "node-pty": "1.1.0",
     "sharp": "0.34.5"
   },

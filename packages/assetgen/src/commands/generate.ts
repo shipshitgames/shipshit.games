@@ -80,7 +80,8 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const modelMode = !spriteMode && (generationKind === "model" || generationKind === "3d");
 
   // 3D-model knobs (issue #20): Draco geometry is on by default (the mandatory
-  // optimize); KTX2 is encoder-gated; --rig names the rig/retarget provenance.
+  // optimize). Generated rig provenance must come from the provider; arbitrary
+  // operator attribution is accepted only by `model register` for imports.
   const ktx2 = has(argv, "ktx2");
   const draco = !has(argv, "no-draco");
   const rigSource = flag(argv, "rig");
@@ -94,6 +95,12 @@ export async function runGenerate(argv: string[]): Promise<void> {
 
   if (!id || !prompt) {
     printGenerateUsage();
+    process.exit(1);
+  }
+  if (modelMode && rigSource) {
+    console.error(
+      "[assetgen] generate derives rig provenance from its provider; use model register --rig <source> for imported models",
+    );
     process.exit(1);
   }
 
@@ -228,7 +235,7 @@ export async function runGenerate(argv: string[]): Promise<void> {
             ...(licenseUrl ? { url: licenseUrl } : {}),
             generatedAt: new Date().toISOString(),
             rig: {
-              source: rigSource ?? (rigged ? asset.provider : "none"),
+              source: rigged ? asset.provider : "none",
               rigged,
               joints: result.summary.joints,
               animations: result.animations,
@@ -292,7 +299,7 @@ function printGenerateUsage(): void {
       "           [--model <model>] [--size 1024] [--reference <image>|-i <image...>] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
       "           [--views front,side,back] [--frames 1] [--fps 8] [--anchor 0.5,1] [--scale 1]\n" +
       "           [--category music|sfx|voice] [--volume 1] [--loop|--no-loop] [--bitrate 128] [--normalize]\n" +
-      "           [--ktx2] [--no-draco] [--rig <source>]\n" +
+      "           [--ktx2] [--no-draco]\n" +
       "           [--outline-tint] [--outline-tint-strength 0.5] [--outline-tint-threshold 32]\n" +
       "           [--license <terms>] [--license-url <url>] [--seed <n>] [--authored] [--edit-kind <label>]\n" +
       "           [--draft]  (stage under src/assets/drafts/; publish later with `assetgen promote`)\n" +

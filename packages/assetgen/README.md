@@ -117,6 +117,59 @@ auto-fills `dimensions`, `frameSize`, `frames`, `fps`, `anchor`, `scale`,
 `views`, `sheet`, and `license` fields in `assets.json`, and writes a
 `previews/<id>-billboard.html` file for the desktop billboard preview.
 
+## Model workflow
+
+The explicit model CLI wraps the same provider, optimization, provenance, and
+manifest primitives as `generate --kind model`:
+
+```bash
+# Provider-backed generation stages a reviewable draft by default.
+bun packages/assetgen/src/cli.ts model generate \
+  --id breach-golem --prompt "a parasite-taken siege golem" \
+  --provider mock --repo ./games/example
+
+# Imported/provider GLB: preserve the source, optimize the runtime copy, and
+# write a hash-addressed trace report beside it.
+bun packages/assetgen/src/cli.ts model optimize \
+  --in ./sources/breach-golem.glb --out ./build/breach-golem.glb
+
+# Registration verifies the runtime GLB and raw source against that report,
+# copies the optimized model into src/assets/models, and records license state.
+bun packages/assetgen/src/cli.ts model register \
+  --in ./build/breach-golem.glb --id breach-golem \
+  --provider tripo --model v2.5 --license "commercial plan; reviewed" \
+  --license-type ai-generated --rig provider \
+  --repo ./games/example
+
+# Emit a review target. GLB/GLTF inputs get a browser viewer; images, audio,
+# and export packs emit their direct file target. Add --open to launch it.
+bun packages/assetgen/src/cli.ts preview --in ./build/breach-golem.glb
+```
+
+Pass `model generate --publish` only when the generated model should bypass the
+draft review lane. `model optimize --report <path>` and `model register --report
+<path>` override the default `<runtime.glb>.optimize.json` trace location.
+Registration preserves the raw GLB and normalized trace report under
+`src/assets/sources/models` alongside the optimized runtime model. The source
+directory is deliberately excluded from runtime asset indexes and game orphan
+checks while remaining addressable through the manifest's `modelTrace` fields.
+Imported models only receive AI disclosure or prompt provenance when explicitly
+supplied. Generated models derive rig provenance from their provider. For
+imports, `model register --rig` accepts only
+`none|provider|artist|mixamo|other`: `none` is checked against the GLB's detected
+skeleton state, while every non-`none` value is recorded as an operator
+assertion rather than inferred provenance.
+
+Model previews accept at most 32 MiB across their input JSON/binary resources
+and at most 32 MiB for the bundled GLB before base64 embedding. The generated
+viewer pins `@google/model-viewer@4.3.1` with SRI. Verify its checked-in digest
+with:
+
+```bash
+curl -fsSL https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js \
+  | openssl dgst -sha384 -binary | openssl base64 -A
+```
+
 ## Draft & promote (issue #54)
 
 By default `generate` writes straight into `src/assets/assets.json`. Pass
