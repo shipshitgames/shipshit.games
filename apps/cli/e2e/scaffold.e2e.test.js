@@ -22,6 +22,13 @@ import { after, test } from "node:test";
 
 const pkgDir = fileURLToPath(new URL("..", import.meta.url));
 const cliPath = join(pkgDir, "src", "cli.js");
+const githubTemplateFiles = [
+  "ISSUE_TEMPLATE/bug.yml",
+  "ISSUE_TEMPLATE/config.yml",
+  "ISSUE_TEMPLATE/feature.yml",
+  "ISSUE_TEMPLATE/task.yml",
+  "pull_request_template.md",
+];
 
 /** @type {string[]} */
 const tempDirs = [];
@@ -84,6 +91,11 @@ test("ssg new stamps a complete, valid game repo", () => {
     ".github/pull_request_template.md",
   ]) {
     assert.ok(existsSync(join(dir, file)), `missing ${file}`);
+  }
+  for (const file of githubTemplateFiles) {
+    const generated = readFileSync(join(dir, ".github", file));
+    const bundled = readFileSync(join(pkgDir, "templates/dot-github", file));
+    assert.deepEqual(generated, bundled, `${file} was not copied byte-for-byte`);
   }
 
   // AGENTS.md references both memory docs and is fully rendered

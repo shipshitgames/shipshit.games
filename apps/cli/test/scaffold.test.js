@@ -15,6 +15,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { after, before, test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   assertSafeLorePath,
   assertSafeLoreUrl,
@@ -33,6 +34,15 @@ import {
 
 /** @type {string[]} */
 const tempDirs = [];
+const cliDir = fileURLToPath(new URL("..", import.meta.url));
+const repoDir = resolve(cliDir, "../..");
+const githubTemplateFiles = [
+  "ISSUE_TEMPLATE/bug.yml",
+  "ISSUE_TEMPLATE/config.yml",
+  "ISSUE_TEMPLATE/feature.yml",
+  "ISSUE_TEMPLATE/task.yml",
+  "pull_request_template.md",
+];
 
 /** @returns {string} */
 function makeTemp() {
@@ -195,8 +205,20 @@ test("buildPlan maps template prefixes, genre dir, gitkeeps, symlinks, and gitmo
   assert.ok(byPath.has(".gitignore"));
   assert.ok(byPath.has(".agents/memory/MEMORY.md"));
   assert.ok(byPath.has(".codex/instructions.md"));
-  assert.ok(byPath.has(".github/ISSUE_TEMPLATE/bug.yml"));
-  assert.ok(byPath.has(".github/pull_request_template.md"));
+  assert.deepEqual(byPath.get(".github/ISSUE_TEMPLATE/bug.yml"), {
+    kind: "file",
+    path: ".github/ISSUE_TEMPLATE/bug.yml",
+    source: "dot-github/ISSUE_TEMPLATE/bug.yml",
+    render: false,
+    executable: false,
+  });
+  assert.deepEqual(byPath.get(".github/pull_request_template.md"), {
+    kind: "file",
+    path: ".github/pull_request_template.md",
+    source: "dot-github/pull_request_template.md",
+    render: false,
+    executable: false,
+  });
 
   const worktreeScript = byPath.get(".agents/skills/worktree/scripts/create-worktree.sh");
   assert.ok(worktreeScript);
@@ -211,6 +233,14 @@ test("buildPlan maps template prefixes, genre dir, gitkeeps, symlinks, and gitmo
   const skillsLink = byPath.get(".claude/skills");
   assert.equal(skillsLink?.kind, "symlink");
   assert.ok(byPath.has(".gitmodules"));
+});
+
+test("bundled GitHub templates stay byte-identical to the repository templates", () => {
+  for (const file of githubTemplateFiles) {
+    const canonical = readFileSync(join(repoDir, ".github", file));
+    const bundled = readFileSync(join(cliDir, "templates/dot-github", file));
+    assert.deepEqual(bundled, canonical, `${file} drifted from the repository template`);
+  }
 });
 
 test("buildPlan omits .gitmodules when submodule is disabled", () => {
@@ -261,6 +291,11 @@ test("scaffold stamps the full tree, symlinks, gitmodules, and git repo", () => 
   assert.ok(existsSync(join(dir, ".github/ISSUE_TEMPLATE/task.yml")));
   assert.ok(existsSync(join(dir, ".github/ISSUE_TEMPLATE/config.yml")));
   assert.ok(existsSync(join(dir, ".github/pull_request_template.md")));
+  for (const file of githubTemplateFiles) {
+    const generated = readFileSync(join(dir, ".github", file));
+    const bundled = readFileSync(join(cliDir, "templates/dot-github", file));
+    assert.deepEqual(generated, bundled, `${file} was not copied byte-for-byte`);
+  }
 
   // memory seed references the two boundary docs AGENTS.md must point at
   const agents = readFileSync(join(dir, "AGENTS.md"), "utf8");
