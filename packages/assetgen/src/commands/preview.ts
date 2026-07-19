@@ -129,7 +129,7 @@ export async function bundleGltfForPreview(
   const resourceUris = gltfResourceUris(document);
   assertNoUnsupportedResourceUris(document);
 
-  const resources: Record<string, Uint8Array> = {};
+  const resources: JSONDocument["resources"] = {};
   let totalBytes = sourceBytes.length;
   for (const uri of resourceUris) {
     if (/^data:/i.test(uri)) continue;
@@ -137,7 +137,9 @@ export async function bundleGltfForPreview(
     const resource = await readFile(resourcePath);
     totalBytes += resource.length;
     assertPreviewByteCount(totalBytes, maxModelBytes, "GLTF preview input and resources");
-    resources[uri] = resource;
+    // Node buffers may expose SharedArrayBuffer-backed storage. Copy into a
+    // fresh, owned ArrayBuffer because NodeIO's JSONDocument contract requires it.
+    resources[uri] = new Uint8Array(resource);
   }
 
   const draco3d = await import("draco3dgltf");
