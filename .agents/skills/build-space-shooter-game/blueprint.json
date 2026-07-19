@@ -1,0 +1,100 @@
+{
+  "gameType": "space-shooter",
+  "genreAliases": [
+    "space shooter",
+    "arcade space shooter",
+    "top-down space shooter",
+    "top-down ship survivor",
+    "ship survivor",
+    "orbital shooter",
+    "survivor shooter",
+    "space survivors"
+  ],
+  "assetClasses": [
+    {
+      "category": "sprite",
+      "items": [
+        "player ship",
+        "5 enemy roles: formation swarmer, charger, ranged attacker, mine-layer, support or spawner",
+        "5 auto-fire weapon and projectile families",
+        "XP gem and run-currency pickup",
+        "3-phase boss",
+        "drydock upgrade icons"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "ui",
+      "items": [
+        "hull or health",
+        "XP and level",
+        "run timer",
+        "weapon loadout",
+        "level-up draft",
+        "boss phase and health",
+        "victory and defeat results",
+        "drydock meta-shop"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "vfx",
+      "items": [
+        "ship movement trail",
+        "weapon fire and impact",
+        "XP magnet collection",
+        "level-up",
+        "enemy death",
+        "boss phase transitions",
+        "victory and defeat"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "music",
+      "items": [
+        "gameplay run loop",
+        "ship movement and damage SFX",
+        "5 weapon-family SFX",
+        "XP pickup and level-up SFX",
+        "boss phase SFX",
+        "victory and defeat SFX",
+        "drydock purchase SFX"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "sprite",
+      "items": [
+        "alternate player ships",
+        "additional enemy factions",
+        "additional boss encounters",
+        "decorative orbital landmarks"
+      ],
+      "mvp": false
+    },
+    {
+      "category": "ui",
+      "items": [
+        "ship roster",
+        "run history",
+        "challenge modifiers",
+        "leaderboard"
+      ],
+      "mvp": false
+    }
+  ],
+  "mvpSlice": [
+    "mouse-follow player ship",
+    "5 enemy types",
+    "5 auto-fire weapons",
+    "XP-gem magnet",
+    "paused level-up draft",
+    "3-phase boss",
+    "drydock meta-shop",
+    "run timer",
+    "parallax starfield",
+    "HUD: hull, XP, level, timer, weapons, boss, results, and drydock",
+    "one gameplay loop plus ship, weapon, pickup, boss, result, and drydock SFX"
+  ]
+}

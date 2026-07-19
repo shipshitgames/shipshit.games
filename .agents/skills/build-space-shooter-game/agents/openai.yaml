@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Space Shooter Game"
+  short_description: "Build a top-down ship survivor MVP"
+  default_prompt: "Use $build-space-shooter-game to plan and implement a top-down space-shooter survivor MVP."
