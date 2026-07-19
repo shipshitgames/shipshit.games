@@ -1,7 +1,7 @@
 name: Agent-ready task
 description: Define a focused chore, refactor, documentation change, or implementation slice
 title: "chore: "
-labels: ["enhancement"]
+labels: ["chore"]
 body:
   - type: dropdown
     id: mode
