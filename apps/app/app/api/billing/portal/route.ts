@@ -13,7 +13,7 @@ export async function POST() {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const { studioPass: pass } = await readBillingEntitlements();
+  const { studioPass: pass } = await readBillingEntitlements(userId);
   if (!pass?.stripeCustomerId) {
     return NextResponse.redirect(`${appUrl()}/dashboard`, 303);
   }

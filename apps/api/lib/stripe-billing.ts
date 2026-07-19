@@ -264,7 +264,7 @@ async function applyOneTimeCheckout(
     return { handled: false, reason: "not-skills-pro" } as const;
   }
   if (session.payment_status !== "paid") {
-    throw new Error("Skills Pro checkout is not paid");
+    return { handled: false, reason: "skills-pro-not-paid" } as const;
   }
 
   const customerId = idOf(session.customer);
@@ -399,8 +399,19 @@ export async function processStripeBillingEvent(
           session,
         );
       }
+      if (session.mode !== "subscription") {
+        return {
+          handled: false,
+          reason: "unsupported-checkout-mode",
+        } as const;
+      }
       const subscriptionId = idOf(session.subscription);
-      if (!subscriptionId) throw new Error("Checkout has no subscription");
+      if (!subscriptionId) {
+        return {
+          handled: false,
+          reason: "checkout-without-subscription",
+        } as const;
+      }
       const subscription =
         await stripe.subscriptions.retrieve(subscriptionId);
       return applySubscription(

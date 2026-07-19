@@ -7,6 +7,7 @@ import {
   beginWebhookEvent,
   completeWebhookEvent,
   failWebhookEvent,
+  webhookLeaseResponse,
 } from "@/lib/webhook-events";
 import { processStripeBillingEvent } from "@/lib/stripe-billing";
 
@@ -38,19 +39,8 @@ export async function POST(req: Request) {
     event,
     new Date(event.created * 1000),
   );
-  if (lease.state === "duplicate") {
-    return NextResponse.json({
-      received: true,
-      duplicate: true,
-      attempt: lease.attempt,
-    });
-  }
-  if (lease.state === "processing") {
-    return NextResponse.json(
-      { received: true, processing: true, attempt: lease.attempt },
-      { status: 202 },
-    );
-  }
+  const leaseResponse = webhookLeaseResponse(lease);
+  if (leaseResponse) return leaseResponse;
 
   try {
     const stripe = new Stripe(key);

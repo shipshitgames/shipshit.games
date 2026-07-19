@@ -394,3 +394,66 @@ test("a fully refunded one-time purchase revokes access and ignores stale replay
   expect(h.repository.skillsPro.get("user_1")?.active).toBe(false);
   expect(h.skillsFulfillments()).toBe(1);
 });
+
+test("an unpaid one-time checkout is terminal and does not mutate billing", async () => {
+  const h = harness();
+  const result = await processStripeBillingEvent(
+    h.stripe,
+    h.repository,
+    h.fulfillment,
+    event("evt_unpaid", 100, "checkout.session.completed", {
+      id: "cs_unpaid",
+      mode: "payment",
+      payment_status: "unpaid",
+      metadata: { product: "games-skills-pro" },
+    }),
+  );
+
+  expect(result).toEqual({
+    handled: false,
+    reason: "skills-pro-not-paid",
+  });
+  expect(h.repository.skillsPro.size).toBe(0);
+  expect(h.skillsFulfillments()).toBe(0);
+});
+
+test("a subscription checkout without a subscription is terminal", async () => {
+  const h = harness();
+  const result = await processStripeBillingEvent(
+    h.stripe,
+    h.repository,
+    h.fulfillment,
+    event("evt_missing_subscription", 100, "checkout.session.completed", {
+      id: "cs_missing_subscription",
+      mode: "subscription",
+      subscription: null,
+      metadata: { product: "studio-pass" },
+    }),
+  );
+
+  expect(result).toEqual({
+    handled: false,
+    reason: "checkout-without-subscription",
+  });
+  expect(h.repository.studioPass.size).toBe(0);
+});
+
+test("a setup checkout is terminal instead of entering the subscription retry path", async () => {
+  const h = harness();
+  const result = await processStripeBillingEvent(
+    h.stripe,
+    h.repository,
+    h.fulfillment,
+    event("evt_setup", 100, "checkout.session.completed", {
+      id: "cs_setup",
+      mode: "setup",
+      subscription: null,
+    }),
+  );
+
+  expect(result).toEqual({
+    handled: false,
+    reason: "unsupported-checkout-mode",
+  });
+  expect(h.repository.studioPass.size).toBe(0);
+});

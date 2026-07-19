@@ -26,7 +26,7 @@ export async function POST() {
 
   const stripe = getStripe();
   const [{ studioPass: pass }, couponId] = await Promise.all([
-    readBillingEntitlements(),
+    readBillingEntitlements(userId),
     founderCouponId(stripe),
   ]);
   const baseUrl = appUrl();

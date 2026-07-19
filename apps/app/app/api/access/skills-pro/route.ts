@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   const client = await clerkClient();
   const [user, entitlements] = await Promise.all([
     client.users.getUser(payload.sub),
-    readBillingEntitlements(),
+    readBillingEntitlements(payload.sub),
   ]);
   if (
     primaryEmail(user) !== payload.email ||

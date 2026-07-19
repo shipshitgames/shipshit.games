@@ -9,7 +9,8 @@ export async function GET(req: Request) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
 
-  return NextResponse.json(
-    await billingRepository.readEntitlements(auth.userId),
-  );
+  return NextResponse.json({
+    userId: auth.userId,
+    entitlements: await billingRepository.readEntitlements(auth.userId),
+  });
 }

@@ -1,13 +1,15 @@
 import { Prisma } from "@/generated/client";
 import { db } from "./db";
 
+type WebhookSource = "stripe" | "clerk" | "github";
+
 /**
  * Persist a verified webhook delivery. Returns false when the provider
  * already delivered this event (idempotent redelivery) so handlers can skip
  * side effects.
  */
 export async function recordWebhookEvent(
-  source: "stripe" | "clerk" | "github",
+  source: WebhookSource,
   externalId: string | null,
   type: string,
   payload: unknown,
@@ -39,53 +41,142 @@ export type WebhookLease =
   | { state: "duplicate"; id: string; attempt: number }
   | { state: "processing"; id: string; attempt: number };
 
-const PROCESSING_LEASE_MS = 5 * 60 * 1000;
+export const WEBHOOK_PROCESSING_LEASE_SECONDS = 5 * 60;
+const PROCESSING_LEASE_MS = WEBHOOK_PROCESSING_LEASE_SECONDS * 1000;
+
+type StoredWebhookLease = {
+  id: string;
+  status: string;
+  attempts: number;
+  lastAttemptAt: Date | null;
+};
+
+export interface WebhookLeaseStore {
+  create(input: {
+    source: WebhookSource;
+    externalId: string;
+    type: string;
+    payload: unknown;
+    eventCreatedAt?: Date;
+    now: Date;
+  }): Promise<{ id: string; attempts: number } | null>;
+  find(source: WebhookSource, externalId: string): Promise<StoredWebhookLease>;
+  claim(id: string, staleBefore: Date, now: Date): Promise<boolean>;
+}
+
+const databaseWebhookLeaseStore: WebhookLeaseStore = {
+  async create(input) {
+    try {
+      return await db.webhookEvent.create({
+        data: {
+          source: input.source,
+          externalId: input.externalId,
+          type: input.type,
+          payload: input.payload as Prisma.InputJsonValue,
+          status: "processing",
+          attempts: 1,
+          eventCreatedAt: input.eventCreatedAt,
+          lastAttemptAt: input.now,
+        },
+        select: { id: true, attempts: true },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  async find(source, externalId) {
+    return db.webhookEvent.findUniqueOrThrow({
+      where: { source_externalId: { source, externalId } },
+      select: {
+        id: true,
+        status: true,
+        attempts: true,
+        lastAttemptAt: true,
+      },
+    });
+  },
+
+  async claim(id, staleBefore, now) {
+    const claimed = await db.webhookEvent.updateMany({
+      where: {
+        id,
+        OR: [
+          { status: "failed" },
+          { status: "pending" },
+          {
+            status: "processing",
+            lastAttemptAt: { lte: staleBefore },
+          },
+        ],
+      },
+      data: {
+        status: "processing",
+        attempts: { increment: 1 },
+        lastAttemptAt: now,
+        error: null,
+      },
+    });
+    return claimed.count > 0;
+  },
+};
+
+export function webhookLeaseResponse(lease: WebhookLease): Response | null {
+  if (lease.state === "claimed") return null;
+  if (lease.state === "duplicate") {
+    return Response.json({
+      received: true,
+      duplicate: true,
+      attempt: lease.attempt,
+    });
+  }
+  return Response.json(
+    {
+      received: false,
+      processing: true,
+      attempt: lease.attempt,
+    },
+    {
+      status: 503,
+      headers: {
+        "retry-after": String(WEBHOOK_PROCESSING_LEASE_SECONDS),
+      },
+    },
+  );
+}
 
 /**
  * Acquire a retryable processing lease for a verified delivery. Completed
  * deliveries are duplicates; failed or stale deliveries can be reclaimed.
  */
 export async function beginWebhookEvent(
-  source: "stripe" | "clerk" | "github",
+  source: WebhookSource,
   externalId: string,
   type: string,
   payload: unknown,
   eventCreatedAt?: Date,
+  store: WebhookLeaseStore = databaseWebhookLeaseStore,
 ): Promise<WebhookLease> {
   const now = new Date();
-  try {
-    const created = await db.webhookEvent.create({
-      data: {
-        source,
-        externalId,
-        type,
-        payload: payload as Prisma.InputJsonValue,
-        status: "processing",
-        attempts: 1,
-        eventCreatedAt,
-        lastAttemptAt: now,
-      },
-      select: { id: true, attempts: true },
-    });
+  const created = await store.create({
+    source,
+    externalId,
+    type,
+    payload,
+    eventCreatedAt,
+    now,
+  });
+  if (created) {
     return { state: "claimed", id: created.id, attempt: created.attempts };
-  } catch (error) {
-    if (
-      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-      error.code !== "P2002"
-    ) {
-      throw error;
-    }
   }
 
-  const existing = await db.webhookEvent.findUniqueOrThrow({
-    where: { source_externalId: { source, externalId } },
-    select: {
-      id: true,
-      status: true,
-      attempts: true,
-      lastAttemptAt: true,
-    },
-  });
+  const existing = await store.find(source, externalId);
   if (existing.status === "processed") {
     return {
       state: "duplicate",
@@ -95,26 +186,8 @@ export async function beginWebhookEvent(
   }
 
   const staleBefore = new Date(now.getTime() - PROCESSING_LEASE_MS);
-  const claimed = await db.webhookEvent.updateMany({
-    where: {
-      id: existing.id,
-      OR: [
-        { status: "failed" },
-        { status: "pending" },
-        {
-          status: "processing",
-          lastAttemptAt: { lte: staleBefore },
-        },
-      ],
-    },
-    data: {
-      status: "processing",
-      attempts: { increment: 1 },
-      lastAttemptAt: now,
-      error: null,
-    },
-  });
-  if (claimed.count === 0) {
+  const claimed = await store.claim(existing.id, staleBefore, now);
+  if (!claimed) {
     return {
       state: "processing",
       id: existing.id,
