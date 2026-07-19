@@ -65,8 +65,12 @@ The same loader contract should later support any new IP repo.
   and self-hosted model adapters.
 - **Audio Lab.** Music, stingers, ambiences, VO, SFX, loops, stems, and runtime
   exports.
-- **Lore/Canon.** Pull constraints and style references from the IP repo without
-  making the platform the canon source of truth.
+- **Lore/Canon.** Browse, **edit, and AI-generate** canon (entity bios, location
+  and faction lore, stories) directly in the studio using lore skills and
+  generation, then promote accepted changes back into the IP repo's lore vault
+  (`apps/lore/content`) via the git flow. This is a full authoring surface, not
+  read-only — but the **franchise repo remains the store and source of truth**:
+  the studio writes into the vault and never holds canon of its own.
 - **Preview.** Inspect images, atlases, GLB files, animation clips, audio loops,
   material maps, and export packs before promotion.
 - **Gyms.** Launch local playable slices with selected draft/promoted assets.
