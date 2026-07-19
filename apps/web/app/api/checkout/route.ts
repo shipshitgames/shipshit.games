@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { SKILLS_PRO } from "@/lib/skills-pro";
+import { STUDIO_PASS } from "@shipshitgames/shared";
 
 export const runtime = "nodejs";
 
 const CHECKOUT_ERROR = "stripe_checkout_unavailable";
-const FOUNDER_AMOUNT_OFF_CENTS = SKILLS_PRO.earlyBuyerDiscountUsd * 100;
+const FOUNDER_AMOUNT_OFF_CENTS = STUDIO_PASS.founderDiscountUsd * 100;
 
 function baseUrl(request: NextRequest) {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
@@ -33,8 +33,8 @@ function getStripe() {
 
 async function getFounderCoupon(stripe: Stripe) {
   const couponId =
-    process.env[SKILLS_PRO.couponEnvKey] ??
-    SKILLS_PRO.defaultCouponId;
+    process.env[STUDIO_PASS.couponEnvKey] ??
+    STUDIO_PASS.defaultCouponId;
 
   const coupon = await stripe.coupons.retrieve(couponId);
   if (
@@ -43,7 +43,7 @@ async function getFounderCoupon(stripe: Stripe) {
     coupon.currency !== "usd"
   ) {
     throw new Error(
-      `${couponId} must be a USD ${SKILLS_PRO.earlyBuyerDiscountUsd} off coupon`
+      `${couponId} must be a USD ${STUDIO_PASS.founderDiscountUsd} off coupon`
     );
   }
 
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   const stripe = getStripe();
   if (!stripe) return checkoutErrorRedirect(request, "missing_stripe_secret");
 
-  const configuredPriceId = process.env[SKILLS_PRO.priceEnvKey];
+  const configuredPriceId = process.env[STUDIO_PASS.priceEnvKey];
   if (!configuredPriceId) return checkoutErrorRedirect(request, "missing_price");
 
   try {

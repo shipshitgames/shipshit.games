@@ -358,6 +358,7 @@ export function buildPlan({ templateFiles, genreFiles, options }) {
     if (rel === "gitignore.tmpl") return ".gitignore";
     if (rel.startsWith("dot-agents/")) return rel.replace(/^dot-agents\//, ".agents/").replace(/\.tmpl$/, "");
     if (rel.startsWith("dot-codex/")) return rel.replace(/^dot-codex\//, ".codex/").replace(/\.tmpl$/, "");
+    if (rel.startsWith("dot-github/")) return rel.replace(/^dot-github\//, ".github/").replace(/\.tmpl$/, "");
     return rel.replace(/\.tmpl$/, "");
   };
 
