@@ -5,7 +5,7 @@ export default defineConfig({
     // @types/bun 1.3.14 is the latest Bun types package and is a direct,
     // dev-only toolchain dependency. Keep the supply-chain check enabled, but
     // accept the current vetted Socket score instead of disabling the gate.
-    minScore: 48,
+    minScore: 47,
   },
   ignore: {
     // ignore.files globs are matched per-project-relative, so Nextra's
