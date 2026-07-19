@@ -112,6 +112,26 @@ test("checked-in platformer runner blueprint matches Redline's genre", async () 
   assert.ok(blueprint?.mvpSlice.includes("beacon finish"));
 });
 
+test("checked-in space shooter blueprint matches Starblight's genre", async () => {
+  const blueprints = await loadBlueprints(repoSkillsDir);
+  const blueprint = selectBlueprint(blueprints, "Top-Down Ship Survivor");
+
+  assert.equal(blueprint?.gameType, "space-shooter");
+  assert.equal(blueprint?.skill, "build-space-shooter-game");
+  assert.deepEqual(
+    blueprint?.assetClasses
+      .filter((assetClass) => assetClass.mvp)
+      .map((assetClass) => assetClass.category),
+    ["sprite", "ui", "vfx", "music"],
+  );
+  assert.ok(blueprint?.mvpSlice.includes("5 auto-fire weapons"));
+  assert.ok(blueprint?.mvpSlice.includes("3-phase boss"));
+  assert.equal(
+    selectBlueprint(blueprints, "Arcade Space Shooter")?.gameType,
+    "space-shooter",
+  );
+});
+
 test("buildPlan orders MVP-first by priority, tags coverage + summary", () => {
   const plan = buildPlan({
     project: "deadrot",
