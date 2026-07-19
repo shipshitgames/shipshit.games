@@ -1,6 +1,6 @@
 # Repo Boundary
 
-last_verified: 2026-06-19
+last_verified: 2026-07-19
 
 `shipshitgames` is the studio/tooling repo **and the multi-IP studio umbrella**:
 the storefront, identity, and commerce layer for every Ship Shit Games franchise
@@ -11,8 +11,10 @@ the storefront, identity, and commerce layer for every Ship Shit Games franchise
 - Studio web/app/desktop product surfaces.
 - The **brand / discovery hub + tools & courses store** (`apps/web` /
   shipshit.games): lists every franchise's games and links to them; **sells the
-  tooling (Studio Pass) + courses** to the dev/learner audience. It does NOT sell
-  or gate individual games — those live on the franchise property.
+  Studio Pass subscription** (SaaS + credits + Skool community + all-games
+  access perk — see STUDIO-ARCHITECTURE.md "Pricing Model") to the dev/learner
+  audience. It does NOT sell or gate individual games — those live on the
+  franchise property as one-time purchases.
 - The **studio Clerk + Stripe** for the tools/courses audience (devs/learners),
   billed via `apps/api`. Franchises run their OWN player auth/billing; the studio
   does not own player identity.
@@ -62,12 +64,17 @@ in its own sibling repo (Deadrot first, scaffolded by `apps/cli`).
   Deadrot players + game gates + game purchases (its Clerk + Stripe) and is
   playable-focused (**no asset generation** there). The studio Clerk serves only
   the tools/courses audience. **Two Clerks is fine; they are NOT bridged.**
-- **Kill the bridge by decoupling, not consolidating.** Studio Pass becomes
-  tools/courses-only and stops granting games. The cross-property email-matching
-  code in `deadrotcom/apps/web/lib/shipshit-entitlement*.ts` is removed (after
-  grandfathering existing game-access subscribers). **No user migration.**
-- shipshit.games **stops selling/gating individual games**; it lists + links to
-  the franchise property. Removes the duplicate storefront.
+- **REVISED 2026-07-10 (pricing model locked — see STUDIO-ARCHITECTURE.md
+  "Pricing Model" + shipshit.games#330):** Studio Pass bundles **tools/SaaS
+  (with metered credits) + Skool community + deadrot.com all-games access**
+  (the games are the POC, so the sub includes them). The one-way
+  verified-email entitlement bridge in
+  `deadrotcom/apps/web/lib/shipshit-entitlement*.ts` is **kept and
+  first-class** — it grants/revokes from live Stripe state, no identity sync.
+  **Two Clerks stay unbridged; no user migration.**
+- shipshit.games **still never sells/gates individual games**; games are cheap
+  one-time purchases (≤ $5–10) on the franchise property. The studio sub
+  grants access as a perk via the entitlement bridge, not via a storefront.
 - **The Studio is the multi-IP build cockpit (the SaaS itself).** Select IP →
   game → full toolchain (generate, lore, play-test). Generation happens ONLY here
   and is pushed to the product. Needs an explicit **project registry** (IP → repo
