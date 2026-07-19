@@ -152,7 +152,9 @@ draft review lane. `model optimize --report <path>` and `model register --report
 Registration preserves the raw GLB and normalized trace report under
 `src/assets/sources/models` alongside the optimized runtime model. The source
 directory is excluded from runtime asset indexes. Imported models only receive
-AI disclosure or prompt provenance when explicitly supplied.
+AI disclosure or prompt provenance when explicitly supplied. Generated models
+derive rig provenance from their provider; `--rig <source>` is reserved for
+`model register`, where an imported model's retarget source can be supplied.
 
 ## Draft & promote (issue #54)
 

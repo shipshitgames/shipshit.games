@@ -40,6 +40,13 @@ test("model generate defaults to a staged model draft", () => {
   ]);
 });
 
+test("model generate rejects unverifiable rig-source attribution", () => {
+  assert.throws(
+    () => modelGenerateArgs(["--id", "golem", "--prompt", "stone golem", "--rig", "mixamo"]),
+    /derives rig provenance from its provider/,
+  );
+});
+
 test("model optimize preserves the raw source and writes a hash-addressed trace report", async () => {
   const root = await tempRoot();
   const source = join(root, "source.glb");

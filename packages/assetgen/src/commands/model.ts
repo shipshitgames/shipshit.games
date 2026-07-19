@@ -121,6 +121,11 @@ export async function runModelCommand(argv: string[]): Promise<void> {
 
 /** Default the explicit model workflow to a staged draft; `--publish` opts into the legacy direct write. */
 export function modelGenerateArgs(argv: string[]): string[] {
+  if (has(argv, "rig")) {
+    throw new Error(
+      "model generate derives rig provenance from its provider; use model register --rig <source> for imported models",
+    );
+  }
   const next = argv.filter((arg) => arg !== "--publish");
   const kind = flag(next, "kind");
   if (kind && kind !== "model" && kind !== "3d") {

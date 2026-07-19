@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
@@ -46,7 +46,55 @@ test("preview writes a browser target for GLB models", async () => {
   assert.match(html, /<model-viewer/);
   assert.match(html, /golem\.glb/);
   assert.match(html, /data:model\/gltf-binary;base64,/);
+  assert.ok(
+    html.includes(
+      'integrity="sha384-cprcVQt7wbUl0xngF3PGP6yBB7n4/t+4AoAMG9biiMCGFiWOdzUH10Ie2COTqFNW"',
+    ),
+  );
+  assert.match(html, /crossorigin="anonymous"/);
   assert.doesNotMatch(html, /src="file:/);
+});
+
+test("preview bundles external GLTF resources into one binary data URL", async () => {
+  const root = await tempRoot();
+  const model = join(root, "golem.gltf");
+  await writeFile(join(root, "mesh.bin"), Buffer.alloc(36));
+  await writeFile(
+    model,
+    JSON.stringify({
+      asset: { version: "2.0" },
+      buffers: [{ uri: "mesh.bin", byteLength: 36 }],
+      bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 36 }],
+      accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: "VEC3", max: [0, 0, 0], min: [0, 0, 0] }],
+      meshes: [{ primitives: [{ attributes: { POSITION: 0 }, mode: 0 }] }],
+      nodes: [{ mesh: 0 }],
+      scenes: [{ nodes: [0] }],
+      scene: 0,
+    }),
+  );
+
+  const target = await buildPreviewTarget(model);
+  assert.equal(target.mediaType, "model/gltf-binary");
+  const html = await readFile(target.target, "utf8");
+  assert.match(html, /data:model\/gltf-binary;base64,/);
+  assert.doesNotMatch(html, /data:model\/gltf\+json;base64,/);
+});
+
+test("preview rejects GLTF resources outside the model directory", async () => {
+  const root = await tempRoot();
+  const modelDir = join(root, "model");
+  await mkdir(modelDir);
+  await writeFile(join(root, "outside.bin"), Buffer.alloc(4));
+  const model = join(modelDir, "unsafe.gltf");
+  await writeFile(
+    model,
+    JSON.stringify({
+      asset: { version: "2.0" },
+      buffers: [{ uri: "../outside.bin", byteLength: 4 }],
+    }),
+  );
+
+  await assert.rejects(buildPreviewTarget(model), /resource escapes the model directory/);
 });
 
 test("preview positional input skips values belonging to other flags", () => {
