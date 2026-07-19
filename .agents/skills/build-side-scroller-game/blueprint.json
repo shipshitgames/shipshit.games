@@ -1,0 +1,94 @@
+{
+  "gameType": "side-scroller",
+  "genreAliases": [
+    "side scroller",
+    "side-scrolling game",
+    "side-scrolling platformer",
+    "side-on platformer",
+    "infiltration platformer",
+    "platform infiltration",
+    "side-on action platformer"
+  ],
+  "assetClasses": [
+    {
+      "category": "sprite",
+      "items": [
+        "hero animation set: idle, run, jump, fall, land, stomp, hit, death",
+        "static platform and bio-ship tiles",
+        "moving platforms",
+        "Scourge blob enemy",
+        "Scourge spitter enemy",
+        "Scourge charger enemy",
+        "acid and spike hazards",
+        "objective, checkpoint, and exit"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "ui",
+      "items": [
+        "HP",
+        "lives",
+        "infiltration and escape phase",
+        "objective state",
+        "checkpoint feedback",
+        "level-complete and game-over states"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "vfx",
+      "items": [
+        "jump and landing feedback",
+        "stomp hit and bounce",
+        "damage and invulnerability",
+        "acid splash",
+        "charger telegraph",
+        "objective ignition",
+        "escape pressure"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "music",
+      "items": [
+        "infiltration gameplay loop",
+        "escape escalation layer or loop",
+        "movement and stomp SFX",
+        "enemy attack and death SFX",
+        "hazard damage SFX",
+        "objective, checkpoint, and finish SFX"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "sprite",
+      "items": [
+        "additional enemy families",
+        "boss encounters",
+        "additional biome and platform sets"
+      ],
+      "mvp": false
+    },
+    {
+      "category": "ui",
+      "items": [
+        "level select",
+        "collectible inventory",
+        "campaign progression"
+      ],
+      "mvp": false
+    }
+  ],
+  "mvpSlice": [
+    "one responsive hero physics controller",
+    "static and moving platforms",
+    "3 enemies: blob, spitter, and charger",
+    "stomp-kill combat",
+    "acid and spike hazards",
+    "infiltration and escape phases",
+    "2 authored levels",
+    "HUD: lives, HP, phase, objective, and completion",
+    "infiltration loop, escape escalation, and gameplay SFX"
+  ]
+}

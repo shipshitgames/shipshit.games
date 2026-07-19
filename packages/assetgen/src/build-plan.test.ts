@@ -2,11 +2,19 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { buildPlan, loadBlueprints, selectBlueprint, serializeBuildPlan, type Blueprint } from "./build-plan.ts";
+import {
+  buildPlan,
+  loadBlueprints,
+  selectBlueprint,
+  serializeBuildPlan,
+  type Blueprint,
+} from "./build-plan.ts";
 import type { BrokenAssetGap, VariantGap } from "./gap-map.ts";
 import type { DesignMetadata } from "./doc-ingestion.ts";
 
-const repoSkillsDir = fileURLToPath(new URL("../../../.agents/skills", import.meta.url));
+const repoSkillsDir = fileURLToPath(
+  new URL("../../../.agents/skills", import.meta.url),
+);
 
 const BP: Blueprint = {
   gameType: "horde-shooter",
@@ -54,12 +62,38 @@ function bk(detail: string): BrokenAssetGap {
 
 test("selectBlueprint matches by gameType and aliases, slug-insensitively", () => {
   const list = [BP];
-  assert.equal(selectBlueprint(list, "horde shooter")?.gameType, "horde-shooter");
-  assert.equal(selectBlueprint(list, "First-Person Horde Shooter")?.gameType, "horde-shooter");
+  assert.equal(
+    selectBlueprint(list, "horde shooter")?.gameType,
+    "horde-shooter",
+  );
+  assert.equal(
+    selectBlueprint(list, "First-Person Horde Shooter")?.gameType,
+    "horde-shooter",
+  );
   assert.equal(selectBlueprint(list, "survivors")?.gameType, "horde-shooter");
   assert.equal(selectBlueprint(list, "moba"), null);
   assert.equal(selectBlueprint(list, null), null);
   assert.equal(selectBlueprint(list, ""), null);
+});
+
+test("checked-in side-scroller blueprint matches Rothulk's genres", async () => {
+  const blueprints = await loadBlueprints(repoSkillsDir);
+  const blueprint = selectBlueprint(blueprints, "Platform Infiltration");
+
+  assert.equal(blueprint?.gameType, "side-scroller");
+  assert.equal(blueprint?.skill, "build-side-scroller-game");
+  assert.deepEqual(
+    blueprint?.assetClasses
+      .filter((assetClass) => assetClass.mvp)
+      .map((assetClass) => assetClass.category),
+    ["sprite", "ui", "vfx", "music"],
+  );
+  assert.ok(blueprint?.mvpSlice.includes("stomp-kill combat"));
+  assert.ok(blueprint?.mvpSlice.includes("2 authored levels"));
+  assert.equal(
+    selectBlueprint(blueprints, "Infiltration platformer")?.gameType,
+    "side-scroller",
+  );
 });
 
 test("checked-in platformer runner blueprint matches Redline's genre", async () => {
@@ -69,7 +103,9 @@ test("checked-in platformer runner blueprint matches Redline's genre", async () 
   assert.equal(blueprint?.gameType, "platformer-runner");
   assert.equal(blueprint?.skill, "build-platformer-runner-game");
   assert.deepEqual(
-    blueprint?.assetClasses.filter((assetClass) => assetClass.mvp).map((assetClass) => assetClass.category),
+    blueprint?.assetClasses
+      .filter((assetClass) => assetClass.mvp)
+      .map((assetClass) => assetClass.category),
     ["sprite", "ui", "vfx", "music"],
   );
   assert.ok(blueprint?.mvpSlice.includes("seeded course generation"));
@@ -100,12 +136,21 @@ test("buildPlan orders MVP-first by priority, tags coverage + summary", () => {
   assert.equal(plan.worklist[plan.worklist.length - 1]!.status, "broken");
 
   // deterministic order numbers, 1..n
-  assert.deepEqual(plan.worklist.map((w) => w.order), [1, 2, 3]);
+  assert.deepEqual(
+    plan.worklist.map((w) => w.order),
+    [1, 2, 3],
+  );
 
   // a coverage row per blueprint class; sprite class shows 2 gaps
   assert.equal(plan.blueprintCoverage.length, BP.assetClasses.length);
-  assert.equal(plan.blueprintCoverage.find((c) => c.category === "sprite")?.gaps, 2);
-  assert.equal(plan.blueprintCoverage.find((c) => c.category === "model")?.gaps, 0);
+  assert.equal(
+    plan.blueprintCoverage.find((c) => c.category === "sprite")?.gaps,
+    2,
+  );
+  assert.equal(
+    plan.blueprintCoverage.find((c) => c.category === "model")?.gaps,
+    0,
+  );
 });
 
 test("buildPlan without a blueprint still works (no MVP tagging, empty coverage)", () => {
