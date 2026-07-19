@@ -10,11 +10,19 @@ import { buildMinimalGlb } from "../src/glb-fixture.ts";
 
 const pkgDir = fileURLToPath(new URL("..", import.meta.url));
 const GLB_MAGIC = 0x46546c67; // "glTF"
+const MODEL_E2E_COMMANDS = new Set(["generate", "model"]);
+
+function assertModelE2eCommand(args: string[]): void {
+  if (!args[0] || !MODEL_E2E_COMMANDS.has(args[0])) {
+    throw new Error("model E2E runCli requires an explicit generate or model command verb");
+  }
+}
 
 async function runCli(
   args: string[],
   env: Record<string, string> = {},
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  assertModelE2eCommand(args);
   const proc = Bun.spawn(["bun", "src/cli.ts", ...args], {
     cwd: pkgDir,
     env: { ...process.env, ...env },
@@ -32,6 +40,13 @@ async function runCli(
 function assertGlbMagic(data: Buffer, label: string): void {
   assert.equal(data.readUInt32LE(0), GLB_MAGIC, `${label} missing GLB magic`);
 }
+
+test("e2e helper rejects calls without an explicit command verb", () => {
+  assert.throws(
+    () => assertModelE2eCommand(["--id", "missing-verb"]),
+    /requires an explicit generate or model command verb/,
+  );
+});
 
 test("e2e: model generate stages a reviewable draft by default", async () => {
   const repo = await mkdtemp(join(tmpdir(), "assetgen-model-e2e-command-"));

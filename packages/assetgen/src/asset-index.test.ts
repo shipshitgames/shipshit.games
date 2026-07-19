@@ -108,10 +108,16 @@ describe("buildAssetIndex (fixture)", () => {
     await mkdir(join(dir, "shared", "fx"), { recursive: true });
     await mkdir(join(dir, "entities", "test-entity"), { recursive: true });
     await mkdir(join(dir, "games", "scourge-survivors"), { recursive: true });
+    await mkdir(join(dir, "sources", "models"), { recursive: true });
     await writeSheet(join(dir, "shared", "fx", "explosion.png"));
     await writeBlankImage(join(dir, "shared", "fx", "empty.png"));
     await writeContentImage(join(dir, "entities", "test-entity", "deadlane.png"));
     await writeFile(join(dir, "games", "scourge-survivors", "rig.glb"), buildGlb(GLB_DOC));
+    await writeFile(join(dir, "sources", "models", "raw-provider-output.glb"), buildGlb(GLB_DOC));
+    await writeFile(
+      join(dir, "sources", "models", "raw-provider-output.optimize.json"),
+      JSON.stringify({ source: "raw-provider-output.glb" }),
+    );
     await writeFile(
       join(dir, "assets-catalog.json"),
       JSON.stringify({ version: "1", entities: [{ id: "test-entity" }], shared: [] }, null, 2),
@@ -132,6 +138,12 @@ describe("buildAssetIndex (fixture)", () => {
     expect(games["deadlane"]).toBe(1);
     expect(games["scourge-survivors"]).toBe(1);
     expect(games["shared"]).toBe(2);
+  });
+
+  test("excludes raw model sources and trace reports from the runtime index", async () => {
+    const index = await buildAssetIndex({ assetsDir: dir });
+    expect(index.assets.some((asset) => asset.path.startsWith("sources/"))).toBe(false);
+    expect(index.assetCount).toBe(4);
   });
 
   test("detects sprite-sheet frames and blank frames", async () => {
