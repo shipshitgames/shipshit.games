@@ -25,8 +25,10 @@ export async function POST() {
   }
 
   const stripe = getStripe();
-  const { studioPass: pass } = await readBillingEntitlements();
-  const couponId = await founderCouponId(stripe);
+  const [{ studioPass: pass }, couponId] = await Promise.all([
+    readBillingEntitlements(),
+    founderCouponId(stripe),
+  ]);
   const baseUrl = appUrl();
 
   const session = await stripe.checkout.sessions.create({

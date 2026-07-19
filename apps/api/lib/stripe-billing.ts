@@ -89,8 +89,8 @@ async function readCustomer(
   }
   return {
     id: value.id,
-    email: value.email,
-    name: value.name,
+    email: value.email ?? null,
+    name: value.name ?? null,
     clerkUserId: value.metadata.clerkUserId || null,
     metadata: value.metadata,
   };

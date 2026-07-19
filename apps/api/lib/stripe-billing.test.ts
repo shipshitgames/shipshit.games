@@ -152,7 +152,7 @@ function harness(
         email: "member@example.com",
         name: "Member",
         metadata: { clerkUserId: "user_1" },
-      } as Stripe.Customer,
+      } as unknown as Stripe.Customer,
     ],
   ]);
   const stripe: StripeBillingClient = {
