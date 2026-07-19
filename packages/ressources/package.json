@@ -17,11 +17,13 @@
     "research": "./src/cli.ts"
   },
   "scripts": {
+    "ci": "bun run typecheck && bun src/cli.ts validate && bun run test",
     "rules": "bun src/cli.ts distill",
     "distill": "bun src/cli.ts distill",
     "list": "bun src/cli.ts sources",
     "validate": "bun src/cli.ts validate",
     "test": "bun test",
+    "test:coverage": "bun test --coverage",
     "typecheck": "tsc --noEmit",
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },

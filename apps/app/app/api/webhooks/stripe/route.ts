@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
-import { syncCheckoutSession, syncSubscriptionEvent } from "@/lib/stripe-sync";
+import {
+  syncCheckoutSession,
+  syncOneTimeCheckout,
+  syncSubscriptionEvent,
+} from "@/lib/stripe-sync";
 
 export const runtime = "nodejs";
 
@@ -30,12 +34,15 @@ export async function POST(request: NextRequest) {
 
   try {
     switch (event.type) {
-      case "checkout.session.completed":
-        await syncCheckoutSession(
-          stripe,
-          event.data.object as Stripe.Checkout.Session
-        );
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.mode === "payment") {
+          await syncOneTimeCheckout(stripe, session);
+        } else {
+          await syncCheckoutSession(stripe, session);
+        }
         break;
+      }
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted":

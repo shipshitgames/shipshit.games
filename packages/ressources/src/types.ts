@@ -71,6 +71,7 @@ export interface DerivativeManifest {
   title: string;
   status: DerivativeStatus;
   sourceTranscripts: string[];
+  sourceRules?: string[];
   outputPath: string;
   summary: string;
   tags: string[];

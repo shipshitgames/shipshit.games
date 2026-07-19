@@ -1,15 +1,17 @@
 import { clerkClient } from "@clerk/nextjs/server";
-import { STUDIO_PASS } from "@shipshitgames/shared";
+import { SKILLS_PRO_ONETIME, STUDIO_PASS } from "@shipshitgames/shared";
 import type Stripe from "stripe";
 
 import {
   entitlementFromSubscription,
   findClerkUserByEmail,
   primaryEmail,
+  readSkillsProOneTime,
   readStudioPass,
+  updateSkillsProOneTimeEntitlement,
   updateStudioPassEntitlement,
 } from "./entitlements";
-import { runFulfillment } from "./fulfillment";
+import { runFulfillment, runSkillsProOneTimeFulfillment } from "./fulfillment";
 
 type SyncInput = {
   subscription: Stripe.Subscription;
@@ -160,6 +162,85 @@ export async function syncCheckoutSession(
   }
 
   return result;
+}
+
+/**
+ * Grant permanent Skills Pro access for a completed one-time (mode=payment)
+ * checkout. Idempotent: re-delivering the same event keeps the original
+ * `purchasedAt` and only re-sends the access email if it never went out.
+ */
+export async function syncOneTimeCheckout(
+  stripe: Stripe,
+  session: Stripe.Checkout.Session
+) {
+  if (session.mode !== "payment") {
+    return { userId: null, entitlement: null, fulfillment: null, skipped: "Checkout session is not a one-time payment." };
+  }
+  if (session.metadata?.product !== SKILLS_PRO_ONETIME.productKey) {
+    return { userId: null, entitlement: null, fulfillment: null, skipped: "Payment is not the Skills Pro one-time product." };
+  }
+  if (session.payment_status !== "paid") {
+    return { userId: null, entitlement: null, fulfillment: null, skipped: "Payment is not completed." };
+  }
+
+  const email = session.customer_details?.email ?? session.customer_email ?? null;
+  const name = session.customer_details?.name ?? null;
+  const clerkUserId = session.client_reference_id ?? session.metadata?.clerkUserId ?? null;
+  const userId = await resolveUserId({ clerkUserId, email });
+
+  if (!userId) {
+    return { userId: null, entitlement: null, fulfillment: null, skipped: "No Clerk user matched Skills Pro purchase." };
+  }
+
+  const customerId =
+    typeof session.customer === "string"
+      ? session.customer
+      : session.customer?.id;
+  const paymentIntentId =
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : session.payment_intent?.id;
+
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+  const already = readSkillsProOneTime(user.privateMetadata);
+
+  const entitlement = await updateSkillsProOneTimeEntitlement(userId, {
+    active: true,
+    stripeCustomerId: customerId,
+    stripePaymentIntentId: paymentIntentId,
+    checkoutSessionId: session.id,
+    purchasedAt: already?.purchasedAt,
+  });
+
+  let fulfillment = null;
+  const resolvedEmail = email ?? primaryEmail(user);
+  if (resolvedEmail && !entitlement.accessEmailSentAt) {
+    fulfillment = await runSkillsProOneTimeFulfillment({
+      userId,
+      email: resolvedEmail,
+      name: name ?? user.fullName,
+      checkoutSessionId: session.id,
+      stripeCustomerId: customerId,
+    });
+
+    if (fulfillment.accessEmailSent || fulfillment.error) {
+      await updateSkillsProOneTimeEntitlement(userId, {
+        accessEmailSentAt: fulfillment.accessEmailSent
+          ? new Date().toISOString()
+          : entitlement.accessEmailSentAt,
+        fulfillmentError: fulfillment.error,
+      });
+    }
+  }
+
+  if (customerId) {
+    await stripe.customers.update(customerId, {
+      metadata: { clerkUserId: userId, product: SKILLS_PRO_ONETIME.productKey },
+    });
+  }
+
+  return { userId, entitlement, fulfillment, skipped: null };
 }
 
 export async function syncSubscriptionEvent(

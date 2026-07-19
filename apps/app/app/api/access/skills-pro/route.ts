@@ -1,7 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
-import { hasActiveStudioPass, primaryEmail } from "@/lib/entitlements";
+import { hasSkillsProContentAccess, primaryEmail } from "@/lib/entitlements";
 import { verifyAccessToken } from "@/lib/access-token";
 import { appUrl } from "@/lib/urls";
 
@@ -36,8 +36,11 @@ export async function GET(request: NextRequest) {
 
   const client = await clerkClient();
   const user = await client.users.getUser(payload.sub);
-  if (primaryEmail(user) !== payload.email || !hasActiveStudioPass(user.privateMetadata)) {
-    return new NextResponse("No active Studio Pass", { status: 403 });
+  if (
+    primaryEmail(user) !== payload.email ||
+    !hasSkillsProContentAccess(user.privateMetadata)
+  ) {
+    return new NextResponse("No Skills Pro access", { status: 403 });
   }
 
   const targetUrl = process.env.SKILLS_PRO_PRIVATE_URL;
