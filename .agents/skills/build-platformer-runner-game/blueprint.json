@@ -1,0 +1,89 @@
+{
+  "gameType": "platformer-runner",
+  "genreAliases": [
+    "platformer runner",
+    "courier runner",
+    "courier platformer",
+    "side-on runner",
+    "runner side-on",
+    "side-scrolling runner",
+    "auto runner",
+    "autorunner"
+  ],
+  "assetClasses": [
+    {
+      "category": "sprite",
+      "items": [
+        "courier animation set: run, jump, fall, land, hit, finish",
+        "course tiles and gap edges",
+        "spike hazards",
+        "overhead-bar hazards",
+        "speed embers",
+        "finish beacon"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "ui",
+      "items": [
+        "speed indicator",
+        "elapsed timer",
+        "score",
+        "ember-chain meter",
+        "run state",
+        "finish result"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "vfx",
+      "items": [
+        "jump and landing feedback",
+        "speed trail",
+        "ember pickup and chain feedback",
+        "hazard hit",
+        "beacon finish"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "music",
+      "items": [
+        "gameplay run loop",
+        "jump and landing SFX",
+        "ember pickup and chain SFX",
+        "hazard hit SFX",
+        "finish beacon SFX"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "sprite",
+      "items": [
+        "alternate courier skins",
+        "additional route themes",
+        "decorative route props"
+      ],
+      "mvp": false
+    },
+    {
+      "category": "ui",
+      "items": [
+        "seed selector",
+        "route history",
+        "leaderboard"
+      ],
+      "mvp": false
+    }
+  ],
+  "mvpSlice": [
+    "one courier sprite set",
+    "fixed-step jump physics with coyote time and buffered input",
+    "seeded course generation",
+    "spike, overhead-bar, and gap hazards",
+    "speed-ember chain",
+    "beacon finish",
+    "HUD: speed, time, score, chain state, and finish result",
+    "one gameplay loop plus movement, ember, hazard, and finish SFX"
+  ]
+}

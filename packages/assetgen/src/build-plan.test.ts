@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
-import { buildPlan, selectBlueprint, serializeBuildPlan, type Blueprint } from "./build-plan.ts";
+import { buildPlan, loadBlueprints, selectBlueprint, serializeBuildPlan, type Blueprint } from "./build-plan.ts";
 import type { BrokenAssetGap, VariantGap } from "./gap-map.ts";
 import type { DesignMetadata } from "./doc-ingestion.ts";
+
+const repoSkillsDir = fileURLToPath(new URL("../../../.agents/skills", import.meta.url));
 
 const BP: Blueprint = {
   gameType: "horde-shooter",
@@ -57,6 +60,20 @@ test("selectBlueprint matches by gameType and aliases, slug-insensitively", () =
   assert.equal(selectBlueprint(list, "moba"), null);
   assert.equal(selectBlueprint(list, null), null);
   assert.equal(selectBlueprint(list, ""), null);
+});
+
+test("checked-in platformer runner blueprint matches Redline's genre", async () => {
+  const blueprints = await loadBlueprints(repoSkillsDir);
+  const blueprint = selectBlueprint(blueprints, "Courier Runner");
+
+  assert.equal(blueprint?.gameType, "platformer-runner");
+  assert.equal(blueprint?.skill, "build-platformer-runner-game");
+  assert.deepEqual(
+    blueprint?.assetClasses.filter((assetClass) => assetClass.mvp).map((assetClass) => assetClass.category),
+    ["sprite", "ui", "vfx", "music"],
+  );
+  assert.ok(blueprint?.mvpSlice.includes("seeded course generation"));
+  assert.ok(blueprint?.mvpSlice.includes("beacon finish"));
 });
 
 test("buildPlan orders MVP-first by priority, tags coverage + summary", () => {
