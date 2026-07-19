@@ -1,6 +1,6 @@
 # Repo Boundary
 
-last_verified: 2026-06-19
+last_verified: 2026-07-19
 
 `shipshitgames` is the studio/tooling repo **and the multi-IP studio umbrella**:
 the storefront, identity, and commerce layer for every Ship Shit Games franchise

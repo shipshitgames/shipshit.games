@@ -140,8 +140,14 @@ Two audiences, two motions. Decision record: shipshit.games#330.
   **BYOK with a platform markup** — user keys run the compute, the pipeline
   still burns a reduced platform fee through the same ledger
   (shipshit.games#331).
-- The subscription price point is tracked in shipshit.games#330 (launch
-  recommendation: $29/mo flat, raise as packaged courses ship).
+- **Launch pricing is $49/mo list with the founder price applied
+  automatically.** Stripe Checkout applies the `STUDIOFOUNDER20` coupon
+  ($20/mo off, duration forever), so the pricing page shows ~~$49~~ **$29/mo**
+  and every launch subscriber pays $29/mo without entering a code. Existing
+  $29/mo subscribers require no migration, and founder seats keep that price
+  when the list price rises as packaged courses ship. The locked decision is
+  recorded in shipshit.games#330; live Stripe provisioning remains tracked in
+  shipshit.games#291.
 
 One-time lifetime packs (the pre-D4 "All Access" model) are retired as the
 primary motion; a lifetime tier may return later as a bundle experiment
