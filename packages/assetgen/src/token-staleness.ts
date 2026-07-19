@@ -23,10 +23,10 @@ const here = dirname(fileURLToPath(import.meta.url)); // packages/assetgen/src
 const ROOT = join(here, "..", "..", ".."); // monorepo root
 
 /**
- * Vendored consumers checked in the monorepo when no files are passed. These are
- * the hand-synced app token forks that can rot independently of the generator
- * (the `packages/assets/tokens/*` artifacts are already byte-checked by
- * `assetgen tokens --check`). Paths are repo-relative.
+ * Generated consumers checked in the monorepo when no files are passed.
+ * `assetgen tokens --check --repo-only` owns these byte-for-byte; this version
+ * check remains a lightweight prebuild guard and is shared with vendored games.
+ * Paths are repo-relative.
  *
  * apps/desktop is intentionally NOT a consumer: the studio cockpit ships its
  * own neutral work-surface theme (src/renderer/theme.css, ShipCode design

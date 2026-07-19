@@ -39,7 +39,8 @@ interface RunTokensOptions {
   design?: string;
   assetsDir?: string;
   styleGeneratedPath?: string;
-  /** Restrict to in-repo artifacts (style.generated.ts), skipping the external assets package — used by CI. */
+  webThemePath?: string;
+  /** Restrict to in-repo artifacts, skipping the external assets package — used by CI. */
   repoOnly?: boolean;
   log?: (message: string) => void;
 }
@@ -78,9 +79,11 @@ function buildTokenArtifacts(opts: {
   design: JsonObject;
   designPath: string;
   styleGeneratedPath?: string;
+  webThemePath?: string;
 }): TokenArtifacts {
   const colors = stringMap(opts.design.colors, {});
   const typography = objectMap(opts.design.typography);
+  const elevation = stringMap(deepResolve(opts.design.elevation ?? {}, colors), {});
   const version = String(opts.design.version ?? "0.0.0");
   const assetgen = buildAssetgenConfig(opts.design, colors);
   const components = deepResolve(opts.design.components ?? {}, colors);
@@ -102,7 +105,7 @@ function buildTokenArtifacts(opts: {
     typography,
     rounded: objectMap(opts.design.rounded),
     spacing: objectMap(opts.design.spacing),
-    elevation: objectMap(opts.design.elevation),
+    elevation,
     components,
     pixelArt: objectMap(opts.design.pixelArt),
     gameArtDirection: objectMap(opts.design.gameArtDirection),
@@ -115,6 +118,7 @@ function buildTokenArtifacts(opts: {
     .slice(0, 8);
 
   const styleGeneratedPath = opts.styleGeneratedPath ?? join(here, "style.generated.ts");
+  const webThemePath = opts.webThemePath ?? join(ROOT, "apps", "web", "app", "theme.css");
   const tokensDir = join(opts.assetsDir, "tokens");
   const source = repoRelative(opts.designPath);
   const generatedNotice = `GENERATED FROM ${GENERATED_SOURCE_LABEL} v${version} hash:${hash} - DO NOT EDIT. Run: bun assetgen tokens`;
@@ -162,13 +166,11 @@ function buildTokenArtifacts(opts: {
   const themeCss =
     cssBanner +
     `@theme {\n` +
-    Object.entries(colors)
-      .map(([key, hex]) => `  --color-${kebab(key)}: ${hex};`)
-      .join("\n") +
-    `\n` +
-    Object.entries(fonts)
-      .map(([key, family]) => `  --font-${kebab(key)}: ${family};`)
-      .join("\n") +
+    [
+      ...Object.entries(colors).map(([key, hex]) => `  --color-${kebab(key)}: ${hex};`),
+      ...Object.entries(fonts).map(([key, family]) => `  --font-${kebab(key)}: ${family};`),
+      ...Object.entries(elevation).map(([key, shadow]) => `  --shadow-${kebab(key)}: ${shadow};`),
+    ].join("\n") +
     `\n}\n`;
 
   const tokensCss =
@@ -210,6 +212,7 @@ function buildTokenArtifacts(opts: {
   return {
     files: {
       [styleGeneratedPath]: styleGen,
+      [webThemePath]: themeCss,
       [join(tokensDir, "tokens.ts")]: tokensTs,
       [join(tokensDir, "theme.css")]: themeCss,
       [join(tokensDir, "tokens.css")]: tokensCss,
@@ -232,11 +235,12 @@ export async function runTokens(opts: RunTokensOptions = {}): Promise<TokensResu
     design,
     designPath,
     styleGeneratedPath: opts.styleGeneratedPath,
+    webThemePath: opts.webThemePath,
   });
 
   log(`[tokens] source: ${artifacts.source} (v${artifacts.version} hash:${artifacts.hash})`);
 
-  // --repo-only checks only the in-repo style.generated.ts, skipping the external
+  // --repo-only checks the in-repo generated consumers, skipping the external
   // assets package (which is absent in CI / a fresh clone of this repo).
   const tokensDir = join(assetsDir, "tokens");
   const files = opts.repoOnly

@@ -27,6 +27,9 @@ typography:
     fontFamily: "Inter, system-ui, sans-serif"
   label:
     fontFamily: "Oswald, sans-serif"
+elevation:
+  flat: "none"
+  ember: "0 0 0 1px rgba(255,106,0,0.35), 0 0 26px -6px rgba(193,18,31,0.65)"
 components:
   button-primary:
     backgroundColor: "{colors.primary}"
@@ -56,12 +59,19 @@ test("runTokens writes all generated token artifacts without an assets catalog",
   const designPath = join(dir, "DESIGN.md");
   const assetsDir = join(dir, "packages", "assets");
   const styleGeneratedPath = join(dir, "style.generated.ts");
+  const webThemePath = join(dir, "apps", "web", "app", "theme.css");
   await writeFile(designPath, DESIGN);
 
-  const result = await runTokens({ design: designPath, assetsDir, styleGeneratedPath });
+  const result = await runTokens({
+    design: designPath,
+    assetsDir,
+    styleGeneratedPath,
+    webThemePath,
+  });
 
   assert.equal(result.drift, false);
   assert.equal(existsSync(styleGeneratedPath), true);
+  assert.equal(existsSync(webThemePath), true);
   assert.equal(existsSync(join(assetsDir, "tokens", "tokens.ts")), true);
   assert.equal(existsSync(join(assetsDir, "tokens", "theme.css")), true);
   assert.equal(existsSync(join(assetsDir, "tokens", "tokens.css")), true);
@@ -79,6 +89,8 @@ test("runTokens writes all generated token artifacts without an assets catalog",
   const themeCss = await readFile(join(assetsDir, "tokens", "theme.css"), "utf8");
   assert.match(themeCss, /--color-primary: #c1121f/);
   assert.match(themeCss, /--font-display: Oswald, sans-serif/);
+  assert.match(themeCss, /--shadow-ember: 0 0 0 1px rgba\(255,106,0,0\.35\)/);
+  assert.equal(await readFile(webThemePath, "utf8"), themeCss);
 
   const tokensJson = JSON.parse(await readFile(join(assetsDir, "tokens", "tokens.json"), "utf8"));
   assert.equal(tokensJson.version, "9.9.9");
@@ -92,9 +104,15 @@ test("runTokens emits centralized fonts.css with Google Fonts import + delivery 
   const designPath = join(dir, "DESIGN.md");
   const assetsDir = join(dir, "packages", "assets");
   const styleGeneratedPath = join(dir, "style.generated.ts");
+  const webThemePath = join(dir, "apps", "web", "app", "theme.css");
   await writeFile(designPath, DESIGN);
 
-  await runTokens({ design: designPath, assetsDir, styleGeneratedPath });
+  await runTokens({
+    design: designPath,
+    assetsDir,
+    styleGeneratedPath,
+    webThemePath,
+  });
 
   const fontsCss = await readFile(join(assetsDir, "tokens", "fonts.css"), "utf8");
   assert.match(fontsCss, /@import url\("https:\/\/fonts\.googleapis\.com\/css2\?/);
@@ -110,18 +128,26 @@ test("runTokens emits centralized fonts.css with Google Fonts import + delivery 
   ]);
 });
 
-test("runTokens --repo-only writes only the in-repo artifact, skipping the assets package", async () => {
+test("runTokens --repo-only writes all in-repo artifacts, skipping the assets package", async () => {
   const dir = await mkdtemp(join(tmpdir(), "assetgen-tokens-repoonly-test-"));
   const designPath = join(dir, "DESIGN.md");
   const assetsDir = join(dir, "packages", "assets");
   const styleGeneratedPath = join(dir, "style.generated.ts");
+  const webThemePath = join(dir, "apps", "web", "app", "theme.css");
   await writeFile(designPath, DESIGN);
 
-  const result = await runTokens({ design: designPath, assetsDir, styleGeneratedPath, repoOnly: true });
+  const result = await runTokens({
+    design: designPath,
+    assetsDir,
+    styleGeneratedPath,
+    webThemePath,
+    repoOnly: true,
+  });
 
   assert.equal(result.drift, false);
-  assert.deepEqual(result.files, [styleGeneratedPath]);
+  assert.deepEqual(result.files, [styleGeneratedPath, webThemePath]);
   assert.equal(existsSync(styleGeneratedPath), true);
+  assert.equal(existsSync(webThemePath), true);
   assert.equal(existsSync(join(assetsDir, "tokens", "tokens.ts")), false);
 
   // A clean --check --repo-only against the just-written artifact reports no drift.
@@ -131,11 +157,23 @@ test("runTokens --repo-only writes only the in-repo artifact, skipping the asset
     design: designPath,
     assetsDir,
     styleGeneratedPath,
+    webThemePath,
     repoOnly: true,
     log: (m) => logs.push(m),
   });
   assert.equal(check.drift, false);
   assert.match(logs.join("\n"), /all artifacts current/);
+
+  await writeFile(webThemePath, "/* stale */\n");
+  const drift = await runTokens({
+    check: true,
+    design: designPath,
+    assetsDir,
+    styleGeneratedPath,
+    webThemePath,
+    repoOnly: true,
+  });
+  assert.equal(drift.drift, true);
 });
 
 test("runTokens check reports drift without rewriting artifacts", async () => {
@@ -143,13 +181,25 @@ test("runTokens check reports drift without rewriting artifacts", async () => {
   const designPath = join(dir, "DESIGN.md");
   const assetsDir = join(dir, "packages", "assets");
   const styleGeneratedPath = join(dir, "style.generated.ts");
+  const webThemePath = join(dir, "apps", "web", "app", "theme.css");
   const tokensJsonPath = join(assetsDir, "tokens", "tokens.json");
   await writeFile(designPath, DESIGN);
 
-  await runTokens({ design: designPath, assetsDir, styleGeneratedPath });
+  await runTokens({
+    design: designPath,
+    assetsDir,
+    styleGeneratedPath,
+    webThemePath,
+  });
   await writeFile(tokensJsonPath, "{\"stale\":true}\n");
 
-  const result = await runTokens({ check: true, design: designPath, assetsDir, styleGeneratedPath });
+  const result = await runTokens({
+    check: true,
+    design: designPath,
+    assetsDir,
+    styleGeneratedPath,
+    webThemePath,
+  });
 
   assert.equal(result.drift, true);
   assert.equal(await readFile(tokensJsonPath, "utf8"), "{\"stale\":true}\n");
