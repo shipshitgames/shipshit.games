@@ -40,7 +40,7 @@ export function slugify(input: string): string {
     .slice(0, 80);
 }
 
-async function exists(path: string): Promise<boolean> {
+export async function pathExists(path: string): Promise<boolean> {
   try {
     await access(path);
     return true;
@@ -49,7 +49,7 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-async function readJson<T>(path: string): Promise<T> {
+export async function readJson<T>(path: string): Promise<T> {
   const text = await readFile(path, "utf8");
   try {
     return JSON.parse(text) as T;
@@ -63,13 +63,13 @@ function isPlainObject(value: unknown): boolean {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function writeJson(path: string, value: unknown): Promise<void> {
+export async function writeJson(path: string, value: unknown): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
 async function listJsonFiles(root: string, suffix = ".json"): Promise<string[]> {
-  if (!(await exists(root))) return [];
+  if (!(await pathExists(root))) return [];
   const out: string[] = [];
   async function walk(dir: string): Promise<void> {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -203,10 +203,23 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
     }
 
     let transcriptExists = false;
-    if (typeof transcript.transcriptPath === "string" && transcript.transcriptPath.length > 0) {
-      transcriptExists = await exists(resolve(contentRoot, transcript.transcriptPath));
+    const transcriptPath =
+      typeof transcript.transcriptPath === "string" && transcript.transcriptPath.length > 0
+        ? transcript.transcriptPath
+        : undefined;
+    const transcriptFormat =
+      typeof transcript.transcriptFormat === "string" && transcript.transcriptFormat.length > 0
+        ? transcript.transcriptFormat
+        : undefined;
+    const hasTranscriptPath = transcriptPath !== undefined;
+    const hasTranscriptFormat = transcriptFormat !== undefined;
+    if (hasTranscriptPath !== hasTranscriptFormat) {
+      errors.push(`${label} must set transcriptPath and transcriptFormat together`);
+    }
+    if (transcriptPath) {
+      transcriptExists = await pathExists(resolve(contentRoot, transcriptPath));
       if (!transcriptExists) {
-        errors.push(`${label} transcriptPath does not exist: ${transcript.transcriptPath}`);
+        errors.push(`${label} transcriptPath does not exist: ${transcriptPath}`);
       }
     }
 
@@ -247,7 +260,10 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
   }
   const transcriptPaths = new Set(
     transcripts
-      .filter((transcript) => typeof transcript?.transcriptPath === "string" && transcript.transcriptPath.length > 0)
+      .filter(
+        (transcript): transcript is TranscriptResource & { transcriptPath: string } =>
+          typeof transcript?.transcriptPath === "string" && transcript.transcriptPath.length > 0,
+      )
       .map((transcript) => toContentRelative(resolve(contentRoot, transcript.transcriptPath))),
   );
   const transcriptSidecars = new Set(
@@ -277,7 +293,7 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
     }
 
     if (typeof derivative.outputPath === "string" && derivative.outputPath.length > 0) {
-      if (!(await exists(resolve(contentRoot, derivative.outputPath)))) {
+      if (!(await pathExists(resolve(contentRoot, derivative.outputPath)))) {
         errors.push(`${label} outputPath does not exist: ${derivative.outputPath}`);
       }
     }
@@ -315,7 +331,7 @@ export async function createTranscriptResource(input: NewTranscriptInput): Promi
   const dir = resolve(transcriptsDir, source.slug);
   const transcriptPath = resolve(dir, `${slug}.transcript.md`);
   const sidecarPath = resolve(dir, `${slug}.resource.json`);
-  if (!input.force && ((await exists(transcriptPath)) || (await exists(sidecarPath)))) {
+  if (!input.force && ((await pathExists(transcriptPath)) || (await pathExists(sidecarPath)))) {
     throw new Error(`transcript already exists for ${source.slug}/${slug}; pass --force to overwrite`);
   }
 
@@ -454,7 +470,7 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
 
   const outputPath = resolve(dir, `${slug}.md`);
   const sidecarPath = resolve(dir, `${slug}.resource.json`);
-  if (!input.force && ((await exists(outputPath)) || (await exists(sidecarPath)))) {
+  if (!input.force && ((await pathExists(outputPath)) || (await pathExists(sidecarPath)))) {
     throw new Error(`derivative already exists: ${relativeToPackage(outputPath)}; pass --force to overwrite`);
   }
 

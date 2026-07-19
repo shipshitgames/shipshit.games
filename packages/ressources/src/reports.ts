@@ -74,7 +74,9 @@ export async function generateRulesReport(options: RulesReportOptions = {}): Pro
   const ruleBySlug = new Map(rules.map((rule) => [rule.slug, rule]));
   const sourceSlugByTranscriptReference = new Map<string, string>();
   for (const transcript of transcripts) {
-    sourceSlugByTranscriptReference.set(transcript.transcriptPath, transcript.sourceSlug);
+    if (transcript.transcriptPath) {
+      sourceSlugByTranscriptReference.set(transcript.transcriptPath, transcript.sourceSlug);
+    }
     sourceSlugByTranscriptReference.set(
       relativePath(
         contentRoot,

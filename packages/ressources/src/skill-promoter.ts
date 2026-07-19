@@ -1,8 +1,9 @@
 import type { Stats } from "node:fs";
-import { access, lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { basename, dirname, relative, resolve, sep } from "node:path";
+import { pathExists } from "./library";
 import type { DerivativeManifest, SourceManifest, TranscriptResource } from "./types";
-import { packageRoot, schemasDir } from "./paths";
+import { isPathInside, packageRoot, schemasDir } from "./paths";
 import { validateValue, type JsonSchema } from "./schema";
 
 export interface PromoteSkillOptions {
@@ -30,15 +31,6 @@ const repositoryRoot = resolve(packageRoot, "..", "..");
 const defaultSkillsRoot = resolve(repositoryRoot, ".agents", "skills");
 const rawTranscriptHeading = /^#{1,6}\s+raw transcript\b/im;
 
-async function exists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function statEntry(path: string): Promise<Stats | undefined> {
   try {
     return await lstat(path);
@@ -48,23 +40,20 @@ async function statEntry(path: string): Promise<Stats | undefined> {
   }
 }
 
-function isInside(root: string, path: string): boolean {
-  const child = relative(root, path);
-  return child === "" || (!child.startsWith(`..${sep}`) && child !== ".." && !child.startsWith(sep));
-}
-
 function resolveInside(root: string, declaredPath: string, label: string): string {
   if (!declaredPath || declaredPath.startsWith("/") || /^[A-Za-z]:[\\/]/.test(declaredPath)) {
     throw new Error(`${label} must be a relative path inside the ressources library`);
   }
   const path = resolve(root, declaredPath);
-  if (!isInside(root, path)) throw new Error(`${label} escapes the ressources library: ${declaredPath}`);
+  if (!isPathInside(root, path)) {
+    throw new Error(`${label} escapes the ressources library: ${declaredPath}`);
+  }
   return path;
 }
 
 async function assertPhysicalContainment(root: string, path: string, label: string): Promise<void> {
   const [physicalRoot, physicalPath] = await Promise.all([realpath(root), realpath(path)]);
-  if (!isInside(physicalRoot, physicalPath)) {
+  if (!isPathInside(physicalRoot, physicalPath)) {
     throw new Error(`${label} resolves outside the ressources library`);
   }
 }
@@ -99,21 +88,32 @@ async function validateTranscriptReference(
     );
   }
   const sidecarPath = resolveInside(root, reference, "source transcript reference");
-  if (!(await exists(sidecarPath))) throw new Error(`source transcript reference does not exist: ${reference}`);
+  if (!(await pathExists(sidecarPath))) {
+    throw new Error(`source transcript reference does not exist: ${reference}`);
+  }
   await assertPhysicalContainment(root, sidecarPath, "source transcript reference");
 
   const transcript = await readJson(sidecarPath, `source transcript ${reference}`);
   assertSchema(transcript, transcriptSchema, `source transcript ${reference}`);
   const resource = transcript as TranscriptResource;
 
-  const transcriptPath = resolveInside(root, resource.transcriptPath, `${reference}.transcriptPath`);
-  if (!(await exists(transcriptPath))) {
-    throw new Error(`${reference}.transcriptPath does not exist: ${resource.transcriptPath}`);
+  if (Boolean(resource.transcriptPath) !== Boolean(resource.transcriptFormat)) {
+    throw new Error(`${reference} must set transcriptPath and transcriptFormat together`);
   }
-  await assertPhysicalContainment(root, transcriptPath, `${reference}.transcriptPath`);
+  if (resource.transcriptPath) {
+    const transcriptPath = resolveInside(
+      root,
+      resource.transcriptPath,
+      `${reference}.transcriptPath`,
+    );
+    if (!(await pathExists(transcriptPath))) {
+      throw new Error(`${reference}.transcriptPath does not exist: ${resource.transcriptPath}`);
+    }
+    await assertPhysicalContainment(root, transcriptPath, `${reference}.transcriptPath`);
+  }
 
   const sourcePath = resolveInside(root, `sources/${resource.sourceSlug}/source.json`, `${reference}.sourceSlug`);
-  if (!(await exists(sourcePath))) {
+  if (!(await pathExists(sourcePath))) {
     throw new Error(`${reference} references unknown source ${resource.sourceSlug}`);
   }
   await assertPhysicalContainment(root, sourcePath, `${reference}.sourceSlug`);
@@ -135,7 +135,9 @@ async function validateRuleReference(
     );
   }
   const sidecarPath = resolveInside(root, reference, "source rule reference");
-  if (!(await exists(sidecarPath))) throw new Error(`source rule reference does not exist: ${reference}`);
+  if (!(await pathExists(sidecarPath))) {
+    throw new Error(`source rule reference does not exist: ${reference}`);
+  }
   await assertPhysicalContainment(root, sidecarPath, "source rule reference");
 
   const ruleValue = await readJson(sidecarPath, `source rule ${reference}`);
@@ -144,7 +146,9 @@ async function validateRuleReference(
   if (rule.kind !== "rule") throw new Error(`source rule ${reference} has kind ${rule.kind}, expected rule`);
 
   const outputPath = resolveInside(root, rule.outputPath, `${reference}.outputPath`);
-  if (!(await exists(outputPath))) throw new Error(`${reference}.outputPath does not exist: ${rule.outputPath}`);
+  if (!(await pathExists(outputPath))) {
+    throw new Error(`${reference}.outputPath does not exist: ${rule.outputPath}`);
+  }
   await assertPhysicalContainment(root, outputPath, `${reference}.outputPath`);
 }
 
@@ -348,11 +352,11 @@ export async function promoteSkill(options: PromoteSkillOptions): Promise<Promot
   const libraryRoot = resolve(options.libraryRoot ?? packageRoot);
   const skillsRoot = resolve(options.skillsRoot ?? defaultSkillsRoot);
   const candidateInput = resolve(options.candidateManifestPath);
-  const candidateManifestPath = isInside(libraryRoot, candidateInput)
+  const candidateManifestPath = isPathInside(libraryRoot, candidateInput)
     ? candidateInput
     : resolveInside(libraryRoot, options.candidateManifestPath, "candidate manifest");
 
-  if (!(await exists(candidateManifestPath))) {
+  if (!(await pathExists(candidateManifestPath))) {
     throw new Error(`candidate manifest does not exist: ${options.candidateManifestPath}`);
   }
   await assertPhysicalContainment(libraryRoot, candidateManifestPath, "candidate manifest");
@@ -394,7 +398,9 @@ export async function promoteSkill(options: PromoteSkillOptions): Promise<Promot
   if (!relative(libraryRoot, candidatePath).split(sep).join("/").startsWith("derivatives/skills/")) {
     throw new Error("candidate outputPath must be inside derivatives/skills/");
   }
-  if (!(await exists(candidatePath))) throw new Error(`candidate outputPath does not exist: ${manifest.outputPath}`);
+  if (!(await pathExists(candidatePath))) {
+    throw new Error(`candidate outputPath does not exist: ${manifest.outputPath}`);
+  }
   await assertPhysicalContainment(libraryRoot, candidatePath, "candidate outputPath");
   const candidate = await readFile(candidatePath, "utf8");
   if (rawTranscriptHeading.test(candidate)) {
@@ -403,30 +409,32 @@ export async function promoteSkill(options: PromoteSkillOptions): Promise<Promot
 
   const content = renderSkill(manifest, candidatePath, candidate, libraryRoot);
   const targetPath = resolve(skillsRoot, manifest.slug, "SKILL.md");
-  if (!isInside(skillsRoot, targetPath)) throw new Error(`skill slug escapes the skills root: ${manifest.slug}`);
+  if (!isPathInside(skillsRoot, targetPath)) {
+    throw new Error(`skill slug escapes the skills root: ${manifest.slug}`);
+  }
   const targetEntry = await statEntry(targetPath);
   if (targetEntry?.isSymbolicLink()) {
     throw new Error(`skill target must not be a symbolic link: ${manifest.slug}/SKILL.md`);
   }
-  if ((await exists(skillsRoot)) && (await exists(dirname(targetPath)))) {
+  if ((await pathExists(skillsRoot)) && (await pathExists(dirname(targetPath)))) {
     const [physicalSkillsRoot, physicalTargetDir] = await Promise.all([
       realpath(skillsRoot),
       realpath(dirname(targetPath)),
     ]);
-    if (!isInside(physicalSkillsRoot, physicalTargetDir)) {
+    if (!isPathInside(physicalSkillsRoot, physicalTargetDir)) {
       throw new Error(`skill target resolves outside the skills root: ${manifest.slug}`);
     }
     if (targetEntry) {
       const physicalTarget = await realpath(targetPath);
-      if (!isInside(physicalSkillsRoot, physicalTarget)) {
+      if (!isPathInside(physicalSkillsRoot, physicalTarget)) {
         throw new Error(`skill target resolves outside the skills root: ${manifest.slug}/SKILL.md`);
       }
     }
   }
-  const before = (await exists(targetPath)) ? await readFile(targetPath, "utf8") : undefined;
+  const before = (await pathExists(targetPath)) ? await readFile(targetPath, "utf8") : undefined;
   const changed = before !== content;
   const targetLabel = (
-    isInside(repositoryRoot, targetPath)
+    isPathInside(repositoryRoot, targetPath)
       ? relative(repositoryRoot, targetPath)
       : relative(skillsRoot, targetPath)
   )

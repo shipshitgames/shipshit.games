@@ -9,14 +9,26 @@ export type SourceKind =
 
 export type SourcePriority = "primary" | "reference" | "inbox";
 export type SourceStatus = "active" | "paused" | "archived";
-export type TranscriptRightsStatus =
-  | "user-provided"
-  | "public-captions"
-  | "official-api"
-  | "permissioned"
-  | "unknown";
+export const TRANSCRIPT_RIGHTS_STATUSES = [
+  "user-provided",
+  "public-captions",
+  "official-api",
+  "permissioned",
+  "unknown",
+] as const;
+export type TranscriptRightsStatus = (typeof TRANSCRIPT_RIGHTS_STATUSES)[number];
+export const DUPLICATE_POLICIES = ["skip", "overwrite", "versioned"] as const;
+export type DuplicatePolicy = (typeof DUPLICATE_POLICIES)[number];
 export type DerivativeKind = "rule" | "skill" | "app" | "tool";
 export type DerivativeStatus = "candidate" | "active" | "rejected";
+
+export function isTranscriptRightsStatus(value: string): value is TranscriptRightsStatus {
+  return (TRANSCRIPT_RIGHTS_STATUSES as readonly string[]).includes(value);
+}
+
+export function isDuplicatePolicy(value: string): value is DuplicatePolicy {
+  return (DUPLICATE_POLICIES as readonly string[]).includes(value);
+}
 
 export interface SourceRights {
   transcriptPolicy: TranscriptRightsStatus;
@@ -49,8 +61,8 @@ export interface TranscriptResource {
   title: string;
   url: string;
   capturedAt: string;
-  transcriptPath: string;
-  transcriptFormat: "markdown" | "plain-text" | "youtube-timedtext";
+  transcriptPath?: string;
+  transcriptFormat?: "markdown" | "plain-text" | "youtube-timedtext";
   rights: {
     status: TranscriptRightsStatus;
     notes: string;

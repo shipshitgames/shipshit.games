@@ -4,5 +4,6 @@ export * from "./library";
 export * from "./inventory";
 export * from "./reports";
 export * from "./distill";
+export * from "./distill-flow";
 export * from "./transcript";
 export * from "./skill-promoter";
