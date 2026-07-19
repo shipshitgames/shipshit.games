@@ -33,6 +33,56 @@ env:
   STRIPE_STUDIO_PASS_PRICE_ID: price_ci_placeholder
 
 jobs:
+  engine-package:
+    name: Engine Package (Three ${{ matrix.three }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - three: "0.169.0"
+            types: "0.169.0"
+          - three: "0.184.0"
+            types: "0.184.1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Cache Bun
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-engine-package-${{ matrix.three }}-${{ hashFiles('bun.lock', 'packages/engine/package.json', 'packages/assetgen/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-engine-package-${{ matrix.three }}-
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify Packed Engine Consumer
+        run: bun run --cwd packages/engine smoke:package -- ${{ matrix.three }} ${{ matrix.types }}
+
+  engine-package-gate:
+    name: Engine Package
+    if: always()
+    needs: engine-package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every Three.js matrix leg
+        run: test "${{ needs.engine-package.result }}" = "success"
+
   monorepo:
     name: Monorepo Checks
     runs-on: ubuntu-latest
@@ -71,6 +121,9 @@ jobs:
       - name: Engine Package Check
         run: bun run ci:engine
 
+      - name: Ressources CLI Check
+        run: bun run ci:ressources
+
       - name: Lint
         run: bun run lint
 
@@ -79,6 +132,11 @@ jobs:
 
       - name: Typecheck
         run: bun run typecheck
+
+      # assetgen asset-qa WebP checks and repairs shell out to cwebp/dwebp
+      # (see packages/assetgen/ASSET-QA.md); their tests fail without libwebp.
+      - name: Install libwebp Tools
+        run: sudo apt-get update && sudo apt-get install -y webp
 
       - name: Test (with coverage)
         run: bun run test:coverage

@@ -233,6 +233,15 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
   }
 
   const derivatives = await loadDerivatives(dvDir);
+  const ruleReferences = new Set<string>();
+  for (const derivative of derivatives) {
+    if (!isPlainObject(derivative) || derivative.kind !== "rule") continue;
+    if (typeof derivative.slug === "string" && derivative.slug.length > 0) {
+      ruleReferences.add(
+        toContentRelative(resolve(dvDir, "rules", `${derivative.slug}.resource.json`)),
+      );
+    }
+  }
   const transcriptPaths = new Set(
     transcripts
       .filter((transcript) => typeof transcript?.transcriptPath === "string" && transcript.transcriptPath.length > 0)
@@ -255,6 +264,12 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
     for (const sourceTranscript of sourceTranscripts) {
       if (!transcriptPaths.has(sourceTranscript) && !transcriptSidecars.has(sourceTranscript)) {
         warnings.push(`${label} references a transcript not indexed yet: ${sourceTranscript}`);
+      }
+    }
+    const sourceRules = Array.isArray(derivative.sourceRules) ? derivative.sourceRules : [];
+    for (const sourceRule of sourceRules) {
+      if (!ruleReferences.has(sourceRule)) {
+        warnings.push(`${label} references a rule not indexed yet: ${sourceRule}`);
       }
     }
 
@@ -344,12 +359,89 @@ export interface NewDerivativeInput {
   slug: string;
   title: string;
   sourceTranscripts: string[];
+  sourceRules?: string[];
   summary?: string;
   force?: boolean;
 }
 
 function derivativeDir(kind: DerivativeKind): string {
   return resolve(derivativesDir, kind === "rule" ? "rules" : `${kind}s`);
+}
+
+export function renderDerivativeCandidate(input: NewDerivativeInput, summary: string): string {
+  const skillSections =
+    input.kind === "skill"
+      ? [
+          "## Trigger",
+          "",
+          "Use this skill when the reviewed workflow applies to a repository task.",
+          "",
+          "## Workflow",
+          "",
+          "1. Load the applicable repository context and source-backed guidance.",
+          "2. Apply the repeatable workflow to the requested task.",
+          "3. Verify the outputs with repository-native checks.",
+          "",
+          "## Inputs",
+          "",
+          "- The user's task and target repository context.",
+          "- Any task-specific source files required by the reviewed workflow.",
+          "",
+          "## Outputs",
+          "",
+          "- The completed work product.",
+          "- Verification evidence and unresolved blockers.",
+          "",
+        ]
+      : [
+          "## Reusable Pattern",
+          "",
+          "- Capture the source-specific technique in original words.",
+          "- Convert tutorial steps into repo-native game-building rules.",
+          "- Name the concrete Ship Shit Games package, app, or tool this should affect.",
+          "",
+        ];
+
+  return [
+    `# ${input.title}`,
+    "",
+    `Status: candidate`,
+    `Kind: ${input.kind}`,
+    "",
+    "## Source Transcripts",
+    "",
+    ...(input.sourceTranscripts.length > 0
+      ? input.sourceTranscripts.map((sourceTranscript) => `- ${sourceTranscript}`)
+      : ["- None."]),
+    "",
+    ...(input.sourceRules && input.sourceRules.length > 0
+      ? [
+          "## Source Rules",
+          "",
+          ...input.sourceRules.map((sourceRule) => `- ${sourceRule}`),
+          "",
+        ]
+      : []),
+    "## Why This Matters",
+    "",
+    summary,
+    "",
+    ...skillSections,
+    "## Implementation Notes",
+    "",
+    "- Pending review.",
+    "",
+    ...(input.kind === "skill"
+      ? [
+          "## Verification",
+          "",
+          "- Confirm the workflow is specific, repeatable, and grounded in repository needs.",
+          "- Run the smallest relevant checks permitted by the repository.",
+          "- Report skipped checks and residual risk.",
+          "",
+        ]
+      : []),
+  ].join("\n");
 }
 
 export async function createDerivative(input: NewDerivativeInput): Promise<DerivativeManifest> {
@@ -364,31 +456,7 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
   }
 
   const summary = input.summary ?? "Candidate distilled from source transcripts. Review before promoting.";
-  const body = [
-    `# ${input.title}`,
-    "",
-    `Status: candidate`,
-    `Kind: ${input.kind}`,
-    "",
-    "## Source Transcripts",
-    "",
-    ...input.sourceTranscripts.map((sourceTranscript) => `- ${sourceTranscript}`),
-    "",
-    "## Why This Matters",
-    "",
-    summary,
-    "",
-    "## Reusable Pattern",
-    "",
-    "- Capture the source-specific technique in original words.",
-    "- Convert tutorial steps into repo-native game-building rules.",
-    "- Name the concrete Ship Shit Games package, app, or tool this should affect.",
-    "",
-    "## Implementation Notes",
-    "",
-    "- Pending review.",
-    "",
-  ].join("\n");
+  const body = renderDerivativeCandidate(input, summary);
 
   const manifest: DerivativeManifest = {
     schemaVersion: 1,
@@ -397,6 +465,7 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
     title: input.title,
     status: "candidate",
     sourceTranscripts: input.sourceTranscripts,
+    ...(input.sourceRules && input.sourceRules.length > 0 ? { sourceRules: input.sourceRules } : {}),
     outputPath: relativeToPackage(outputPath),
     summary,
     tags: [],

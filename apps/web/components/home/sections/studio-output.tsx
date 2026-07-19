@@ -2,7 +2,7 @@ import { Eyebrow } from "@/components/site/eyebrow";
 import { PageSection } from "@/components/site/page-section";
 import { SectionIllustration } from "@/components/site/section-illustration";
 import { LinkCard } from "@/components/home/link-card";
-import { formatUsd, SKILLS_PRO_EARLY_PRICE_USD } from "@/lib/skills-pro";
+import { formatUsd, STUDIO_PASS } from "@shipshitgames/shared";
 
 const PRODUCTS = [
   {
@@ -13,7 +13,7 @@ const PRODUCTS = [
   },
   {
     name: "Skills Pro",
-    desc: `The paid operating manual: production prompts, agent workflows, review loops, and updates from the live build. Early buyers get in at ${formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}.`,
+    desc: `The paid operating manual: production prompts, agent workflows, review loops, and updates from the live build. Early buyers get in at ${formatUsd(STUDIO_PASS.founderPriceUsd)}.`,
     href: "/pricing",
     cta: "Buy the pack",
   },
