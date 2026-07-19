@@ -5,7 +5,12 @@ import { join } from "node:path";
 import { afterEach, test } from "node:test";
 
 import { buildMinimalGlb } from "../glb-fixture.ts";
-import { buildPreviewTarget, previewInput } from "./preview.ts";
+import {
+  buildPreviewTarget,
+  MODEL_VIEWER_INTEGRITY,
+  MODEL_VIEWER_URL,
+  previewInput,
+} from "./preview.ts";
 
 const temps: string[] = [];
 
@@ -53,6 +58,11 @@ test("preview writes a browser target for GLB models", async () => {
   );
   assert.match(html, /crossorigin="anonymous"/);
   assert.doesNotMatch(html, /src="file:/);
+  assert.equal(MODEL_VIEWER_URL, "https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js");
+  assert.equal(
+    MODEL_VIEWER_INTEGRITY,
+    "sha384-cprcVQt7wbUl0xngF3PGP6yBB7n4/t+4AoAMG9biiMCGFiWOdzUH10Ie2COTqFNW",
+  );
 });
 
 test("preview bundles external GLTF resources into one binary data URL", async () => {
@@ -95,6 +105,52 @@ test("preview rejects GLTF resources outside the model directory", async () => {
   );
 
   await assert.rejects(buildPreviewTarget(model), /resource escapes the model directory/);
+});
+
+test("preview rejects external resource URIs owned by unsupported GLTF extensions", async () => {
+  const root = await tempRoot();
+  const model = join(root, "extension-resource.gltf");
+  await writeFile(join(root, "extension.bin"), Buffer.alloc(4));
+  await writeFile(
+    model,
+    JSON.stringify({
+      asset: { version: "2.0" },
+      extensionsUsed: ["VENDOR_external_resource"],
+      extensions: { VENDOR_external_resource: { uri: "extension.bin" } },
+    }),
+  );
+
+  await assert.rejects(
+    buildPreviewTarget(model),
+    /does not support external extension resource URI/,
+  );
+});
+
+test("preview rejects GLB input before base64 embedding when it exceeds the byte limit", async () => {
+  const root = await tempRoot();
+  const model = join(root, "oversized.glb");
+  await writeFile(model, buildMinimalGlb());
+
+  await assert.rejects(
+    buildPreviewTarget(model, { maxModelBytes: 8 }),
+    /model preview input exceeds the 8-byte preview limit/,
+  );
+});
+
+test("preview counts GLTF sidecars against the byte limit", async () => {
+  const root = await tempRoot();
+  const model = join(root, "oversized.gltf");
+  await writeFile(join(root, "mesh.bin"), Buffer.alloc(36));
+  const source = JSON.stringify({
+    asset: { version: "2.0" },
+    buffers: [{ uri: "mesh.bin", byteLength: 36 }],
+  });
+  await writeFile(model, source);
+
+  await assert.rejects(
+    buildPreviewTarget(model, { maxModelBytes: Buffer.byteLength(source) + 35 }),
+    /GLTF preview input and resources exceeds/,
+  );
 });
 
 test("preview positional input skips values belonging to other flags", () => {

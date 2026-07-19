@@ -140,9 +140,12 @@ describe("buildAssetIndex (fixture)", () => {
     expect(games["shared"]).toBe(2);
   });
 
-  test("excludes raw model sources and trace reports from the runtime index", async () => {
+  test("excludes the indexable raw GLB sentinel and its trace under sources/", async () => {
     const index = await buildAssetIndex({ assetsDir: dir });
     expect(index.assets.some((asset) => asset.path.startsWith("sources/"))).toBe(false);
+    expect(index.assets.some((asset) => asset.path.endsWith("raw-provider-output.glb"))).toBe(false);
+    // The trace preserves the real registered-source layout; the GLB is the
+    // indexable sentinel proving the directory-level exclusion.
     expect(index.assetCount).toBe(4);
   });
 

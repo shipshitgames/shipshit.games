@@ -14,6 +14,8 @@ import { runGenerate } from "./generate.ts";
 import { defaultRepo } from "./paths.ts";
 
 const MODEL_OPTIMIZE_REPORT_VERSION = 1;
+export const MODEL_RIG_SOURCES = ["none", "provider", "artist", "mixamo", "other"] as const;
+export type ModelRigSource = (typeof MODEL_RIG_SOURCES)[number];
 
 export interface ModelOptimizeReport {
   schemaVersion: typeof MODEL_OPTIMIZE_REPORT_VERSION;
@@ -52,7 +54,7 @@ export interface RegisterModelFileOptions {
   licenseTerms: string;
   licenseUrl?: string;
   licenseType?: string;
-  rigSource?: string;
+  rigSource?: ModelRigSource;
   now?: () => Date;
 }
 
@@ -103,7 +105,7 @@ export async function runModelCommand(argv: string[]): Promise<void> {
           licenseTerms: requiredFlag(rest, "license"),
           licenseUrl: flag(rest, "license-url"),
           licenseType: flag(rest, "license-type"),
-          rigSource: flag(rest, "rig"),
+          rigSource: parseModelRigSource(flag(rest, "rig")),
         });
         console.log(`[model] registered ${result.entry.id}:${result.entry.kind} -> ${result.outputPath}`);
         console.log(`[manifest] ${result.manifestPath} updated`);
@@ -123,7 +125,7 @@ export async function runModelCommand(argv: string[]): Promise<void> {
 export function modelGenerateArgs(argv: string[]): string[] {
   if (has(argv, "rig")) {
     throw new Error(
-      "model generate derives rig provenance from its provider; use model register --rig <source> for imported models",
+      "model generate derives rig provenance from its provider; use model register --rig <none|provider|artist|mixamo|other> for imported models",
     );
   }
   const next = argv.filter((arg) => arg !== "--publish");
@@ -176,9 +178,11 @@ export async function registerModelFile(
   const report = await readOptimizeReport(reportPath);
   const sourcePath = await verifyOptimizeReport(inputPath, reportPath, report);
   const rigged = report.summary.skins > 0;
-  if (options.rigSource && (options.rigSource === "none") === rigged) {
-    throw new Error(`--rig ${options.rigSource} contradicts the model's detected rig state`);
+  const assertedRigSource = parseModelRigSource(options.rigSource);
+  if (assertedRigSource && (assertedRigSource === "none") === rigged) {
+    throw new Error(`--rig ${assertedRigSource} contradicts the model's detected rig state`);
   }
+  const rigSource = modelRigProvenance(assertedRigSource, options.provider, rigged);
 
   const assetsRoot = assetsRootForRepo(resolve(options.repo));
   const relPath = `models/${options.id}.glb`;
@@ -248,7 +252,7 @@ export async function registerModelFile(
       ...(options.licenseUrl ? { url: options.licenseUrl } : {}),
       generatedAt: report.generatedAt,
       rig: {
-        source: options.rigSource ?? (rigged ? "unknown" : "none"),
+        source: rigSource,
         rigged,
         joints: report.summary.joints,
         animations: report.animations,
@@ -258,6 +262,15 @@ export async function registerModelFile(
   const manifestPath = assetsManifestPath(assetsRoot);
   await register(manifestPath, entry);
   return { outputPath, manifestPath, entry };
+}
+
+/** Parse the documented import-only rig enum; non-`none` values remain explicit operator assertions. */
+export function parseModelRigSource(value: string | undefined): ModelRigSource | undefined {
+  if (value === undefined) return undefined;
+  if ((MODEL_RIG_SOURCES as readonly string[]).includes(value)) return value as ModelRigSource;
+  throw new Error(
+    `--rig must be one of ${MODEL_RIG_SOURCES.join("|")} (received ${JSON.stringify(value)})`,
+  );
 }
 
 async function readOptimizeReport(reportPath: string): Promise<ModelOptimizeReport> {
@@ -321,6 +334,18 @@ function assertModelId(id: string): void {
   }
 }
 
+function modelRigProvenance(
+  source: ModelRigSource | undefined,
+  provider: string,
+  rigged: boolean,
+): string {
+  if (!rigged) return "none";
+  if (!source) return "unknown";
+  return source === "provider"
+    ? `operator-asserted:provider:${provider}`
+    : `operator-asserted:${source}`;
+}
+
 function requiredFlag(argv: string[], name: string): string {
   const value = flag(argv, name);
   if (!value || value.startsWith("--")) throw new Error(`--${name} <value> is required`);
@@ -335,9 +360,10 @@ function printModelUsage(): void {
       "  assetgen model register --in <runtime.glb> --id <id> --provider <provider> --license <terms>\n" +
       "           [--model <model>] [--prompt <text>] [--game <slug>|shared] [--repo <path>]\n" +
       "           [--report <runtime.glb.optimize.json>] [--license-url <url>] [--license-type <type>]\n" +
-      "           [--rig <source>]\n" +
+      "           [--rig <none|provider|artist|mixamo|other>]\n" +
       "\n" +
       "  model generate stages a draft unless --publish is explicitly passed.\n" +
-      "  model register requires the trace report emitted by model optimize.",
+      "  model register requires the trace report emitted by model optimize.\n" +
+      "  Non-none --rig values are operator assertions; skeleton presence is verified from the GLB.",
   );
 }

@@ -6,7 +6,12 @@ import { join } from "node:path";
 import { afterEach, test } from "node:test";
 
 import { buildMinimalGlb } from "../glb-fixture.ts";
-import { modelGenerateArgs, optimizeModelFile, registerModelFile } from "./model.ts";
+import {
+  modelGenerateArgs,
+  optimizeModelFile,
+  parseModelRigSource,
+  registerModelFile,
+} from "./model.ts";
 
 const temps: string[] = [];
 
@@ -45,6 +50,12 @@ test("model generate rejects unverifiable rig-source attribution", () => {
     () => modelGenerateArgs(["--id", "golem", "--prompt", "stone golem", "--rig", "mixamo"]),
     /derives rig provenance from its provider/,
   );
+});
+
+test("model register accepts only the documented rig-source enum", () => {
+  assert.equal(parseModelRigSource("none"), "none");
+  assert.equal(parseModelRigSource("provider"), "provider");
+  assert.throws(() => parseModelRigSource("tripo"), /must be one of none\|provider\|artist\|mixamo\|other/);
 });
 
 test("model optimize preserves the raw source and writes a hash-addressed trace report", async () => {
@@ -104,7 +115,7 @@ test("model register verifies the optimization trace and writes the shared manif
   assert.equal(entry.license.terms, "internal prototype");
   assert.equal(entry.license.type, "ai-generated");
   assert.equal(entry.license.rig.rigged, true);
-  assert.equal(entry.license.rig.source, "mixamo");
+  assert.equal(entry.license.rig.source, "operator-asserted:mixamo");
   assert.equal(entry.modelTrace.source, "sources/models/stone-golem.glb");
   assert.equal(existsSync(join(repo, "src/assets", entry.modelTrace.source)), true);
   assert.equal(existsSync(join(repo, "src/assets", entry.modelTrace.report)), true);
@@ -125,6 +136,7 @@ test("model register records static imported models without fabricating AI prove
     provider: "blender",
     licenseTerms: "CC-BY-4.0",
     licenseType: "hand-authored",
+    rigSource: "none",
   });
 
   assert.equal(result.entry.provenance, undefined);
@@ -153,6 +165,27 @@ test("model register rejects rig metadata that contradicts the optimized model",
       rigSource: "mixamo",
     }),
     /contradicts the model's detected rig state/,
+  );
+});
+
+test("model register rejects explicit none for a model with a detected rig", async () => {
+  const root = await tempRoot();
+  const source = join(root, "source.glb");
+  const runtime = join(root, "runtime.glb");
+  await writeFile(source, buildMinimalGlb({ rigged: true }));
+  await optimizeModelFile({ inputPath: source, outputPath: runtime, draco: false });
+
+  await assert.rejects(
+    registerModelFile({
+      inputPath: runtime,
+      repo: join(root, "game"),
+      id: "rigged-model",
+      game: "shared",
+      provider: "blender",
+      licenseTerms: "internal prototype",
+      rigSource: "none",
+    }),
+    /--rig none contradicts the model's detected rig state/,
   );
 });
 

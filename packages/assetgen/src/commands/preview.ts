@@ -4,13 +4,19 @@ import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import { NodeIO } from "@gltf-transform/core";
+import type { JSONDocument } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 
 import { flag, has } from "./args.ts";
 
-const MODEL_VIEWER_URL = "https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js";
-const MODEL_VIEWER_INTEGRITY =
+export const MAX_MODEL_PREVIEW_BYTES = 32 * 1024 * 1024;
+export const MODEL_VIEWER_URL =
+  "https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js";
+// Verification:
+// curl -fsSL https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js |
+//   openssl dgst -sha384 -binary | openssl base64 -A
+export const MODEL_VIEWER_INTEGRITY =
   "sha384-cprcVQt7wbUl0xngF3PGP6yBB7n4/t+4AoAMG9biiMCGFiWOdzUH10Ie2COTqFNW";
 
 export type PreviewKind = "image" | "audio" | "model" | "export-pack" | "file";
@@ -40,7 +46,7 @@ export async function runPreviewCommand(argv: string[]): Promise<void> {
 
 export async function buildPreviewTarget(
   input: string,
-  options: { outPath?: string } = {},
+  options: { outPath?: string; maxModelBytes?: number } = {},
 ): Promise<PreviewTarget> {
   const source = resolve(input);
   if (!existsSync(source)) throw new Error(`asset not found: ${source}`);
@@ -57,16 +63,29 @@ export async function buildPreviewTarget(
   }
 
   const target = resolve(options.outPath ?? `${source}.preview.html`);
+  const maxModelBytes = options.maxModelBytes ?? MAX_MODEL_PREVIEW_BYTES;
   const previewData =
     extension === ".gltf"
-      ? await bundleGltfForPreview(source)
-      : { data: await readFile(source), mediaType: media.mediaType };
+      ? await bundleGltfForPreview(source, maxModelBytes)
+      : {
+          data: assertPreviewByteLimit(await readFile(source), maxModelBytes, "model preview input"),
+          mediaType: media.mediaType,
+        };
   await mkdir(dirname(target), { recursive: true });
-  await writeFile(target, modelPreviewHtml(source, previewData.data, previewData.mediaType));
+  await writeFile(
+    target,
+    modelPreviewHtml(source, previewData.data, previewData.mediaType, maxModelBytes),
+  );
   return { kind: "model", source, target, mediaType: previewData.mediaType };
 }
 
-export function modelPreviewHtml(source: string, data: Buffer, mediaType = "model/gltf-binary"): string {
+export function modelPreviewHtml(
+  source: string,
+  data: Buffer,
+  mediaType = "model/gltf-binary",
+  maxModelBytes = MAX_MODEL_PREVIEW_BYTES,
+): string {
+  assertPreviewByteLimit(data, maxModelBytes, "model preview output");
   const sourceUrl = `data:${mediaType};base64,${data.toString("base64")}`;
   const title = escapeHtml(basename(source));
   return `<!doctype html>
@@ -97,29 +116,28 @@ export function modelPreviewHtml(source: string, data: Buffer, mediaType = "mode
  */
 export async function bundleGltfForPreview(
   source: string,
+  maxModelBytes = MAX_MODEL_PREVIEW_BYTES,
 ): Promise<{ data: Buffer; mediaType: "model/gltf-binary" }> {
   const sourcePath = await realpath(resolve(source));
   const sourceDir = dirname(sourcePath);
-  const document: unknown = JSON.parse(await readFile(sourcePath, "utf8"));
-  const resourceUris = gltfResourceUris(document).filter((uri) => !/^data:/i.test(uri));
+  const sourceBytes = assertPreviewByteLimit(
+    await readFile(sourcePath),
+    maxModelBytes,
+    "GLTF preview input",
+  );
+  const document: unknown = JSON.parse(sourceBytes.toString("utf8"));
+  const resourceUris = gltfResourceUris(document);
+  assertNoUnsupportedResourceUris(document);
 
+  const resources: Record<string, Uint8Array> = {};
+  let totalBytes = sourceBytes.length;
   for (const uri of resourceUris) {
-    if (/^[a-z][a-z0-9+.-]*:/i.test(uri) || uri.startsWith("//") || uri.includes("?") || uri.includes("#")) {
-      throw new Error(`GLTF preview only accepts local relative resources: ${uri}`);
-    }
-    let decoded: string;
-    try {
-      decoded = decodeURIComponent(uri);
-    } catch {
-      throw new Error(`GLTF preview resource has invalid URI encoding: ${uri}`);
-    }
-    if (isAbsolute(decoded)) {
-      throw new Error(`GLTF preview only accepts local relative resources: ${uri}`);
-    }
-    const resourcePath = await realpath(resolve(sourceDir, decoded));
-    if (!isPathInside(sourceDir, resourcePath)) {
-      throw new Error(`GLTF preview resource escapes the model directory: ${uri}`);
-    }
+    if (/^data:/i.test(uri)) continue;
+    const resourcePath = await resolveGltfResource(sourceDir, uri);
+    const resource = await readFile(resourcePath);
+    totalBytes += resource.length;
+    assertPreviewByteCount(totalBytes, maxModelBytes, "GLTF preview input and resources");
+    resources[uri] = resource;
   }
 
   const draco3d = await import("draco3dgltf");
@@ -137,8 +155,22 @@ export async function bundleGltfForPreview(
       "meshopt.encoder": MeshoptEncoder,
       "meshopt.decoder": MeshoptDecoder,
     });
-  const gltf = await io.read(sourcePath);
-  return { data: Buffer.from(await io.writeBinary(gltf)), mediaType: "model/gltf-binary" };
+  const gltf = await io.readJSON({
+    json: document as JSONDocument["json"],
+    resources,
+  });
+  const data = Buffer.from(await io.writeBinary(gltf));
+  assertPreviewByteLimit(data, maxModelBytes, "bundled GLTF preview output");
+  return { data, mediaType: "model/gltf-binary" };
+}
+
+export function assertPreviewByteLimit<T extends Uint8Array>(
+  data: T,
+  maxBytes = MAX_MODEL_PREVIEW_BYTES,
+  label = "model preview",
+): T {
+  assertPreviewByteCount(data.byteLength, maxBytes, label);
+  return data;
 }
 
 export function openPreviewTarget(target: string): void {
@@ -209,6 +241,68 @@ function gltfResourceUris(document: unknown): string[] {
   return resources.flatMap((resource) =>
     isRecord(resource) && typeof resource.uri === "string" ? [resource.uri] : [],
   );
+}
+
+function assertNoUnsupportedResourceUris(document: unknown): void {
+  const coreResources = new Set<unknown>();
+  if (isRecord(document)) {
+    for (const collection of [document.buffers, document.images]) {
+      if (Array.isArray(collection)) {
+        for (const resource of collection) coreResources.add(resource);
+      }
+    }
+  }
+
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    if (!isRecord(value)) return;
+    if (
+      !coreResources.has(value) &&
+      typeof value.uri === "string" &&
+      !/^data:/i.test(value.uri)
+    ) {
+      throw new Error(`GLTF preview does not support external extension resource URI: ${value.uri}`);
+    }
+    for (const child of Object.values(value)) visit(child);
+  };
+  visit(document);
+}
+
+async function resolveGltfResource(sourceDir: string, uri: string): Promise<string> {
+  if (
+    /^[a-z][a-z0-9+.-]*:/i.test(uri) ||
+    uri.startsWith("//") ||
+    uri.includes("?") ||
+    uri.includes("#")
+  ) {
+    throw new Error(`GLTF preview only accepts local relative resources: ${uri}`);
+  }
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(uri);
+  } catch {
+    throw new Error(`GLTF preview resource has invalid URI encoding: ${uri}`);
+  }
+  if (isAbsolute(decoded)) {
+    throw new Error(`GLTF preview only accepts local relative resources: ${uri}`);
+  }
+  const resourcePath = await realpath(resolve(sourceDir, decoded));
+  if (!isPathInside(sourceDir, resourcePath)) {
+    throw new Error(`GLTF preview resource escapes the model directory: ${uri}`);
+  }
+  return resourcePath;
+}
+
+function assertPreviewByteCount(bytes: number, maxBytes: number, label: string): void {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) {
+    throw new Error(`model preview byte limit must be a positive safe integer`);
+  }
+  if (bytes > maxBytes) {
+    throw new Error(`${label} exceeds the ${maxBytes}-byte preview limit`);
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

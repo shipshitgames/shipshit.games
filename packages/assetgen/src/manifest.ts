@@ -86,7 +86,7 @@ export interface ModelCompression {
 
 /** Rig/skeleton provenance for a generated 3D model (issue #20 `license.rig`). */
 export interface AssetRigLicense {
-  /** Where the rig came from, e.g. a provider auto-rig, "mixamo", or "none" for a static mesh. */
+  /** `none`/`unknown`, generated provider provenance, or an `operator-asserted:*` import value. */
   source: string;
   /** Whether the model carries a skin/skeleton. */
   rigged: boolean;
