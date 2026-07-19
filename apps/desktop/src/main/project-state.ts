@@ -50,16 +50,19 @@ function createProjectState(options: any = {}) {
   }
 
   function discoveredProjects() {
-    return gameSlugs
-      .map((slug) => ({ slug, repoPath: gameDir(slug) }))
-      .filter((project) => pathExists(project.repoPath))
-      .map((project) =>
-        projectFromRepoPath(project.repoPath, {
-          slug: project.slug,
-          name: project.slug,
+    const projects = [];
+    for (const slug of gameSlugs) {
+      const repoPath = gameDir(slug);
+      if (!pathExists(repoPath)) continue;
+      projects.push(
+        projectFromRepoPath(repoPath, {
+          slug,
+          name: slug,
           source: "discovered",
         }),
       );
+    }
+    return projects;
   }
 
   function allProjects(settings = readSettings()) {
@@ -72,9 +75,11 @@ function createProjectState(options: any = {}) {
       settings.activeProjectId && projects.some((project) => project.id === settings.activeProjectId)
         ? settings.activeProjectId
         : projects[0]?.id || "";
-    const summaries = projects
-      .map((project) => summarizeProject(project, activeProjectId))
-      .filter(Boolean);
+    const summaries = [];
+    for (const project of projects) {
+      const summary = summarizeProject(project, activeProjectId);
+      if (summary) summaries.push(summary);
+    }
     const active =
       summaries.find((project) => project.id === activeProjectId) ||
       summaries[0] ||
