@@ -19,6 +19,10 @@
       "types": "./src/sprites.ts",
       "default": "./src/sprites.ts"
     },
+    "./replicate": {
+      "types": "./src/replicate.ts",
+      "default": "./src/replicate.ts"
+    },
     "./asset-qa": {
       "types": "./src/asset-qa/index.ts",
       "default": "./src/asset-qa/index.ts"
