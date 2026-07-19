@@ -115,6 +115,44 @@ line around generation:
 Deadrot is the proof that this is not a toy demo. If a tool cannot help Deadrot
 ship, it is not ready to sell.
 
+## Pricing Model (locked 2026-07-10)
+
+Two audiences, two motions. Decision record: shipshit.games#330.
+
+- **Games are cheap one-time indie purchases on the franchise property.**
+  deadrot.com sells the Deadrot Collection (≤ $5–10 one-time, $4.99 at launch)
+  through its own Clerk + Stripe. shipshit.games still lists and links games;
+  it never sells or gates them directly.
+- **shipshit.games sells ONE subscription** (Studio Pass) to the dev/learner
+  audience, bundling:
+  1. **SaaS access** — hosted labs and generation with **included monthly
+     credits** (atomic ledger, shipshit.games#317).
+  2. **Skool community** — fulfilled by invite automation; Skool native
+     payments stay off (shipshit.games#292).
+  3. **deadrot.com all-games access** — the games are the proof-of-concept, so
+     the subscription includes them. This revises the earlier
+     "tools/courses-only" scoping of Studio Pass: the one-way, verified-email
+     entitlement bridge in `deadrotcom/apps/web/lib/shipshit-entitlement*.ts`
+     is KEPT and first-class (revocable grant derived from live Stripe state;
+     real purchases stay permanent). Still no identity bridge: two Clerks,
+     never synced.
+- **Credits beyond the included allowance**: one-time **credit packs**, and
+  **BYOK with a platform markup** — user keys run the compute, the pipeline
+  still burns a reduced platform fee through the same ledger
+  (shipshit.games#331).
+- **Launch pricing is $49/mo list with the founder price applied
+  automatically.** Stripe Checkout applies the `STUDIOFOUNDER20` coupon
+  ($20/mo off, duration forever), so the pricing page shows ~~$49~~ **$29/mo**
+  and every launch subscriber pays $29/mo without entering a code. Existing
+  $29/mo subscribers require no migration, and founder seats keep that price
+  when the list price rises as packaged courses ship. The locked decision is
+  recorded in shipshit.games#330; live Stripe provisioning remains tracked in
+  shipshit.games#291.
+
+One-time lifetime packs (the pre-D4 "All Access" model) are retired as the
+primary motion; a lifetime tier may return later as a bundle experiment
+(shipshit.games#298).
+
 ## Operating Rules
 
 - Ship Shit Games owns tooling; Deadrot owns runtime outputs.
