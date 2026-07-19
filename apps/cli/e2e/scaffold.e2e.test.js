@@ -22,6 +22,12 @@ import { after, test } from "node:test";
 
 const pkgDir = fileURLToPath(new URL("..", import.meta.url));
 const cliPath = join(pkgDir, "src", "cli.js");
+const rawGithubTemplateFiles = [
+  "ISSUE_TEMPLATE/bug.yml",
+  "ISSUE_TEMPLATE/feature.yml",
+  "ISSUE_TEMPLATE/task.yml",
+  "pull_request_template.md",
+];
 
 /** @type {string[]} */
 const tempDirs = [];
@@ -72,9 +78,30 @@ test("ssg new stamps a complete, valid game repo", () => {
   const dir = join(base, "game");
 
   // entry points
-  for (const file of ["AGENTS.md", ".gitignore", ".codex/instructions.md", ".gitmodules"]) {
+  for (const file of [
+    "AGENTS.md",
+    ".gitignore",
+    ".codex/instructions.md",
+    ".gitmodules",
+    ".github/ISSUE_TEMPLATE/bug.yml",
+    ".github/ISSUE_TEMPLATE/feature.yml",
+    ".github/ISSUE_TEMPLATE/task.yml",
+    ".github/ISSUE_TEMPLATE/config.yml",
+    ".github/pull_request_template.md",
+  ]) {
     assert.ok(existsSync(join(dir, file)), `missing ${file}`);
   }
+  for (const file of rawGithubTemplateFiles) {
+    const generated = readFileSync(join(dir, ".github", file));
+    const bundled = readFileSync(join(pkgDir, "templates/dot-github", file));
+    assert.deepEqual(generated, bundled, `${file} was not copied byte-for-byte`);
+  }
+  const generatedConfig = readFileSync(join(dir, ".github/ISSUE_TEMPLATE/config.yml"), "utf8");
+  assert.match(
+    generatedConfig,
+    /https:\/\/github\.com\/shipshitgames\/breach-run\/security\/advisories\/new/,
+  );
+  assert.ok(!generatedConfig.includes("{{PROJECT_SLUG}}"));
 
   // AGENTS.md references both memory docs and is fully rendered
   const agents = readFileSync(join(dir, "AGENTS.md"), "utf8");
