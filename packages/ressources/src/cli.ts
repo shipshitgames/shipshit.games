@@ -18,6 +18,8 @@ import {
   type InventoryOptions,
 } from "./inventory";
 import { distill } from "./distill";
+import { packageRoot } from "./paths";
+import { generateRulesReport, type RulesReportOptions } from "./reports";
 import { promoteSkill } from "./skill-promoter";
 import { fetchTranscript } from "./transcript";
 import type { DerivativeKind, TranscriptRightsStatus } from "./types";
@@ -46,15 +48,14 @@ function boolFlag(name: string): boolean {
   return argv.includes(`--${name}`);
 }
 
-/** Point an inventory command at another library tree with `--root <dir>`. */
-function inventoryOptions(): InventoryOptions {
-  const root = flag("root");
-  if (!root) return {};
+/** Resolve manifest directories and their path-provenance base from one library root. */
+function libraryOptions(): InventoryOptions & RulesReportOptions {
+  const root = resolve(flag("root") ?? packageRoot);
   return {
     sourcesDir: resolve(root, "sources"),
     transcriptsDir: resolve(root, "transcripts"),
     derivativesDir: resolve(root, "derivatives"),
-    contentRoot: resolve(root),
+    contentRoot: root,
   };
 }
 
@@ -123,7 +124,9 @@ commands:
   new-transcript    create transcript markdown plus sidecar metadata
   new-derivative    create a skill/app/tool/rule candidate
   promote-skill     promote a reviewed skill candidate into .agents/skills
-  sync-channel      sync YouTube channel video metadata with yt-dlp
+  source-sync       sync YouTube channel video metadata with yt-dlp
+  rules-report      report derivative rules by source, topic, and status
+  sync-channel      compatibility alias for source-sync
 
 examples:
   bun packages/ressources/src/cli.ts sources
@@ -136,7 +139,8 @@ examples:
   bun packages/ressources/src/cli.ts new-transcript --source ai-oriented-dev --url <youtube-url> --title "Title"
   bun packages/ressources/src/cli.ts new-derivative --kind skill --slug my-skill --title "My Skill" --source-transcript transcripts/source/video.resource.json
   bun packages/ressources/src/cli.ts promote-skill --candidate packages/ressources/derivatives/skills/my-skill.resource.json --dry-run
-  bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50`);
+  bun packages/ressources/src/cli.ts source-sync --source ai-oriented-dev --limit 50
+  bun packages/ressources/src/cli.ts rules-report --out rules-report.md`);
 }
 
 async function run(): Promise<void> {
@@ -154,34 +158,25 @@ async function run(): Promise<void> {
     }
 
     case "sources": {
-      const inventory = await inventorySources(inventoryOptions());
+      const inventory = await inventorySources(libraryOptions());
       emitInventory(inventory, formatSourcesTable(inventory));
       return;
     }
 
     case "transcripts": {
-      const inventory = await inventoryTranscripts(inventoryOptions());
+      const inventory = await inventoryTranscripts(libraryOptions());
       emitInventory(inventory, formatTranscriptsTable(inventory));
       return;
     }
 
     case "derivatives": {
-      const inventory = await inventoryDerivatives(inventoryOptions());
+      const inventory = await inventoryDerivatives(libraryOptions());
       emitInventory(inventory, formatDerivativesTable(inventory));
       return;
     }
 
     case "validate": {
-      const root = flag("root");
-      const options = root
-        ? {
-            sourcesDir: resolve(root, "sources"),
-            transcriptsDir: resolve(root, "transcripts"),
-            derivativesDir: resolve(root, "derivatives"),
-            contentRoot: resolve(root),
-          }
-        : {};
-      const result = await validateLibrary(options);
+      const result = await validateLibrary(libraryOptions());
       for (const warning of result.warnings) console.warn(`[warn] ${warning}`);
       for (const error of result.errors) console.error(`[error] ${error}`);
       console.log(
@@ -257,12 +252,30 @@ async function run(): Promise<void> {
       return;
     }
 
+    case "source-sync":
     case "sync-channel": {
       const sourceSlug = flag("source");
-      if (!sourceSlug) throw new Error("sync-channel requires --source");
+      if (!sourceSlug) throw new Error(`${command} requires --source`);
       const limit = Number(flag("limit") ?? "50");
-      const synced = await syncChannelVideos(sourceSlug, limit);
+      const root = flag("root");
+      const synced = await syncChannelVideos(sourceSlug, limit, {
+        sourcesDir: root ? resolve(root, "sources") : undefined,
+      });
       console.log(`[sync] ${synced.sourceSlug} videos=${synced.videos.length}`);
+      return;
+    }
+
+    case "rules-report": {
+      const report = await generateRulesReport(libraryOptions());
+      const output = flag("out");
+      if (!output) {
+        console.log(report);
+        return;
+      }
+      const outputPath = resolve(output);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, report, "utf8");
+      console.log(`[rules-report] ${outputPath}`);
       return;
     }
 
