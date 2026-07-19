@@ -288,6 +288,33 @@ test("a derivative whose outputPath file is missing is flagged", async () => {
   }
 });
 
+test("a derivative referencing an unknown distilled rule is warned", async () => {
+  const root = await mkdtemp(join(tmpdir(), "ressources-rule-ref-"));
+  try {
+    const dir = join(root, "derivatives", "skills");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "fixture-skill.md"), "# Fixture Skill\n", "utf8");
+    const manifest = {
+      schemaVersion: 1,
+      slug: "fixture-skill",
+      kind: "skill",
+      title: "Fixture Skill",
+      status: "candidate",
+      sourceTranscripts: [],
+      sourceRules: ["derivatives/rules/missing.resource.json"],
+      outputPath: "derivatives/skills/fixture-skill.md",
+      summary: "Fixture summary.",
+      tags: [],
+    };
+    await writeFile(join(dir, "fixture-skill.resource.json"), JSON.stringify(manifest, null, 2), "utf8");
+    const result = await validateLibrary(optionsFor(root));
+    assert.equal(result.ok, true);
+    assert.match(result.warnings.join("\n"), /references a rule not indexed yet/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("storing a raw transcript a source forbids is flagged (canStoreRawTranscript integration)", async () => {
   const root = await mkdtemp(join(tmpdir(), "ressources-raw-"));
   try {

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "slug": "invalid-transcript",
+  "sourceSlug": "invalid-source",
+  "sourceKind": "article",
+  "title": "Invalid Fixture Transcript",
+  "url": "https://example.com/invalid-source",
+  "capturedAt": "2026-07-17T00:00:00.000Z",
+  "transcriptPath": "transcripts/invalid-source/invalid-transcript.transcript.md",
+  "transcriptFormat": "markdown",
+  "rights": {
+    "status": "unreviewed",
+    "notes": "The unsupported rights status is intentional."
+  },
+  "tags": ["testing"],
+  "derivatives": {
+    "rulesPath": "derivatives/rules/invalid-derivative.md",
+    "skillCandidates": [],
+    "appCandidates": [],
+    "toolCandidates": []
+  }
+}

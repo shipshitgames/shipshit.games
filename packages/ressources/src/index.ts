@@ -4,3 +4,4 @@ export * from "./library";
 export * from "./inventory";
 export * from "./distill";
 export * from "./transcript";
+export * from "./skill-promoter";

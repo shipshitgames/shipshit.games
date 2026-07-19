@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "slug": "invalid-derivative",
+  "kind": "macro",
+  "title": "Invalid Fixture Derivative",
+  "status": "candidate",
+  "sourceTranscripts": [
+    "transcripts/invalid-source/invalid-transcript.resource.json"
+  ],
+  "outputPath": "derivatives/rules/invalid-derivative.md",
+  "summary": "The unsupported derivative kind is intentional.",
+  "tags": ["testing"]
+}

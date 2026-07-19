@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build MOBA Game"
+  short_description: "Build a lane-based MOBA MVP blueprint"
+  default_prompt: "Use $build-moba-game to plan and implement a lane-based MOBA MVP."
