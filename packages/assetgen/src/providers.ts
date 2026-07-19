@@ -17,6 +17,7 @@ import {
   providerSupportsKind,
 } from "./provider-catalog.ts";
 import type { AssetKind, ProviderDescriptor, ProviderId, ProviderKeyConfig } from "./provider-catalog.ts";
+import { generateReplicateAsset } from "./replicate.ts";
 
 export type { GeneratedAsset } from "./media.ts";
 export { extensionForMediaType } from "./media.ts";
@@ -213,54 +214,17 @@ async function generateReplicate(kind: AssetKind, prompt: string, opts: Provider
   if (!key) throw missingKeyMessage(provider.key!);
   const model = opts.model ?? (MODEL_KINDS.includes(kind as any) ? undefined : provider.defaultModel);
   if (!model) throw new Error("Replicate model assets require --model <owner/model> or a configured model id");
-  const prediction = await createReplicatePrediction(model, key, prompt, opts);
-  const completed = await waitForReplicatePrediction(prediction, key, opts);
-  const url = outputUrl(completed.output);
-  if (!url) throw new Error("replicate: prediction completed without a downloadable output URL");
-  return downloadGeneratedAsset(url, model);
-}
-
-async function createReplicatePrediction(
-  model: string,
-  key: string,
-  prompt: string,
-  opts: ProviderOptions,
-): Promise<any> {
-  const res = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${key}`,
-      "content-type": "application/json",
-      prefer: "wait=60",
+  return generateReplicateAsset(
+    prompt,
+    {
+      model,
+      timeoutMs: opts.timeoutMs,
+      pollIntervalMs: opts.pollIntervalMs,
+      requestTimeoutMs: opts.requestTimeoutMs,
+      log: opts.log,
     },
-    body: JSON.stringify({
-      input: { prompt },
-    }),
-  });
-  if (!res.ok) throw new Error(`replicate ${res.status}: ${await res.text()}`);
-  const json: any = await res.json();
-  opts.log?.(`[replicate] ${json.status ?? "created"} ${json.id ?? model}\n`);
-  return json;
-}
-
-async function waitForReplicatePrediction(prediction: any, key: string, opts: ProviderOptions): Promise<any> {
-  const done = new Set(["succeeded", "failed", "canceled"]);
-  let current = prediction;
-  const started = Date.now();
-  const timeoutMs = opts.timeoutMs ?? 300_000;
-  const intervalMs = opts.pollIntervalMs ?? 1_500;
-  while (current?.status && !done.has(current.status)) {
-    if (Date.now() - started > timeoutMs) throw new Error(`replicate: timed out after ${Math.round(timeoutMs / 1000)}s`);
-    const pollUrl = current.urls?.get ?? current.urls?.self;
-    if (!pollUrl) throw new Error("replicate: prediction has no polling URL");
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-    const res = await fetch(pollUrl, { headers: { authorization: `Bearer ${key}` } });
-    if (!res.ok) throw new Error(`replicate poll ${res.status}: ${await res.text()}`);
-    current = await res.json();
-    opts.log?.(`[replicate] ${current.status ?? "poll"}\n`);
-  }
-  if (current?.status !== "succeeded") throw new Error(`replicate: prediction ${current?.status ?? "failed"}`);
-  return current;
+    { resolveKey: () => key },
+  );
 }
 
 // ── Meshy / Tripo: text/image → raw GLB via an async task (issue #20) ────────
