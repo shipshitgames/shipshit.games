@@ -40,7 +40,7 @@ export function slugify(input: string): string {
     .slice(0, 80);
 }
 
-async function exists(path: string): Promise<boolean> {
+export async function pathExists(path: string): Promise<boolean> {
   try {
     await access(path);
     return true;
@@ -49,7 +49,7 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-async function readJson<T>(path: string): Promise<T> {
+export async function readJson<T>(path: string): Promise<T> {
   const text = await readFile(path, "utf8");
   try {
     return JSON.parse(text) as T;
@@ -63,13 +63,13 @@ function isPlainObject(value: unknown): boolean {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function writeJson(path: string, value: unknown): Promise<void> {
+export async function writeJson(path: string, value: unknown): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
 async function listJsonFiles(root: string, suffix = ".json"): Promise<string[]> {
-  if (!(await exists(root))) return [];
+  if (!(await pathExists(root))) return [];
   const out: string[] = [];
   async function walk(dir: string): Promise<void> {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -92,8 +92,11 @@ export async function loadSources(dir: string = sourcesDir): Promise<SourceManif
   return Promise.all(sourceFiles.map((file) => readJson<SourceManifest>(file)));
 }
 
-export async function findSource(slug: string): Promise<SourceManifest | undefined> {
-  const sources = await loadSources();
+export async function findSource(
+  slug: string,
+  dir: string = sourcesDir,
+): Promise<SourceManifest | undefined> {
+  const sources = await loadSources(dir);
   return sources.find((source) => source.slug === slug);
 }
 
@@ -214,7 +217,7 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
       errors.push(`${label} must set transcriptPath and transcriptFormat together`);
     }
     if (transcriptPath) {
-      transcriptExists = await exists(resolve(contentRoot, transcriptPath));
+      transcriptExists = await pathExists(resolve(contentRoot, transcriptPath));
       if (!transcriptExists) {
         errors.push(`${label} transcriptPath does not exist: ${transcriptPath}`);
       }
@@ -246,6 +249,15 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
   }
 
   const derivatives = await loadDerivatives(dvDir);
+  const ruleReferences = new Set<string>();
+  for (const derivative of derivatives) {
+    if (!isPlainObject(derivative) || derivative.kind !== "rule") continue;
+    if (typeof derivative.slug === "string" && derivative.slug.length > 0) {
+      ruleReferences.add(
+        toContentRelative(resolve(dvDir, "rules", `${derivative.slug}.resource.json`)),
+      );
+    }
+  }
   const transcriptPaths = new Set(
     transcripts
       .filter(
@@ -273,9 +285,15 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
         warnings.push(`${label} references a transcript not indexed yet: ${sourceTranscript}`);
       }
     }
+    const sourceRules = Array.isArray(derivative.sourceRules) ? derivative.sourceRules : [];
+    for (const sourceRule of sourceRules) {
+      if (!ruleReferences.has(sourceRule)) {
+        warnings.push(`${label} references a rule not indexed yet: ${sourceRule}`);
+      }
+    }
 
     if (typeof derivative.outputPath === "string" && derivative.outputPath.length > 0) {
-      if (!(await exists(resolve(contentRoot, derivative.outputPath)))) {
+      if (!(await pathExists(resolve(contentRoot, derivative.outputPath)))) {
         errors.push(`${label} outputPath does not exist: ${derivative.outputPath}`);
       }
     }
@@ -313,7 +331,7 @@ export async function createTranscriptResource(input: NewTranscriptInput): Promi
   const dir = resolve(transcriptsDir, source.slug);
   const transcriptPath = resolve(dir, `${slug}.transcript.md`);
   const sidecarPath = resolve(dir, `${slug}.resource.json`);
-  if (!input.force && ((await exists(transcriptPath)) || (await exists(sidecarPath)))) {
+  if (!input.force && ((await pathExists(transcriptPath)) || (await pathExists(sidecarPath)))) {
     throw new Error(`transcript already exists for ${source.slug}/${slug}; pass --force to overwrite`);
   }
 
@@ -360,12 +378,89 @@ export interface NewDerivativeInput {
   slug: string;
   title: string;
   sourceTranscripts: string[];
+  sourceRules?: string[];
   summary?: string;
   force?: boolean;
 }
 
 function derivativeDir(kind: DerivativeKind): string {
   return resolve(derivativesDir, kind === "rule" ? "rules" : `${kind}s`);
+}
+
+export function renderDerivativeCandidate(input: NewDerivativeInput, summary: string): string {
+  const skillSections =
+    input.kind === "skill"
+      ? [
+          "## Trigger",
+          "",
+          "Use this skill when the reviewed workflow applies to a repository task.",
+          "",
+          "## Workflow",
+          "",
+          "1. Load the applicable repository context and source-backed guidance.",
+          "2. Apply the repeatable workflow to the requested task.",
+          "3. Verify the outputs with repository-native checks.",
+          "",
+          "## Inputs",
+          "",
+          "- The user's task and target repository context.",
+          "- Any task-specific source files required by the reviewed workflow.",
+          "",
+          "## Outputs",
+          "",
+          "- The completed work product.",
+          "- Verification evidence and unresolved blockers.",
+          "",
+        ]
+      : [
+          "## Reusable Pattern",
+          "",
+          "- Capture the source-specific technique in original words.",
+          "- Convert tutorial steps into repo-native game-building rules.",
+          "- Name the concrete Ship Shit Games package, app, or tool this should affect.",
+          "",
+        ];
+
+  return [
+    `# ${input.title}`,
+    "",
+    `Status: candidate`,
+    `Kind: ${input.kind}`,
+    "",
+    "## Source Transcripts",
+    "",
+    ...(input.sourceTranscripts.length > 0
+      ? input.sourceTranscripts.map((sourceTranscript) => `- ${sourceTranscript}`)
+      : ["- None."]),
+    "",
+    ...(input.sourceRules && input.sourceRules.length > 0
+      ? [
+          "## Source Rules",
+          "",
+          ...input.sourceRules.map((sourceRule) => `- ${sourceRule}`),
+          "",
+        ]
+      : []),
+    "## Why This Matters",
+    "",
+    summary,
+    "",
+    ...skillSections,
+    "## Implementation Notes",
+    "",
+    "- Pending review.",
+    "",
+    ...(input.kind === "skill"
+      ? [
+          "## Verification",
+          "",
+          "- Confirm the workflow is specific, repeatable, and grounded in repository needs.",
+          "- Run the smallest relevant checks permitted by the repository.",
+          "- Report skipped checks and residual risk.",
+          "",
+        ]
+      : []),
+  ].join("\n");
 }
 
 export async function createDerivative(input: NewDerivativeInput): Promise<DerivativeManifest> {
@@ -375,36 +470,12 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
 
   const outputPath = resolve(dir, `${slug}.md`);
   const sidecarPath = resolve(dir, `${slug}.resource.json`);
-  if (!input.force && ((await exists(outputPath)) || (await exists(sidecarPath)))) {
+  if (!input.force && ((await pathExists(outputPath)) || (await pathExists(sidecarPath)))) {
     throw new Error(`derivative already exists: ${relativeToPackage(outputPath)}; pass --force to overwrite`);
   }
 
   const summary = input.summary ?? "Candidate distilled from source transcripts. Review before promoting.";
-  const body = [
-    `# ${input.title}`,
-    "",
-    `Status: candidate`,
-    `Kind: ${input.kind}`,
-    "",
-    "## Source Transcripts",
-    "",
-    ...input.sourceTranscripts.map((sourceTranscript) => `- ${sourceTranscript}`),
-    "",
-    "## Why This Matters",
-    "",
-    summary,
-    "",
-    "## Reusable Pattern",
-    "",
-    "- Capture the source-specific technique in original words.",
-    "- Convert tutorial steps into repo-native game-building rules.",
-    "- Name the concrete Ship Shit Games package, app, or tool this should affect.",
-    "",
-    "## Implementation Notes",
-    "",
-    "- Pending review.",
-    "",
-  ].join("\n");
+  const body = renderDerivativeCandidate(input, summary);
 
   const manifest: DerivativeManifest = {
     schemaVersion: 1,
@@ -413,6 +484,7 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
     title: input.title,
     status: "candidate",
     sourceTranscripts: input.sourceTranscripts,
+    ...(input.sourceRules && input.sourceRules.length > 0 ? { sourceRules: input.sourceRules } : {}),
     outputPath: relativeToPackage(outputPath),
     summary,
     tags: [],
@@ -424,36 +496,73 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
   return manifest;
 }
 
-export async function syncChannelVideos(sourceSlug: string, limit: number): Promise<SyncedChannelVideos> {
-  const source = await findSource(sourceSlug);
+export interface SyncChannelVideosOptions {
+  sourcesDir?: string;
+  now?: () => Date;
+}
+
+export async function syncChannelVideos(
+  sourceSlug: string,
+  limit: number,
+  options: SyncChannelVideosOptions = {},
+): Promise<SyncedChannelVideos> {
+  if (!Number.isInteger(limit) || limit <= 0) {
+    throw new Error("source-sync limit must be a positive integer");
+  }
+
+  const sourceDirectory = options.sourcesDir ?? sourcesDir;
+  const source = await findSource(sourceSlug, sourceDirectory);
   if (!source) throw new Error(`unknown source: ${sourceSlug}`);
   if (source.kind !== "youtube-channel") throw new Error(`${sourceSlug} is not a youtube-channel source`);
   if (!(await ytDlpAvailable())) {
-    throw new Error("yt-dlp is not installed; install it to sync channel video metadata");
+    throw new Error(
+      "yt-dlp is not installed or not runnable; install it or set RESSOURCES_YT_DLP to its executable path",
+    );
   }
 
   const sourceUrl = source.url.endsWith("/videos") ? source.url : `${source.url}/videos`;
-  const args = ["--flat-playlist", "--dump-single-json"];
-  if (Number.isFinite(limit) && limit > 0) args.push("--playlist-end", String(limit));
-  args.push(sourceUrl);
+  const args = [
+    "--flat-playlist",
+    "--dump-single-json",
+    "--playlist-end",
+    String(limit),
+    sourceUrl,
+  ];
 
   const { stdout } = await execYtDlp(args, {
     timeout: 180_000,
     maxBuffer: 64 * 1024 * 1024,
   });
-  const parsed = JSON.parse(stdout) as { entries?: Record<string, unknown>[] };
-  const videos = (parsed.entries ?? [])
-    .map(parseYtDlpVideo)
-    .filter((video): video is SyncedVideo => Boolean(video));
+  let parsed: { entries?: unknown };
+  try {
+    parsed = JSON.parse(stdout) as { entries?: unknown };
+  } catch (error) {
+    throw new Error(`yt-dlp returned invalid JSON for ${sourceSlug}: ${(error as Error).message}`);
+  }
+  if (!Array.isArray(parsed.entries)) {
+    throw new Error(`yt-dlp returned no playlist entries for ${sourceSlug}`);
+  }
+
+  const videosById = new Map<string, SyncedVideo>();
+  for (const entry of parsed.entries) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
+    const video = parseYtDlpVideo(entry as Record<string, unknown>);
+    if (video && !videosById.has(video.videoId)) videosById.set(video.videoId, video);
+  }
+  const videos = [...videosById.values()].sort(
+    (a, b) =>
+      (b.uploadDate ?? "").localeCompare(a.uploadDate ?? "") ||
+      a.videoId.localeCompare(b.videoId),
+  );
 
   const synced: SyncedChannelVideos = {
     schemaVersion: 1,
     sourceSlug: source.slug,
-    syncedAt: new Date().toISOString(),
+    syncedAt: (options.now ?? (() => new Date()))().toISOString(),
     via: "yt-dlp",
     videos,
   };
 
-  await writeJson(resolve(sourcesDir, source.slug, "videos.json"), synced);
+  await writeJson(resolve(sourceDirectory, source.slug, "videos.json"), synced);
   return synced;
 }

@@ -117,7 +117,55 @@ test("distill records metadata without storing raw text when --out-transcript is
   }
 });
 
-test("a pre-created transcript resource is updated in place instead of skipped", async () => {
+test("skip leaves a transcript-sidecar-only collision byte-for-byte untouched", async () => {
+  const root = await fixtureRoot(false);
+  const transcriptDir = join(root, "transcripts", "fixture-source");
+  const sidecarPath = join(transcriptDir, "sidecar-only.resource.json");
+  const sidecar = {
+    schemaVersion: 1,
+    slug: "sidecar-only",
+    sourceSlug: "fixture-source",
+    sourceKind: "youtube-video",
+    title: "Curated Sidecar",
+    url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    capturedAt: "2026-01-01T00:00:00.000Z",
+    rights: {
+      status: "permissioned",
+      notes: "Human-reviewed rights note.",
+    },
+    tags: ["curated-tag"],
+    derivatives: {
+      skillCandidates: ["curated-skill"],
+      appCandidates: [],
+      toolCandidates: [],
+    },
+  };
+  const originalSidecar = `${JSON.stringify(sidecar, null, 2)}\n`;
+  await mkdir(transcriptDir, { recursive: true });
+  await writeFile(sidecarPath, originalSidecar, "utf8");
+
+  try {
+    const result = await distillSource({
+      root,
+      sourceSlug: "fixture-source",
+      transcript: "This content must not cause a sidecar rewrite.",
+      title: "Sidecar Only",
+      slug: "sidecar-only",
+      provider: "mock",
+      rightsStatus: "permissioned",
+      duplicatePolicy: "skip",
+    });
+
+    assert.equal(result.status, "skipped");
+    assert.equal(await readFile(sidecarPath, "utf8"), originalSidecar);
+    await assert.rejects(readFile(result.rulesPath, "utf8"), /ENOENT/);
+    await assert.rejects(readFile(result.rulesSidecarPath, "utf8"), /ENOENT/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("overwrite updates a pre-created transcript resource in place", async () => {
   const root = await fixtureRoot();
   const transcriptDir = join(root, "transcripts", "fixture-source");
   const transcriptPath = join(transcriptDir, "prepared.transcript.md");
@@ -182,9 +230,10 @@ test("a pre-created transcript resource is updated in place instead of skipped",
       provider: "mock",
       rightsStatus: "public-captions",
       rightsExplicit: false,
+      duplicatePolicy: "overwrite",
     });
 
-    assert.equal(result.status, "updated");
+    assert.equal(result.status, "overwritten");
     assert.match(await readFile(result.rulesPath, "utf8"), /Mock distillation/);
     assert.equal(result.transcriptResource?.capturedAt, "2026-01-01T00:00:00.000Z");
     assert.equal(
@@ -318,14 +367,38 @@ test("duplicate policies skip, overwrite, and create deterministic versioned rec
     ) as {
       tags: string[];
       rights: { notes: string };
-      derivatives: { skillCandidates: string[] };
+      derivatives: { rulesPath?: string; skillCandidates: string[] };
     };
     curatedSidecar.tags = ["curated-tag"];
     curatedSidecar.rights.notes = "Curated rights note.";
+    curatedSidecar.derivatives.rulesPath = "derivatives/rules/curated-rule.md";
     curatedSidecar.derivatives.skillCandidates = ["curated-skill"];
     await writeFile(
       created.transcriptSidecarPath,
       `${JSON.stringify(curatedSidecar, null, 2)}\n`,
+      "utf8",
+    );
+    const curatedManifest = JSON.parse(
+      await readFile(created.rulesSidecarPath, "utf8"),
+    ) as {
+      title: string;
+      status: string;
+      sourceTranscripts: string[];
+      sourceRules?: string[];
+      summary: string;
+      tags: string[];
+    };
+    curatedManifest.title = "Curated Rule Title";
+    curatedManifest.status = "active";
+    curatedManifest.sourceTranscripts.push(
+      "transcripts/fixture-source/curated.resource.json",
+    );
+    curatedManifest.sourceRules = ["derivatives/rules/curated.resource.json"];
+    curatedManifest.summary = "Human-curated derivative summary.";
+    curatedManifest.tags = ["curated-rule-tag"];
+    await writeFile(
+      created.rulesSidecarPath,
+      `${JSON.stringify(curatedManifest, null, 2)}\n`,
       "utf8",
     );
 
@@ -355,6 +428,33 @@ test("duplicate policies skip, overwrite, and create deterministic versioned rec
     assert.deepEqual(overwritten.transcriptResource?.derivatives.skillCandidates, [
       "curated-skill",
     ]);
+    assert.equal(
+      overwritten.transcriptResource?.derivatives.rulesPath,
+      "derivatives/rules/curated-rule.md",
+    );
+    assert.equal(
+      overwritten.rulesPath,
+      join(root, "derivatives", "rules", "curated-rule.md"),
+    );
+    assert.match(await readFile(overwritten.rulesPath, "utf8"), /Mock distillation/);
+    assert.equal(overwritten.derivativeManifest?.title, "Curated Rule Title");
+    assert.equal(overwritten.derivativeManifest?.status, "active");
+    assert.deepEqual(overwritten.derivativeManifest?.sourceTranscripts, [
+      "transcripts/fixture-source/duplicate.resource.json",
+      "transcripts/fixture-source/curated.resource.json",
+    ]);
+    assert.deepEqual(overwritten.derivativeManifest?.sourceRules, [
+      "derivatives/rules/curated.resource.json",
+    ]);
+    assert.equal(
+      overwritten.derivativeManifest?.summary,
+      "Human-curated derivative summary.",
+    );
+    assert.equal(
+      overwritten.derivativeManifest?.outputPath,
+      "derivatives/rules/curated-rule.md",
+    );
+    assert.deepEqual(overwritten.derivativeManifest?.tags, ["curated-rule-tag"]);
 
     const versioned = await distillSource({
       ...base,

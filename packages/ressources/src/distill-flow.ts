@@ -1,18 +1,26 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, extname, isAbsolute, relative, resolve } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, extname, resolve } from "node:path";
 import { distill } from "./distill";
-import { canStoreRawTranscript, loadSources, slugify } from "./library";
-import { packageRoot } from "./paths";
-import type {
-  DerivativeManifest,
-  SourceKind,
-  SourceManifest,
-  TranscriptResource,
-  TranscriptRightsStatus,
+import {
+  canStoreRawTranscript,
+  loadSources,
+  pathExists,
+  readJson,
+  slugify,
+  writeJson,
+} from "./library";
+import { isPathInside, packageRoot, relativeToRoot } from "./paths";
+import {
+  isDuplicatePolicy,
+  isTranscriptRightsStatus,
+  type DuplicatePolicy,
+  type DerivativeManifest,
+  type SourceKind,
+  type SourceManifest,
+  type TranscriptResource,
+  type TranscriptRightsStatus,
 } from "./types";
 import { parseVideoId } from "./ytdlp";
-
-export type DuplicatePolicy = "skip" | "overwrite" | "versioned";
 
 export interface DistillSourceInput {
   sourceSlug: string;
@@ -55,28 +63,6 @@ interface ExistingTranscriptState {
   effectiveRights: TranscriptResource["rights"];
 }
 
-async function exists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function pathInside(root: string, path: string): boolean {
-  const rel = relative(root, path);
-  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
-}
-
-function relativeToRoot(root: string, path: string): string {
-  const rel = relative(root, path);
-  if (!pathInside(root, path)) {
-    throw new Error(`output path must stay inside the ressources root: ${path}`);
-  }
-  return rel;
-}
-
 function withVersion(path: string, version: number): string {
   if (path.endsWith(".transcript.md")) {
     return `${path.slice(0, -".transcript.md".length)}-v${version}.transcript.md`;
@@ -117,19 +103,13 @@ async function collides(paths: ArtifactPaths): Promise<boolean> {
     paths.rulesPath,
     paths.rulesSidecarPath,
   ].filter((path): path is string => Boolean(path));
-  return (await Promise.all(candidates.map(exists))).some(Boolean);
-}
-
-async function rulesCollide(paths: ArtifactPaths): Promise<boolean> {
-  return (await Promise.all([exists(paths.rulesPath), exists(paths.rulesSidecarPath)])).some(
-    Boolean,
-  );
+  return (await Promise.all(candidates.map(pathExists))).some(Boolean);
 }
 
 async function readJsonIfExists<T>(path: string): Promise<T | undefined> {
-  if (!(await exists(path))) return undefined;
+  if (!(await pathExists(path))) return undefined;
   try {
-    return JSON.parse(await readFile(path, "utf8")) as T;
+    return await readJson<T>(path);
   } catch (error) {
     throw new Error(`could not read existing metadata ${path}: ${(error as Error).message}`);
   }
@@ -159,7 +139,7 @@ async function inspectExistingTranscript(input: {
     : undefined;
   if (
     existingPath &&
-    (!pathInside(sourceTranscriptsDir, existingPath) ||
+    (!isPathInside(sourceTranscriptsDir, existingPath) ||
       !existingPath.endsWith(".transcript.md"))
   ) {
     throw new Error(
@@ -168,7 +148,7 @@ async function inspectExistingTranscript(input: {
   }
 
   const linkedTranscriptPath =
-    existingPath && (await exists(existingPath)) ? existingPath : undefined;
+    existingPath && (await pathExists(existingPath)) ? existingPath : undefined;
   if (
     linkedTranscriptPath &&
     paths.transcriptPath &&
@@ -221,11 +201,6 @@ async function availableVersionedPaths(
   return paths;
 }
 
-async function writeJson(path: string, value: unknown): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-}
-
 function transcriptSourceKind(sourceType: SourceKind, url: string): SourceKind {
   return parseVideoId(url) ? "youtube-video" : sourceType;
 }
@@ -252,7 +227,7 @@ export async function distillSource(input: DistillSourceInput): Promise<DistillS
 
   let url = input.url ?? source.url;
   const duplicatePolicy = input.duplicatePolicy ?? "skip";
-  if (!["skip", "overwrite", "versioned"].includes(duplicatePolicy)) {
+  if (!isDuplicatePolicy(duplicatePolicy)) {
     throw new Error(`unknown duplicate policy: ${duplicatePolicy} (use skip | overwrite | versioned)`);
   }
 
@@ -262,7 +237,7 @@ export async function distillSource(input: DistillSourceInput): Promise<DistillS
   const sourceTranscriptsDir = resolve(root, "transcripts", source.slug);
   if (
     outTranscriptPath &&
-    (!pathInside(sourceTranscriptsDir, outTranscriptPath) ||
+    (!isPathInside(sourceTranscriptsDir, outTranscriptPath) ||
       !outTranscriptPath.endsWith(".transcript.md"))
   ) {
     throw new Error(
@@ -275,11 +250,7 @@ export async function distillSource(input: DistillSourceInput): Promise<DistillS
     notes: `Transcript provenance recorded by the source-aware distill flow (${input.rightsStatus}).`,
   };
   const rightsExplicit = input.rightsExplicit ?? true;
-  if (
-    !["user-provided", "public-captions", "official-api", "permissioned", "unknown"].includes(
-      input.rightsStatus,
-    )
-  ) {
+  if (!isTranscriptRightsStatus(input.rightsStatus)) {
     throw new Error(`unknown transcript rights status: ${input.rightsStatus}`);
   }
   if (outTranscriptPath && !rightsExplicit) {
@@ -293,14 +264,8 @@ export async function distillSource(input: DistillSourceInput): Promise<DistillS
   }
 
   let paths = artifactPaths(root, source.slug, baseSlug, outTranscriptPath);
-  const baseRulesCollision = await rulesCollide(paths);
-  const baseRawTranscriptCollision = Boolean(
-    paths.transcriptPath && (await exists(paths.transcriptPath)),
-  );
-  if (
-    duplicatePolicy === "skip" &&
-    (baseRulesCollision || baseRawTranscriptCollision)
-  ) {
+  const baseCollision = await collides(paths);
+  if (duplicatePolicy === "skip" && baseCollision) {
     input.log?.(`[distill] skipped existing artifacts for ${source.slug}/${baseSlug}`);
     return {
       status: "skipped",
@@ -312,16 +277,11 @@ export async function distillSource(input: DistillSourceInput): Promise<DistillS
   const baseExistingResource = await readJsonIfExists<TranscriptResource>(
     paths.transcriptSidecarPath,
   );
-  const baseTranscriptCollision =
-    (await exists(paths.transcriptSidecarPath)) ||
-    baseRawTranscriptCollision;
   let resultStatus: DistillSourceResult["status"] = "created";
-  if (baseRulesCollision && duplicatePolicy === "overwrite") {
+  if (baseCollision && duplicatePolicy === "overwrite") {
     resultStatus = "overwritten";
-  } else if (baseTranscriptCollision) {
-    resultStatus = "updated";
   }
-  if (baseRulesCollision && duplicatePolicy === "versioned") {
+  if (baseCollision && duplicatePolicy === "versioned") {
     paths = await availableVersionedPaths(
       root,
       source.slug,
@@ -353,14 +313,7 @@ export async function distillSource(input: DistillSourceInput): Promise<DistillS
   });
   if (!rules.trim()) throw new Error("distillation produced empty rules");
 
-  const lateRulesCollision = await rulesCollide(paths);
-  const lateRawTranscriptCollision = Boolean(
-    paths.transcriptPath && (await exists(paths.transcriptPath)),
-  );
-  if (
-    duplicatePolicy !== "overwrite" &&
-    (lateRulesCollision || lateRawTranscriptCollision)
-  ) {
+  if (duplicatePolicy !== "overwrite" && (await collides(paths))) {
     if (duplicatePolicy === "skip") {
       input.log?.(
         `[distill] skipped artifacts created during distillation for ${source.slug}/${baseSlug}`,
@@ -390,6 +343,24 @@ export async function distillSource(input: DistillSourceInput): Promise<DistillS
     incomingTranscript: transcript,
   });
   const existing = existingState.resource;
+  const linkedRulesPath = existing?.derivatives?.rulesPath
+    ? resolve(root, existing.derivatives.rulesPath)
+    : undefined;
+  if (
+    linkedRulesPath &&
+    (!isPathInside(resolve(root, "derivatives", "rules"), linkedRulesPath) ||
+      !linkedRulesPath.endsWith(".md"))
+  ) {
+    throw new Error(
+      `existing derivatives.rulesPath must be a Markdown file inside derivatives/rules`,
+    );
+  }
+  if (linkedRulesPath) {
+    paths = { ...paths, rulesPath: linkedRulesPath };
+  }
+  const existingDerivative = await readJsonIfExists<DerivativeManifest>(
+    paths.rulesSidecarPath,
+  );
   const transcriptPath = paths.transcriptPath ?? existingState.linkedTranscriptPath;
   const resourceUrl = input.url ?? existing?.url ?? url;
   if (
@@ -432,7 +403,7 @@ export async function distillSource(input: DistillSourceInput): Promise<DistillS
     },
     tags: existing?.tags ?? source.topics,
     derivatives: {
-      rulesPath: rulesRelative,
+      rulesPath: existing?.derivatives?.rulesPath ?? rulesRelative,
       skillCandidates: existing?.derivatives?.skillCandidates ?? [],
       appCandidates: existing?.derivatives?.appCandidates ?? [],
       toolCandidates: existing?.derivatives?.toolCandidates ?? [],
@@ -442,12 +413,22 @@ export async function distillSource(input: DistillSourceInput): Promise<DistillS
     schemaVersion: 1,
     slug: paths.slug,
     kind: "rule",
-    title,
-    status: "candidate",
-    sourceTranscripts: [transcriptSidecarRelative],
+    title: existingDerivative?.title ?? title,
+    status: existingDerivative?.status ?? "candidate",
+    sourceTranscripts: [
+      ...new Set([
+        ...(existingDerivative?.sourceTranscripts ?? []),
+        transcriptSidecarRelative,
+      ]),
+    ],
+    ...(existingDerivative?.sourceRules
+      ? { sourceRules: existingDerivative.sourceRules }
+      : {}),
     outputPath: rulesRelative,
-    summary: `Reusable rules distilled from ${title} in the ${source.title} source library.`,
-    tags: source.topics,
+    summary:
+      existingDerivative?.summary ??
+      `Reusable rules distilled from ${title} in the ${source.title} source library.`,
+    tags: existingDerivative?.tags ?? source.topics,
   };
 
   if (paths.transcriptPath) {

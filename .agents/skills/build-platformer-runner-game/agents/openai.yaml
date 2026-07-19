@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Platformer Runner Game"
+  short_description: "Build a side-on courier runner MVP"
+  default_prompt: "Use $build-platformer-runner-game to plan and implement a side-on platformer-runner MVP."
