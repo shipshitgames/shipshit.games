@@ -44,7 +44,8 @@ const srcDir = dirname(dirname(fileURLToPath(import.meta.url)));
 /**
  * Where blueprints live: the shipshitgames/skills repo (a `<skill>/blueprint.json`
  * per game type). Honour ASSETGEN_SKILLS_DIR, then the sibling skills checkout
- * (monorepo dev), then skills installed into the project (.claude / .codex).
+ * (monorepo dev), then the repository's checked-in agent skills, then skills
+ * installed into the project (.claude / .codex).
  */
 function defaultSkillsDir(): string {
   const env = process.env.ASSETGEN_SKILLS_DIR?.trim();
@@ -54,6 +55,8 @@ function defaultSkillsDir(): string {
     join(srcDir, "..", "..", "..", "..", "skills", "skills"), // <www>/shipshitgames/skills/skills
     join(cwd, "..", "skills", "skills"),
     join(cwd, "..", "..", "skills", "skills"),
+    join(srcDir, "..", "..", "..", ".agents", "skills"),
+    join(cwd, ".agents", "skills"),
     join(cwd, ".claude", "skills"),
     join(cwd, ".codex", "skills"),
   ];
