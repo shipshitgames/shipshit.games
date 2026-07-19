@@ -1,9 +1,7 @@
 import Stripe from "stripe";
 import { STUDIO_PASS } from "@shipshitgames/shared";
 
-import { SKILLS_PRO } from "../lib/skills-pro";
-
-const FOUNDER_AMOUNT_OFF_CENTS = SKILLS_PRO.earlyBuyerDiscountUsd * 100;
+const FOUNDER_AMOUNT_OFF_CENTS = STUDIO_PASS.founderDiscountUsd * 100;
 
 const key = process.env.STRIPE_SECRET_KEY;
 if (!key) {
@@ -25,7 +23,7 @@ async function getOrCreateProduct() {
 
   return stripe.products.create({
     name: `Ship Shit Games ${STUDIO_PASS.name}`,
-    description: SKILLS_PRO.tagline,
+    description: STUDIO_PASS.tagline,
     url: "https://shipshit.games/pricing",
     metadata: {
       product: STUDIO_PASS.productKey,
@@ -47,7 +45,7 @@ async function getOrCreatePrice(productId: string) {
   return stripe.prices.create({
     product: productId,
     currency: "usd",
-    unit_amount: SKILLS_PRO.listPriceUsd * 100,
+    unit_amount: STUDIO_PASS.listPriceUsd * 100,
     recurring: {
       interval: STUDIO_PASS.interval,
     },
@@ -61,14 +59,14 @@ async function getOrCreatePrice(productId: string) {
 
 async function getOrCreateCoupon() {
   try {
-    const coupon = await stripe.coupons.retrieve(SKILLS_PRO.defaultCouponId);
+    const coupon = await stripe.coupons.retrieve(STUDIO_PASS.defaultCouponId);
     if (
       "deleted" in coupon ||
       coupon.amount_off !== FOUNDER_AMOUNT_OFF_CENTS ||
       coupon.currency !== "usd"
     ) {
       throw new Error(
-        `${SKILLS_PRO.defaultCouponId} must be a USD ${SKILLS_PRO.earlyBuyerDiscountUsd} off coupon`
+        `${STUDIO_PASS.defaultCouponId} must be a USD ${STUDIO_PASS.founderDiscountUsd} off coupon`
       );
     }
     return coupon;
@@ -80,7 +78,7 @@ async function getOrCreateCoupon() {
   }
 
   return stripe.coupons.create({
-    id: SKILLS_PRO.defaultCouponId,
+    id: STUDIO_PASS.defaultCouponId,
     name: "STUDIOFOUNDER20",
     amount_off: FOUNDER_AMOUNT_OFF_CENTS,
     currency: "usd",

@@ -1,6 +1,7 @@
 import { DEFAULT_FAL_MODEL, FAL_KEY_CONFIG, FAL_MODELS } from "./fal.ts";
 import type { FalModel } from "./fal.ts";
 import type { ProviderKeyConfig } from "./keys.ts";
+import { REPLICATE_KEY_CONFIG } from "./replicate.ts";
 
 /**
  * The pure provider catalog — every fact about a provider that does NOT need its
@@ -102,7 +103,7 @@ export const PROVIDER_CATALOG: Record<ProviderId, ProviderDescriptor> = {
     label: "Replicate",
     supports: [...IMAGE_KINDS, ...MODEL_KINDS],
     defaultModel: "black-forest-labs/flux-schnell",
-    key: { envName: "REPLICATE_API_TOKEN", service: "shipshit-replicate", label: "Replicate" },
+    key: REPLICATE_KEY_CONFIG,
   },
   meshy: {
     id: "meshy",
