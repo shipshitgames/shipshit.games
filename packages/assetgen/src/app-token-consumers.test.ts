@@ -25,30 +25,38 @@ test("web imports generated Tailwind theme tokens", async () => {
   assert.match(globals, /--background: var\(--color-void\);/);
 });
 
-test("desktop imports generated root tokens instead of local theme forks", async () => {
+test("desktop ships its own cockpit theme and does not fork the game-brand tokens", async () => {
+  // The studio cockpit deliberately uses the neutral ShipCode-style work-surface
+  // theme (theme.css), not the game-brand DESIGN.md tokens — those stay on web +
+  // games. Guard the new contract: one theme source, imported once, and no
+  // stray game-brand variables re-forked into the shell stylesheet.
   const styles = await repoFile("apps/desktop/src/renderer/styles.css");
-  const tokens = await repoFile("apps/desktop/src/renderer/tokens.css");
+  const theme = await repoFile("apps/desktop/src/renderer/theme.css");
 
-  assert.match(styles, /^@import "\.\/tokens\.css";/);
-  assert.match(tokens, /GENERATED FROM DESIGN\.md/);
-  assert.match(tokens, /:root\s*\{/);
-  assert.match(tokens, /--void: #0a0a0a;/);
-  assert.match(tokens, /--font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;/);
-  assert.match(styles, /background: var\(--void\);/);
-  assert.match(styles, /font-family: var\(--font-body\);/);
+  assert.match(styles, /^@import "\.\/theme\.css";/);
+  assert.match(theme, /:root\s*\{/);
+  assert.match(theme, /--bg-primary: #050607;/);
+  assert.match(theme, /--accent: #fafafa;/);
+  assert.match(theme, /--font-mono: "SF Mono", SFMono-Regular, Menlo, Consolas, ui-monospace, monospace;/);
+  assert.match(styles, /background: var\(--bg-primary\);/);
+  assert.match(styles, /font-family: var\(--font-sans\);/);
 
   for (const forbidden of [
-    /--bg:/,
-    /--line:/,
-    /--line-bright:/,
-    /--font-ui:/,
-    /JetBrains Mono/,
-    /#46464f/,
-    /var\(--bg/,
-    /var\(--line/,
-    /var\(--font-ui/,
+    /var\(--void\)/,
+    /var\(--coal\)/,
+    /var\(--iron\)/,
+    /var\(--gunmetal\)/,
+    /var\(--blood/,
+    /var\(--hellfire\)/,
+    /var\(--bone\)/,
+    /var\(--ash\)/,
+    /var\(--toxic\)/,
+    /var\(--font-body\)/,
+    /var\(--font-display\)/,
+    /var\(--font-label\)/,
   ]) {
     assert.doesNotMatch(styles, forbidden);
+    assert.doesNotMatch(theme, forbidden);
   }
 });
 

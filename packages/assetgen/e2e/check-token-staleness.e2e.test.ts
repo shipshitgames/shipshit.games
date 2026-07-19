@@ -239,9 +239,10 @@ test("e2e: a mixed failure set names every failing consumer in the summary", asy
 
 test("e2e: the default consumer set (committed repo) is current", async () => {
   // No --files / --canon: resolves the real DESIGN.md and the committed
-  // app token forks. This is the gate the `prebuild` hook runs.
+  // game-brand token consumers. The desktop cockpit has its own independent
+  // theme and must not be pulled back into this gate.
   const res = await runCli([]);
   assert.equal(res.exitCode, 0, `stdout:\n${res.stdout}\nstderr:\n${res.stderr}`);
   assert.match(res.stdout, /apps\/web\/app\/theme\.css/);
-  assert.match(res.stdout, /apps\/desktop\/src\/renderer\/tokens\.css/);
+  assert.doesNotMatch(res.stdout, /apps\/desktop\/src\/renderer\//);
 });

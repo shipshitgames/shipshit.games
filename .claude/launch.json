@@ -21,6 +21,12 @@
       "runtimeArgs": ["run", "dev"],
       "cwd": "apps/api",
       "port": 3003
+    },
+    {
+      "name": "desktop-renderer-dist",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4273", "-d", "apps/desktop/dist"],
+      "port": 4273
     }
   ]
 }

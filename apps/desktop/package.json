@@ -29,9 +29,11 @@
     "deps:update": "bunx npm-check-updates -u --cooldown 3h --removeRange && bun install"
   },
   "dependencies": {
+    "@fontsource/dm-sans": "5.2.8",
     "@shipshitgames/shared": "workspace:*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
+    "lucide-react": "1.17.0",
     "node-pty": "^1.1.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",

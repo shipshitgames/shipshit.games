@@ -9,7 +9,9 @@ import { readFile } from "node:fs/promises";
 
 const mainSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
 const preloadSource = await readFile(new URL("../preload/index.ts", import.meta.url), "utf8");
-const rendererSource = await readFile(new URL("../renderer/App.tsx", import.meta.url), "utf8");
+const rendererPanelSource = await readFile(new URL("../renderer/panes/PixelizePanel.tsx", import.meta.url), "utf8");
+const rendererMountSource = await readFile(new URL("../renderer/panes/SpritesPane.tsx", import.meta.url), "utf8");
+const rendererEntrySource = await readFile(new URL("../renderer/main.tsx", import.meta.url), "utf8");
 const rendererBridgeSource = await readFile(new URL("../renderer/studio.d.ts", import.meta.url), "utf8");
 const ipcContractSource = await readFile(new URL("../shared/ipc.ts", import.meta.url), "utf8");
 
@@ -26,9 +28,13 @@ test("preload exposes the pixelize bridge over the studio:pixelize channel", () 
   expect(preloadSource).toMatch(/pixelize:\s*\(opts\)\s*=>\s*ipcRenderer\.invoke\(IPC_CHANNELS\.studioPixelize/);
 });
 
-test("renderer declares the pixelize API and mounts the Pixelize panel", () => {
-  expect(rendererBridgeSource).toMatch(/studio\?:\s*StudioApi/);
+test("renderer guards bridge startup, declares the pixelize API, and mounts the Pixelize panel", () => {
+  expect(rendererEntrySource).toMatch(/\{\s*studio \? \(\s*<App \/>/);
+  expect(rendererEntrySource).toContain('role="alert"');
+  expect(rendererEntrySource).toContain("Studio bridge unavailable — restart the app.");
+  expect(rendererBridgeSource).toMatch(/studio:\s*StudioApi/);
+  expect(rendererBridgeSource).not.toMatch(/studio\?:\s*StudioApi/);
   expect(ipcContractSource).toMatch(/pixelize:\s*\(opts:\s*PixelizeOptions\)/);
-  expect(rendererSource).toMatch(/function PixelizePanel\(/);
-  expect(rendererSource).toMatch(/<PixelizePanel[^>]*\bsource=/);
+  expect(rendererPanelSource).toMatch(/function PixelizePanel\(/);
+  expect(rendererMountSource).toMatch(/<PixelizePanel[^>]*\bsource=/);
 });
