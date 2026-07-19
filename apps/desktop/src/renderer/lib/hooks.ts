@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useEffectEvent, useReducer, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import type { ProjectState, ProjectSummary, Settings } from "../../shared/ipc";
 import { EMPTY_PROJECT_STATE, activeProject, withSettingsDefaults } from "./studio";
@@ -38,7 +38,6 @@ export function useStreamLog(...subscribers: LogSubscribe[]): [string, Dispatch<
   // Bridge subscription functions are stable for the window's lifetime, so the
   // effect intentionally runs once; the ref keeps the list out of the deps.
   const subscribersRef = useRef(subscribers);
-  subscribersRef.current = subscribers;
   useEffect(() => {
     const offs = subscribersRef.current.map((subscribe) => subscribe?.((chunk) => setLog((l) => (l + chunk).slice(-8000))));
     return () => {
@@ -69,14 +68,15 @@ export function useProjectSelection(onSettings?: (settings: Settings) => void): 
   const [games, setGames] = useState<string[]>(["scourge-survivors"]);
   const [projectState, setProjectState] = useState<ProjectState>(EMPTY_PROJECT_STATE);
   const [projectId, setProjectId] = useState("");
-  const onSettingsRef = useRef(onSettings);
-  onSettingsRef.current = onSettings;
+  const notifySettings = useEffectEvent((settings: Settings) => {
+    onSettings?.(settings);
+  });
 
   useEffect(() => {
     window.studio?.settings.get().then((s) => {
       const next = withSettingsDefaults(s);
       setGame(next.defaultGame);
-      onSettingsRef.current?.(next);
+      notifySettings(next);
     }).catch(() => {});
     window.studio?.projects.list().then((state) => {
       setProjectState(state);

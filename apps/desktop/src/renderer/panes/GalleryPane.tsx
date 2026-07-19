@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo } from "react";
 
 import type { GalleryAsset, GalleryResult } from "../../shared/ipc";
 import { ModalBackdrop } from "../components/ModalBackdrop";
@@ -96,6 +96,7 @@ export function GalleryPane() {
   }, [filtered]);
 
   const byId = useMemo(() => new Map(result.assets.map((a) => [a.id, a])), [result.assets]);
+  const comparedIds = useMemo(() => new Set(compare), [compare]);
   const compareAssets = compare.flatMap((id) => { const asset = byId.get(id); return asset ? [asset] : []; });
   const lightboxAsset = lightbox ? byId.get(lightbox) || null : null;
   const lightboxIndex = lightboxAsset ? filtered.findIndex((a) => a.id === lightboxAsset.id) : -1;
@@ -122,17 +123,18 @@ export function GalleryPane() {
     });
   }, [filtered, patch]);
 
-  // Latest-step ref: the keydown subscription only re-runs when the lightbox
-  // opens/closes, not every time the filter set (and thus `step`) changes.
-  const stepRef = useRef(step);
-  stepRef.current = step;
+  // Keep the keydown subscription stable while reading the latest filtered
+  // asset list through `step`.
+  const stepFromKey = useEffectEvent((delta: number) => {
+    step(delta);
+  });
 
   useEffect(() => {
     if (!lightbox) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") patch({ lightbox: null });
-      else if (e.key === "ArrowRight") stepRef.current(1);
-      else if (e.key === "ArrowLeft") stepRef.current(-1);
+      else if (e.key === "ArrowRight") stepFromKey(1);
+      else if (e.key === "ArrowLeft") stepFromKey(-1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -202,7 +204,7 @@ export function GalleryPane() {
             <div className="gallery-grid">
               {assets.map((a) => {
                 const src = srcFor(a);
-                const pinned = compare.includes(a.id);
+                const pinned = comparedIds.has(a.id);
                 return (
                   <article className={"gallery-card" + (pinned ? " is-pinned" : "")} key={a.id}>
                     <button type="button" className="gallery-thumb" onClick={() => patch({ lightbox: a.id })} title={a.path}>
@@ -277,7 +279,7 @@ export function GalleryPane() {
                 type="button"
                 onClick={() => togglePin(lightboxAsset.id)}
               >
-                {compare.includes(lightboxAsset.id) ? "Unpin from compare" : "Pin to compare"}
+                {comparedIds.has(lightboxAsset.id) ? "Unpin from compare" : "Pin to compare"}
               </button>
               {lightboxAsset.cdnUrl && (
                 <>
