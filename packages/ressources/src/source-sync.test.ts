@@ -147,6 +147,16 @@ test("source-sync CLI supports --root and reports the synced count", async () =>
   }
 });
 
+test("sync-channel alias names itself when --source is missing", () => {
+  const result = spawnSync(process.execPath, [cliPath, "sync-channel"], {
+    encoding: "utf8",
+    timeout: 60_000,
+  });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /\[ressources\] sync-channel requires --source/);
+});
+
 test("source-sync rejects invalid limits before invoking yt-dlp", async () => {
   await assert.rejects(
     () => syncChannelVideos("fixture-channel", Number.NaN),

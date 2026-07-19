@@ -18,7 +18,8 @@ import {
   type InventoryOptions,
 } from "./inventory";
 import { distill } from "./distill";
-import { generateRulesReport } from "./reports";
+import { packageRoot } from "./paths";
+import { generateRulesReport, type RulesReportOptions } from "./reports";
 import { promoteSkill } from "./skill-promoter";
 import { fetchTranscript } from "./transcript";
 import type { DerivativeKind, TranscriptRightsStatus } from "./types";
@@ -47,15 +48,14 @@ function boolFlag(name: string): boolean {
   return argv.includes(`--${name}`);
 }
 
-/** Point an inventory command at another library tree with `--root <dir>`. */
-function inventoryOptions(): InventoryOptions {
-  const root = flag("root");
-  if (!root) return {};
+/** Resolve manifest directories and their path-provenance base from one library root. */
+function libraryOptions(): InventoryOptions & RulesReportOptions {
+  const root = resolve(flag("root") ?? packageRoot);
   return {
     sourcesDir: resolve(root, "sources"),
     transcriptsDir: resolve(root, "transcripts"),
     derivativesDir: resolve(root, "derivatives"),
-    contentRoot: resolve(root),
+    contentRoot: root,
   };
 }
 
@@ -158,34 +158,25 @@ async function run(): Promise<void> {
     }
 
     case "sources": {
-      const inventory = await inventorySources(inventoryOptions());
+      const inventory = await inventorySources(libraryOptions());
       emitInventory(inventory, formatSourcesTable(inventory));
       return;
     }
 
     case "transcripts": {
-      const inventory = await inventoryTranscripts(inventoryOptions());
+      const inventory = await inventoryTranscripts(libraryOptions());
       emitInventory(inventory, formatTranscriptsTable(inventory));
       return;
     }
 
     case "derivatives": {
-      const inventory = await inventoryDerivatives(inventoryOptions());
+      const inventory = await inventoryDerivatives(libraryOptions());
       emitInventory(inventory, formatDerivativesTable(inventory));
       return;
     }
 
     case "validate": {
-      const root = flag("root");
-      const options = root
-        ? {
-            sourcesDir: resolve(root, "sources"),
-            transcriptsDir: resolve(root, "transcripts"),
-            derivativesDir: resolve(root, "derivatives"),
-            contentRoot: resolve(root),
-          }
-        : {};
-      const result = await validateLibrary(options);
+      const result = await validateLibrary(libraryOptions());
       for (const warning of result.warnings) console.warn(`[warn] ${warning}`);
       for (const error of result.errors) console.error(`[error] ${error}`);
       console.log(
@@ -264,7 +255,7 @@ async function run(): Promise<void> {
     case "source-sync":
     case "sync-channel": {
       const sourceSlug = flag("source");
-      if (!sourceSlug) throw new Error("source-sync requires --source");
+      if (!sourceSlug) throw new Error(`${command} requires --source`);
       const limit = Number(flag("limit") ?? "50");
       const root = flag("root");
       const synced = await syncChannelVideos(sourceSlug, limit, {
@@ -275,7 +266,7 @@ async function run(): Promise<void> {
     }
 
     case "rules-report": {
-      const report = await generateRulesReport(inventoryOptions());
+      const report = await generateRulesReport(libraryOptions());
       const output = flag("out");
       if (!output) {
         console.log(report);
