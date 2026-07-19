@@ -1,0 +1,25 @@
+{
+  "$schema": "../../asset-qa.schema.json",
+  "schemaVersion": 1,
+  "root": ".",
+  "targets": [
+    {
+      "id": "sample-sprite",
+      "path": "sample-sprite.webp",
+      "checks": {
+        "dimensions": { "width": 64, "height": 64 },
+        "alpha": {
+          "minMargins": 4,
+          "maxBorderPixels": 0,
+          "maxDarkFringePixels": 0,
+          "maxFringeLuma": 24
+        },
+        "webpEncoding": "lossless"
+      },
+      "repair": {
+        "rematte": { "mode": "dark-fringe", "maxPasses": 2 },
+        "output": { "format": "webp", "lossless": true, "exact": true }
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 Issue: shipshitgames/shipshit.games#143
 Status: canonical ownership contract
-Last updated: 2026-06-11
+Last updated: 2026-07-17
 
 `packages/engine` in this repository is the canonical source for
 `@shipshitgames/engine`.
@@ -45,6 +45,30 @@ Use this default dependency shape in Deadrot game packages:
 
 CI and release builds should install the published npm package unless the build
 is explicitly validating an unpublished engine change.
+
+## Three.js Compatibility Contract
+
+Engine `0.3.x` supports `three >=0.169.0 <0.185.0`.
+
+- `0.169.0` is the minimum supported peer.
+- `0.184.0` is the current supported peer and the version used by this
+  repository.
+- CI packs the engine, installs the tarball into a clean consumer with matching
+  `@types/three`, typechecks it, and runs the public API plus assetgen-manifest
+  smoke test against both endpoints.
+- The current-version leg also installs a root-only consumer with optional
+  dependencies omitted, proving the default package surface and `net/server`
+  subpath do not require physics, audio, PartyKit, or PartySocket packages at
+  runtime. PartyKit stays absent through its optional-peer declaration.
+- The stable `Engine Package` aggregate check is the branch-protection target;
+  matrix leg names may change as the supported range evolves.
+- Expanding the range requires adding the new endpoint to that package matrix.
+- Raising the minimum or otherwise dropping a supported Three.js version is a
+  semver-breaking engine change.
+
+PartyKit is a types-only optional peer for `@shipshitgames/engine/net/server`.
+Projects that import that server subpath install `partykit@0.0.115` explicitly;
+root-only consumers do not install the Cloudflare Workers development stack.
 
 For local cross-repo development against unpublished engine changes:
 
