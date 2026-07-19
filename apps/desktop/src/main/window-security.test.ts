@@ -31,6 +31,24 @@ describe("decideNavigation — packaged renderer (file:// bundle)", () => {
     expect(decideNavigation("file:///Applications/Studio.app/Contents/dist/assets/app.js", bundle)).toBe("allow");
   });
 
+  test("allows encoded targets when the app install path contains spaces or non-ASCII characters", () => {
+    const spacedBundle = "file:///Applications/Ship%20Shit%20Games/Studio.app/Contents/dist/index.html";
+    expect(
+      decideNavigation(
+        "file:///Applications/Ship%20Shit%20Games/Studio.app/Contents/dist/assets/app.js",
+        spacedBundle,
+      ),
+    ).toBe("allow");
+
+    const unicodeBundle = "file:///Applications/Stud%C3%ADo.app/Contents/dist/index.html";
+    expect(
+      decideNavigation(
+        "file:///Applications/Stud%C3%ADo.app/Contents/dist/assets/app.js",
+        unicodeBundle,
+      ),
+    ).toBe("allow");
+  });
+
   test("blocks traversal out of the bundle and non-file schemes", () => {
     expect(decideNavigation("file:///etc/passwd", bundle)).toBe("block");
     expect(decideNavigation("file:///Applications/Studio.app/Contents/dist/../secrets.txt", bundle)).toBe("block");
@@ -56,12 +74,18 @@ describe("decideWindowOpen", () => {
 
 describe("hardenWindow wiring", () => {
   function fakeContents() {
-    const handlers: Record<string, (event: { preventDefault(): void }, url: string) => void> = {};
+    const handlers: Record<
+      string,
+      (event: { preventDefault(): void; url?: string }, url?: string) => void
+    > = {};
     let windowOpenHandler: ((d: { url: string }) => { action: string }) | null = null;
     return {
       handlers,
       openHandler: () => windowOpenHandler,
-      on(event: string, listener: (event: { preventDefault(): void }, url: string) => void) {
+      on(
+        event: string,
+        listener: (event: { preventDefault(): void; url?: string }, url?: string) => void,
+      ) {
         handlers[event] = listener;
       },
       setWindowOpenHandler(handler: (d: { url: string }) => { action: string }) {
@@ -83,6 +107,42 @@ describe("hardenWindow wiring", () => {
       contents.handlers[event]({ preventDefault: () => { prevented = true; } }, "http://localhost:5273/sprites");
       expect(prevented).toBe(false);
     }
+  });
+
+  test("prevents foreign frame navigation while allowing same-origin frames", () => {
+    const contents = fakeContents();
+    hardenWindow(contents as never, "http://localhost:5273/", { openExternal: () => {} });
+
+    let prevented = false;
+    contents.handlers["will-frame-navigate"]({
+      preventDefault: () => {
+        prevented = true;
+      },
+      url: "https://evil.example/frame",
+    });
+    expect(prevented).toBe(true);
+
+    prevented = false;
+    contents.handlers["will-frame-navigate"]({
+      preventDefault: () => {
+        prevented = true;
+      },
+      url: "http://localhost:5273/frame",
+    });
+    expect(prevented).toBe(false);
+  });
+
+  test("rejects webviews before guest contents are attached", () => {
+    const contents = fakeContents();
+    hardenWindow(contents as never, "http://localhost:5273/", { openExternal: () => {} });
+
+    let prevented = false;
+    contents.handlers["will-attach-webview"]({
+      preventDefault: () => {
+        prevented = true;
+      },
+    });
+    expect(prevented).toBe(true);
   });
 
   test("denies all popups and forwards only http(s) to shell.openExternal", () => {

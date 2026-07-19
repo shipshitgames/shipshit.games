@@ -6,8 +6,10 @@
 // where the page ends up. If a stray <a target="_blank">, an injected redirect, or a
 // window.open() could steer the renderer onto attacker-controlled web content, that
 // content would inherit the terminal bridge. So we pin the renderer to its own origin:
-//   - will-navigate / will-redirect: allow only same-origin (dev) or in-bundle file://
-//     (packaged) navigations; preventDefault() everything else.
+//   - will-navigate / will-frame-navigate / will-redirect: allow only same-origin
+//     (dev) or in-bundle file:// (packaged) navigations; preventDefault() everything
+//     else.
+//   - will-attach-webview: reject every guest renderer before it is created.
 //   - setWindowOpenHandler: deny every popup; http(s) links are handed to the OS
 //     browser via shell.openExternal, all other schemes are dropped.
 //
@@ -48,7 +50,7 @@ export function decideNavigation(targetUrl: string, allowedUrl: string): Navigat
     if (target.protocol !== "file:") return "block";
     // Confine to the directory that holds index.html so a crafted file:// target
     // can't traverse to other local files (e.g. file:///etc/passwd).
-    const appDir = allowed.pathname.replace(/\/[^/]*$/, "/");
+    const appDir = decodeAppPath(allowed.pathname).replace(/\/[^/]*$/, "/");
     const targetPath = decodeAppPath(target.pathname);
     return targetPath.startsWith(appDir) ? "allow" : "block";
   }
@@ -56,9 +58,8 @@ export function decideNavigation(targetUrl: string, allowedUrl: string): Navigat
   return "block";
 }
 
-// Normalize `..`/`.` segments so an encoded traversal can't sneak past the prefix
-// check. URL already percent-decodes pathname on read for us in most runtimes, but be
-// explicit and defensive.
+// Decode percent escapes and normalize `..`/`.` segments so differently encoded paths
+// compare consistently and encoded traversal cannot sneak past the prefix check.
 function decodeAppPath(pathname: string): string {
   let decoded = pathname;
   try {
@@ -95,8 +96,19 @@ export function decideWindowOpen(targetUrl: string): WindowOpenDecision {
 
 // Minimal structural shapes so this module never imports electron (which would break
 // `bun test`). At runtime the real webContents / shell satisfy these.
+interface NavigationEvent {
+  preventDefault(): void;
+}
+interface FrameNavigationEvent extends NavigationEvent {
+  url: string;
+}
 interface HardenableWebContents {
-  on(event: "will-navigate" | "will-redirect", listener: (event: { preventDefault(): void }, url: string) => void): unknown;
+  on(
+    event: "will-navigate" | "will-redirect",
+    listener: (event: NavigationEvent, url: string) => void,
+  ): unknown;
+  on(event: "will-frame-navigate", listener: (event: FrameNavigationEvent) => void): unknown;
+  on(event: "will-attach-webview", listener: (event: NavigationEvent) => void): unknown;
   setWindowOpenHandler(handler: (details: { url: string }) => { action: "deny" | "allow" }): unknown;
 }
 interface ExternalShell {
@@ -118,7 +130,9 @@ export function hardenWindow(
     }
   };
   contents.on("will-navigate", guardNavigation);
+  contents.on("will-frame-navigate", (event) => guardNavigation(event, event.url));
   contents.on("will-redirect", guardNavigation);
+  contents.on("will-attach-webview", (event) => event.preventDefault());
   contents.setWindowOpenHandler(({ url }) => {
     if (decideWindowOpen(url) === "external") {
       shell.openExternal(url);
