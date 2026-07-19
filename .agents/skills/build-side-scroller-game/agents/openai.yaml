@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Side-Scroller Game"
+  short_description: "Build an infiltration platformer MVP"
+  default_prompt: "Use $build-side-scroller-game to plan and implement a side-scrolling infiltration platformer MVP."

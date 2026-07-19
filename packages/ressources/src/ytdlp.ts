@@ -1,6 +1,6 @@
 // Canonical yt-dlp orchestration for @shipshitgames/ressources.
 //
-// Both `transcript.ts` (fetchTranscript) and `library.ts` (sync-channel) shell
+// Both `transcript.ts` (fetchTranscript) and `library.ts` (source-sync) shell
 // out to yt-dlp. They previously each carried their own binary resolver,
 // availability probe, video-id parser, and execFile wrapper — and the copies had
 // drifted: transcript.ts honored the RESSOURCES_YT_DLP override while library.ts
