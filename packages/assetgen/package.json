@@ -19,6 +19,10 @@
       "types": "./src/sprites.ts",
       "default": "./src/sprites.ts"
     },
+    "./replicate": {
+      "types": "./src/replicate.ts",
+      "default": "./src/replicate.ts"
+    },
     "./asset-qa": {
       "types": "./src/asset-qa/index.ts",
       "default": "./src/asset-qa/index.ts"
@@ -43,6 +47,7 @@
     "@gltf-transform/extensions": "4.4.0",
     "@gltf-transform/functions": "4.4.0",
     "draco3dgltf": "1.5.7",
+    "meshoptimizer": "1.2.0",
     "node-pty": "1.1.0",
     "sharp": "0.34.5"
   },

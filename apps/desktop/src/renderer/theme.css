@@ -1,0 +1,61 @@
+/* Studio cockpit design tokens — the ShipCode design language
+ * (github.com/shipshitdev/shipcode, DESIGN.md): dark-first, layered near-black
+ * backgrounds, white accent CTAs, three-tier text hierarchy, semantic status
+ * colors, and a tight 2/6/8/10px radius scale.
+ *
+ * The Deadrot game brand (blood/hellfire/Oswald) stays on the games and the
+ * public web surfaces; the cockpit is a neutral work surface. Generated game
+ * assets still render pixelated inside neutral frames. */
+:root {
+  color-scheme: dark;
+
+  /* Background layers — depth without heavy borders, deepest → most elevated:
+   * canvas → sidebars/panels → inputs → popovers/dialogs → interactive hover. */
+  --bg-primary: #050607;
+  --bg-secondary: #0c0d10;
+  --bg-tertiary: #131518;
+  --bg-elevated: #1a1c21;
+  --bg-hover: #20232a;
+
+  /* Borders — structural dividers use `border`; elevated surfaces use the
+   * inset --shadow-border instead of a CSS border. */
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  /* Text — three tiers. */
+  --text-primary: #f4f4f5;
+  --text-secondary: #b4b4bc;
+  --text-muted: #6b6b78;
+
+  /* Accent — near-white, reserved for primary CTAs, never for status. */
+  --accent: #fafafa;
+  --accent-foreground: #050607;
+  --accent-hover: #e4e4e7;
+
+  /* Semantic status. */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  /* AI-agent activity (distinct from human-attention warning). */
+  --agent: #38bdf8;
+  /* Completed/done — GitHub Projects "Done" purple. */
+  --done: #a855f7;
+
+  /* Typography. */
+  --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", SFMono-Regular, Menlo, Consolas, ui-monospace, monospace;
+
+  /* Radius scale — sm for badges/chips, md for buttons/cards/inputs,
+   * lg for overlay panels, xl for dialogs. */
+  --radius-sm: 2px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+
+  /* Inset borders + elevation shadows. */
+  --shadow-border: inset 0 0 0 1px var(--border);
+  --shadow-border-strong: inset 0 0 0 1px var(--border-strong);
+  --shadow-dialog: inset 0 0 0 1px var(--border), 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+  --shadow-dropdown: inset 0 0 0 1px var(--border), 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+}

@@ -73,7 +73,7 @@ brew install yt-dlp   # or: pipx install yt-dlp
 (`--write-auto-subs`) English captions and prefers the manual track — higher
 quality, and it sidesteps the auto-caption endpoint's HTTP 429 rate limiting.
 Point `RESSOURCES_YT_DLP` at a custom binary if it is not on `PATH`; every
-yt-dlp call (`fetchTranscript` and `sync-channel`) honors it. Note that
+yt-dlp call (`fetchTranscript` and `source-sync`) honors it. Note that
 `distill` shells out to `codex`, not yt-dlp, so it is unaffected — and its
 `distill --transcript-file <path>` form is a separate no-network path that
 distills text you already have.
@@ -89,16 +89,21 @@ bun packages/ressources/src/cli.ts derivatives
 # validate source manifests, transcript sidecars, and derivative manifests
 bun packages/ressources/src/cli.ts validate
 
-# fetch a YouTube transcript and distill it into reusable build rules
+# fetch a YouTube transcript and create/update its transcript + rules sidecars
 bun packages/ressources/src/cli.ts distill \
+  --source ai-oriented-dev \
   --url "https://www.youtube.com/watch?v=VIDEO_ID" \
-  --out packages/ressources/derivatives/rules/video-slug.md
+  --duplicate skip
 
-# already have a transcript? distill it without network
+# already have a cleared transcript? Distill it without network and store the text
 bun packages/ressources/src/cli.ts distill \
+  --source ai-oriented-dev \
   --transcript-file transcript.txt \
   --title "Video title" \
-  --out packages/ressources/derivatives/rules/video-slug.md
+  --url "https://www.youtube.com/watch?v=VIDEO_ID" \
+  --rights user-provided \
+  --out-transcript packages/ressources/transcripts/ai-oriented-dev/video-slug.transcript.md \
+  --duplicate versioned
 
 # create a transcript placeholder and sidecar metadata
 bun packages/ressources/src/cli.ts new-transcript \
@@ -121,9 +126,24 @@ bun packages/ressources/src/cli.ts promote-skill \
   --candidate packages/ressources/derivatives/skills/ai-oriented-level-design-loop.resource.json \
   --approve
 
-# optional: sync video metadata when yt-dlp is installed
-bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50
+# sync stable channel-video metadata when yt-dlp is installed
+bun packages/ressources/src/cli.ts source-sync --source ai-oriented-dev --limit 50
+
+# report derivative rules and source coverage without reading transcript text
+bun packages/ressources/src/cli.ts rules-report
+bun packages/ressources/src/cli.ts rules-report --out rules-report.md
 ```
+
+`source-sync` writes `sources/<slug>/videos.json`, de-duplicates video IDs, and
+sorts entries by upload date then video ID for deterministic review. It fails
+with an installation hint when `yt-dlp` is unavailable. The old `sync-channel`
+name remains as a compatibility alias.
+
+`rules-report` reads source, transcript-sidecar, and derivative JSON manifests
+only. Its compact Markdown output groups rules by source, topic, and review
+status, includes source-coverage counts, and never reads or reproduces raw
+transcript text. Both commands accept `--root <library-dir>` for fixture or
+alternate library trees.
 
 ## Skill Promotion
 
@@ -228,7 +248,8 @@ bun packages/ressources/src/cli.ts sources --json
 2. Confirm the source manifest permits raw transcript storage and the sidecar
    rights status is known.
 3. Drop the transcript text into the generated `.transcript.md` file, or capture
-   it with `distill --out-transcript`.
+   it with source-aware `distill --out-transcript` after confirming the source
+   manifest permits raw storage.
 4. Run `validate`.
 5. Distill the transcript with `packages/ressources` into a rules markdown file.
 6. Promote the rules into a derivative skill/app/tool candidate here.
@@ -237,10 +258,26 @@ Example:
 
 ```bash
 bun packages/ressources/src/cli.ts distill \
+  --source ai-oriented-dev \
   --url "https://www.youtube.com/watch?v=VIDEO_ID" \
-  --out packages/ressources/derivatives/rules/video-slug.md \
-  --out-transcript packages/ressources/transcripts/ai-oriented-dev/video-slug.transcript.md
+  --rights public-captions \
+  --out-transcript packages/ressources/transcripts/ai-oriented-dev/video-slug.transcript.md \
+  --duplicate skip
 ```
+
+Source-aware distillation resolves `--source` against `sources/<slug>/source.json`,
+creates a transcript resource sidecar and a rule derivative sidecar, and keeps
+the rule markdown under `derivatives/rules/`. Raw transcript text is optional:
+`--out-transcript` is accepted only when both the source policy and the recorded
+`--rights` allow storage. Duplicate handling is explicit:
+
+- `--duplicate skip` leaves every existing artifact untouched (the default).
+- `--duplicate overwrite` replaces the matching transcript/rules records.
+- `--duplicate versioned` writes a new `-v2`, `-v3`, … record set.
+
+For a local transcript whose raw text must not be stored, omit
+`--out-transcript`; the command still writes the transcript metadata sidecar and
+the distilled rules + derivative manifest.
 
 ## Directory Map
 

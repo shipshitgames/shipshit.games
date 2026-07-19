@@ -27,10 +27,13 @@ const ROOT = join(here, "..", "..", ".."); // monorepo root
  * the hand-synced app token forks that can rot independently of the generator
  * (the `packages/assets/tokens/*` artifacts are already byte-checked by
  * `assetgen tokens --check`). Paths are repo-relative.
+ *
+ * apps/desktop is intentionally NOT a consumer: the studio cockpit ships its
+ * own neutral work-surface theme (src/renderer/theme.css, ShipCode design
+ * language) rather than the game-brand tokens, which stay on web + games.
  */
 export const DEFAULT_CONSUMER_FILES = [
   "apps/web/app/theme.css",
-  "apps/desktop/src/renderer/tokens.css",
 ] as const;
 
 /** A `[major, minor, patch]` semver core. */

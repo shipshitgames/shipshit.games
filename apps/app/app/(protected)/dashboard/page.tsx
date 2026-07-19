@@ -1,10 +1,11 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { CreditCard, KeyRound, PackageOpen } from "lucide-react";
 import { formatUsd, STUDIO_PASS } from "@shipshitgames/shared";
+import { redirect } from "next/navigation";
 
 import { ActionCard } from "@/components/action-card";
 import { StatusPill } from "@/components/status-pill";
-import { readStudioPass } from "@/lib/entitlements";
+import { readBillingEntitlements } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,9 @@ const renewsDateFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 export default async function DashboardPage() {
-  const user = await currentUser();
-  const pass = readStudioPass(user?.privateMetadata);
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+  const { studioPass: pass } = await readBillingEntitlements(userId);
 
   return (
     <main className="min-h-[calc(100vh-4rem)] px-6 py-12">

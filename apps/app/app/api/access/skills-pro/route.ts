@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
+import { readBillingEntitlements } from "@/lib/billing";
 import { hasSkillsProContentAccess, primaryEmail } from "@/lib/entitlements";
 import { verifyAccessToken } from "@/lib/access-token";
 import { appUrl } from "@/lib/urls";
@@ -35,10 +36,13 @@ export async function GET(request: NextRequest) {
   }
 
   const client = await clerkClient();
-  const user = await client.users.getUser(payload.sub);
+  const [user, entitlements] = await Promise.all([
+    client.users.getUser(payload.sub),
+    readBillingEntitlements(payload.sub),
+  ]);
   if (
     primaryEmail(user) !== payload.email ||
-    !hasSkillsProContentAccess(user.privateMetadata)
+    !hasSkillsProContentAccess(entitlements)
   ) {
     return new NextResponse("No Skills Pro access", { status: 403 });
   }

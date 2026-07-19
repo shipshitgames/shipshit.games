@@ -57,8 +57,17 @@ export interface AssetEntry {
   textures?: number;
   skins?: number;
   joints?: number;
+  /** Preserved raw/optimized model lineage and the optimization report used at registration. */
+  modelTrace?: ModelTrace;
   /** Required provenance/license record (issue #17): no generator may skip this. */
   license: AssetLicenseRecord;
+}
+
+export interface ModelTrace {
+  report: string;
+  source: string;
+  sourceSha256: string;
+  optimizedSha256: string;
 }
 
 /** What the mandatory gltf-transform optimize actually applied to a 3D model (issue #20). */
@@ -77,7 +86,7 @@ export interface ModelCompression {
 
 /** Rig/skeleton provenance for a generated 3D model (issue #20 `license.rig`). */
 export interface AssetRigLicense {
-  /** Where the rig came from, e.g. a provider auto-rig, "mixamo", or "none" for a static mesh. */
+  /** `none`/`unknown`, generated provider provenance, or an `operator-asserted:*` import value. */
   source: string;
   /** Whether the model carries a skin/skeleton. */
   rigged: boolean;

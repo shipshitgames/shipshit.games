@@ -5,17 +5,14 @@ import {
   formatUsd,
   SKILLS_PRO_ONETIME,
   SKILLS_PRO_ONETIME_FEATURES,
+  STUDIO_PASS,
+  STUDIO_PASS_FEATURES,
 } from "@shipshitgames/shared";
 
 import { Backdrop } from "@/components/site/atmosphere";
 import { Eyebrow } from "@/components/site/eyebrow";
 
 import { CheckoutButton } from "./checkout-button";
-import {
-  SKILLS_PRO,
-  SKILLS_PRO_EARLY_PRICE_USD,
-  SKILLS_PRO_FEATURES,
-} from "@/lib/skills-pro";
 
 export const metadata: Metadata = {
   title: "Studio Pass & Skills Pro Pricing",
@@ -122,7 +119,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
                     Subscription · everything
                   </p>
                   <h2 className="mt-2 font-display text-3xl font-bold uppercase tracking-tight text-bone">
-                    {SKILLS_PRO.name}
+                    {STUDIO_PASS.name}
                   </h2>
                 </div>
                 <Zap className="size-8 text-hellfire" aria-hidden="true" />
@@ -131,35 +128,35 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
               <div className="mt-7">
                 <div
                   className="flex flex-wrap items-end gap-x-4 gap-y-2"
-                  aria-label={`${formatUsd(SKILLS_PRO.listPriceUsd)} list price, ${formatUsd(
-                    SKILLS_PRO_EARLY_PRICE_USD
+                  aria-label={`${formatUsd(STUDIO_PASS.listPriceUsd)} list price, ${formatUsd(
+                    STUDIO_PASS.founderPriceUsd
                   )} founder price`}
                 >
                   <span
                     className="pb-1 font-display text-3xl font-bold uppercase leading-none text-ash line-through decoration-2 decoration-hellfire"
                     aria-hidden="true"
                   >
-                    {formatUsd(SKILLS_PRO.listPriceUsd)}
+                    {formatUsd(STUDIO_PASS.listPriceUsd)}
                   </span>
                   <span
                     className="font-display text-6xl font-bold uppercase leading-none text-bone"
                     aria-hidden="true"
                   >
-                    {formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}
+                    {formatUsd(STUDIO_PASS.founderPriceUsd)}
                   </span>
                   <span className="pb-2 text-sm uppercase tracking-widest text-ash">
                     per month
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-ash">
-                  Launch list price is {formatUsd(SKILLS_PRO.listPriceUsd)}/mo.
-                  Founder seats get {formatUsd(SKILLS_PRO.earlyBuyerDiscountUsd)}
+                  Launch list price is {formatUsd(STUDIO_PASS.listPriceUsd)}/mo.
+                  Founder seats get {formatUsd(STUDIO_PASS.founderDiscountUsd)}
                   /mo off automatically in Stripe Checkout.
                 </p>
               </div>
 
               <ul className="mt-7 space-y-3">
-                {SKILLS_PRO_FEATURES.map((feature) => (
+                {STUDIO_PASS_FEATURES.map((feature) => (
                   <li key={feature} className="flex gap-3 text-sm leading-relaxed text-ash">
                     <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-hellfire" aria-hidden="true" />
                     <span>{feature}</span>
@@ -173,7 +170,7 @@ export default async function PricingPage({ searchParams }: PricingPageProps) {
                   size="xl"
                   className="w-full font-display uppercase tracking-widest shadow-ember"
                 >
-                  Get the {formatUsd(SKILLS_PRO_EARLY_PRICE_USD)}/mo Studio Pass
+                  Get the {formatUsd(STUDIO_PASS.founderPriceUsd)}/mo Studio Pass
                   <ArrowRight aria-hidden="true" />
                 </CheckoutButton>
               </form>

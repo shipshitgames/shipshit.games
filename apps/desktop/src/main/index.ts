@@ -7,32 +7,38 @@ import os from "node:os";
 import fs from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { readAssetBaseUrl } from "@shipshitgames/shared";
 import { IPC_CHANNELS } from "../shared/ipc";
 import { readSharedGameSlugs } from "./game-slugs";
 import { createTerminalManager, terminalShell } from "./terminal-manager";
-import {
-  manifestPathForRepo,
-  projectFromRepoPath,
-  summarizeProject,
-  uniqueProjects,
-} from "./projects";
+import { hardenWindow } from "./window-security";
+import { projectFromRepoPath } from "./projects";
+import { createProjectState } from "./project-state";
 import { createMoodboardStore } from "./moodboards";
 import { createArtLabStore } from "./art-lab";
 import { createMapsStore } from "./maps";
 import { createGallery } from "./gallery";
 import { createGymLauncher } from "./gyms";
-import { DEFAULT_GAME, DEFAULTS, normalizeSettings } from "./settings";
+import { DEFAULT_GAME } from "./settings";
 import { buildGenerateArgs } from "./generate-args";
 import { buildPixelizeArgs, decodePixelizeDataUrl, parsePixelizeCutout } from "./pixelize-args";
 import { parseGenerateResult, dataUrlFor } from "./generate-result";
 import {
+  fingerprintResourceFile,
   parseResourceInventory,
   parseResourceValidation,
   RESOURCE_INVENTORY_KINDS,
+  resolveRealSkillCandidatePath,
   resolveResourceDerivativePath,
-  resolveSkillCandidatePath,
+  SkillPromotionReviewGate,
 } from "./resources";
+import {
+  AUDIO_CATEGORIES,
+  audioLicense,
+  audioSlug,
+  resolveFfmpeg,
+} from "./audio-transcode";
 // Single, shared manifest writer + license validator (issue #17). The Electron
 // main process is bundled from TypeScript (vite-plugin-electron), so it imports
 // assetgen's register() directly — no CommonJS shim, one writer for both runtimes.
@@ -187,46 +193,38 @@ function realDerivativePath(relativePath: unknown): string {
   return actual;
 }
 
+const skillPromotionReviews = new SkillPromotionReviewGate();
+
 // ---- settings (non-secret) ----
-// Defaults + normalization live in ./settings (pure, bun-testable); this block
-// only owns the settings.json file I/O.
+// Defaults, normalization, and project orchestration live in pure modules; this
+// block only supplies the settings.json file I/O and discovered-game paths.
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
-function readSettings() {
-  try { return normalizeSettings({ ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsPath(), "utf8")) }); }
-  catch { return { ...DEFAULTS }; }
+function readSettingsFile() {
+  return JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
 }
-function writeSettings(s) {
-  s = normalizeSettings(s);
+function writeSettingsFile(settings) {
   fs.mkdirSync(path.dirname(settingsPath()), { recursive: true });
-  fs.writeFileSync(settingsPath(), JSON.stringify(s, null, 2));
-  return s;
-}
-function mergeSettings(partial) {
-  const current = readSettings();
-  return writeSettings({
-    ...current,
-    ...(partial || {}),
-    providerDefaults: {
-      ...current.providerDefaults,
-      ...(partial?.providerDefaults || {}),
-    },
-    // Replaced wholesale, not deep-merged: the renderer sends the full map, and
-    // merging would make removing a kind's model override impossible.
-    falModelDefaults: partial?.falModelDefaults || current.falModelDefaults,
-  });
+  fs.writeFileSync(settingsPath(), JSON.stringify(settings, null, 2));
 }
 
 // ---- local game projects ----
-function discoveredProjects() {
-  return GAME_SLUGS
-    .map((slug) => ({ slug, repoPath: gameDir(slug) }))
-    .filter((p) => fs.existsSync(p.repoPath))
-    .map((p) => projectFromRepoPath(p.repoPath, { slug: p.slug, name: p.slug, source: "discovered" }));
-}
-
-function allProjects(settings = readSettings()) {
-  return uniqueProjects([...(settings.projects || []), ...discoveredProjects()]);
-}
+const projectState = createProjectState({
+  readSettingsFile,
+  writeSettingsFile,
+  gameDir,
+  gameSlugs: GAME_SLUGS,
+  pathExists: fs.existsSync,
+});
+const {
+  allProjects,
+  listGames,
+  listProjectState,
+  mergeSettings,
+  persistProjects,
+  readSettings,
+  resolveGame,
+  resolveProjectTarget,
+} = projectState;
 
 const gyms = createGymLauncher({
   projects: () => allProjects(),
@@ -235,51 +233,6 @@ const gyms = createGymLauncher({
   openExternal: (url) => electronShell.openExternal(url),
   env: process.env,
 });
-
-function listProjectState(settings = readSettings()) {
-  const projects = allProjects(settings);
-  const activeProjectId = settings.activeProjectId && projects.some((p) => p.id === settings.activeProjectId)
-    ? settings.activeProjectId
-    : projects[0]?.id || "";
-  const summaries = projects.map((project) => summarizeProject(project, activeProjectId)).filter(Boolean);
-  const active = summaries.find((project) => project.id === activeProjectId) || summaries[0] || null;
-  return {
-    projects: summaries,
-    activeProjectId: active?.id || "",
-    activeManifestPath: active?.manifestPath || null,
-  };
-}
-
-function persistProjects(projects, activeProjectId) {
-  const registered = uniqueProjects(projects).filter((project) => project.source !== "discovered");
-  const active = allProjects({ ...readSettings(), projects: registered, activeProjectId }).find((p) => p.id === activeProjectId);
-  return mergeSettings({
-    projects: registered,
-    activeProjectId: activeProjectId || "",
-    defaultGame: active?.slug || readSettings().defaultGame,
-  });
-}
-
-function resolveProjectTarget(opts: any = {}) {
-  const settings = readSettings();
-  const projects = allProjects(settings);
-  const requestedProjectId = typeof opts.projectId === "string" ? opts.projectId : "";
-  const requestedGame = typeof opts.game === "string" ? opts.game : "";
-  let project = projects.find((p) => p.id === requestedProjectId);
-  if (!project && requestedGame) project = projects.find((p) => p.slug === requestedGame);
-  if (!project && settings.activeProjectId) project = projects.find((p) => p.id === settings.activeProjectId);
-  if (!project && requestedGame) {
-    project = projectFromRepoPath(gameDir(requestedGame), { slug: requestedGame, name: requestedGame, source: "discovered" });
-  }
-  if (!project) {
-    const slug = settings.defaultGame || DEFAULT_GAME;
-    project = projectFromRepoPath(gameDir(slug), { slug, name: slug, source: "discovered" });
-  }
-  return {
-    ...project,
-    manifestPath: manifestPathForRepo(project.repoPath),
-  };
-}
 
 // ---- keys (macOS keychain, shipcode-style) ----
 const KEY_SERVICES = { openai: "shipshit-openai", fal: "shipshit-fal", replicate: "shipshit-replicate", meshy: "shipshit-meshy", tripo: "shipshit-tripo", suno: "shipshit-suno", elevenlabs: "shipshit-elevenlabs", beatoven: "shipshit-beatoven" };
@@ -306,7 +259,7 @@ ipcMain.handle(IPC_CHANNELS.keysSet, (_e, { provider, key }) => { const s = KEY_
 // Model catalogs + canonical routing for the renderer's per-kind pickers —
 // single source: assetgen, via the pure (unit-tested) studioModelsPayload builder.
 ipcMain.handle(IPC_CHANNELS.studioModels, () => studioModelsPayload());
-ipcMain.handle(IPC_CHANNELS.studioListGames, () => listProjectState().projects.map((project) => project.slug));
+ipcMain.handle(IPC_CHANNELS.studioListGames, () => listGames());
 ipcMain.handle(IPC_CHANNELS.projectsList, () => listProjectState());
 ipcMain.handle(IPC_CHANNELS.projectsAdd, async () => {
   const result = await dialog.showOpenDialog({
@@ -346,68 +299,48 @@ ipcMain.handle(IPC_CHANNELS.terminalResize, (e, { id, cols, rows }) => terminalM
 ipcMain.handle(IPC_CHANNELS.terminalStop, (e, id) => terminalManager.stop(e.sender, id));
 
 // Same source of truth as studio:listGames so the moodboard picker shows the same games as the rest of the app.
-ipcMain.handle(IPC_CHANNELS.moodboardListGames, () => listProjectState().projects.map((project) => project.slug));
-ipcMain.handle(IPC_CHANNELS.moodboardGet, (_e, game) => moodboards.readBoard(game || readSettings().defaultGame));
-ipcMain.handle(IPC_CHANNELS.moodboardAddNote, (_e, payload = {}) => moodboards.addNote(payload.game || readSettings().defaultGame, payload.text));
-ipcMain.handle(IPC_CHANNELS.moodboardUpdateItem, (_e, payload = {}) => moodboards.updateItem(payload.game || readSettings().defaultGame, payload.item));
-ipcMain.handle(IPC_CHANNELS.moodboardSetVisualTarget, (_e, payload = {}) => moodboards.setVisualTarget(payload.game || readSettings().defaultGame, payload.id, payload.visualTarget));
-ipcMain.handle(IPC_CHANNELS.moodboardRemoveItem, (_e, payload = {}) => moodboards.removeItem(payload.game || readSettings().defaultGame, payload.id));
+ipcMain.handle(IPC_CHANNELS.moodboardListGames, () => listGames());
+ipcMain.handle(IPC_CHANNELS.moodboardGet, (_e, game) => moodboards.readBoard(resolveGame(game)));
+ipcMain.handle(IPC_CHANNELS.moodboardAddNote, (_e, payload = {}) => moodboards.addNote(resolveGame(payload), payload.text));
+ipcMain.handle(IPC_CHANNELS.moodboardUpdateItem, (_e, payload = {}) => moodboards.updateItem(resolveGame(payload), payload.item));
+ipcMain.handle(IPC_CHANNELS.moodboardSetVisualTarget, (_e, payload = {}) => moodboards.setVisualTarget(resolveGame(payload), payload.id, payload.visualTarget));
+ipcMain.handle(IPC_CHANNELS.moodboardRemoveItem, (_e, payload = {}) => moodboards.removeItem(resolveGame(payload), payload.id));
 ipcMain.handle(IPC_CHANNELS.moodboardImportImages, async (_e, game) => {
   const r = await dialog.showOpenDialog({
     title: "Import moodboard references",
     properties: ["openFile", "multiSelections"],
     filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
   });
-  return r.canceled ? moodboards.readBoard(game || readSettings().defaultGame) : moodboards.importImages(game || readSettings().defaultGame, r.filePaths);
+  return r.canceled ? moodboards.readBoard(resolveGame(game)) : moodboards.importImages(resolveGame(game), r.filePaths);
 });
 
 // ---- art-direction lab (#82): subject → styled variants → locked style target ----
 // Same game source of truth as the rest of the app so the picker matches. The
 // renderer generates each variant via studio:generate and hands the resulting
 // inline data URL straight to lab:addVariant, so the store stays Electron-free.
-const labGame = (game) => game || readSettings().defaultGame;
-ipcMain.handle(IPC_CHANNELS.labListGames, () => listProjectState().projects.map((project) => project.slug));
-ipcMain.handle(IPC_CHANNELS.labGet, (_e, game) => artLab.readLab(labGame(game)));
-ipcMain.handle(IPC_CHANNELS.labSetSubject, (_e, payload = {}) => artLab.setSubject(labGame(payload.game), payload.subject, payload.kind));
-ipcMain.handle(IPC_CHANNELS.labAddVariant, (_e, payload = {}) => artLab.addVariant(labGame(payload.game), payload.variant));
-ipcMain.handle(IPC_CHANNELS.labScoreVariant, (_e, payload = {}) => artLab.scoreVariant(labGame(payload.game), payload.id, payload.score));
-ipcMain.handle(IPC_CHANNELS.labTagVariant, (_e, payload = {}) => artLab.tagVariant(labGame(payload.game), payload.id, payload.tags));
-ipcMain.handle(IPC_CHANNELS.labAnnotateVariant, (_e, payload = {}) => artLab.annotateVariant(labGame(payload.game), payload.id, payload.note));
-ipcMain.handle(IPC_CHANNELS.labRemoveVariant, (_e, payload = {}) => artLab.removeVariant(labGame(payload.game), payload.id));
-ipcMain.handle(IPC_CHANNELS.labLockVariant, (_e, payload = {}) => artLab.lockVariant(labGame(payload.game), payload.id));
-ipcMain.handle(IPC_CHANNELS.labClearLock, (_e, payload = {}) => artLab.clearLock(labGame(payload.game)));
+ipcMain.handle(IPC_CHANNELS.labListGames, () => listGames());
+ipcMain.handle(IPC_CHANNELS.labGet, (_e, game) => artLab.readLab(resolveGame(game)));
+ipcMain.handle(IPC_CHANNELS.labSetSubject, (_e, payload = {}) => artLab.setSubject(resolveGame(payload), payload.subject, payload.kind));
+ipcMain.handle(IPC_CHANNELS.labAddVariant, (_e, payload = {}) => artLab.addVariant(resolveGame(payload), payload.variant));
+ipcMain.handle(IPC_CHANNELS.labScoreVariant, (_e, payload = {}) => artLab.scoreVariant(resolveGame(payload), payload.id, payload.score));
+ipcMain.handle(IPC_CHANNELS.labTagVariant, (_e, payload = {}) => artLab.tagVariant(resolveGame(payload), payload.id, payload.tags));
+ipcMain.handle(IPC_CHANNELS.labAnnotateVariant, (_e, payload = {}) => artLab.annotateVariant(resolveGame(payload), payload.id, payload.note));
+ipcMain.handle(IPC_CHANNELS.labRemoveVariant, (_e, payload = {}) => artLab.removeVariant(resolveGame(payload), payload.id));
+ipcMain.handle(IPC_CHANNELS.labLockVariant, (_e, payload = {}) => artLab.lockVariant(resolveGame(payload), payload.id));
+ipcMain.handle(IPC_CHANNELS.labClearLock, (_e, payload = {}) => artLab.clearLock(resolveGame(payload)));
 
 // ---- maps generator (#18): seed/validate/preview/write ArenaMap layouts ----
 // Same game source of truth as the rest of the app so the picker matches.
-ipcMain.handle(IPC_CHANNELS.mapsListGames, () => listProjectState().projects.map((project) => project.slug));
+ipcMain.handle(IPC_CHANNELS.mapsListGames, () => listGames());
 ipcMain.handle(IPC_CHANNELS.mapsPreview, (_e, opts = {}) => maps.preview(opts));
 ipcMain.handle(IPC_CHANNELS.mapsWrite, (_e, opts = {}) => maps.write(opts));
 
 // ---- asset gallery (read-only review of the shared Deadrot assets package) ----
 ipcMain.handle(IPC_CHANNELS.galleryListGames, () => gallery.listGames());
-ipcMain.handle(IPC_CHANNELS.galleryList, (_e, payload = {}) => gallery.list(payload.game || readSettings().defaultGame, payload));
+ipcMain.handle(IPC_CHANNELS.galleryList, (_e, payload = {}) => gallery.list(resolveGame(payload), payload));
 ipcMain.handle(IPC_CHANNELS.galleryImage, (_e, payload = {}) => gallery.image(payload.path));
 
 // ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
-// GUI apps inherit a minimal PATH, so resolve ffmpeg from common install locations.
-function resolveFfmpeg() {
-  const cands = [process.env.FFMPEG, "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"];
-  for (const c of cands) { if (c && fs.existsSync(c)) return c; }
-  try { const w = execFileSync("/bin/sh", ["-lc", "command -v ffmpeg"]).toString().trim(); if (w) return w; } catch {}
-  return "ffmpeg"; // last resort: hope it's on PATH
-}
-const AUDIO_CATEGORIES = ["sfx", "music", "voice"];
-const audioSlug = (file) => path.basename(file).replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-
-function audioLicense(category, bitrate, normalize) {
-  return {
-    tool: "ffmpeg",
-    plan: `libopus-${bitrate}k${normalize ? "-loudnorm" : ""}`,
-    date: new Date().toISOString().slice(0, 10),
-    kind: category,
-  };
-}
-
 ipcMain.handle(IPC_CHANNELS.studioPickAudioFiles, async () => {
   const r = await dialog.showOpenDialog({
     title: "Pick source audio to transcode",
@@ -637,17 +570,19 @@ ipcMain.handle(IPC_CHANNELS.resourcesPromoteSkill, async (e, payload = {}) => {
     if (!e.sender.isDestroyed()) e.sender.send(IPC_CHANNELS.studioResearchLog, chunk);
   };
   try {
-    const declaredPath = resolveSkillCandidatePath(RESSOURCES_ROOT, payload.candidatePath);
-    const candidatePath = realDerivativePath(payload.candidatePath);
-    const skillsRoot = fs.realpathSync(path.join(RESSOURCES_ROOT, "derivatives", "skills"));
-    if (
-      candidatePath !== declaredPath ||
-      !candidatePath.startsWith(`${skillsRoot}${path.sep}`) ||
-      !candidatePath.endsWith(".resource.json")
-    ) {
-      throw new Error("skill candidate resolves outside derivatives/skills");
+    const candidatePath = resolveRealSkillCandidatePath(RESSOURCES_ROOT, payload.candidatePath);
+    const fingerprint = fingerprintResourceFile(candidatePath);
+    const approve = payload.approve === true;
+
+    if (approve) {
+      if (!skillPromotionReviews.consume(candidatePath, fingerprint, e.sender.id)) {
+        throw new Error("skill promotion approval requires a successful dry-run for the unchanged candidate");
+      }
+    } else {
+      skillPromotionReviews.clear(candidatePath);
     }
-    const mode = payload.approve === true ? "--approve" : "--dry-run";
+
+    const mode = approve ? "--approve" : "--dry-run";
     send(`$ ressources promote-skill --candidate ${payload.candidatePath} ${mode}\n`);
     const result = await runResourcesCommand(
       ["promote-skill", "--candidate", candidatePath, mode],
@@ -655,6 +590,9 @@ ipcMain.handle(IPC_CHANNELS.resourcesPromoteSkill, async (e, payload = {}) => {
       120_000,
     );
     send(`\n[exit ${result.code}]\n`);
+    if (!approve && result.code === 0) {
+      skillPromotionReviews.record(candidatePath, fingerprint, e.sender.id);
+    }
     return {
       ok: result.code === 0,
       log: result.log,
@@ -708,8 +646,14 @@ function createWindow() {
     backgroundColor: "#0a0a0a", title: "Ship Shit Games — Studio", autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, "..", "preload", "index.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
+  // Pin the renderer to its own origin/bundle and route external links through the OS
+  // browser. The preload's terminal bridge pipes renderer strings into a login shell,
+  // so a navigation onto attacker web content would be RCE-grade — deny it up front.
+  const indexHtml = path.join(__dirname, "..", "..", "dist", "index.html");
+  const allowedUrl = isDev ? DEV_SERVER_URL : pathToFileURL(indexHtml).toString();
+  hardenWindow(mainWindow.webContents, allowedUrl, electronShell);
   if (isDev) { mainWindow.loadURL(DEV_SERVER_URL); mainWindow.webContents.openDevTools({ mode: "detach" }); }
-  else { mainWindow.loadFile(path.join(__dirname, "..", "..", "dist", "index.html")); }
+  else { mainWindow.loadFile(indexHtml); }
   mainWindow.on("closed", () => { terminalManager.disposeAll(); mainWindow = null; });
 }
 app.whenReady().then(() => {

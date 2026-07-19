@@ -40,7 +40,7 @@ export function slugify(input: string): string {
     .slice(0, 80);
 }
 
-async function exists(path: string): Promise<boolean> {
+export async function pathExists(path: string): Promise<boolean> {
   try {
     await access(path);
     return true;
@@ -49,7 +49,7 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-async function readJson<T>(path: string): Promise<T> {
+export async function readJson<T>(path: string): Promise<T> {
   const text = await readFile(path, "utf8");
   try {
     return JSON.parse(text) as T;
@@ -63,13 +63,13 @@ function isPlainObject(value: unknown): boolean {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function writeJson(path: string, value: unknown): Promise<void> {
+export async function writeJson(path: string, value: unknown): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
 async function listJsonFiles(root: string, suffix = ".json"): Promise<string[]> {
-  if (!(await exists(root))) return [];
+  if (!(await pathExists(root))) return [];
   const out: string[] = [];
   async function walk(dir: string): Promise<void> {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -92,8 +92,11 @@ export async function loadSources(dir: string = sourcesDir): Promise<SourceManif
   return Promise.all(sourceFiles.map((file) => readJson<SourceManifest>(file)));
 }
 
-export async function findSource(slug: string): Promise<SourceManifest | undefined> {
-  const sources = await loadSources();
+export async function findSource(
+  slug: string,
+  dir: string = sourcesDir,
+): Promise<SourceManifest | undefined> {
+  const sources = await loadSources(dir);
   return sources.find((source) => source.slug === slug);
 }
 
@@ -200,10 +203,23 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
     }
 
     let transcriptExists = false;
-    if (typeof transcript.transcriptPath === "string" && transcript.transcriptPath.length > 0) {
-      transcriptExists = await exists(resolve(contentRoot, transcript.transcriptPath));
+    const transcriptPath =
+      typeof transcript.transcriptPath === "string" && transcript.transcriptPath.length > 0
+        ? transcript.transcriptPath
+        : undefined;
+    const transcriptFormat =
+      typeof transcript.transcriptFormat === "string" && transcript.transcriptFormat.length > 0
+        ? transcript.transcriptFormat
+        : undefined;
+    const hasTranscriptPath = transcriptPath !== undefined;
+    const hasTranscriptFormat = transcriptFormat !== undefined;
+    if (hasTranscriptPath !== hasTranscriptFormat) {
+      errors.push(`${label} must set transcriptPath and transcriptFormat together`);
+    }
+    if (transcriptPath) {
+      transcriptExists = await pathExists(resolve(contentRoot, transcriptPath));
       if (!transcriptExists) {
-        errors.push(`${label} transcriptPath does not exist: ${transcript.transcriptPath}`);
+        errors.push(`${label} transcriptPath does not exist: ${transcriptPath}`);
       }
     }
 
@@ -244,7 +260,10 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
   }
   const transcriptPaths = new Set(
     transcripts
-      .filter((transcript) => typeof transcript?.transcriptPath === "string" && transcript.transcriptPath.length > 0)
+      .filter(
+        (transcript): transcript is TranscriptResource & { transcriptPath: string } =>
+          typeof transcript?.transcriptPath === "string" && transcript.transcriptPath.length > 0,
+      )
       .map((transcript) => toContentRelative(resolve(contentRoot, transcript.transcriptPath))),
   );
   const transcriptSidecars = new Set(
@@ -274,7 +293,7 @@ export async function validateLibrary(options: ValidateOptions = {}): Promise<Va
     }
 
     if (typeof derivative.outputPath === "string" && derivative.outputPath.length > 0) {
-      if (!(await exists(resolve(contentRoot, derivative.outputPath)))) {
+      if (!(await pathExists(resolve(contentRoot, derivative.outputPath)))) {
         errors.push(`${label} outputPath does not exist: ${derivative.outputPath}`);
       }
     }
@@ -312,7 +331,7 @@ export async function createTranscriptResource(input: NewTranscriptInput): Promi
   const dir = resolve(transcriptsDir, source.slug);
   const transcriptPath = resolve(dir, `${slug}.transcript.md`);
   const sidecarPath = resolve(dir, `${slug}.resource.json`);
-  if (!input.force && ((await exists(transcriptPath)) || (await exists(sidecarPath)))) {
+  if (!input.force && ((await pathExists(transcriptPath)) || (await pathExists(sidecarPath)))) {
     throw new Error(`transcript already exists for ${source.slug}/${slug}; pass --force to overwrite`);
   }
 
@@ -451,7 +470,7 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
 
   const outputPath = resolve(dir, `${slug}.md`);
   const sidecarPath = resolve(dir, `${slug}.resource.json`);
-  if (!input.force && ((await exists(outputPath)) || (await exists(sidecarPath)))) {
+  if (!input.force && ((await pathExists(outputPath)) || (await pathExists(sidecarPath)))) {
     throw new Error(`derivative already exists: ${relativeToPackage(outputPath)}; pass --force to overwrite`);
   }
 
@@ -477,36 +496,73 @@ export async function createDerivative(input: NewDerivativeInput): Promise<Deriv
   return manifest;
 }
 
-export async function syncChannelVideos(sourceSlug: string, limit: number): Promise<SyncedChannelVideos> {
-  const source = await findSource(sourceSlug);
+export interface SyncChannelVideosOptions {
+  sourcesDir?: string;
+  now?: () => Date;
+}
+
+export async function syncChannelVideos(
+  sourceSlug: string,
+  limit: number,
+  options: SyncChannelVideosOptions = {},
+): Promise<SyncedChannelVideos> {
+  if (!Number.isInteger(limit) || limit <= 0) {
+    throw new Error("source-sync limit must be a positive integer");
+  }
+
+  const sourceDirectory = options.sourcesDir ?? sourcesDir;
+  const source = await findSource(sourceSlug, sourceDirectory);
   if (!source) throw new Error(`unknown source: ${sourceSlug}`);
   if (source.kind !== "youtube-channel") throw new Error(`${sourceSlug} is not a youtube-channel source`);
   if (!(await ytDlpAvailable())) {
-    throw new Error("yt-dlp is not installed; install it to sync channel video metadata");
+    throw new Error(
+      "yt-dlp is not installed or not runnable; install it or set RESSOURCES_YT_DLP to its executable path",
+    );
   }
 
   const sourceUrl = source.url.endsWith("/videos") ? source.url : `${source.url}/videos`;
-  const args = ["--flat-playlist", "--dump-single-json"];
-  if (Number.isFinite(limit) && limit > 0) args.push("--playlist-end", String(limit));
-  args.push(sourceUrl);
+  const args = [
+    "--flat-playlist",
+    "--dump-single-json",
+    "--playlist-end",
+    String(limit),
+    sourceUrl,
+  ];
 
   const { stdout } = await execYtDlp(args, {
     timeout: 180_000,
     maxBuffer: 64 * 1024 * 1024,
   });
-  const parsed = JSON.parse(stdout) as { entries?: Record<string, unknown>[] };
-  const videos = (parsed.entries ?? [])
-    .map(parseYtDlpVideo)
-    .filter((video): video is SyncedVideo => Boolean(video));
+  let parsed: { entries?: unknown };
+  try {
+    parsed = JSON.parse(stdout) as { entries?: unknown };
+  } catch (error) {
+    throw new Error(`yt-dlp returned invalid JSON for ${sourceSlug}: ${(error as Error).message}`);
+  }
+  if (!Array.isArray(parsed.entries)) {
+    throw new Error(`yt-dlp returned no playlist entries for ${sourceSlug}`);
+  }
+
+  const videosById = new Map<string, SyncedVideo>();
+  for (const entry of parsed.entries) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
+    const video = parseYtDlpVideo(entry as Record<string, unknown>);
+    if (video && !videosById.has(video.videoId)) videosById.set(video.videoId, video);
+  }
+  const videos = [...videosById.values()].sort(
+    (a, b) =>
+      (b.uploadDate ?? "").localeCompare(a.uploadDate ?? "") ||
+      a.videoId.localeCompare(b.videoId),
+  );
 
   const synced: SyncedChannelVideos = {
     schemaVersion: 1,
     sourceSlug: source.slug,
-    syncedAt: new Date().toISOString(),
+    syncedAt: (options.now ?? (() => new Date()))().toISOString(),
     via: "yt-dlp",
     videos,
   };
 
-  await writeJson(resolve(sourcesDir, source.slug, "videos.json"), synced);
+  await writeJson(resolve(sourceDirectory, source.slug, "videos.json"), synced);
   return synced;
 }

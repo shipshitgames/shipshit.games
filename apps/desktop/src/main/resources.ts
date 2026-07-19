@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 export const RESOURCE_INVENTORY_KINDS = ["sources", "transcripts", "derivatives"] as const;
@@ -29,6 +31,72 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+function stringValue(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function numberValue(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function normalizeInventoryItem(
+  kind: ResourceInventoryKind,
+  item: Record<string, unknown>,
+  index: number,
+): Record<string, unknown> {
+  const slug = stringValue(item.slug, `invalid-${kind}-${index}`);
+  const base = {
+    ...item,
+    slug,
+    title: stringValue(item.title, slug),
+    path: stringValue(item.path, `invalid-${kind}-${index}`),
+  };
+
+  if (kind === "sources") {
+    return {
+      ...base,
+      kind: stringValue(item.kind),
+      priority: stringValue(item.priority),
+      status: stringValue(item.status),
+      url: stringValue(item.url),
+      topics: stringArray(item.topics),
+      desiredOutputs: stringArray(item.desiredOutputs),
+      transcriptPolicy: stringValue(item.transcriptPolicy),
+      storeRawTranscript: item.storeRawTranscript === true,
+      transcriptCount: numberValue(item.transcriptCount),
+    };
+  }
+
+  if (kind === "transcripts") {
+    return {
+      ...base,
+      sourceSlug: stringValue(item.sourceSlug),
+      sourceKind: stringValue(item.sourceKind),
+      url: stringValue(item.url),
+      capturedAt: stringValue(item.capturedAt),
+      transcriptFormat: stringValue(item.transcriptFormat),
+      transcriptPath: stringValue(item.transcriptPath),
+      rightsStatus: stringValue(item.rightsStatus),
+      tags: stringArray(item.tags),
+      derivativeCount: numberValue(item.derivativeCount),
+    };
+  }
+
+  const derivativeKind = ["rule", "skill", "app", "tool"].includes(stringValue(item.kind))
+    ? stringValue(item.kind)
+    : "rule";
+  return {
+    ...base,
+    kind: derivativeKind,
+    status: stringValue(item.status),
+    summary: stringValue(item.summary),
+    sourceTranscripts: stringArray(item.sourceTranscripts),
+    sourceTranscriptCount: numberValue(item.sourceTranscriptCount),
+    outputPath: stringValue(item.outputPath),
+    tags: stringArray(item.tags),
+  };
+}
+
 export function parseResourceInventory(kind: ResourceInventoryKind, stdout: string): ResourceInventory {
   let value: unknown;
   try {
@@ -46,12 +114,13 @@ export function parseResourceInventory(kind: ResourceInventoryKind, stdout: stri
     throw new Error(`ressources ${kind} returned an unsupported inventory contract`);
   }
 
-  const items = inventory.items.filter(
+  const rawItems = inventory.items.filter(
     (item): item is Record<string, unknown> => !!item && typeof item === "object" && !Array.isArray(item),
   );
-  if (items.length !== inventory.items.length) {
+  if (rawItems.length !== inventory.items.length) {
     throw new Error(`ressources ${kind} returned an invalid inventory item`);
   }
+  const items = rawItems.map((item, index) => normalizeInventoryItem(kind, item, index));
 
   return {
     schemaVersion: 1,
@@ -110,4 +179,45 @@ export function resolveSkillCandidatePath(packageRoot: string, relativePath: unk
     throw new Error("skill promotion requires a derivatives/skills/*.resource.json manifest");
   }
   return resolved;
+}
+
+export function resolveRealSkillCandidatePath(packageRoot: string, relativePath: unknown): string {
+  const declaredPath = resolveSkillCandidatePath(packageRoot, relativePath);
+  if (lstatSync(declaredPath).isSymbolicLink()) {
+    throw new Error("skill candidate must not be a symbolic link");
+  }
+
+  const skillsRoot = realpathSync(path.join(path.resolve(packageRoot), "derivatives", "skills"));
+  const candidatePath = realpathSync(declaredPath);
+  if (!candidatePath.startsWith(`${skillsRoot}${path.sep}`) || !candidatePath.endsWith(".resource.json")) {
+    throw new Error("skill candidate resolves outside derivatives/skills");
+  }
+  return candidatePath;
+}
+
+export function fingerprintResourceFile(filePath: string): string {
+  return createHash("sha256").update(readFileSync(filePath)).digest("hex");
+}
+
+type PromotionReview = {
+  fingerprint: string;
+  senderId: number;
+};
+
+export class SkillPromotionReviewGate {
+  private readonly reviews = new Map<string, PromotionReview>();
+
+  clear(candidatePath: string): void {
+    this.reviews.delete(candidatePath);
+  }
+
+  record(candidatePath: string, fingerprint: string, senderId: number): void {
+    this.reviews.set(candidatePath, { fingerprint, senderId });
+  }
+
+  consume(candidatePath: string, fingerprint: string, senderId: number): boolean {
+    const review = this.reviews.get(candidatePath);
+    this.reviews.delete(candidatePath);
+    return review?.fingerprint === fingerprint && review.senderId === senderId;
+  }
 }

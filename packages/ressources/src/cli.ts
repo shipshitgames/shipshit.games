@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import {
   createDerivative,
   createTranscriptResource,
+  loadSources,
   syncChannelVideos,
   validateLibrary,
 } from "./library";
@@ -18,9 +19,19 @@ import {
   type InventoryOptions,
 } from "./inventory";
 import { distill } from "./distill";
+import { distillSource } from "./distill-flow";
+import { packageRoot } from "./paths";
+import { generateRulesReport, type RulesReportOptions } from "./reports";
 import { promoteSkill } from "./skill-promoter";
 import { fetchTranscript } from "./transcript";
-import type { DerivativeKind, TranscriptRightsStatus } from "./types";
+import {
+  isDuplicatePolicy,
+  isTranscriptRightsStatus,
+  type DerivativeKind,
+  type DuplicatePolicy,
+  type SourceManifest,
+  type TranscriptRightsStatus,
+} from "./types";
 
 const argv = process.argv.slice(2);
 const command = argv[0] ?? "help";
@@ -46,15 +57,14 @@ function boolFlag(name: string): boolean {
   return argv.includes(`--${name}`);
 }
 
-/** Point an inventory command at another library tree with `--root <dir>`. */
-function inventoryOptions(): InventoryOptions {
-  const root = flag("root");
-  if (!root) return {};
+/** Resolve manifest directories and their path-provenance base from one library root. */
+function libraryOptions(): InventoryOptions & RulesReportOptions {
+  const root = resolve(flag("root") ?? packageRoot);
   return {
     sourcesDir: resolve(root, "sources"),
     transcriptsDir: resolve(root, "transcripts"),
     derivativesDir: resolve(root, "derivatives"),
-    contentRoot: resolve(root),
+    contentRoot: root,
   };
 }
 
@@ -71,18 +81,93 @@ function emitInventory<Item>(inventory: Inventory<Item>, table: string): void {
 }
 
 async function runDistill(): Promise<void> {
+  const sourceSlug = flag("source");
   const url = flag("url");
   const transcriptFile = flag("transcript-file");
-  const out = resolve(flag("out") ?? "rules.generated.md");
+  const root = resolve(flag("root") ?? packageRoot);
   const outTranscript = flag("out-transcript");
-  const provider = flag("provider") ?? "codex";
+  const rightsFlag = flag("rights");
+  const duplicateFlag = flag("duplicate");
+  const providerFlag = flag("provider");
+  const provider = providerFlag ?? "codex";
   let title = flag("title");
 
+  if (argv.includes("--url") && !url) {
+    throw new Error("--url requires a source URL");
+  }
+  if (argv.includes("--transcript-file") && !transcriptFile) {
+    throw new Error("--transcript-file requires a path");
+  }
+  if (argv.includes("--source") && !sourceSlug) {
+    throw new Error("--source requires a source manifest slug");
+  }
+  if (argv.includes("--out-transcript") && !outTranscript) {
+    throw new Error("--out-transcript requires a destination path");
+  }
+  if (argv.includes("--rights") && !rightsFlag) {
+    throw new Error("--rights requires a reviewed transcript rights status");
+  }
+  if (argv.includes("--duplicate") && !duplicateFlag) {
+    throw new Error("--duplicate requires skip, overwrite, or versioned");
+  }
+  if (argv.includes("--slug") && !flag("slug")) {
+    throw new Error("--slug requires a non-empty slug");
+  }
+  if (argv.includes("--title") && !title) {
+    throw new Error("--title requires a non-empty title");
+  }
+  if (argv.includes("--provider") && !providerFlag) {
+    throw new Error("--provider requires codex or mock");
+  }
+  if (!["codex", "mock"].includes(provider)) {
+    throw new Error(`unknown provider: ${provider} (use codex | mock)`);
+  }
+  let reviewedRights: TranscriptRightsStatus | undefined;
+  if (rightsFlag) {
+    if (!isTranscriptRightsStatus(rightsFlag)) {
+      throw new Error(`unknown transcript rights status: ${rightsFlag}`);
+    }
+    reviewedRights = rightsFlag;
+  }
+  let duplicatePolicy: DuplicatePolicy | undefined;
+  if (duplicateFlag) {
+    if (!isDuplicatePolicy(duplicateFlag)) {
+      throw new Error(`unknown duplicate policy: ${duplicateFlag}`);
+    }
+    duplicatePolicy = duplicateFlag;
+  }
+  if (sourceSlug && transcriptFile && !title) {
+    throw new Error("source-aware distill with --transcript-file requires --title");
+  }
+  if (sourceSlug && transcriptFile && !url) {
+    throw new Error("source-aware distill with --transcript-file requires --url");
+  }
+  if (sourceSlug && outTranscript && !rightsFlag) {
+    throw new Error("source-aware distill requires explicit --rights with --out-transcript");
+  }
+  if (sourceSlug && flag("out")) {
+    throw new Error(
+      "source-aware distill writes canonical derivatives/rules output; use --slug instead of --out",
+    );
+  }
   if (!url && !transcriptFile) {
     throw new Error(
       "distill requires --url <youtube-url> or --transcript-file <path>; " +
-        "optional flags: --out, --out-transcript, --provider codex|mock, --title",
+        "source-aware flags: --source, --slug, --out-transcript, --rights, " +
+        "--duplicate skip|overwrite|versioned, --provider codex|mock",
     );
+  }
+  if (!sourceSlug && (rightsFlag || duplicateFlag || flag("slug"))) {
+    throw new Error("--rights, --duplicate, and --slug require source-aware distill with --source");
+  }
+
+  let resolvedSource: SourceManifest | undefined;
+  if (sourceSlug) {
+    const sources = await loadSources(resolve(root, "sources"));
+    resolvedSource = sources.find((source) => source.slug === sourceSlug);
+    if (!resolvedSource) {
+      throw new Error(`unknown source: ${sourceSlug}`);
+    }
   }
 
   const log = (message: string) => console.log(message);
@@ -97,6 +182,33 @@ async function runDistill(): Promise<void> {
     title ??= result.title;
   }
 
+  if (sourceSlug) {
+    if (!title?.trim()) {
+      throw new Error("source-aware distill requires a non-empty transcript title");
+    }
+    const inferredRights: TranscriptRightsStatus = transcriptFile
+      ? "user-provided"
+      : "public-captions";
+    const result = await distillSource({
+      sourceSlug,
+      transcript,
+      title,
+      url,
+      slug: flag("slug"),
+      provider,
+      rightsStatus: reviewedRights ?? inferredRights,
+      rightsExplicit: Boolean(reviewedRights),
+      outTranscriptPath: outTranscript ? resolve(outTranscript) : undefined,
+      duplicatePolicy: duplicatePolicy ?? "skip",
+      root,
+      source: resolvedSource,
+      log,
+    });
+    console.log(`[distill-${result.status}] ${result.rulesPath}`);
+    return;
+  }
+
+  const out = resolve(flag("out") ?? "rules.generated.md");
   if (outTranscript) {
     const transcriptOut = resolve(outTranscript);
     await mkdir(dirname(transcriptOut), { recursive: true });
@@ -123,7 +235,9 @@ commands:
   new-transcript    create transcript markdown plus sidecar metadata
   new-derivative    create a skill/app/tool/rule candidate
   promote-skill     promote a reviewed skill candidate into .agents/skills
-  sync-channel      sync YouTube channel video metadata with yt-dlp
+  source-sync       sync YouTube channel video metadata with yt-dlp
+  rules-report      report derivative rules by source, topic, and status
+  sync-channel      compatibility alias for source-sync
 
 examples:
   bun packages/ressources/src/cli.ts sources
@@ -131,12 +245,13 @@ examples:
   bun packages/ressources/src/cli.ts transcripts --json
   bun packages/ressources/src/cli.ts derivatives
   bun packages/ressources/src/cli.ts validate
-  bun packages/ressources/src/cli.ts distill --url <youtube-url> --out rules.md
-  bun packages/ressources/src/cli.ts distill --transcript-file transcript.txt --title "Title" --out rules.md
+  bun packages/ressources/src/cli.ts distill --source <slug> --url <youtube-url> --duplicate skip
+  bun packages/ressources/src/cli.ts distill --source <slug> --transcript-file transcript.txt --title "Title" --url <source-url> --rights user-provided --out-transcript packages/ressources/transcripts/<slug>/title.transcript.md
   bun packages/ressources/src/cli.ts new-transcript --source ai-oriented-dev --url <youtube-url> --title "Title"
   bun packages/ressources/src/cli.ts new-derivative --kind skill --slug my-skill --title "My Skill" --source-transcript transcripts/source/video.resource.json
   bun packages/ressources/src/cli.ts promote-skill --candidate packages/ressources/derivatives/skills/my-skill.resource.json --dry-run
-  bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50`);
+  bun packages/ressources/src/cli.ts source-sync --source ai-oriented-dev --limit 50
+  bun packages/ressources/src/cli.ts rules-report --out rules-report.md`);
 }
 
 async function run(): Promise<void> {
@@ -154,34 +269,25 @@ async function run(): Promise<void> {
     }
 
     case "sources": {
-      const inventory = await inventorySources(inventoryOptions());
+      const inventory = await inventorySources(libraryOptions());
       emitInventory(inventory, formatSourcesTable(inventory));
       return;
     }
 
     case "transcripts": {
-      const inventory = await inventoryTranscripts(inventoryOptions());
+      const inventory = await inventoryTranscripts(libraryOptions());
       emitInventory(inventory, formatTranscriptsTable(inventory));
       return;
     }
 
     case "derivatives": {
-      const inventory = await inventoryDerivatives(inventoryOptions());
+      const inventory = await inventoryDerivatives(libraryOptions());
       emitInventory(inventory, formatDerivativesTable(inventory));
       return;
     }
 
     case "validate": {
-      const root = flag("root");
-      const options = root
-        ? {
-            sourcesDir: resolve(root, "sources"),
-            transcriptsDir: resolve(root, "transcripts"),
-            derivativesDir: resolve(root, "derivatives"),
-            contentRoot: resolve(root),
-          }
-        : {};
-      const result = await validateLibrary(options);
+      const result = await validateLibrary(libraryOptions());
       for (const warning of result.warnings) console.warn(`[warn] ${warning}`);
       for (const error of result.errors) console.error(`[error] ${error}`);
       console.log(
@@ -257,12 +363,30 @@ async function run(): Promise<void> {
       return;
     }
 
+    case "source-sync":
     case "sync-channel": {
       const sourceSlug = flag("source");
-      if (!sourceSlug) throw new Error("sync-channel requires --source");
+      if (!sourceSlug) throw new Error(`${command} requires --source`);
       const limit = Number(flag("limit") ?? "50");
-      const synced = await syncChannelVideos(sourceSlug, limit);
+      const root = flag("root");
+      const synced = await syncChannelVideos(sourceSlug, limit, {
+        sourcesDir: root ? resolve(root, "sources") : undefined,
+      });
       console.log(`[sync] ${synced.sourceSlug} videos=${synced.videos.length}`);
+      return;
+    }
+
+    case "rules-report": {
+      const report = await generateRulesReport(libraryOptions());
+      const output = flag("out");
+      if (!output) {
+        console.log(report);
+        return;
+      }
+      const outputPath = resolve(output);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, report, "utf8");
+      console.log(`[rules-report] ${outputPath}`);
       return;
     }
 
