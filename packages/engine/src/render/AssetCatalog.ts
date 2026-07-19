@@ -15,9 +15,9 @@ export interface ManifestSpriteEntry {
   path: string
   game?: string
   /** Single frame pixel size `[width, height]`. */
-  frameSize?: [number, number]
+  frameSize?: readonly number[]
   /** Full sheet pixel size `[width, height]`. */
-  dimensions?: [number, number]
+  dimensions?: readonly number[]
   /** Total frame count. */
   frames?: number
   /** Playback rate for the default clip. */
@@ -112,8 +112,8 @@ function joinUrl(base: string, path: string): string {
 export function deriveSheet(entry: ManifestSpriteEntry): SpriteSheet {
   let columns = entry.sheet?.columns
   let rows = entry.sheet?.rows
-  let frameSize = entry.frameSize
-  const dimensions = entry.dimensions
+  let frameSize = spritePair(entry.frameSize, entry.id, 'frameSize')
+  const dimensions = spritePair(entry.dimensions, entry.id, 'dimensions')
 
   if (frameSize && dimensions && (columns === undefined || rows === undefined)) {
     columns ??= Math.max(1, Math.floor(dimensions[0] / frameSize[0]))
@@ -139,4 +139,12 @@ export function deriveSheet(entry: ManifestSpriteEntry): SpriteSheet {
   const fps = entry.fps ?? 12
   const clips = entry.clips ?? { all: { frames: frameRange(0, frames), fps, loop: true } }
   return { size, frameSize, columns, rows, clips }
+}
+
+function spritePair(value: readonly number[] | undefined, id: string, field: string): [number, number] | undefined {
+  if (value === undefined) return undefined
+  if (value.length !== 2 || !value.every((component) => Number.isFinite(component) && component > 0)) {
+    throw new Error(`AssetCatalog: asset "${id}" ${field} must contain exactly two positive numbers`)
+  }
+  return [value[0]!, value[1]!]
 }

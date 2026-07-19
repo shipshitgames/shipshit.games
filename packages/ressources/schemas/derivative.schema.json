@@ -21,6 +21,7 @@
     "title": { "type": "string", "minLength": 1 },
     "status": { "enum": ["candidate", "active", "rejected"] },
     "sourceTranscripts": { "type": "array", "items": { "type": "string" } },
+    "sourceRules": { "type": "array", "items": { "type": "string" } },
     "outputPath": { "type": "string", "minLength": 1 },
     "summary": { "type": "string" },
     "tags": { "type": "array", "items": { "type": "string" } }

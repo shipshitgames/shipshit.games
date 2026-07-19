@@ -113,9 +113,46 @@ bun packages/ressources/src/cli.ts new-derivative \
   --title "AI Oriented Level Design Loop" \
   --source-transcript transcripts/ai-oriented-dev/video-slug.resource.json
 
+# review and promote a skill candidate into .agents/skills/<slug>/SKILL.md
+bun packages/ressources/src/cli.ts promote-skill \
+  --candidate packages/ressources/derivatives/skills/ai-oriented-level-design-loop.resource.json \
+  --dry-run
+bun packages/ressources/src/cli.ts promote-skill \
+  --candidate packages/ressources/derivatives/skills/ai-oriented-level-design-loop.resource.json \
+  --approve
+
 # optional: sync video metadata when yt-dlp is installed
 bun packages/ressources/src/cli.ts sync-channel --source ai-oriented-dev --limit 50
 ```
+
+## Skill Promotion
+
+`promote-skill` is the review gate between a derivative candidate and an active
+agent skill. It reads a `derivatives/skills/*.resource.json` sidecar, validates
+every referenced transcript and distilled-rule sidecar, and generates or
+updates `.agents/skills/<slug>/SKILL.md`.
+
+The generated skill always includes trigger rules, workflow, inputs, outputs,
+verification, a review gate, and provenance. The promoter reads transcript
+metadata to validate provenance but never reads or copies raw transcript
+content. Candidates containing a `Raw Transcript` section are rejected.
+
+Review process:
+
+1. Make the derivative candidate original, specific, repeatable, and grounded
+   in repository needs.
+2. Reference at least one transcript sidecar with `--source-transcript` or
+   distilled rule sidecar with `--source-rule`; bare transcript text is not a
+   source reference.
+3. Run `promote-skill --dry-run` and review the complete diff.
+4. Run the same command with `--approve` only after the provenance and workflow
+   pass review. Writes without `--approve` are refused.
+5. Review and commit the generated skill normally; promotion never commits or
+   publishes by itself.
+
+Use `--root <library-dir>` and `--skills-root <dir>` for fixture libraries or
+other explicit targets. Both candidate outputs and provenance references are
+confined to the declared library root.
 
 ## Inventory
 
@@ -238,3 +275,16 @@ pass.
 Point `validate` at another library tree with `--root <dir>` (it expects
 `<dir>/sources`, `<dir>/transcripts`, and `<dir>/derivatives`); the schemas in
 this package stay the canonical rules used for the check.
+
+## CI Fixtures
+
+The committed `fixtures/valid` and `fixtures/invalid` libraries use original
+placeholder text and `example.com` URLs, so CI can exercise source, transcript,
+and derivative records without storing third-party material. The focused gate
+typechecks the package, validates the real and valid-fixture libraries, asserts
+useful errors for every invalid record kind, and smoke-tests `new-transcript`,
+`new-derivative`, and mock distillation in a temporary package copy:
+
+```bash
+bun run ci:ressources
+```
