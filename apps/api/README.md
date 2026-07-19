@@ -15,7 +15,8 @@ other brands (deadrot) can run the same image with different env on the same hos
 | `POST /v1/assets/:id/slice` | Clerk JWT | slice a generated pose sheet into frame assets |
 | `POST /v1/assets/zip` | Clerk JWT | zip selected asset files for download |
 | `GET /v1/stats/commits` | Clerk JWT | commit activity from GitHub pushes |
-| `POST /webhooks/stripe` | Stripe signature | verified event log |
+| `GET /v1/billing/entitlements` | Clerk JWT | canonical Studio Pass + Skills Pro state |
+| `POST /webhooks/stripe` | Stripe signature | idempotent billing ingestion + fulfillment |
 | `POST /webhooks/clerk` | svix signature | User mirror sync + event log |
 | `POST /webhooks/github` | HMAC sha256 | commit ingestion + event log |
 
@@ -30,6 +31,7 @@ server-side and forwards the caller's token (see `apps/app/lib/api.ts`).
 | `CLERK_SECRET_KEY` | yes | verifies session JWTs |
 | `CLERK_AUTHORIZED_PARTIES` | no | extra allowed `azp` origins, comma-separated |
 | `CLERK_WEBHOOK_SECRET` | for webhook | svix signing secret from Clerk dashboard |
+| `STRIPE_SECRET_KEY` | for webhook | retrieves current subscriptions and attaches user metadata |
 | `STRIPE_WEBHOOK_SECRET` | for webhook | from Stripe dashboard endpoint config |
 | `GITHUB_WEBHOOK_SECRET` | for webhook | repo/org webhook shared secret |
 | `REPLICATE_API_TOKEN` | for generate | falls back to the `shipshit-replicate` keychain entry locally |
@@ -40,6 +42,16 @@ server-side and forwards the caller's token (see `apps/app/lib/api.ts`).
 | `ASSET_STORAGE_PUBLIC_BASE_URL` | no | CDN/public origin used in API `url` fields, e.g. `https://assets.shipshit.games` |
 | `ASSET_STORAGE_FORCE_PATH_STYLE` | no | force path-style S3 addressing; defaults on when a custom endpoint is set |
 | `SERVICE_NAME` | no | brand label in `/health` (e.g. `api.deadrot.com`) |
+| `NEXT_PUBLIC_APP_URL` | for billing | claim-link origin, defaults to local app |
+| `FULFILLMENT_WEBHOOK_URL` | no | access fulfillment endpoint; receives idempotency keys |
+| `RESEND_API_KEY` / `ACCESS_EMAIL_FROM` | no | email fallback when no fulfillment webhook is configured |
+| `SKOOL_INVITE_WEBHOOK_URL` | no | community invite endpoint when its feature flag is enabled |
+
+Stripe must have exactly one webhook destination for this product:
+`https://api.shipshit.games/webhooks/stripe`. The app does not expose a Stripe
+webhook and never mutates entitlement state. Verified deliveries are retained
+with processing status, attempt count, and the last error; failed deliveries
+are safe to retry, while completed event ids are no-ops.
 
 When `ASSET_STORAGE_BUCKET` is unset, Asset Lab keeps the old local-development
 fallback and stores image bytes in Postgres. When it is set, new generations are

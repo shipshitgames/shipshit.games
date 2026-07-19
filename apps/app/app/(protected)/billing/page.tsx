@@ -1,9 +1,10 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { CreditCard } from "lucide-react";
 
 import { StatusPill } from "@/components/status-pill";
-import { readStudioPass } from "@/lib/entitlements";
+import { readBillingEntitlements } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,9 @@ export const metadata: Metadata = {
 };
 
 export default async function BillingPage() {
-  const user = await currentUser();
-  const pass = readStudioPass(user?.privateMetadata);
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+  const { studioPass: pass } = await readBillingEntitlements(userId);
 
   return (
     <main className="min-h-[calc(100vh-4rem)] px-6 py-12">

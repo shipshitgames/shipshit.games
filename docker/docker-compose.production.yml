@@ -31,7 +31,7 @@ services:
       - '127.0.0.1:${API_PORT:-3005}:3005'
     env_file:
       # Rendered from SSM by render-ssm-env.sh — carries DATABASE_URL plus every
-      # api runtime secret (CLERK_*, STRIPE_WEBHOOK_SECRET, REPLICATE_API_TOKEN,
+      # api runtime secret (CLERK_*, STRIPE_*, REPLICATE_API_TOKEN,
       # GITHUB_WEBHOOK_SECRET, GENERATE_HOURLY_LIMIT, ...).
       - ../.env.production
     environment:
