@@ -7,10 +7,12 @@ import os from "node:os";
 import fs from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { readAssetBaseUrl } from "@shipshitgames/shared";
 import { IPC_CHANNELS } from "../shared/ipc";
 import { readSharedGameSlugs } from "./game-slugs";
 import { createTerminalManager, terminalShell } from "./terminal-manager";
+import { hardenWindow } from "./window-security";
 import { projectFromRepoPath } from "./projects";
 import { createProjectState } from "./project-state";
 import { createMoodboardStore } from "./moodboards";
@@ -458,8 +460,14 @@ function createWindow() {
     backgroundColor: "#0a0a0a", title: "Ship Shit Games — Studio", autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, "..", "preload", "index.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
+  // Pin the renderer to its own origin/bundle and route external links through the OS
+  // browser. The preload's terminal bridge pipes renderer strings into a login shell,
+  // so a navigation onto attacker web content would be RCE-grade — deny it up front.
+  const indexHtml = path.join(__dirname, "..", "..", "dist", "index.html");
+  const allowedUrl = isDev ? DEV_SERVER_URL : pathToFileURL(indexHtml).toString();
+  hardenWindow(mainWindow.webContents, allowedUrl, electronShell);
   if (isDev) { mainWindow.loadURL(DEV_SERVER_URL); mainWindow.webContents.openDevTools({ mode: "detach" }); }
-  else { mainWindow.loadFile(path.join(__dirname, "..", "..", "dist", "index.html")); }
+  else { mainWindow.loadFile(indexHtml); }
   mainWindow.on("closed", () => { terminalManager.disposeAll(); mainWindow = null; });
 }
 app.whenReady().then(() => {
