@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 
 import type {
   ResearchResult,
@@ -10,7 +10,7 @@ import type {
   ResourcesValidationResult,
 } from "../../shared/ipc";
 import { LogView, SelectField, TextField } from "../components/ui";
-import { useStreamLog } from "../lib/hooks";
+import { usePatchState, useStreamLog } from "../lib/hooks";
 import { errorMessage } from "../lib/studio";
 
 function slugFromUrl(url: string): string {
@@ -29,43 +29,60 @@ const EMPTY_RESOURCES_OVERVIEW: ResourcesOverview = {
 type ResourceInventoryTab = "sources" | "transcripts" | "derivatives";
 
 export function ResourcesPane() {
-  const [url, setUrl] = useState("");
-  const [slug, setSlug] = useState("");
-  const [provider, setProvider] = useState("codex");
-  const [distillBusy, setDistillBusy] = useState(false);
-  const [inventoryBusy, setInventoryBusy] = useState(false);
-  const [actionBusy, setActionBusy] = useState("");
-  const [result, setResult] = useState<ResearchResult | null>(null);
-  const [overview, setOverview] = useState<ResourcesOverview>(EMPTY_RESOURCES_OVERVIEW);
-  const [validation, setValidation] = useState<ResourcesValidationResult | null>(null);
-  const [tab, setTab] = useState<ResourceInventoryTab>("sources");
-  const [preview, setPreview] = useState<ResourcesPreviewResult | null>(null);
-  const [selectedDerivative, setSelectedDerivative] = useState<ResourceDerivativeItem | null>(null);
-  const [reviewedSkillPath, setReviewedSkillPath] = useState("");
+  const [state, patch] = usePatchState({
+    url: "",
+    slug: "",
+    provider: "codex",
+    distillBusy: false,
+    inventoryBusy: false,
+    actionBusy: "",
+    result: null as ResearchResult | null,
+    overview: EMPTY_RESOURCES_OVERVIEW,
+    validation: null as ResourcesValidationResult | null,
+    tab: "sources" as ResourceInventoryTab,
+    preview: null as ResourcesPreviewResult | null,
+    selectedDerivative: null as ResourceDerivativeItem | null,
+    reviewedSkillPath: "",
+  });
+  const {
+    url,
+    slug,
+    provider,
+    distillBusy,
+    inventoryBusy,
+    actionBusy,
+    result,
+    overview,
+    validation,
+    tab,
+    preview,
+    selectedDerivative,
+    reviewedSkillPath,
+  } = state;
   const [log, setLog] = useStreamLog(window.studio.onResearchLog);
 
   const loadOverview = useCallback(async () => {
-    setInventoryBusy(true);
+    patch({ inventoryBusy: true });
     try {
-      setOverview(await window.studio.resources.list());
+      patch({ overview: await window.studio.resources.list() });
     } catch (error) {
-      setOverview({ ...EMPTY_RESOURCES_OVERVIEW, error: errorMessage(error) });
+      patch({ overview: { ...EMPTY_RESOURCES_OVERVIEW, error: errorMessage(error) } });
     } finally {
-      setInventoryBusy(false);
+      patch({ inventoryBusy: false });
     }
-  }, []);
+  }, [patch]);
 
   const validateResources = useCallback(async () => {
-    setActionBusy("validate");
+    patch({ actionBusy: "validate" });
     setLog("");
     try {
-      setValidation(await window.studio.resources.validate());
+      patch({ validation: await window.studio.resources.validate() });
     } catch (error) {
       setLog(errorMessage(error));
     } finally {
-      setActionBusy("");
+      patch({ actionBusy: "" });
     }
-  }, [setLog]);
+  }, [patch, setLog]);
 
   useEffect(() => {
     void loadOverview();
@@ -73,32 +90,35 @@ export function ResourcesPane() {
   }, [loadOverview, validateResources]);
 
   async function distill() {
-    setDistillBusy(true);
-    setResult(null);
+    patch({ distillBusy: true, result: null });
     setLog("");
     try {
-      setResult(await window.studio.research({
-        url: url.trim(),
-        slug: slug.trim() || slugFromUrl(url),
-        provider,
-      }));
+      patch({
+        result: await window.studio.research({
+          url: url.trim(),
+          slug: slug.trim() || slugFromUrl(url),
+          provider,
+        }),
+      });
     } catch (error) {
       setLog(errorMessage(error));
     } finally {
-      setDistillBusy(false);
+      patch({ distillBusy: false });
     }
   }
 
   async function previewDerivativeItem(item: ResourceDerivativeItem) {
-    setActionBusy(`preview:${item.path}`);
-    setSelectedDerivative(item);
-    setReviewedSkillPath("");
+    patch({
+      actionBusy: `preview:${item.path}`,
+      selectedDerivative: item,
+      reviewedSkillPath: "",
+    });
     try {
-      setPreview(await window.studio.resources.preview(item.outputPath || item.path));
+      patch({ preview: await window.studio.resources.preview(item.outputPath || item.path) });
     } catch (error) {
-      setPreview({ ok: false, path: null, content: null, error: errorMessage(error) });
+      patch({ preview: { ok: false, path: null, content: null, error: errorMessage(error) } });
     } finally {
-      setActionBusy("");
+      patch({ actionBusy: "" });
     }
   }
 
@@ -109,20 +129,20 @@ export function ResourcesPane() {
 
   async function promoteSkill(item: ResourceDerivativeItem, approve: boolean) {
     if (item.kind !== "skill") return;
-    setActionBusy(`${approve ? "approve" : "review"}:${item.path}`);
+    patch({ actionBusy: `${approve ? "approve" : "review"}:${item.path}` });
     setLog("");
     try {
       const action = await window.studio.resources.promoteSkill(item.path, approve);
       setLog(action.log || action.error || "");
-      if (action.ok && !approve) setReviewedSkillPath(item.path);
+      if (action.ok && !approve) patch({ reviewedSkillPath: item.path });
       if (action.ok && approve) {
-        setReviewedSkillPath("");
+        patch({ reviewedSkillPath: "" });
         await loadOverview();
       }
     } catch (error) {
       setLog(errorMessage(error));
     } finally {
-      setActionBusy("");
+      patch({ actionBusy: "" });
     }
   }
 
@@ -167,7 +187,7 @@ export function ResourcesPane() {
                 role="tab"
                 aria-selected={tab === kind}
                 className={tab === kind ? "is-active" : ""}
-                onClick={() => setTab(kind)}
+                onClick={() => patch({ tab: kind })}
               >
                 {kind} <b>{overview[kind].count}</b>
               </button>
@@ -260,9 +280,9 @@ export function ResourcesPane() {
               <span>streaming CLI</span>
             </div>
             <div className="resources-distill-fields">
-              <TextField label="YouTube URL" grow value={url} onChange={setUrl} placeholder="https://www.youtube.com/watch?v=…" />
-              <TextField label="Rules file slug" value={slug} onChange={setSlug} placeholder={url ? slugFromUrl(url) : "ruleset"} />
-              <SelectField label="Provider" value={provider} onChange={setProvider}>
+              <TextField label="YouTube URL" grow value={url} onChange={(value) => patch({ url: value })} placeholder="https://www.youtube.com/watch?v=…" />
+              <TextField label="Rules file slug" value={slug} onChange={(value) => patch({ slug: value })} placeholder={url ? slugFromUrl(url) : "ruleset"} />
+              <SelectField label="Provider" value={provider} onChange={(value) => patch({ provider: value })}>
                 <option value="codex">codex — subscription</option>
                 <option value="mock">mock — offline</option>
               </SelectField>
