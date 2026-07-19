@@ -1,0 +1,90 @@
+{
+  "gameType": "moba",
+  "genreAliases": [
+    "moba",
+    "lane moba",
+    "one-lane moba",
+    "lane-based pvp",
+    "lane pvp",
+    "moba lane",
+    "isometric champion arena"
+  ],
+  "assetClasses": [
+    {
+      "category": "sprite",
+      "items": [
+        "Pyre player champion (isometric)",
+        "Warden AI champion (isometric)",
+        "Pyre and Warden minion squads",
+        "2 towers per team",
+        "Scourge neutral objective",
+        "base structures"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "ui",
+      "items": [
+        "health bar",
+        "mana pool",
+        "Q/W/E cooldown indicators",
+        "lane overview",
+        "target feedback",
+        "victory and defeat states"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "vfx",
+      "items": [
+        "attack hit bursts",
+        "Q line telegraph",
+        "W zone telegraph",
+        "E dash trail",
+        "slow cloud",
+        "death bursts",
+        "neutral buff",
+        "tower destruction"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "music",
+      "items": [
+        "gameplay loop",
+        "Q/W/E cast SFX",
+        "minion and champion death SFX",
+        "neutral objective SFX",
+        "tower destruction SFX"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "music",
+      "items": [
+        "main-menu theme",
+        "Scourge-alert theme"
+      ],
+      "mvp": false
+    },
+    {
+      "category": "ui",
+      "items": [
+        "main menu",
+        "settings",
+        "match history"
+      ],
+      "mvp": false
+    }
+  ],
+  "mvpSlice": [
+    "one isometric lane with a base and 2 towers per team",
+    "one player-controlled Pyre champion and one AI-controlled Warden champion",
+    "Pyre and Warden minion waves",
+    "auto-attacks plus 3 abilities (Q/W/E) with cooldowns and mana",
+    "Scourge neutral objective with a temporary team buff",
+    "tower-gated base destruction victory",
+    "HUD: health, mana, Q/W/E cooldowns, lane state, victory and defeat",
+    "one gameplay loop plus combat and objective SFX"
+  ]
+}
