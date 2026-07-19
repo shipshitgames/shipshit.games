@@ -9,6 +9,9 @@ export * from "./flags";
 /** Shared asset-origin URL helpers for package-relative Deadrot assets. */
 export * from "./assets";
 
+/** Canonical billing and entitlement read model shared by the API and app. */
+export * from "./billing";
+
 /** Lifecycle status of a game in the gallery. */
 export type GameStatus = "finished" | "playable" | "prototype" | "in-dev" | "concept";
 
@@ -127,15 +130,6 @@ export const SKILLS_PRO_ONETIME_FEATURES = [
   "The production prompts and workflows behind DEADROT — copy them, adapt them, ship your own games.",
   "A one-time purchase you keep forever — no subscription. Skills only: no hosted SaaS generation, no games, no community.",
 ] as const;
-
-export const ACTIVE_SUBSCRIPTION_STATUSES = ["active", "trialing"] as const;
-
-export type ActiveSubscriptionStatus =
-  (typeof ACTIVE_SUBSCRIPTION_STATUSES)[number];
-
-export function isActiveSubscriptionStatus(status?: string | null) {
-  return ACTIVE_SUBSCRIPTION_STATUSES.includes(status as ActiveSubscriptionStatus);
-}
 
 export function formatUsd(amount: number) {
   return new Intl.NumberFormat("en-US", {

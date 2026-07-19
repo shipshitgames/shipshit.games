@@ -1,10 +1,12 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { KeyRound, Lock, Users } from "lucide-react";
 
 import { StatusPill } from "@/components/status-pill";
+import { readBillingEntitlements } from "@/lib/billing";
 import { createSkillsProAccessUrl } from "@/lib/fulfillment";
-import { hasActiveStudioPass, primaryEmail, readStudioPass } from "@/lib/entitlements";
+import { hasSkillsProContentAccess, primaryEmail } from "@/lib/entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +17,15 @@ export const metadata: Metadata = {
 };
 
 export default async function AccessPage() {
-  const [{ userId }, user] = await Promise.all([auth(), currentUser()]);
+  const [{ userId }, user] = await Promise.all([
+    auth(),
+    currentUser(),
+  ]);
+  if (!userId) redirect("/sign-in");
+  const entitlements = await readBillingEntitlements(userId);
   const email = primaryEmail(user);
-  const pass = readStudioPass(user?.privateMetadata);
-  const active = hasActiveStudioPass(user?.privateMetadata);
+  const pass = entitlements.studioPass;
+  const active = hasSkillsProContentAccess(entitlements);
   const skillsUrl = active && userId && email ? createSkillsProAccessUrl(userId, email) : null;
 
   return (
