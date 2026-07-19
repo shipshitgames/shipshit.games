@@ -28,6 +28,7 @@ import {
   isDuplicatePolicy,
   isTranscriptRightsStatus,
   type DerivativeKind,
+  type DuplicatePolicy,
   type SourceManifest,
   type TranscriptRightsStatus,
 } from "./types";
@@ -121,11 +122,19 @@ async function runDistill(): Promise<void> {
   if (!["codex", "mock"].includes(provider)) {
     throw new Error(`unknown provider: ${provider} (use codex | mock)`);
   }
-  if (rightsFlag && !isTranscriptRightsStatus(rightsFlag)) {
-    throw new Error(`unknown transcript rights status: ${rightsFlag}`);
+  let reviewedRights: TranscriptRightsStatus | undefined;
+  if (rightsFlag) {
+    if (!isTranscriptRightsStatus(rightsFlag)) {
+      throw new Error(`unknown transcript rights status: ${rightsFlag}`);
+    }
+    reviewedRights = rightsFlag;
   }
-  if (duplicateFlag && !isDuplicatePolicy(duplicateFlag)) {
-    throw new Error(`unknown duplicate policy: ${duplicateFlag}`);
+  let duplicatePolicy: DuplicatePolicy | undefined;
+  if (duplicateFlag) {
+    if (!isDuplicatePolicy(duplicateFlag)) {
+      throw new Error(`unknown duplicate policy: ${duplicateFlag}`);
+    }
+    duplicatePolicy = duplicateFlag;
   }
   if (sourceSlug && transcriptFile && !title) {
     throw new Error("source-aware distill with --transcript-file requires --title");
@@ -187,10 +196,10 @@ async function runDistill(): Promise<void> {
       url,
       slug: flag("slug"),
       provider,
-      rightsStatus: rightsFlag ?? inferredRights,
-      rightsExplicit: Boolean(rightsFlag),
+      rightsStatus: reviewedRights ?? inferredRights,
+      rightsExplicit: Boolean(reviewedRights),
       outTranscriptPath: outTranscript ? resolve(outTranscript) : undefined,
-      duplicatePolicy: duplicateFlag ?? "skip",
+      duplicatePolicy: duplicatePolicy ?? "skip",
       root,
       source: resolvedSource,
       log,
