@@ -86,7 +86,7 @@ export interface AssetGenerateDeps {
   sleep?: (milliseconds: number) => Promise<void>;
 }
 
-interface GenerateRequest {
+interface GenerateRequest extends Record<string, unknown> {
   prompt: string;
   description?: string;
   gameSlug: string;
