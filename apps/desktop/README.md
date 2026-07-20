@@ -25,7 +25,8 @@ the canonical ressources data, and installs Chromium. A hashed manifest records
 every tool bundle plus Sharp/node-pty native sidecar. `electron-builder` copies
 that directory outside ASAR; `afterPack` restores the isolated production tree
 that Electron Builder's nested `node_modules` collector omits, before smoke
-verification and signing.
+verification and signing. Assetgen runs on packaged Bun; its node-pty sidecar
+uses Electron's bundled Node through `ELECTRON_RUN_AS_NODE`.
 
 The `afterPack` hook fails closed when a runtime file is absent, escapes the
 runtime root, has the wrong architecture, or is hash-mismatched. It then runs

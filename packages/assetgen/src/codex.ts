@@ -211,7 +211,7 @@ async function runCodexCliWorker(opts: ResolvedCodexCliOptions): Promise<CodexCl
     try {
       child = spawn(worker.command, worker.args, {
         cwd: opts.spawnCwd ?? process.cwd(),
-        env: process.env,
+        env: { ...process.env, ...worker.env },
         stdio: ["pipe", "pipe", "pipe"],
       });
     } catch (err) {
@@ -277,16 +277,19 @@ async function runCodexCliWorker(opts: ResolvedCodexCliOptions): Promise<CodexCl
 
 /**
  * Development runs the checked-in worker through Node. Packaged assetgen
- * injects an architecture-matched standalone worker so the provider never
- * reaches back into a source checkout or assumes Node is installed.
+ * injects its bundled worker and Electron's Node host so the provider never
+ * reaches back into a source checkout or assumes Node is installed separately.
  */
 export function resolveCodexPtyWorker(
   env: NodeJS.ProcessEnv = process.env,
-): { command: string; args: string[] } {
+): { command: string; args: string[]; env: Record<string, string> } {
   const packagedWorker = env.ASSETGEN_PTY_WORKER?.trim();
   if (packagedWorker) {
     const rawArgs = env.ASSETGEN_PTY_WORKER_ARGS?.trim();
-    if (!rawArgs) return { command: packagedWorker, args: [] };
+    const workerEnv = env.ASSETGEN_PTY_WORKER_ELECTRON_RUN_AS_NODE === "1"
+      ? { ELECTRON_RUN_AS_NODE: "1" }
+      : {};
+    if (!rawArgs) return { command: packagedWorker, args: [], env: workerEnv };
     let args: unknown;
     try {
       args = JSON.parse(rawArgs);
@@ -296,12 +299,13 @@ export function resolveCodexPtyWorker(
     if (!Array.isArray(args) || !args.every((argument) => typeof argument === "string")) {
       throw new Error("ASSETGEN_PTY_WORKER_ARGS must be a JSON string array");
     }
-    return { command: packagedWorker, args };
+    return { command: packagedWorker, args, env: workerEnv };
   }
   const worker = join(dirname(fileURLToPath(import.meta.url)), "codex-pty-worker.cjs");
   return {
     command: env.ASSETGEN_NODE_BINARY?.trim() || "node",
     args: [worker],
+    env: {},
   };
 }
 

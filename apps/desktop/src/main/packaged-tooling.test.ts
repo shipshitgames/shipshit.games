@@ -7,9 +7,11 @@ import path from "node:path";
 
 const require = createRequire(import.meta.url);
 const {
+  findElectronNodeHost,
   isInside,
   verifyRuntimeLayout,
 } = require("../../scripts/verify-packaged-tooling.cjs") as {
+  findElectronNodeHost: (runtimeRoot: string) => string;
   isInside: (root: string, candidate: string) => boolean;
   verifyRuntimeLayout: (root: string) => {
     resourcesRoot: string;
@@ -146,4 +148,17 @@ test("afterPack copies the isolated dependency tree without losing native helper
   );
   expect(fs.readFileSync(packagedHelper, "utf8")).toBe("fixture\n");
   expect(fs.statSync(packagedHelper).mode & 0o111).not.toBe(0);
+});
+
+test("packaged PTY smoke resolves Electron's bundled Node host", () => {
+  const appRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tooling-electron-host-"));
+  temps.push(appRoot);
+  const contentsRoot = path.join(appRoot, "Studio.app", "Contents");
+  const runtimeRoot = path.join(contentsRoot, "Resources", "tooling-runtime");
+  const electronHost = path.join(contentsRoot, "MacOS", "Studio");
+  fs.mkdirSync(runtimeRoot, { recursive: true });
+  fs.mkdirSync(path.dirname(electronHost), { recursive: true });
+  fs.writeFileSync(electronHost, "fixture\n", { mode: 0o755 });
+
+  expect(findElectronNodeHost(runtimeRoot)).toBe(electronHost);
 });

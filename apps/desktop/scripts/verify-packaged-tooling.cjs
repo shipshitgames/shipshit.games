@@ -157,6 +157,22 @@ function compactOutput(value) {
   return text.length > 8_000 ? `${text.slice(0, 8_000)}\n[truncated]` : text;
 }
 
+function findElectronNodeHost(runtimeRoot) {
+  const macOsRoot = path.join(path.dirname(path.dirname(runtimeRoot)), "MacOS");
+  const candidates = fs.readdirSync(macOsRoot)
+    .map((name) => path.join(macOsRoot, name))
+    .filter((file) => {
+      const metadata = fs.statSync(file);
+      return metadata.isFile() && (metadata.mode & 0o111) !== 0;
+    });
+  if (candidates.length !== 1) {
+    throw new Error(
+      `[after-pack] expected one Electron Node host under ${macOsRoot}, found ${candidates.length}`,
+    );
+  }
+  return candidates[0];
+}
+
 function runChecked(label, command, args, options) {
   const result = spawnSync(command, args, {
     cwd: options.cwd,
@@ -232,14 +248,16 @@ function verifyPackagedTooling(appOutDir, outputDir) {
   const assetgenWorker = tool("assetgen-codex-pty");
   const ressources = tool("ressources");
   const tester = tool("tester");
+  const electronNodeHost = findElectronNodeHost(runtimeRoot);
   const env = {
     HOME: path.join(temp, "home"),
     TMPDIR: path.join(temp, "tmp"),
     PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
     PLAYWRIGHT_BROWSERS_PATH: browsersRoot,
     RESSOURCES_SCHEMAS_ROOT: path.join(resourcesRoot, "schemas"),
-    ASSETGEN_PTY_WORKER: assetgenWorker.command,
+    ASSETGEN_PTY_WORKER: electronNodeHost,
     ASSETGEN_PTY_WORKER_ARGS: JSON.stringify(assetgenWorker.argsPrefix),
+    ASSETGEN_PTY_WORKER_ELECTRON_RUN_AS_NODE: "1",
   };
   fs.mkdirSync(env.HOME, { recursive: true });
   fs.mkdirSync(env.TMPDIR, { recursive: true });
@@ -248,11 +266,11 @@ function verifyPackagedTooling(appOutDir, outputDir) {
   try {
     const ptyRun = runChecked(
       "assetgen Codex PTY worker",
-      assetgenWorker.command,
+      electronNodeHost,
       assetgenWorker.argsPrefix,
       {
         cwd: temp,
-        env,
+        env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
         input: JSON.stringify({
           command: "/bin/echo",
           args: ["packaged-pty-ok"],
@@ -339,6 +357,7 @@ function verifyPackagedTooling(appOutDir, outputDir) {
 
 module.exports = {
   findRuntimeRoot,
+  findElectronNodeHost,
   isInside,
   verifyPackagedTooling,
   verifyRuntimeLayout,

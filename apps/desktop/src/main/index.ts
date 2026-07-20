@@ -79,6 +79,7 @@ const toolingRuntime = resolveToolingRuntime({
   resourcesPath: process.resourcesPath,
   userDataPath: app.getPath("userData"),
   homePath: os.homedir(),
+  hostExecutablePath: process.execPath,
 });
 fs.mkdirSync(toolingRuntime.workRoot, { recursive: true });
 

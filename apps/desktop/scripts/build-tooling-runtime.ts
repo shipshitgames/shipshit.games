@@ -29,24 +29,28 @@ const tools = [
     entrypoint: path.join(repoRoot, "packages", "assetgen", "src", "cli.ts"),
     bundle: path.join(libRoot, "assetgen.js"),
     format: "esm",
+    target: "bun",
   },
   {
     name: "assetgen-codex-pty",
     entrypoint: path.join(repoRoot, "packages", "assetgen", "src", "codex-pty-worker.cjs"),
     bundle: path.join(libRoot, "assetgen-codex-pty.cjs"),
     format: "cjs",
+    target: "node",
   },
   {
     name: "ressources",
     entrypoint: path.join(repoRoot, "packages", "ressources", "src", "cli.ts"),
     bundle: path.join(libRoot, "ressources.js"),
     format: "esm",
+    target: "bun",
   },
   {
     name: "tester",
     entrypoint: path.join(repoRoot, "packages", "tester", "src", "cli.ts"),
     bundle: path.join(libRoot, "tester.js"),
     format: "esm",
+    target: "bun",
   },
 ] as const;
 
@@ -117,7 +121,7 @@ async function buildBundle(tool: (typeof tools)[number]): Promise<void> {
     [
       process.execPath,
       "build",
-      "--target=bun",
+      `--target=${tool.target}`,
       "--packages=external",
       `--format=${tool.format}`,
       "--outfile",

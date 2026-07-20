@@ -14,6 +14,7 @@ describe("resolveToolingRuntime", () => {
       resourcesPath: "/unused",
       userDataPath: "/users/me/studio",
       homePath: "/users/me",
+      hostExecutablePath: "/workspace/electron",
     });
 
     expect(runtime.mode).toBe("development");
@@ -38,6 +39,8 @@ describe("resolveToolingRuntime", () => {
       resourcesPath: "/Applications/Ship Shit Games Studio.app/Contents/Resources",
       userDataPath: "/users/me/Library/Application Support/Ship Shit Games Studio",
       homePath: "/users/me",
+      hostExecutablePath:
+        "/Applications/Ship Shit Games Studio.app/Contents/MacOS/Ship Shit Games Studio",
     });
     const packagedRoot = path.join(
       "/Applications/Ship Shit Games Studio.app/Contents/Resources",
@@ -52,11 +55,12 @@ describe("resolveToolingRuntime", () => {
       argsPrefix: [path.join(packagedRoot, "lib", "assetgen.js")],
     });
     expect(runtime.assetgen.env.ASSETGEN_PTY_WORKER).toBe(
-      path.join(packagedRoot, "bin", "bun"),
+      "/Applications/Ship Shit Games Studio.app/Contents/MacOS/Ship Shit Games Studio",
     );
     expect(JSON.parse(runtime.assetgen.env.ASSETGEN_PTY_WORKER_ARGS)).toEqual([
       path.join(packagedRoot, "lib", "assetgen-codex-pty.cjs"),
     ]);
+    expect(runtime.assetgen.env.ASSETGEN_PTY_WORKER_ELECTRON_RUN_AS_NODE).toBe("1");
     expect(runtime.ressources).toMatchObject({
       command: path.join(packagedRoot, "bin", "bun"),
       argsPrefix: [path.join(packagedRoot, "lib", "ressources.js")],
@@ -79,6 +83,7 @@ describe("resolveToolingRuntime", () => {
       resourcesPath: "/app/resources",
       userDataPath: "/data",
       homePath: "/home",
+      hostExecutablePath: "/app/Studio",
     });
     const present = new Set([runtime.assetgen.command, runtime.resourcesRoot]);
 

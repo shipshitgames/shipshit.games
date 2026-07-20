@@ -33,6 +33,7 @@ interface ResolveToolingRuntimeOptions {
   resourcesPath: string;
   userDataPath: string;
   homePath: string;
+  hostExecutablePath: string;
 }
 
 function packagedCommand(
@@ -91,11 +92,11 @@ export function resolveToolingRuntime(options: ResolveToolingRuntimeOptions): To
   const workRoot = path.join(options.userDataPath, "tooling");
   const resourcesRoot = path.join(runtimeRoot, "ressources");
   const browserRoot = path.join(runtimeRoot, "playwright-browsers");
-  const bunCommand = path.join(runtimeRoot, "bin", "bun");
   const assetgenWorker = path.join(runtimeRoot, "lib", "assetgen-codex-pty.cjs");
   const assetgen = packagedCommand(runtimeRoot, workRoot, "assetgen.js", {
-    ASSETGEN_PTY_WORKER: bunCommand,
+    ASSETGEN_PTY_WORKER: options.hostExecutablePath,
     ASSETGEN_PTY_WORKER_ARGS: JSON.stringify([assetgenWorker]),
+    ASSETGEN_PTY_WORKER_ELECTRON_RUN_AS_NODE: "1",
   });
   const ressources = packagedCommand(runtimeRoot, workRoot, "ressources.js", {
     RESSOURCES_SCHEMAS_ROOT: path.join(resourcesRoot, "schemas"),
@@ -117,6 +118,7 @@ export function resolveToolingRuntime(options: ResolveToolingRuntimeOptions): To
     tester,
     requiredPaths: [
       path.join(runtimeRoot, "manifest.json"),
+      options.hostExecutablePath,
       assetgen.command,
       ...assetgen.argsPrefix,
       assetgenWorker,
