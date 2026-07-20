@@ -286,9 +286,10 @@ export function resolveCodexPtyWorker(
   const packagedWorker = env.ASSETGEN_PTY_WORKER?.trim();
   if (packagedWorker) {
     const rawArgs = env.ASSETGEN_PTY_WORKER_ARGS?.trim();
-    const workerEnv = env.ASSETGEN_PTY_WORKER_ELECTRON_RUN_AS_NODE === "1"
-      ? { ELECTRON_RUN_AS_NODE: "1" }
-      : {};
+    const workerEnv: Record<string, string> =
+      env.ASSETGEN_PTY_WORKER_ELECTRON_RUN_AS_NODE === "1"
+        ? { ELECTRON_RUN_AS_NODE: "1" }
+        : {};
     if (!rawArgs) return { command: packagedWorker, args: [], env: workerEnv };
     let args: unknown;
     try {
