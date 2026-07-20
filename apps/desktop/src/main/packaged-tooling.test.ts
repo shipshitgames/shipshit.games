@@ -16,6 +16,9 @@ const {
     browsersRoot: string;
   };
 };
+const { copyRuntimeDependencies } = require("../../scripts/after-pack.cjs") as {
+  copyRuntimeDependencies: (appOutDir: string, source?: string) => void;
+};
 
 const temps: string[] = [];
 
@@ -118,4 +121,29 @@ test("isInside rejects sibling and traversal paths", () => {
   expect(isInside("/app/runtime", "/app/runtime/bin/tester")).toBe(true);
   expect(isInside("/app/runtime", "/app/elsewhere/tester")).toBe(false);
   expect(isInside("/app/runtime", "/app/runtime/../elsewhere/tester")).toBe(false);
+});
+
+test("afterPack copies the isolated dependency tree without losing native helper modes", () => {
+  const appOut = fs.mkdtempSync(path.join(os.tmpdir(), "tooling-app-out-"));
+  const source = fs.mkdtempSync(path.join(os.tmpdir(), "tooling-dependencies-"));
+  temps.push(appOut, source);
+  const runtimeRoot = path.join(appOut, "Studio.app", "Contents", "Resources", "tooling-runtime");
+  const helper = path.join(source, "node-pty", "prebuilds", "darwin-fixture", "spawn-helper");
+  fs.mkdirSync(runtimeRoot, { recursive: true });
+  fs.writeFileSync(path.join(runtimeRoot, "manifest.json"), "{}");
+  fs.mkdirSync(path.dirname(helper), { recursive: true });
+  fs.writeFileSync(helper, "fixture\n", { mode: 0o755 });
+
+  copyRuntimeDependencies(appOut, source);
+
+  const packagedHelper = path.join(
+    runtimeRoot,
+    "node_modules",
+    "node-pty",
+    "prebuilds",
+    "darwin-fixture",
+    "spawn-helper",
+  );
+  expect(fs.readFileSync(packagedHelper, "utf8")).toBe("fixture\n");
+  expect(fs.statSync(packagedHelper).mode & 0o111).not.toBe(0);
 });

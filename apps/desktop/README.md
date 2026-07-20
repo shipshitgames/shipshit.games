@@ -23,8 +23,9 @@ assetgen, its Codex PTY worker, ressources, and tester, installs their exact
 repo-lock-resolved direct production dependencies into an isolated runtime tree, copies
 the canonical ressources data, and installs Chromium. A hashed manifest records
 every tool bundle plus Sharp/node-pty native sidecar. `electron-builder` copies
-that directory outside ASAR so the runtime and native dependencies remain
-runnable and signable.
+that directory outside ASAR; `afterPack` restores the isolated production tree
+that Electron Builder's nested `node_modules` collector omits, before smoke
+verification and signing.
 
 The `afterPack` hook fails closed when a runtime file is absent, escapes the
 runtime root, has the wrong architecture, or is hash-mismatched. It then runs
