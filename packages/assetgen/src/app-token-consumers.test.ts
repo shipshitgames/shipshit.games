@@ -15,7 +15,8 @@ test("web imports generated Tailwind theme tokens", async () => {
   const theme = await repoFile("apps/web/app/theme.css");
 
   assert.match(globals, /@import "\.\/theme\.css";/);
-  assert.match(theme, /GENERATED FROM DESIGN\.md/);
+  assert.match(theme, /GENERATED FROM lore\/DESIGN\.md v\d+\.\d+\.\d+ hash:[a-f0-9]+/);
+  assert.doesNotMatch(theme, /for app token consumers/);
   assert.match(theme, /@theme\s*\{/);
   assert.match(theme, /--color-void: #0a0a0a;/);
   assert.match(theme, /--shadow-ember:/);
