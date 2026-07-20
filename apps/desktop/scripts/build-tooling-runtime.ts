@@ -224,7 +224,12 @@ if (!native.some((record) => record.path.includes("node-pty") && record.path.end
   throw new Error("isolated runtime is missing the node-pty spawn-helper");
 }
 for (const record of native.filter((entry) => entry.path.endsWith("spawn-helper"))) {
-  const metadata = await stat(path.join(runtimeRoot, record.path));
+  const helper = path.join(runtimeRoot, record.path);
+  // Bun's copyfile install backend preserves package contents but not the
+  // executable bit on node-pty's helper. Normalize it before manifesting and
+  // packaging, then let afterPack verify the copied app still has the mode.
+  await chmod(helper, 0o755);
+  const metadata = await stat(helper);
   if ((metadata.mode & 0o111) === 0) {
     throw new Error(`node-pty spawn-helper is not executable: ${record.path}`);
   }
