@@ -35,6 +35,14 @@ const studioApi: StudioApi = {
   // Ressources -> rules (runs @shipshitgames/ressources in the main process).
   research: (opts) => ipcRenderer.invoke(IPC_CHANNELS.studioResearch, opts),
   onResearchLog: (cb) => subscribe(IPC_CHANNELS.studioResearchLog, cb),
+  resources: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.resourcesList),
+    validate: () => ipcRenderer.invoke(IPC_CHANNELS.resourcesValidate),
+    preview: (path) => ipcRenderer.invoke(IPC_CHANNELS.resourcesPreview, { path }),
+    reveal: (path) => ipcRenderer.invoke(IPC_CHANNELS.resourcesReveal, { path }),
+    promoteSkill: (candidatePath, approve) =>
+      ipcRenderer.invoke(IPC_CHANNELS.resourcesPromoteSkill, { candidatePath, approve }),
+  },
   // Audio transcode → WebM/Opus (ffmpeg in the main process), with a live log stream.
   transcodeAudio: (opts) => ipcRenderer.invoke(IPC_CHANNELS.studioTranscodeAudio, opts),
   pickAudioFiles: () => ipcRenderer.invoke(IPC_CHANNELS.studioPickAudioFiles),

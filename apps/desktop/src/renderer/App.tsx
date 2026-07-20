@@ -14,6 +14,7 @@ import { MoodboardPane } from "./panes/MoodboardPane";
 import { MusicPane } from "./panes/MusicPane";
 import { ProjectsPane } from "./panes/ProjectsPane";
 import { ResearchPane } from "./panes/ResearchPane";
+import { ResourcesPane } from "./panes/ResourcesPane";
 import { SettingsPane } from "./panes/SettingsPane";
 import { SpritesPane } from "./panes/SpritesPane";
 import { TerminalPane } from "./panes/TerminalPane";
@@ -31,6 +32,7 @@ const PANES: Partial<Record<SectionId, ComponentType>> = {
   moodboard: MoodboardPane,
   lab: LabPane,
   research: ResearchPane,
+  resources: ResourcesPane,
 };
 
 export default function App() {

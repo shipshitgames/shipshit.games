@@ -23,6 +23,7 @@ export type SectionId =
   | "3d"
   | "moodboard"
   | "lab"
+  | "resources"
   | "research"
   | "codegen";
 export type Group = "Generators" | "Art Direction" | "Ressources" | "Codegen";
@@ -38,6 +39,7 @@ export const SECTIONS: Section[] = [
   { id: "gallery", label: "Gallery", group: "Art Direction", icon: Images, blurb: "Review and compare every generated asset in a game's pack — sprites, tiers, textures, UI." },
   { id: "moodboard", label: "Moodboard", group: "Art Direction", icon: LayoutGrid, blurb: "Per-game reference boards for notes, images, and locked visual targets." },
   { id: "lab", label: "Lab", group: "Art Direction", icon: FlaskConical, blurb: "Forge styled variants of one subject, score and tag them, then lock the winning look as the game's style target." },
+  { id: "resources", label: "Resources", group: "Ressources", icon: BookOpen, blurb: "Inventory sources, review transcript rights, validate derivatives, and promote approved skills." },
   { id: "research", label: "Rules", group: "Ressources", icon: BookOpen, blurb: "Distill a YouTube game-dev tutorial into a reusable build ruleset." },
   { id: "codegen", label: "Codegen", group: "Codegen", icon: Code2, blurb: "Plan → Review → Execute → Verify → Ship over the local CLI." },
 ];
