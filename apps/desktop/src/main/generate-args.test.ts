@@ -227,8 +227,38 @@ test("model opts append --ktx2/--no-draco/--rig only when present", () => {
     opts: { id: "golem", prompt: "a stone golem", kind: "model", ktx2: true, draco: false, rig: "mixamo" },
     target: TARGET,
   });
-  expect({ provider, kind }).toEqual({ provider: "meshy", kind: "model" });
+  expect({ provider, kind }).toEqual({ provider: "replicate", kind: "model" });
   expect(args.slice(args.indexOf("--ktx2"))).toEqual(["--ktx2", "--no-draco", "--rig", "mixamo"]);
+});
+
+test("Hunyuan model options map to assetgen flags", () => {
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: {
+      id: "golem",
+      prompt: "a stone golem",
+      kind: "model",
+      referenceImage: "/concepts/golem.png",
+      faceCount: 120000,
+      pbr: false,
+      generateType: "Geometry",
+      maxRuntimeMb: 12,
+    },
+    target: { ...TARGET, assetsDir: "/ip/packages/assets" },
+  });
+  expect(args).toContain("--assets-dir");
+  expect(args.slice(args.indexOf("--reference"))).toEqual([
+    "--reference",
+    "/concepts/golem.png",
+    "--face-count",
+    "120000",
+    "--no-pbr",
+    "--generate-type",
+    "Geometry",
+    "--max-runtime-mb",
+    "12",
+  ]);
 });
 
 test("draco defaults on for models (no --no-draco unless explicitly disabled)", () => {

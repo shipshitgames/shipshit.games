@@ -99,6 +99,9 @@ export interface AssetPipelineOptions {
   referenceImages?: readonly string[];
   /** Reproducibility seed forwarded to seedable providers (openai/fal). */
   seed?: number;
+  modelFaceCount?: number;
+  modelPbr?: boolean;
+  modelGenerateType?: "Normal" | "Geometry";
   /** Opt-in outline-tint postprocess (see `ToWebpOptions.outlineTint`). Default off. */
   outlineTint?: boolean;
   outlineTintStrength?: number;
@@ -170,6 +173,9 @@ export interface GenerateOneOptions {
   referenceImages?: readonly string[];
   /** Reproducibility seed forwarded to seedable providers (openai/fal). */
   seed?: number;
+  modelFaceCount?: number;
+  modelPbr?: boolean;
+  modelGenerateType?: "Normal" | "Geometry";
   /** Opt-in outline-tint postprocess (see `ToWebpOptions.outlineTint`). Default off. */
   outlineTint?: boolean;
   outlineTintStrength?: number;
@@ -210,6 +216,9 @@ export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOne
       model: opts.model,
       referenceImages: opts.referenceImages,
       seed: opts.seed,
+      modelFaceCount: opts.modelFaceCount,
+      modelPbr: opts.modelPbr,
+      modelGenerateType: opts.modelGenerateType,
       log: opts.log ?? (() => {}),
     }),
   );
@@ -237,7 +246,10 @@ export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOne
   const provenance = buildProvenance({
     provider: generated.provider,
     prompt: opts.prompt,
-    styleSuffix: isAudioKind(opts.kind) ? "" : STYLE_SUFFIX,
+    styleSuffix:
+      isAudioKind(opts.kind) || opts.kind === "model" || opts.kind === "3d"
+        ? ""
+        : STYLE_SUFFIX,
     date: opts.now?.() ?? new Date(),
     meta: generated.meta,
   });
@@ -292,6 +304,7 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
   let outputPath: string | undefined;
   let selectedProvider = opts.provider;
   let usedModel = opts.model;
+  let requestId: string | undefined;
 
   return withUsageAccounting(
     {
@@ -305,6 +318,7 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
         game: opts.game,
         id: opts.id,
         model: usedModel,
+        requestId,
         size: opts.size,
         outputPath,
         prompt: opts.prompt,
@@ -322,6 +336,9 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
         model: opts.model,
         referenceImages: opts.referenceImages,
         seed: opts.seed,
+        modelFaceCount: opts.modelFaceCount,
+        modelPbr: opts.modelPbr,
+        modelGenerateType: opts.modelGenerateType,
         outlineTint: opts.outlineTint,
         outlineTintStrength: opts.outlineTintStrength,
         outlineTintThreshold: opts.outlineTintThreshold,
@@ -330,6 +347,7 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
         onGenerated: (asset) => {
           selectedProvider = asset.provider;
           usedModel = asset.model;
+          requestId = asset.meta?.requestId;
         },
         log,
         onStep: opts.onStep,
@@ -339,11 +357,11 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
       outputPath = join(outputRoot, finalRelPath);
       const entry = await runStep(opts, "register", "write asset and manifest", async () => {
         await mkdir(dirname(outputPath!), { recursive: true });
-        await writeFile(outputPath!, optimized.data);
-        log(`[wrote] ${outputPath} (${(optimized.data.length / 1024).toFixed(1)} kb, ${optimized.mediaType})\n`);
         if (optimized.writeSidecars) {
           await optimized.writeSidecars({ outputRoot, relPath: finalRelPath });
         }
+        await writeFile(outputPath!, optimized.data);
+        log(`[wrote] ${outputPath} (${(optimized.data.length / 1024).toFixed(1)} kb, ${optimized.mediaType})\n`);
         const registered: AssetEntry = {
           id: opts.id,
           kind: optimized.kindOverride ?? opts.kind,

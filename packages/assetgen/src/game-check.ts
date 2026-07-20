@@ -105,6 +105,9 @@ function entryFileRefs(entry: AssetEntry): { field: string; value: string }[] {
   if (typeof entry.modelTrace?.report === "string" && entry.modelTrace.report) {
     refs.push({ field: "modelTrace.report", value: entry.modelTrace.report });
   }
+  if (typeof entry.modelTrace?.prediction === "string" && entry.modelTrace.prediction) {
+    refs.push({ field: "modelTrace.prediction", value: entry.modelTrace.prediction });
+  }
   return refs;
 }
 

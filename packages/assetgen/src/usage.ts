@@ -13,6 +13,8 @@ export interface UsageLogEvent {
   game?: string;
   id?: string;
   model?: string;
+  requestId?: string;
+  costUsd?: number;
   size?: number | string;
   outputPath?: string;
   prompt?: string;
@@ -67,6 +69,8 @@ export function toWrittenUsageEvent(event: UsageLogEvent): WrittenUsageLogEvent 
   if (event.game) written.game = event.game;
   if (event.id) written.id = event.id;
   if (event.model) written.model = event.model;
+  if (event.requestId) written.requestId = event.requestId;
+  if (event.costUsd !== undefined) written.costUsd = event.costUsd;
   if (event.size !== undefined) written.size = event.size;
   if (event.outputPath) written.outputPath = event.outputPath;
   if (event.prompt) {

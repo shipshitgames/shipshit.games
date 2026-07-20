@@ -28,8 +28,8 @@ test("provider defaults are selected by asset kind", () => {
   assert.equal(defaultProviderForKind("sprite"), "codex");
   assert.equal(defaultProviderForKind("sprite-anim"), "codex");
   assert.equal(defaultProviderForKind("music"), "suno");
-  assert.equal(defaultProviderForKind("model"), "meshy");
-  assert.equal(defaultProviderForKind("3d"), "meshy");
+  assert.equal(defaultProviderForKind("model"), "replicate");
+  assert.equal(defaultProviderForKind("3d"), "replicate");
   assert.equal(defaultProviderForKind("unknown-kind"), "codex");
 });
 
@@ -58,6 +58,7 @@ test("assetProviders zips every catalog descriptor with a runnable generate fn",
     assert.equal(provider.id, descriptor.id);
     assert.equal(provider.label, descriptor.label);
     assert.equal(provider.defaultModel, descriptor.defaultModel);
+    assert.equal(provider.defaultModels, descriptor.defaultModels);
     assert.equal(provider.key, descriptor.key);
     assert.deepEqual(provider.supports, descriptor.supports);
   }
@@ -249,15 +250,8 @@ test("generateCodex forwards prepared reference images to the local Codex CLI", 
   assert.deepEqual(recordedReferences, [reference]);
 });
 
-test("generateAsset rejects references for adapters that do not consume them", async () => {
-  await assert.rejects(
-    generateAsset("texture", "preserve this silhouette", {
-      provider: "replicate",
-      size: "1024",
-      referenceImages: ["/tmp/reference.png"],
-    }),
-    /replicate does not support reference images/,
-  );
+test("Replicate advertises reference-image support for its Hunyuan 3D lane", () => {
+  assert.equal(PROVIDER_CATALOG.replicate.referenceImages, true);
 });
 
 test("mock provider returns a valid GLB for model kinds", async () => {
@@ -337,6 +331,8 @@ test("runModelTask drives create → poll → download to a GLB", async () => {
   assert.equal(asset.mediaType, "model/gltf-binary");
   assert.equal(asset.extension, "glb");
   assert.ok(asset.data.length > 0);
+  assert.equal(asset.meta?.requestId, "task-123");
+  assert.equal((asset.providerRecord as { status: string }).status, "SUCCEEDED");
   assert.equal(polls, 2);
 });
 

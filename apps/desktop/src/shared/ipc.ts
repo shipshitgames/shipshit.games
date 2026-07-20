@@ -93,6 +93,11 @@ export interface GenerateOptions {
   ktx2?: boolean;
   draco?: boolean;
   rig?: string;
+  referenceImage?: string;
+  faceCount?: number;
+  pbr?: boolean;
+  generateType?: "Normal" | "Geometry";
+  maxRuntimeMb?: number;
 }
 
 export interface GenResult {

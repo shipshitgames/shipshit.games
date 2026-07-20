@@ -1,3 +1,4 @@
+import { mkdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { GAME_VIEW, buildPrompt } from "../style.ts";
 import { defaultProviderForKind } from "../providers.ts";
@@ -20,12 +21,18 @@ import {
   writeBillboardPreview,
 } from "../sprites.ts";
 import { assetsRootForRepo, draftsManifestPath, draftsRoot } from "../drafts.ts";
+import {
+  assertLargeModelSourceUsesLfs,
+  buildModelOptimizeReport,
+  modelSha256,
+} from "../model-trace.ts";
 import { flag, flagValues, has, intFlag, numberFlag, shortFlagValues } from "./args.ts";
 import { defaultRepo } from "./paths.ts";
+import { projectAssetsDir, selectedProject } from "./registry.ts";
 
 export async function runGenerate(argv: string[]): Promise<void> {
   const id = flag(argv, "id");
-  const prompt = flag(argv, "prompt");
+  const prompt = flag(argv, "prompt") ?? "";
   const game = flag(argv, "game", "shared")!;
   const kind = flag(argv, "kind", "sprite")!;
   const spriteMode = kind === "sprite" || kind === "sprite-anim" || has(argv, "views") || has(argv, "frames");
@@ -33,7 +40,9 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const provider = flag(argv, "provider") || defaultProviderForKind(generationKind);
   const model = flag(argv, "model");
   const size = intFlag(argv, "size", 1024);
-  const repo = flag(argv, "repo") || defaultRepo(game);
+  const repoFlag = flag(argv, "repo");
+  const repo = repoFlag || defaultRepo(game);
+  const assetsDirFlag = flag(argv, "assets-dir");
   const referenceImages = [...flagValues(argv, "reference"), ...shortFlagValues(argv, "i")].map((path) =>
     resolve(path),
   );
@@ -85,6 +94,10 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const ktx2 = has(argv, "ktx2");
   const draco = !has(argv, "no-draco");
   const rigSource = flag(argv, "rig");
+  const modelFaceCount = intFlag(argv, "face-count", 300_000);
+  const modelPbr = !has(argv, "no-pbr");
+  const modelGenerateType = flag(argv, "generate-type", "Normal") as "Normal" | "Geometry";
+  const maxRuntimeMb = numberFlag(argv, "max-runtime-mb", 20);
 
   // Outline-tint postprocess (issue #167): opt-in softening of hard black
   // silhouette lines toward the fill they enclose. Off unless --outline-tint;
@@ -93,7 +106,7 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const outlineTintStrength = numberFlag(argv, "outline-tint-strength", 0.5);
   const outlineTintThreshold = intFlag(argv, "outline-tint-threshold", 32);
 
-  if (!id || !prompt) {
+  if (!id || (!prompt.trim() && !(modelMode && referenceImages.length === 1))) {
     printGenerateUsage();
     process.exit(1);
   }
@@ -102,6 +115,13 @@ export async function runGenerate(argv: string[]): Promise<void> {
       "[assetgen] generate derives rig provenance from its provider; use model register --rig <source> for imported models",
     );
     process.exit(1);
+  }
+  if (modelMode) {
+    const { assertModelId } = await import("../model3d.ts");
+    assertModelId(id);
+  }
+  if (modelMode && modelGenerateType !== "Normal" && modelGenerateType !== "Geometry") {
+    throw new Error('--generate-type must be "Normal" or "Geometry"');
   }
 
   // Sprites augment the prompt with a sheet directive so the provider lays out
@@ -116,6 +136,15 @@ export async function runGenerate(argv: string[]): Promise<void> {
   console.log(`[assetgen] provider=${which}${model ? ` model=${model}` : ""} game=${game} kind=${kind} id=${id}`);
   console.log(`[prompt] ${full}`);
   for (const reference of referenceImages) console.log(`[reference] ${reference}`);
+
+  const project = modelMode && !repoFlag && !assetsDirFlag ? selectedProject() : undefined;
+  const modelAssetsRoot = modelMode
+    ? resolve(assetsDirFlag ?? (project ? projectAssetsDir(project) : assetsRootForRepo(repo)))
+    : undefined;
+  const assetsRoot = modelAssetsRoot ?? assetsRootForRepo(repo);
+  const modelOutput = modelAssetsRoot
+    ? { outputRoot: modelAssetsRoot, manifestPath: join(modelAssetsRoot, "assets.json") }
+    : {};
 
   const spritePostprocess: AssetPostprocessHook | undefined = spriteMode
     ? async (asset, context) => {
@@ -211,9 +240,28 @@ export async function runGenerate(argv: string[]): Promise<void> {
   // optimized/compression/animations plus a license.rig provenance record.
   const modelPostprocess: AssetPostprocessHook | undefined = modelMode
     ? async (asset) => {
-        const { optimizeGlb, MODEL_MEDIA_TYPE, MODEL_EXTENSION } = await import("../model3d.ts");
+        const {
+          assertModelRuntimeBudget,
+          optimizeGlb,
+          MODEL_MEDIA_TYPE,
+          MODEL_EXTENSION,
+        } = await import("../model3d.ts");
         const result = await optimizeGlb(asset.data, { draco, ktx2 });
+        assertModelRuntimeBudget(result, Math.round(maxRuntimeMb * 1024 * 1024));
         const rigged = result.summary.skins > 0;
+        const sourceRelPath = `sources/models/${id}.glb`;
+        const traceRelPath = `sources/models/${id}.optimize.json`;
+        const predictionRelPath = asset.providerRecord
+          ? `sources/models/${id}.prediction.json`
+          : undefined;
+        const generatedAt = new Date().toISOString();
+        const report = buildModelOptimizeReport({
+          source: asset.data,
+          sourcePath: `${id}.glb`,
+          optimized: result,
+          outputPath: `../../models/${id}.glb`,
+          generatedAt,
+        });
         return {
           data: result.data,
           mediaType: MODEL_MEDIA_TYPE,
@@ -228,18 +276,45 @@ export async function runGenerate(argv: string[]): Promise<void> {
             textures: result.summary.textures,
             skins: result.summary.skins,
             joints: result.summary.joints,
+            pbr: modelPbr && result.summary.textures > 0,
+            ...(asset.provider === "replicate" ? { faceCount: modelFaceCount } : {}),
+            modelTrace: {
+              source: sourceRelPath,
+              report: traceRelPath,
+              ...(predictionRelPath ? { prediction: predictionRelPath } : {}),
+              sourceSha256: modelSha256(asset.data),
+              optimizedSha256: modelSha256(result.data),
+            },
           },
           licenseExtra: {
             type: "ai-generated",
             terms: licenseTerms ?? "review 3D model + rig license scope before shipping",
             ...(licenseUrl ? { url: licenseUrl } : {}),
-            generatedAt: new Date().toISOString(),
+            generatedAt,
             rig: {
               source: rigged ? asset.provider : "none",
               rigged,
               joints: result.summary.joints,
               animations: result.animations,
             },
+          },
+          writeSidecars: async ({ outputRoot }) => {
+            const sourcePath = join(outputRoot, sourceRelPath);
+            const reportPath = join(outputRoot, traceRelPath);
+            await assertLargeModelSourceUsesLfs({
+              assetsRoot,
+              sourcePath: sourceRelPath,
+              bytes: asset.data.length,
+            });
+            await mkdir(join(outputRoot, "sources", "models"), { recursive: true });
+            await writeFile(sourcePath, asset.data);
+            await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n");
+            if (predictionRelPath) {
+              await writeFile(
+                join(outputRoot, predictionRelPath),
+                JSON.stringify(asset.providerRecord, null, 2) + "\n",
+              );
+            }
           },
         };
       }
@@ -248,7 +323,6 @@ export async function runGenerate(argv: string[]): Promise<void> {
   // Draft runs divert the entire asset tree (asset + sidecars + manifest) under
   // src/assets/drafts/. The staging layout mirrors production exactly, so the
   // recorded relative paths are already the post-promote paths.
-  const assetsRoot = assetsRootForRepo(repo);
   const draftOutput = draft
     ? { outputRoot: draftsRoot(assetsRoot), manifestPath: draftsManifestPath(assetsRoot) }
     : {};
@@ -265,11 +339,15 @@ export async function runGenerate(argv: string[]): Promise<void> {
     referenceImages,
     size,
     seed,
+    modelFaceCount,
+    modelPbr,
+    modelGenerateType,
     outlineTint,
     outlineTintStrength,
     outlineTintThreshold,
     human,
     repo,
+    ...modelOutput,
     ...draftOutput,
     usageLogPath: usageLog,
     postprocess: spriteMode
@@ -299,7 +377,8 @@ function printGenerateUsage(): void {
       "           [--model <model>] [--size 1024] [--reference <image>|-i <image...>] [--repo <game-repo-path>] [--usage-log <path|off>] [--dry-run]\n" +
       "           [--views front,side,back] [--frames 1] [--fps 8] [--anchor 0.5,1] [--scale 1]\n" +
       "           [--category music|sfx|voice] [--volume 1] [--loop|--no-loop] [--bitrate 128] [--normalize]\n" +
-      "           [--ktx2] [--no-draco]\n" +
+      "           [--ktx2] [--no-draco] [--face-count 300000] [--no-pbr] [--generate-type Normal|Geometry]\n" +
+      "           [--max-runtime-mb 20] [--assets-dir <project/packages/assets>]\n" +
       "           [--outline-tint] [--outline-tint-strength 0.5] [--outline-tint-threshold 32]\n" +
       "           [--license <terms>] [--license-url <url>] [--seed <n>] [--authored] [--edit-kind <label>]\n" +
       "           [--draft]  (stage under src/assets/drafts/; publish later with `assetgen promote`)\n" +

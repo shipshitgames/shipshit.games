@@ -72,6 +72,27 @@ test("filesForEntry returns the asset plus its sidecars, de-duped and blank-free
   );
   // A sidecar that happens to equal the asset path collapses to one entry.
   assert.deepEqual(filesForEntry(spriteEntry("c", { preview: "sprites/c.webp" })), ["sprites/c.webp"]);
+  assert.deepEqual(
+    filesForEntry(
+      spriteEntry("model", {
+        kind: "model",
+        path: "models/model.glb",
+        modelTrace: {
+          source: "sources/models/model.glb",
+          report: "sources/models/model.optimize.json",
+          prediction: "sources/models/model.prediction.json",
+          sourceSha256: "source",
+          optimizedSha256: "optimized",
+        },
+      }),
+    ),
+    [
+      "models/model.glb",
+      "sources/models/model.glb",
+      "sources/models/model.optimize.json",
+      "sources/models/model.prediction.json",
+    ],
+  );
 });
 
 test("path helpers nest drafts under the assets root", () => {

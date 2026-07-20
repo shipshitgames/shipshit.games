@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { DEFAULT_FAL_MODEL, FAL_IMAGE_KINDS, FAL_MODELS } from "./fal";
+import { HUNYUAN_3D_MODEL } from "./replicate";
 import {
   AUDIO_KINDS,
   DEFAULT_PROVIDER_BY_KIND,
@@ -85,6 +86,13 @@ test("every grouped kind has an EXPLICIT route — the #194 drift class, caught 
 test("the fal descriptor carries the model catalog and its default model", () => {
   assert.equal(PROVIDER_CATALOG.fal.models, FAL_MODELS);
   assert.equal(PROVIDER_CATALOG.fal.defaultModel, DEFAULT_FAL_MODEL);
+});
+
+test("model kinds route to Replicate's Hunyuan 3D default", () => {
+  assert.equal(DEFAULT_PROVIDER_BY_KIND.model, "replicate");
+  assert.equal(DEFAULT_PROVIDER_BY_KIND["3d"], "replicate");
+  assert.equal(PROVIDER_CATALOG.replicate.defaultModels?.model, HUNYUAN_3D_MODEL);
+  assert.equal(PROVIDER_CATALOG.replicate.defaultModels?.["3d"], HUNYUAN_3D_MODEL);
 });
 
 test("keyed providers describe a key, codex/mock do not", () => {
