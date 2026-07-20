@@ -3,13 +3,14 @@ import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { basename, dirname, relative, resolve, sep } from "node:path";
 import { pathExists } from "./library";
 import type { DerivativeManifest, SourceManifest, TranscriptResource } from "./types";
-import { isPathInside, packageRoot, schemasDir } from "./paths";
+import { isPathInside, packageRoot, schemasDir as defaultSchemasDir } from "./paths";
 import { validateValue, type JsonSchema } from "./schema";
 
 export interface PromoteSkillOptions {
   candidateManifestPath: string;
   libraryRoot?: string;
   skillsRoot?: string;
+  schemasRoot?: string;
   dryRun?: boolean;
   approve?: boolean;
 }
@@ -67,8 +68,8 @@ async function readJson(path: string, label: string): Promise<unknown> {
   }
 }
 
-async function readSchema(name: string): Promise<JsonSchema> {
-  return (await readJson(resolve(schemasDir, name), `${name} schema`)) as JsonSchema;
+async function readSchema(schemasRoot: string, name: string): Promise<JsonSchema> {
+  return (await readJson(resolve(schemasRoot, name), `${name} schema`)) as JsonSchema;
 }
 
 function assertSchema(value: unknown, schema: JsonSchema, label: string): void {
@@ -351,6 +352,7 @@ export async function promoteSkill(options: PromoteSkillOptions): Promise<Promot
 
   const libraryRoot = resolve(options.libraryRoot ?? packageRoot);
   const skillsRoot = resolve(options.skillsRoot ?? defaultSkillsRoot);
+  const schemasRoot = resolve(options.schemasRoot ?? defaultSchemasDir);
   const candidateInput = resolve(options.candidateManifestPath);
   const candidateManifestPath = isPathInside(libraryRoot, candidateInput)
     ? candidateInput
@@ -366,9 +368,9 @@ export async function promoteSkill(options: PromoteSkillOptions): Promise<Promot
   }
 
   const [derivativeSchema, transcriptSchema, sourceSchema] = await Promise.all([
-    readSchema("derivative.schema.json"),
-    readSchema("transcript-resource.schema.json"),
-    readSchema("source.schema.json"),
+    readSchema(schemasRoot, "derivative.schema.json"),
+    readSchema(schemasRoot, "transcript-resource.schema.json"),
+    readSchema(schemasRoot, "source.schema.json"),
   ]);
   const manifestValue = await readJson(candidateManifestPath, "candidate manifest");
   assertSchema(manifestValue, derivativeSchema, "candidate");

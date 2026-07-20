@@ -10,6 +10,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { verifyPackagedTooling } = require("./verify-packaged-tooling.cjs");
 
 exports.default = async function afterPack(context) {
   const root = context.appOutDir;
@@ -41,10 +42,10 @@ exports.default = async function afterPack(context) {
       );
     }
     console.log(`[after-pack] node-pty OK — pty.node + spawn-helper (mode ${mode.toString(8)}) unpacked`);
-    return;
+  } else {
+    console.log("[after-pack] node-pty OK — pty.node unpacked");
   }
-
-  console.log("[after-pack] node-pty OK — pty.node unpacked");
+  verifyPackagedTooling(root, context.outDir);
 };
 
 // node-pty can sit under nested node_modules (Bun's symlink layout, dereferenced by
@@ -69,3 +70,5 @@ function findNodePtyRelease(root) {
   }
   return null;
 }
+
+module.exports.findNodePtyRelease = findNodePtyRelease;

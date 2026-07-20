@@ -49,6 +49,19 @@ test("baseline args replicate the studio:generate spawn contract", () => {
   ]);
 });
 
+test("packaged executable mode omits the development source entrypoint", () => {
+  const result = buildGenerateArgs({
+    assetgenArgs: [],
+    settings: normalizeSettings({}),
+    opts: { kind: "sprite", id: "packaged", prompt: "runtime smoke" },
+    target: TARGET,
+  });
+
+  expect(result.args[0]).toBe("--provider");
+  expect(result.args).not.toContain(ASSETGEN);
+  expect(result.args).toContain("packaged");
+});
+
 test("optional flags are omitted when opts leaves them unset", () => {
   const { args } = buildGenerateArgs({
     assetgenPath: ASSETGEN,

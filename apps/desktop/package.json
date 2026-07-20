@@ -14,7 +14,9 @@
   "scripts": {
     "dev": "node scripts/rebuild-native.cjs && vite",
     "build": "vite build",
-    "package:mac": "node scripts/rebuild-native.cjs && bun run build && electron-builder --mac dmg --publish never",
+    "build:runtime": "bun scripts/build-tooling-runtime.ts",
+    "package:dir": "node scripts/rebuild-native.cjs && bun run build:runtime && bun run build && electron-builder --mac dir --publish never",
+    "package:mac": "node scripts/rebuild-native.cjs && bun run build:runtime && bun run build && electron-builder --mac dmg --publish never",
     "preview": "vite preview",
     "start": "node scripts/rebuild-native.cjs && bun run build && NODE_ENV=production electron .",
     "postinstall": "node scripts/rebuild-native.cjs --soft",
@@ -49,6 +51,15 @@
     ],
     "asarUnpack": [
       "**/node_modules/node-pty/**"
+    ],
+    "extraResources": [
+      {
+        "from": ".runtime",
+        "to": "tooling-runtime",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "afterPack": "./scripts/after-pack.cjs",
     "mac": {

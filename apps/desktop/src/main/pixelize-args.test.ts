@@ -19,6 +19,16 @@ test("buildPixelizeArgs emits the pixelize verb with grid/cutout/palette default
   expect({ height, bg, cutout, palette }).toEqual({ height: 110, bg: 42, cutout: "auto", palette: "doom" });
 });
 
+test("packaged executable mode starts directly with the pixelize verb", () => {
+  const result = buildPixelizeArgs({
+    assetgenArgs: [],
+    inPath: IN,
+    outPath: OUT,
+  });
+  expect(result.args[0]).toBe("pixelize");
+  expect(result.args).not.toContain(ASSETGEN);
+});
+
 test("buildPixelizeArgs honors valid options", () => {
   const { args } = buildPixelizeArgs({
     assetgenPath: ASSETGEN, inPath: IN, outPath: OUT,

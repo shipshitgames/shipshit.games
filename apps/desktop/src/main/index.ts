@@ -20,6 +20,10 @@ import { createArtLabStore } from "./art-lab";
 import { createMapsStore } from "./maps";
 import { createGallery } from "./gallery";
 import { createGymLauncher } from "./gyms";
+import {
+  missingToolingRuntimePaths,
+  resolveToolingRuntime,
+} from "./tooling-runtime";
 import { DEFAULT_GAME } from "./settings";
 import { buildGenerateArgs } from "./generate-args";
 import { buildPixelizeArgs, decodePixelizeDataUrl, parsePixelizeCutout } from "./pixelize-args";
@@ -69,33 +73,38 @@ if (process.env.SSG_DESKTOP_E2E_USER_DATA) {
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5273";
 const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
 
-// The bundled main lives at <repo>/apps/desktop/dist/main, so __dirname
-// no longer points at the package. app.getAppPath() resolves to <repo>/apps/desktop
-// in dev regardless of bundle depth; the studio repo root is two levels up.
-const STUDIO_REPO = path.resolve(app.getAppPath(), "..", "..");
-const WORKSPACE = path.join(STUDIO_REPO, "..");
+const toolingRuntime = resolveToolingRuntime({
+  isPackaged: app.isPackaged,
+  appPath: app.getAppPath(),
+  resourcesPath: process.resourcesPath,
+  userDataPath: app.getPath("userData"),
+  homePath: os.homedir(),
+});
+fs.mkdirSync(toolingRuntime.workRoot, { recursive: true });
+
+// Source development discovers the sibling workspace. Installed builds use
+// only registered projects and writable userData; no path points back at this
+// repository or a workspace node_modules layout.
+const STUDIO_REPO = toolingRuntime.repoRoot ?? toolingRuntime.workRoot;
+const WORKSPACE = toolingRuntime.repoRoot
+  ? path.join(toolingRuntime.repoRoot, "..")
+  : toolingRuntime.workRoot;
 const DEADROT_GAMES_ROOT = path.join(WORKSPACE, "deadrotcom", "apps", "games");
 const LEGACY_GAMES_ROOT = path.join(WORKSPACE, "games");
 const GAMES_ROOT = fs.existsSync(DEADROT_GAMES_ROOT) ? DEADROT_GAMES_ROOT : LEGACY_GAMES_ROOT;
-const ASSETGEN = path.join(STUDIO_REPO, "packages", "assetgen", "src", "cli.ts");
-const RESSOURCES_ROOT = path.join(STUDIO_REPO, "packages", "ressources");
-const RESSOURCES = path.join(RESSOURCES_ROOT, "src", "cli.ts");
-// The Studio shells out to `bun` against TS source in the monorepo, so it must run
-// from a checked-out repo (dev via `electron .`). If STUDIO_REPO mis-resolves — e.g.
-// a packaged .dmg, where app.getAppPath() points inside the asar — surface it once at
-// startup instead of failing silently deep inside a generate/research/terminal handler.
-if (!fs.existsSync(ASSETGEN)) {
+const RESSOURCES_ROOT = toolingRuntime.resourcesRoot;
+const missingRuntimePaths = missingToolingRuntimePaths(toolingRuntime);
+if (missingRuntimePaths.length > 0) {
   console.warn(
-    `[studio] assetgen CLI not found at ${ASSETGEN} (STUDIO_REPO=${STUDIO_REPO}). ` +
-      "The Studio must run from a monorepo checkout (bun run dev), not a packaged build; " +
-      "generate/research/terminal/game-discovery will be unavailable.",
+    `[studio] tooling runtime is incomplete (${toolingRuntime.mode}): ` +
+      missingRuntimePaths.join(", "),
   );
 }
-const GAME_SLUGS = readSharedGameSlugs(STUDIO_REPO);
+const GAME_SLUGS = toolingRuntime.repoRoot ? readSharedGameSlugs(toolingRuntime.repoRoot) : [];
 const gameDir = (g) => path.join(GAMES_ROOT, g === "shared" ? DEFAULT_GAME : g);
 const terminalManager = createTerminalManager({
   pty,
-  cwd: STUDIO_REPO,
+  cwd: toolingRuntime.terminalCwd,
   env: process.env,
   shell: terminalShell(process.platform, process.env),
 });
@@ -136,8 +145,16 @@ function runResourcesCommand(
 ): Promise<{ code: number | null; stdout: string; stderr: string; log: string }> {
   return new Promise((resolve) => {
     let child;
+    const commandArgs = [
+      ...toolingRuntime.ressources.argsPrefix,
+      ...args,
+      ...(args.includes("--root") ? [] : ["--root", RESSOURCES_ROOT]),
+    ];
     try {
-      child = spawn("bun", [RESSOURCES, ...args], { cwd: STUDIO_REPO, env: process.env });
+      child = spawn(toolingRuntime.ressources.command, commandArgs, {
+        cwd: toolingRuntime.ressources.cwd,
+        env: { ...process.env, ...toolingRuntime.ressources.env },
+      });
     } catch (error) {
       const message = `spawn failed: ${error}\n`;
       send?.(message);
@@ -410,14 +427,24 @@ ipcMain.handle(IPC_CHANNELS.studioTranscodeAudio, async (e, opts) => {
 ipcMain.handle(IPC_CHANNELS.studioGenerate, async (e, opts) => {
   const settings = readSettings();
   const target = resolveProjectTarget(opts);
-  const { args, provider, game, kind, repo, model } = buildGenerateArgs({ assetgenPath: ASSETGEN, settings, opts, target });
+  const { args, provider, game, kind, repo, model } = buildGenerateArgs({
+    assetgenArgs: toolingRuntime.assetgen.argsPrefix,
+    settings,
+    opts,
+    target,
+  });
   const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send(IPC_CHANNELS.studioGenLog, chunk); };
   send(`$ assetgen --provider ${provider} --game ${game} --kind ${kind} --id ${opts?.id}${model ? ` --model ${model}` : ""}\n`);
   send(`[repo] ${repo}\n`);
   send(`[manifest] ${target.manifestPath}\n`);
   return await new Promise((resolve) => {
     let child;
-    try { child = spawn("bun", args, { cwd: STUDIO_REPO }); }
+    try {
+      child = spawn(toolingRuntime.assetgen.command, args, {
+        cwd: target.repoPath,
+        env: { ...process.env, ...toolingRuntime.assetgen.env },
+      });
+    }
     catch (err) { send(`spawn failed: ${err}\n`); return resolve({ ok: false, log: String(err), path: null, dataUrl: null }); }
     let buf = "";
     const onData = (d) => { const s = d.toString(); buf += s; send(s); };
@@ -462,10 +489,20 @@ ipcMain.handle(IPC_CHANNELS.studioPixelize, async (_e, payload = {}) => {
   const outPath = path.join(dir, "out.webp");
   try {
     fs.writeFileSync(inPath, source.buffer);
-    const { args, height, cutout } = buildPixelizeArgs({ assetgenPath: ASSETGEN, inPath, outPath, opts: payload });
+    const { args, height, cutout } = buildPixelizeArgs({
+      assetgenArgs: toolingRuntime.assetgen.argsPrefix,
+      inPath,
+      outPath,
+      opts: payload,
+    });
     const run = await new Promise<{ code: number | null; log: string }>((resolve) => {
       let child;
-      try { child = spawn("bun", args, { cwd: STUDIO_REPO }); }
+      try {
+        child = spawn(toolingRuntime.assetgen.command, args, {
+          cwd: toolingRuntime.assetgen.cwd,
+          env: { ...process.env, ...toolingRuntime.assetgen.env },
+        });
+      }
       catch (err) { return resolve({ code: -1, log: `spawn failed: ${err}` }); }
       let buf = "";
       const onData = (d) => { buf += d.toString(); };
@@ -585,7 +622,14 @@ ipcMain.handle(IPC_CHANNELS.resourcesPromoteSkill, async (e, payload = {}) => {
     const mode = approve ? "--approve" : "--dry-run";
     send(`$ ressources promote-skill --candidate ${payload.candidatePath} ${mode}\n`);
     const result = await runResourcesCommand(
-      ["promote-skill", "--candidate", candidatePath, mode],
+      [
+        "promote-skill",
+        "--candidate",
+        candidatePath,
+        mode,
+        "--skills-root",
+        toolingRuntime.skillsRoot,
+      ],
       send,
       120_000,
     );
@@ -605,21 +649,41 @@ ipcMain.handle(IPC_CHANNELS.resourcesPromoteSkill, async (e, payload = {}) => {
   }
 });
 
-// Ressources -> rules: drives @shipshitgames/ressources over a streaming log, same shape as
-// studio:generate. Writes the ruleset into the repo under docs/rules/ by default.
+// Ressources -> rules: drives @shipshitgames/ressources over a streaming log,
+// same shape as studio:generate. Installed builds write into userData/tooling;
+// development keeps the historical repository rules directory.
 ipcMain.handle(IPC_CHANNELS.studioResearch, async (e, opts) => {
   // Ressources only distills with codex | mock; ignore the image-gen default provider.
   const provider = opts?.provider === "mock" ? "mock" : "codex";
   const url = (opts?.url || "").trim();
   const slug = (opts?.slug || "ruleset").replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
-  const out = path.join(STUDIO_REPO, "docs", "rules", `${slug}.md`);
+  const rulesRoot = toolingRuntime.repoRoot
+    ? path.join(toolingRuntime.repoRoot, "docs", "rules")
+    : path.join(toolingRuntime.workRoot, "rules");
+  const out = path.join(rulesRoot, `${slug}.md`);
   const send = (chunk) => { if (!e.sender.isDestroyed()) e.sender.send(IPC_CHANNELS.studioResearchLog, chunk); };
   if (!url) { send("no url provided\n"); return { ok: false, log: "no url", path: null, rules: null }; }
-  const args = [RESSOURCES, "distill", "--url", url, "--provider", provider, "--out", out];
+  const args = [
+    ...toolingRuntime.ressources.argsPrefix,
+    "distill",
+    "--url",
+    url,
+    "--provider",
+    provider,
+    "--out",
+    out,
+    "--root",
+    RESSOURCES_ROOT,
+  ];
   send(`$ ressources distill --url ${url} --provider ${provider} --out ${out}\n`);
   return await new Promise((resolve) => {
     let child;
-    try { child = spawn("bun", args, { cwd: STUDIO_REPO, env: process.env }); }
+    try {
+      child = spawn(toolingRuntime.ressources.command, args, {
+        cwd: toolingRuntime.ressources.cwd,
+        env: { ...process.env, ...toolingRuntime.ressources.env },
+      });
+    }
     catch (err) { send(`spawn failed: ${err}\n`); return resolve({ ok: false, log: String(err), path: null, rules: null }); }
     let buf = "";
     const onData = (d) => { const s = d.toString(); buf += s; send(s); };

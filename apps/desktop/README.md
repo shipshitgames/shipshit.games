@@ -2,6 +2,56 @@
 
 Electron studio cockpit for Ship Shit Games.
 
+## Self-contained tooling runtime
+
+Asset generation, ressources, and tester commands share one resolution contract
+in `src/main/tooling-runtime.ts`:
+
+| Mode | Command | Entrypoint/data |
+| --- | --- | --- |
+| Development | `bun` | Canonical `packages/{assetgen,ressources,tester}/src/cli.ts` files in this checkout |
+| Installed app | Bundled Bun runtime + production bundles | `Contents/Resources/tooling-runtime`, with no source checkout or workspace `node_modules` dependency |
+
+Every handler appends the same CLI arguments after the resolved command prefix.
+Installed builds also use the packaged read-only ressources library and pinned
+Playwright Chromium. Mutable rules and promoted skills go under Electron
+`userData/tooling` and `userData/skills`; registered game repositories remain
+the only asset output targets.
+
+`bun run build:runtime` copies an architecture-matched Bun executable, bundles
+assetgen, its Codex PTY worker, ressources, and tester, installs their exact
+repo-lock-resolved direct production dependencies into an isolated runtime tree, copies
+the canonical ressources data, and installs Chromium. A hashed manifest records
+every tool bundle plus Sharp/node-pty native sidecar. `electron-builder` copies
+that directory outside ASAR so the runtime and native dependencies remain
+runnable and signable.
+
+The `afterPack` hook fails closed when a runtime file is absent, escapes the
+runtime root, has the wrong architecture, or is hash-mismatched. It then runs
+from an isolated temporary directory with a sanitized `PATH`:
+
+- the bundled Codex PTY worker against node-pty and its spawn helper;
+- a keyless assetgen mock generation that exercises Sharp and registers output;
+- ressources validation against the packaged library;
+- a real tester run against a local canvas using packaged Chromium, recording
+  JSON and Markdown reports.
+
+The smoke record is written to
+`apps/desktop/out/runtime-smoke-<arch>.json`. Build an unpacked app for the
+fastest packaging proof:
+
+```bash
+cd apps/desktop
+bun run package:dir
+```
+
+Some provider features intentionally remain external tools: Codex generation
+requires an installed/authenticated `codex` CLI, media conversion requires
+`ffmpeg`/`ffprobe`, YouTube capture requires `yt-dlp`, and optional enhancement
+commands may require `rembg`, Real-ESRGAN, or libwebp tools. Missing optional
+tools must surface explicit command errors; the packaged mock, pixelize,
+ressources inventory, and tester smoke paths do not depend on them.
+
 ## Terminal foundation
 
 The desktop app runs a real shell through Electron IPC:
@@ -111,9 +161,11 @@ bun run dev
 
 ## Ressources (Rules) pane
 
-The Rules pane shells out to `packages/ressources/src/cli.ts`; it should keep
-using the package CLI rather than duplicating transcript capture or distillation
-logic in Electron.
+The Rules pane always uses the `@shipshitgames/ressources` CLI contract rather
+than duplicating transcript capture or distillation logic in Electron. Source
+development resolves that contract to `packages/ressources/src/cli.ts`;
+installed builds resolve it to the signed runtime executable and packaged
+read-only library.
 
 ```bash
 brew tap shipshitgames/tap
@@ -123,8 +175,8 @@ brew install --cask shipshitgames-studio
 Build the macOS release artifact (`asarUnpack` keeps `node-pty` unpacked so the
 native addon and `spawn-helper` remain on disk inside the app bundle). The
 `afterPack` hook (`scripts/after-pack.cjs`) then asserts the unpacked
-`spawn-helper` is present and still executable, failing the build before a broken
-`.dmg` can ship:
+`spawn-helper` and the complete tooling runtime are executable, and runs the
+isolated packaged smoke before a broken `.dmg` can ship:
 
 ```bash
 bun install

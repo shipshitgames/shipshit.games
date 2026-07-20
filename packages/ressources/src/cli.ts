@@ -60,11 +60,13 @@ function boolFlag(name: string): boolean {
 /** Resolve manifest directories and their path-provenance base from one library root. */
 function libraryOptions(): InventoryOptions & RulesReportOptions {
   const root = resolve(flag("root") ?? packageRoot);
+  const runtimeSchemasRoot = process.env.RESSOURCES_SCHEMAS_ROOT?.trim();
   return {
     sourcesDir: resolve(root, "sources"),
     transcriptsDir: resolve(root, "transcripts"),
     derivativesDir: resolve(root, "derivatives"),
     contentRoot: root,
+    ...(runtimeSchemasRoot ? { schemasDir: resolve(runtimeSchemasRoot) } : {}),
   };
 }
 
@@ -354,6 +356,7 @@ async function run(): Promise<void> {
         candidateManifestPath,
         libraryRoot: flag("root") ? resolve(flag("root")!) : undefined,
         skillsRoot: flag("skills-root") ? resolve(flag("skills-root")!) : undefined,
+        schemasRoot: process.env.RESSOURCES_SCHEMAS_ROOT?.trim() || undefined,
         dryRun: boolFlag("dry-run"),
         approve: boolFlag("approve"),
       });
