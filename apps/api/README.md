@@ -11,7 +11,8 @@ other brands (deadrot) can run the same image with different env on the same hos
 | `GET /health` | public | liveness + brand name |
 | `GET /v1/assets` | Clerk JWT | Asset Lab gallery (metadata) |
 | `GET /v1/assets/:id/file` | Clerk JWT | compatibility asset file route; redirects to CDN or streams bytes |
-| `POST /v1/assets/generate` | Clerk JWT | nano-banana-2 sprite generation |
+| `POST /v1/assets/generate` | Clerk JWT | durable nano-banana-2 sprite generation |
+| `GET /v1/assets/generate/:jobId` | Clerk JWT | owner-scoped generation job state/result |
 | `POST /v1/assets/:id/slice` | Clerk JWT | slice a generated pose sheet into frame assets |
 | `POST /v1/assets/zip` | Clerk JWT | zip selected asset files for download |
 | `GET /v1/stats/commits` | Clerk JWT | commit activity from GitHub pushes |
@@ -35,6 +36,7 @@ server-side and forwards the caller's token (see `apps/app/lib/api.ts`).
 | `STRIPE_WEBHOOK_SECRET` | for webhook | from Stripe dashboard endpoint config |
 | `GITHUB_WEBHOOK_SECRET` | for webhook | repo/org webhook shared secret |
 | `REPLICATE_API_TOKEN` | for generate | falls back to the `shipshit-replicate` keychain entry locally |
+| `GENERATION_INCLUDED_CREDITS` | no | included credits per reset period; defaults to 30 |
 | `ASSET_STORAGE_BUCKET` | no | enables object storage for new Asset Lab images |
 | `ASSET_STORAGE_REGION` | with storage | S3/R2 region; falls back to `AWS_REGION`, `AWS_DEFAULT_REGION`, then `us-east-1` |
 | `ASSET_STORAGE_ENDPOINT` | no | S3-compatible endpoint for R2/MinIO; omit for AWS S3 |
@@ -58,6 +60,18 @@ fallback and stores image bytes in Postgres. When it is set, new generations are
 uploaded to object storage under `ASSET_STORAGE_PREFIX/<asset-id>.png`; Postgres
 stores metadata, object key, media type, byte size, and optional CDN URL. Existing
 rows with inline bytes continue to work through `/v1/assets/:id/file`.
+
+Generation requests require an `Idempotency-Key` header. The API reserves
+credits inside a per-owner Postgres transaction before provider work, persists
+the job and each Replicate prediction, and returns `jobId` with the normal
+response. A replacement worker or retried request can reclaim an expired lease
+and resume the persisted provider prediction instead of creating duplicate
+spend. Included credits reset at the Studio Pass renewal (calendar-month
+fallback) and burn before non-expiring purchased credits; BYOK jobs use the
+same ledger with a reduced platform-fee cost. Stripe credit-pack
+fulfillment and encrypted user provider keys are intentionally owned by #331.
+New reservations also reap abandoned 24-hour-old leases and release or expire
+their held credits, so a permanently lost client cannot strand balance forever.
 
 ## Local dev
 
