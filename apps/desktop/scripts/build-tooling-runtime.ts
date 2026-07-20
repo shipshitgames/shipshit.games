@@ -200,6 +200,10 @@ await copyFile(process.execPath, bunExecutable);
 await chmod(bunExecutable, 0o755);
 await Promise.all(tools.map(buildBundle));
 const dependencies = await installRuntimeDependencies();
+// Bun's hoisted install creates absolute command shims back to the build
+// workspace. Runtime tools resolve packages directly and never need .bin, so
+// remove those escaping symlinks from the production artifact.
+await rm(path.join(runtimeRoot, "node_modules", ".bin"), { recursive: true, force: true });
 await copyRessourcesLibrary();
 await installChromium();
 
