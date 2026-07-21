@@ -132,6 +132,28 @@ test("checked-in space shooter blueprint matches Starblight's genre", async () =
   );
 });
 
+test("checked-in strategy campaign blueprint matches Warline's genres", async () => {
+  const blueprints = await loadBlueprints(repoSkillsDir);
+  const blueprint = selectBlueprint(blueprints, "Strategy Hub");
+
+  assert.equal(blueprint?.gameType, "strategy-campaign");
+  assert.equal(blueprint?.skill, "build-strategy-campaign-game");
+  assert.deepEqual(
+    blueprint?.assetClasses
+      .filter((assetClass) => assetClass.mvp)
+      .map((assetClass) => assetClass.category),
+    ["model", "ui", "vfx", "music"],
+  );
+  assert.ok(
+    blueprint?.mvpSlice.includes("Fortify, Muster, Deploy, and Recon commands"),
+  );
+  assert.ok(blueprint?.mvpSlice.includes("LIVE PartyKit-ready transport seam"));
+  assert.equal(
+    selectBlueprint(blueprints, "Persistent Strategy Campaign")?.gameType,
+    "strategy-campaign",
+  );
+});
+
 test("buildPlan orders MVP-first by priority, tags coverage + summary", () => {
   const plan = buildPlan({
     project: "deadrot",
