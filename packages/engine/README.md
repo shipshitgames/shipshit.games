@@ -92,8 +92,60 @@ projectiles.spawn({
 - **`CameraRig` + `firstPersonPointerLock`** — the camera seam. Player systems read `rig.body.position` / `rig.facing`; `rig.camera` is render/projection only.
 - **`InputSystem` + movement bindings** — DOM event lifecycle and WASD/arrow movement intent; genre verbs stay game-side.
 - **`HudSystem<TState>`** — typed snapshot/listener shell for React HUDs without making React part of the engine loop.
+- **`GymHarness`** — shared character/element/playground development gyms with animation scrub/cycle state, editable collision/attack overlays, persisted hit frames, and typed tuning knobs. Games supply their own assets and entities; UI remains consumer-side.
 - **`FxSystem` / `ProjectilesSystem` / `PickupsSystem`** — shared transient entity lifecycles with game-supplied content tables and collision/collection policy.
 - **`loadLdtkProject` + `FixedSpawnProvider`** — the level seam: import an [LDtk](https://ldtk.io) (`deepnight/ldtk`, MIT) export into the native arena model — IntGrid → colliders, entity layer → spawn points, tile/auto layers → render-ready tiles.
+
+## Shared development gyms
+
+Define game-specific assets and entities once, then mount the same standard
+character, element, and playground scaffolds in any game or studio UI:
+
+```ts
+import { createGymHarness, type GymGameDefinition } from '@shipshitgames/engine'
+import { FileGymPersistence } from '@shipshitgames/engine/gym/file'
+
+const definition: GymGameDefinition = {
+  id: 'my-game',
+  entities: [
+    {
+      id: 'hero',
+      assetId: 'hero-sheet',
+      clips: {
+        idle: { frames: [0, 1], fps: 4 },
+        attack: { frames: [2, 3, 4], fps: 10, loop: false, hitFrames: [3] },
+      },
+      bounds: [
+        { id: 'body', kind: 'collision', rect: { x: 6, y: 4, width: 18, height: 26 } },
+        { id: 'blade', kind: 'attack', rect: { x: 22, y: 8, width: 14, height: 10 } },
+      ],
+      parameters: { speed: { value: 5, min: 0, max: 10, step: 0.5 } },
+    },
+  ],
+  scaffolds: {
+    character: { entityIds: ['hero'] },
+    element: { entityIds: ['hero'] },
+    playground: { entityIds: ['hero'] },
+  },
+}
+
+const persistence = new FileGymPersistence({ rootDir: '/path/to/my-game' })
+const gym = await createGymHarness({ definition, persistence })
+gym.subscribe(renderGymUi)
+gym.selectClip('attack')
+gym.scrub(1)
+gym.editBound('body', { x: 5, y: 4, width: 20, height: 26 })
+gym.setHitFrame(2, true)
+gym.setParameter('speed', 6.5)
+await gym.save()
+```
+
+The Node adapter writes atomically to `data/gyms/<game-id>.json` by default.
+That versioned `GymTuningData` is the same record the game loads at runtime;
+browser or desktop consumers can inject another `GymPersistence` without
+changing the harness. Attack overlays are active only on the selected clip's
+persisted hit frames, so the editor snapshot and runtime hit-window data stay
+aligned.
 
 ## Levels (LDtk import seam)
 
