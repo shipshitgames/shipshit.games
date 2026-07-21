@@ -5,7 +5,7 @@ import { buildPrompt, STYLE_SUFFIX } from "./style.ts";
 import { assetProviders, generateAsset } from "./providers.ts";
 import type { AssetKind, GeneratedAsset, ProviderId } from "./providers.ts";
 import { toWebpDetailed } from "./postprocess.ts";
-import { serializeColorGamutReport } from "./soft-grade.ts";
+import { serializeColorGamutReport } from "./soft-grade";
 import { register, REQUIRED_LICENSE_FIELDS } from "./manifest.ts";
 import type { AssetEntry, AssetLicenseRecord } from "./manifest.ts";
 import { buildProvenance } from "./provenance.ts";

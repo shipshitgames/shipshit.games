@@ -8,7 +8,7 @@
 
 import sharp from "sharp";
 
-import { GRADE_PARAMS } from "./style.ts";
+import { GRADE_PARAMS } from "./style.generated";
 
 export interface SoftGradeConfig {
   /** Interpolation strength from the source toward the canonical range (0..1). */

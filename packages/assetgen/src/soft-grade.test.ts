@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import sharp from "sharp";
 
-import { canonicalSoftGradeConfig, softGradeImage, softGradeRgba } from "./soft-grade.ts";
+import { canonicalSoftGradeConfig, softGradeImage, softGradeRgba } from "./soft-grade";
 
 function rgba(
   width: number,

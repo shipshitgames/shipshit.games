@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { softGradeRgba, type ColorGamutReport, type SoftGradeConfig } from "./soft-grade.ts";
+import { softGradeRgba, type ColorGamutReport, type SoftGradeConfig } from "./soft-grade";
 
 /** Round to the nearest integer and clamp into a valid 0-255 RGBA channel byte. */
 function toByte(value: number): number {

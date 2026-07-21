@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import sharp from "sharp";
-import { softGradeRgba, type ColorGamutReport } from "./soft-grade.ts";
+import { softGradeRgba, type ColorGamutReport } from "./soft-grade";
 
 // Moved to sprite-prompt.ts (pure, no sharp) so API bundles can import it
 // without native deps; re-exported here so existing imports keep working.

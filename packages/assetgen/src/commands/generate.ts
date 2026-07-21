@@ -21,7 +21,7 @@ import {
   writeBillboardPreview,
 } from "../sprites.ts";
 import { assetsRootForRepo, draftsManifestPath, draftsRoot } from "../drafts.ts";
-import { serializeColorGamutReport } from "../soft-grade.ts";
+import { serializeColorGamutReport } from "../soft-grade";
 import { flag, flagValues, has, intFlag, numberFlag, shortFlagValues } from "./args.ts";
 import { defaultRepo } from "./paths.ts";
 
