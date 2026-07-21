@@ -4,8 +4,8 @@
 // grades each frame onto the DOOM grid, packs them into edge-extruded atlas
 // page(s) with the in-repo shelf packer, and writes a frame map + a `sprite-anim`
 // manifest entry. The CI-verifiable path runs entirely on the keyless `mock`
-// provider; method-conditioned img2img (controlnet/pixellab/animdrawings) is a
-// documented follow-up that plugs into the same FrameGenerator seam.
+// provider. The video method generates one clip per action/facing, samples it,
+// chroma-keys and de-jitters the frames, then joins this same packing seam.
 //
 // NOTE: the engine-runtime consumption of the frame map is sibling issue #72.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -23,6 +23,14 @@ import { generateAsset } from "./providers.ts";
 import { maybeUpscale } from "./upscale.ts";
 import type { UpscaleFactor } from "./upscale.ts";
 import { frameId } from "./sprite-frames.ts";
+import {
+  cleanVideoFrames,
+  extractVideoFrames,
+  generateVideoClip,
+  type VideoClipGenerator,
+  type VideoFrameRunner,
+} from "./video-expand.ts";
+import { flatKeyBackgroundDirective } from "./key-color.ts";
 
 export const SPRITE_ANIM_VERSION = 1;
 
@@ -74,6 +82,14 @@ export interface SpriteAnimSheet {
   pages: AtlasPage[];
   clips: Record<string, AnimClip>;
   frameCount: number;
+  video?: {
+    keyColor: string;
+    staticThreshold: number;
+    duration: number;
+    keyedPixels: number;
+    lockedPixels: number;
+    comparison: string;
+  };
 }
 
 /** Args handed to the per-frame synthesizer; the default impl calls a provider. */
@@ -129,6 +145,14 @@ export interface ExpandOptions {
   now?: () => Date;
   /** Injectable frame synthesizer (defaults to the provider abstraction). */
   generate?: FrameGenerator;
+  video?: {
+    duration?: number;
+    keyColor?: string;
+    staticThreshold?: number;
+    generate?: VideoClipGenerator;
+    frameRunner?: VideoFrameRunner;
+    ffmpegPath?: string;
+  };
   log?: (chunk: string) => void;
 }
 
@@ -208,6 +232,10 @@ function framePrompt(opts: ExpandOptions, action: string, facing: string, index:
   return `${action} animation, facing ${facing}, frame ${index + 1} of ${total}, derived from origin sprite; ${opts.game} game art style`;
 }
 
+function videoPrompt(opts: ExpandOptions, action: string, facing: string, keyColor: string): string {
+  return `${action} animation, facing ${facing}, derived from the supplied origin sprite; locked character silhouette and camera; ${opts.game} game art style; ${flatKeyBackgroundDirective(keyColor)}`;
+}
+
 /** Expand one origin sprite into a directional `sprite-anim` set. */
 export async function expandSprite(opts: ExpandOptions): Promise<ExpandResult> {
   const log = opts.log ?? (() => {});
@@ -250,22 +278,65 @@ export async function expandSprite(opts: ExpandOptions): Promise<ExpandResult> {
       // 1. synthesize every (action × facing × frame) cell, then grade it.
       const frameInputs: { id: string; data: Buffer }[] = [];
       let providerSeen = false;
+      let videoComparison: Buffer | undefined;
+      let videoKeyedPixels = 0;
+      let videoLockedPixels = 0;
+      const videoDuration = Number.isFinite(opts.video?.duration) && (opts.video?.duration ?? 0) > 0
+        ? opts.video!.duration!
+        : 2;
+      const videoKeyColor = opts.video?.keyColor ?? "#00ff00";
+      const videoStaticThreshold = Math.max(0, Math.min(255, Math.floor(opts.video?.staticThreshold ?? 10)));
       for (const action of opts.actions) {
         for (const facing of opts.directions) {
-          for (let i = 0; i < action.frames; i++) {
-            const prompt = framePrompt(opts, action.name, facing, i, action.frames);
-            const generated = await generate({
-              action: action.name,
-              facing,
-              index: i,
-              frames: action.frames,
-              prompt,
+          let videoFrames: Buffer[] | undefined;
+          if (opts.method === "video") {
+            const clip = await (opts.video?.generate ?? generateVideoClip)({
+              originData,
+              prompt: videoPrompt(opts, action.name, facing, videoKeyColor),
               provider: opts.provider,
               model: opts.model,
-              method: opts.method,
+              frames: action.frames,
+              fps: opts.fps,
               size: opts.size,
-              originData,
+              keyColor: videoKeyColor,
+              log,
             });
+            usedProvider = clip.provider;
+            usedModel = clip.model;
+            providerSeen = true;
+            const extracted = clip.frames ?? (clip.data
+              ? await extractVideoFrames(clip.data, action.frames, videoDuration, {
+                  runner: opts.video?.frameRunner,
+                  ffmpegPath: opts.video?.ffmpegPath,
+                  extension: clip.extension,
+                })
+              : undefined);
+            if (!extracted) throw new Error("video provider returned neither clip bytes nor decoded frames");
+            const cleaned = await cleanVideoFrames(extracted, {
+              keyColor: videoKeyColor,
+              staticThreshold: videoStaticThreshold,
+            });
+            videoFrames = cleaned.frames;
+            videoComparison ??= cleaned.comparison;
+            videoKeyedPixels += cleaned.keyedPixels;
+            videoLockedPixels += cleaned.lockedPixels;
+          }
+          for (let i = 0; i < action.frames; i++) {
+            const prompt = framePrompt(opts, action.name, facing, i, action.frames);
+            const generated = videoFrames
+              ? { data: videoFrames[i]!, mediaType: "image/png", provider: usedProvider, model: usedModel }
+              : await generate({
+                  action: action.name,
+                  facing,
+                  index: i,
+                  frames: action.frames,
+                  prompt,
+                  provider: opts.provider,
+                  model: opts.model,
+                  method: opts.method,
+                  size: opts.size,
+                  originData,
+                });
             if (!providerSeen) {
               usedProvider = generated.provider;
               usedModel = generated.model;
@@ -324,6 +395,18 @@ export async function expandSprite(opts: ExpandOptions): Promise<ExpandResult> {
         pages,
         clips,
         frameCount: packed.frames.length,
+        ...(opts.method === "video"
+          ? {
+              video: {
+                keyColor: videoKeyColor,
+                staticThreshold: videoStaticThreshold,
+                duration: videoDuration,
+                keyedPixels: videoKeyedPixels,
+                lockedPixels: videoLockedPixels,
+                comparison: `../previews/${opts.id}-video-cleanup.webp`,
+              },
+            }
+          : {}),
       };
 
       const frameSize: [number, number] = [
@@ -357,6 +440,7 @@ export async function expandSprite(opts: ExpandOptions): Promise<ExpandResult> {
         clips: opts.actions.map((a) => a.name),
         animation: animRelPath,
         origin: opts.origin,
+        ...(opts.method === "video" ? { referenceImages: [opts.origin] } : {}),
         preview: previewRelPath,
         license,
       };
@@ -382,6 +466,11 @@ export async function expandSprite(opts: ExpandOptions): Promise<ExpandResult> {
 
       const previewPath = join(opts.outputRoot, previewRelPath);
       await mkdir(dirname(previewPath), { recursive: true });
+      if (videoComparison) {
+        const comparisonPath = join(opts.outputRoot, "previews", `${opts.id}-video-cleanup.webp`);
+        await writeFile(comparisonPath, videoComparison);
+        log(`[video] cleanup comparison ${comparisonPath}\n`);
+      }
       // Preview sits in previews/; page images live in sprites/ alongside the anim map.
       await writeFile(previewPath, animPreviewHtml({ id: opts.id, game: opts.game, sheet, sheetDirHref: "../sprites" }), "utf8");
       log(`[preview] ${previewPath}\n`);
@@ -408,6 +497,9 @@ export function animPreviewHtml(opts: { id: string; game: string; sheet: SpriteA
         `<img src="${escapeHtml(`${opts.sheetDirHref}/${page.image}`)}" alt="${escapeHtml(opts.id)} atlas page ${i}">`,
     )
     .join("\n  ");
+  const videoComparison = opts.sheet.video
+    ? `<figure><figcaption>raw frame → keyed + static-pixel lock</figcaption><img src="${escapeHtml(opts.sheet.video.comparison)}" alt="${escapeHtml(opts.id)} video cleanup before and after"></figure>`
+    : "";
   return `<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
@@ -427,6 +519,7 @@ export function animPreviewHtml(opts: { id: string; game: string; sheet: SpriteA
   <h1>${escapeHtml(opts.game)} · ${escapeHtml(opts.id)}</h1>
   <p class="meta">${opts.sheet.frameCount} frames · ${opts.sheet.fps} fps · ${opts.sheet.directions.join(", ")} · ${opts.sheet.pages.length} page(s)</p>
   ${imgs}
+  ${videoComparison}
   <table>
     <tr><th>clip</th><th>play</th><th>frames</th><th>facings</th></tr>
     ${rows}
