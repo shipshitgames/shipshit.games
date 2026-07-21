@@ -59,8 +59,22 @@ export interface AssetEntry {
   joints?: number;
   /** Preserved raw/optimized model lineage and the optimization report used at registration. */
   modelTrace?: ModelTrace;
+  /** Non-blocking color-quality evidence emitted by the optional soft-grade pass. */
+  colorGrade?: ColorGradeTrace;
   /** Required provenance/license record (issue #17): no generator may skip this. */
   license: AssetLicenseRecord;
+}
+
+export interface ColorGradeTrace {
+  applied: true;
+  advisory: true;
+  blocking: false;
+  /** Relative path to the structured color-gamut report. */
+  report: string;
+  /** Visible source-pixel share outside the canonical value/temperature range. */
+  outOfGamutRatio: number;
+  /** True when the out-of-range share crosses the canonical materiality threshold. */
+  material: boolean;
 }
 
 export interface ModelTrace {

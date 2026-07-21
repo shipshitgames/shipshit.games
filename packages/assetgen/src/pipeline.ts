@@ -4,7 +4,8 @@ import { buildAudioPrompt, isAudioKind } from "./audio.ts";
 import { buildPrompt, STYLE_SUFFIX } from "./style.ts";
 import { assetProviders, generateAsset } from "./providers.ts";
 import type { AssetKind, GeneratedAsset, ProviderId } from "./providers.ts";
-import { toWebp } from "./postprocess.ts";
+import { toWebpDetailed } from "./postprocess.ts";
+import { serializeColorGamutReport } from "./soft-grade.ts";
 import { register, REQUIRED_LICENSE_FIELDS } from "./manifest.ts";
 import type { AssetEntry, AssetLicenseRecord } from "./manifest.ts";
 import { buildProvenance } from "./provenance.ts";
@@ -75,6 +76,8 @@ export interface AssetPipelineContext {
   outlineTint?: boolean;
   outlineTintStrength?: number;
   outlineTintThreshold?: number;
+  /** Opt-in canonical soft color grade + advisory gamut report. */
+  softGrade?: boolean;
 }
 
 export type AssetPostprocessHook = (
@@ -103,6 +106,8 @@ export interface AssetPipelineOptions {
   outlineTint?: boolean;
   outlineTintStrength?: number;
   outlineTintThreshold?: number;
+  /** Opt-in canonical soft color grade + advisory gamut report. */
+  softGrade?: boolean;
   /** Human-authorship disclosure recorded alongside provenance. */
   human?: AssetHumanAuthorship;
   usageLogPath?: string | null;
@@ -174,6 +179,8 @@ export interface GenerateOneOptions {
   outlineTint?: boolean;
   outlineTintStrength?: number;
   outlineTintThreshold?: number;
+  /** Opt-in canonical soft color grade + advisory gamut report. */
+  softGrade?: boolean;
   /** Injectable clock so the provenance date matches the caller's license date. */
   now?: () => Date;
   postprocess?: AssetPostprocessHook;
@@ -227,6 +234,7 @@ export async function generateOne(opts: GenerateOneOptions): Promise<GenerateOne
     outlineTint: opts.outlineTint,
     outlineTintStrength: opts.outlineTintStrength,
     outlineTintThreshold: opts.outlineTintThreshold,
+    softGrade: opts.softGrade,
   };
   const optimized = await runStep(opts, "postprocess", "post-process output", async () =>
     (opts.postprocess ?? defaultPostprocess)(generated, context),
@@ -325,6 +333,7 @@ export async function runAssetPipeline(opts: AssetPipelineOptions): Promise<Asse
         outlineTint: opts.outlineTint,
         outlineTintStrength: opts.outlineTintStrength,
         outlineTintThreshold: opts.outlineTintThreshold,
+        softGrade: opts.softGrade,
         now: opts.now,
         postprocess: opts.postprocess,
         onGenerated: (asset) => {
@@ -406,15 +415,36 @@ export async function defaultPostprocess(asset: GeneratedAsset, context: AssetPi
       extension: asset.extension,
     };
   }
+  const processed = await toWebpDetailed(asset.data, {
+    size: context.size,
+    outlineTint: context.outlineTint,
+    outlineTintStrength: context.outlineTintStrength,
+    outlineTintThreshold: context.outlineTintThreshold,
+    softGrade: context.softGrade,
+  });
+  if (!processed.colorGamutReport) {
+    return { data: processed.data, mediaType: "image/webp", extension: "webp" };
+  }
+  const reportPath = `reports/${context.id}.color-gamut.json`;
   return {
-    data: await toWebp(asset.data, {
-      size: context.size,
-      outlineTint: context.outlineTint,
-      outlineTintStrength: context.outlineTintStrength,
-      outlineTintThreshold: context.outlineTintThreshold,
-    }),
+    data: processed.data,
     mediaType: "image/webp",
     extension: "webp",
+    entryFields: {
+      colorGrade: {
+        applied: true,
+        advisory: true,
+        blocking: false,
+        report: reportPath,
+        outOfGamutRatio: processed.colorGamutReport.summary.outOfGamutRatio,
+        material: processed.colorGamutReport.summary.material,
+      },
+    },
+    writeSidecars: async ({ outputRoot }) => {
+      const absolute = join(outputRoot, reportPath);
+      await mkdir(dirname(absolute), { recursive: true });
+      await writeFile(absolute, serializeColorGamutReport(processed.colorGamutReport!));
+    },
   };
 }
 
