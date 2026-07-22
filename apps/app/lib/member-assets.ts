@@ -81,9 +81,13 @@ export function publishedMemberAssetPacks(
   now = new Date(),
   input = process.env.MEMBER_ASSET_PACKS_JSON,
 ): MemberAssetPack[] {
-  return parseMemberAssetPacks(input)
-    .filter((pack) => new Date(pack.publishedAt) <= now)
-    .map(({ privateUrl: _privateUrl, ...pack }) => pack);
+  const published: MemberAssetPack[] = [];
+  for (const pack of parseMemberAssetPacks(input)) {
+    if (new Date(pack.publishedAt) > now) continue;
+    const { privateUrl: _privateUrl, ...publicPack } = pack;
+    published.push(publicPack);
+  }
+  return published;
 }
 
 export function memberAssetPackDestination(
