@@ -73,9 +73,10 @@ scripts/
 
 - [`STUDIO-ARCHITECTURE.md`](STUDIO-ARCHITECTURE.md) defines Ship Shit Games as
   the SaaS/tooling platform and DEADROT as downstream dogfood.
-- [`docs/shipshitcode-roadmap.md`](docs/shipshitcode-roadmap.md) defines the
-  local-first "Cursor for games" roadmap: open an IP repo, generate assets,
-  launch gyms, run QA, and promote changes back into the downstream game repo.
+- [`docs/ship-games-studio-roadmap.md`](docs/ship-games-studio-roadmap.md)
+  defines the local-first "Cursor for games" roadmap: open an IP repo, generate
+  assets, launch gyms, run QA, and promote changes back into the downstream
+  game repo.
 - [`docs/asset-generation-roadmap.md`](docs/asset-generation-roadmap.md) lays out
   the provider-backed MVP, self-hosted/open model adapters, export targets, and
   next `assetgen model` implementation slice.
