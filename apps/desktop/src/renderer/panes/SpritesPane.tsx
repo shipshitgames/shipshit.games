@@ -5,6 +5,7 @@ import { EmptyTile, GameField, LogView, NumField, ProjectManifestNote, SelectFie
 import { usePatchState, useProjectSelection, useStreamLog } from "../lib/hooks";
 import { errorMessage } from "../lib/studio";
 import { PixelizePanel } from "./PixelizePanel";
+import { SpriteEditor } from "./SpriteEditor";
 
 export function SpritesPane() {
   const [form, patch] = usePatchState({
@@ -49,6 +50,7 @@ export function SpritesPane() {
         anchor: "0.5,1",
         scale: form.scale,
         license: form.license,
+        draft: true,
       }));
     } catch (e) {
       setLog(errorMessage(e));
@@ -82,7 +84,7 @@ export function SpritesPane() {
         <button className="btn btn-primary" type="button" disabled={busy || !form.id || !form.prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
           {busy ? "Forging…" : "Generate"}
         </button>
-        <p className="note">Auto-styled with the DOOM DESIGN.md suffix · writes the .webp + updates the game's assets.json. Codex runs take a minute — watch the log.</p>
+        <p className="note">Auto-styled with the DOOM DESIGN.md suffix · stages a review draft before any asset is promoted. Codex runs take a minute — watch the log.</p>
       </div>
       <div className="gen-preview">
         {result?.dataUrl ? (
@@ -95,6 +97,7 @@ export function SpritesPane() {
         {result?.path && <div className="path">{result.path}</div>}
         {result?.previewPath && <div className="path">{result.previewPath}</div>}
         {result?.ok && result.dataUrl && <PixelizePanel key={result.dataUrl} source={{ dataUrl: result.dataUrl, path: result.path }} />}
+        <SpriteEditor projectId={selectedProject?.id} game={selectedProject?.slug || game} generatedPath={result?.path} />
       </div>
     </div>
   );

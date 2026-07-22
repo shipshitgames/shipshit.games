@@ -31,6 +31,7 @@ function buildGenerateArgs({ assetgenPath, settings, opts = {}, target = {} }: a
   if (opts?.seed != null && opts?.seed !== "") args.push("--seed", String(opts.seed));
   if (opts?.authored) args.push("--authored");
   if (opts?.editKind) args.push("--edit-kind", String(opts.editKind));
+  if (opts?.draft) args.push("--draft");
   // 3D-model flags (issue #20): only pushed when present so other kinds' arg
   // arrays stay byte-identical. Draco is on by default, so emit --no-draco only
   // when explicitly disabled; --ktx2 opts into the encoder-gated texture path.
