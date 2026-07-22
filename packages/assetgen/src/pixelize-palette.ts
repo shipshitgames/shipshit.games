@@ -3,7 +3,7 @@
 
 // Fixed DOOM ramp (brand tokens + value steps so shading has somewhere to land).
 // Toxic green is included but should only appear where the source already glows it.
-export const DOOM_RAMP: readonly string[] = [
+export const DOOM_RAMP: string[] = [
   "#000000",
   "#0a0a0a",
   "#161214",
@@ -31,13 +31,13 @@ export const DOOM_RAMP: readonly string[] = [
   "#8bdc1f",
 ];
 
-export const PIXELIZE_PALETTES: Readonly<Record<string, readonly string[]>> = {
+export const PIXELIZE_PALETTES: Record<string, string[]> = {
   doom: DOOM_RAMP,
 };
 
 export function resolvePaletteByName(
   name?: string,
-): readonly string[] | undefined {
+): string[] | undefined {
   if (!name) return undefined;
   return PIXELIZE_PALETTES[name.toLowerCase()];
 }
