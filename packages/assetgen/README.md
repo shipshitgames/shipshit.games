@@ -317,8 +317,10 @@ Packages with no adopted assetgen targets must declare `mode: "native-only"`,
 an explanatory `reason`, and three empty target arrays. If an assetgen-format
 index, `<game>.atlas.json`, or `<game>/src/assets.generated.ts` later appears,
 that explicit zero state fails until the manifest switches to `enforced` and
-declares it. The Ship Shit Games CI uses this state for Deadrot today and keeps
-Deadrot's native `assets:index:check` as an independent required gate.
+declares it. The Ship Shit Games CI declares Deadrot's currently adopted
+Scourge Survivors codegen target and keeps Deadrot's native
+`assets:index:check` as an independent required gate until the remaining target
+types are adopted.
 
 The cross-repo job uses the workflow's read-only `GITHUB_TOKEN` for exactly two
 checkouts (this repository and `shipshitgames/deadrot.com`); it requires no PAT,
