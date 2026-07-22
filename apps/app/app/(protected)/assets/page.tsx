@@ -152,6 +152,9 @@ export default function AssetsPage() {
             await new Promise((resolve) => setTimeout(resolve, RESUME_POLL_MS));
             continue;
           }
+          if (!res.ok) {
+            throw new Error(`Request failed (${res.status})`);
+          }
           let json: Record<string, unknown>;
           try {
             json = (await res.json()) as Record<string, unknown>;
@@ -166,13 +169,6 @@ export default function AssetsPage() {
             continue;
           }
           keepPending = false;
-          if (!res.ok) {
-            throw new Error(
-              typeof json.error === "string"
-                ? json.error
-                : `Request failed (${res.status})`,
-            );
-          }
           const generatedAssets = Array.isArray(json.assets)
             ? (json.assets as AssetRecord[])
             : [];

@@ -34,6 +34,8 @@ interface GeneratedAsset {
   data: Buffer;
 }
 
+type SavedAsset = AssetRecord & { url: string };
+
 interface ReplicatePredictionSnapshot {
   id?: string;
   status?: string;
@@ -519,36 +521,37 @@ export async function handleAssetGenerate(
   );
   if (!renewed) return processingResponse(claimed.job.id);
 
-  const saved: Array<AssetRecord & { url: string }> = [];
-  const errors: string[] = [];
-  for (const [batchIndex, result] of results.entries()) {
-    if (result.status === "rejected") {
-      errors.push(generationErrorText(result.reason));
-      continue;
-    }
-    try {
-      const record = await deps.saveAsset(
-        {
-          subject: normalized.prompt,
-          description: normalized.description ?? null,
-          fullPrompt,
-          style: "art bible",
-          pose: sheetPoses ? null : (normalized.pose ?? null),
-          sheetPoses: sheetPoses ?? [],
-          gameSlug: game.slug,
-          game: game.title,
-          model: MODEL,
-          ownerId: auth.userId,
-          generationJobId: claimed.job.id,
-          generationBatchIndex: batchIndex,
-        },
-        result.value.data,
-      );
-      saved.push({ ...record, url: deps.assetUrl(record) });
-    } catch (error) {
-      errors.push(generationErrorText(error));
-    }
-  }
+  const persisted = await Promise.all(
+    results.map(async (result, batchIndex): Promise<{ asset: SavedAsset | null; error: string | null }> => {
+      if (result.status === "rejected") {
+        return { asset: null, error: generationErrorText(result.reason) };
+      }
+      try {
+        const record = await deps.saveAsset(
+          {
+            subject: normalized.prompt,
+            description: normalized.description ?? null,
+            fullPrompt,
+            style: "art bible",
+            pose: sheetPoses ? null : (normalized.pose ?? null),
+            sheetPoses: sheetPoses ?? [],
+            gameSlug: game.slug,
+            game: game.title,
+            model: MODEL,
+            ownerId: auth.userId,
+            generationJobId: claimed.job.id,
+            generationBatchIndex: batchIndex,
+          },
+          result.value.data,
+        );
+        return { asset: { ...record, url: deps.assetUrl(record) }, error: null };
+      } catch (error) {
+        return { asset: null, error: generationErrorText(error) };
+      }
+    }),
+  );
+  const saved = persisted.flatMap(({ asset }) => (asset ? [asset] : []));
+  const errors = persisted.flatMap(({ error }) => (error ? [error] : []));
 
   if (!saved.length) {
     return failJobResponse(
