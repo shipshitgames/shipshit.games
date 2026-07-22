@@ -17,6 +17,10 @@ const editorSource = await readFile(
   new URL("../renderer/panes/SpriteEditor.tsx", import.meta.url),
   "utf8",
 );
+const editorViewSource = await readFile(
+  new URL("../renderer/panes/SpriteEditorView.tsx", import.meta.url),
+  "utf8",
+);
 
 const CHANNELS = [
   "spritesList",
@@ -33,8 +37,9 @@ test("sprite editor is wired across main, preload, and renderer", () => {
     );
   }
   expect(paneSource).toContain("<SpriteEditor");
-  expect(editorSource).toContain("Save palette-locked draft");
-  expect(editorSource).toContain("Promote approved draft");
+  expect(editorSource).toContain("<SpriteEditorView");
+  expect(editorViewSource).toContain("Save palette-locked draft");
+  expect(editorViewSource).toContain("Promote approved draft");
 });
 
 test("desktop sprite generation stages drafts instead of registering finals", () => {

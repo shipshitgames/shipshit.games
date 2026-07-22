@@ -132,11 +132,9 @@ function imageData(
 function createSpriteEditorStore() {
   function list(target: ProjectTarget) {
     const drafts = readEntries(manifestPath(target, "draft"))
-      .filter((entry) => SPRITE_KINDS.has(entry.kind))
-      .map((entry) => publicAsset(entry, "draft"));
+      .flatMap((entry) => SPRITE_KINDS.has(entry.kind) ? [publicAsset(entry, "draft")] : []);
     const promoted = readEntries(manifestPath(target, "promoted"))
-      .filter((entry) => SPRITE_KINDS.has(entry.kind))
-      .map((entry) => publicAsset(entry, "promoted"));
+      .flatMap((entry) => SPRITE_KINDS.has(entry.kind) ? [publicAsset(entry, "promoted")] : []);
     const assets = [...drafts, ...promoted].sort((a, b) =>
       a.id === b.id
         ? a.origin.localeCompare(b.origin)

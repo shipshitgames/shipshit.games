@@ -1,10 +1,8 @@
 import {
   useCallback,
   useEffect,
-  useEffectEvent,
-  useMemo,
+  useReducer,
   useRef,
-  useState,
 } from "react";
 
 import { DOOM_RAMP } from "../../../../../packages/assetgen/src/pixelize-palette";
@@ -15,6 +13,7 @@ import {
   pointerToPixel,
   spriteFrameCells,
 } from "./sprite-editor-model";
+import { SpriteEditorView, type Tool } from "./SpriteEditorView";
 
 interface SpriteEditorProps {
   projectId?: string;
@@ -22,7 +21,39 @@ interface SpriteEditorProps {
   generatedPath?: string | null;
 }
 
-type Tool = "pencil" | "eraser" | "picker";
+interface EditorState {
+  assets: SpriteEditorAsset[];
+  asset: SpriteEditorAsset | null;
+  frameIndex: number;
+  tool: Tool;
+  color: string;
+  revision: number;
+  offPalette: number;
+  dirty: boolean;
+  certifiedDraft: boolean;
+  busy: boolean;
+  message: string;
+}
+
+const INITIAL_STATE: EditorState = {
+  assets: [],
+  asset: null,
+  frameIndex: 0,
+  tool: "pencil",
+  color: "#e9e3d6",
+  revision: 0,
+  offPalette: 0,
+  dirty: false,
+  certifiedDraft: false,
+  busy: false,
+  message: "",
+};
+
+type EditorUpdate = Partial<EditorState> | ((state: EditorState) => Partial<EditorState>);
+
+function updateEditorState(state: EditorState, update: EditorUpdate): EditorState {
+  return { ...state, ...(typeof update === "function" ? update(state) : update) };
+}
 
 function selector(asset: SpriteEditorAsset) {
   return { id: asset.id, kind: asset.kind, origin: asset.origin };
@@ -42,38 +73,18 @@ export function SpriteEditor({
   const undoRef = useRef<ImageData[]>([]);
   const redoRef = useRef<ImageData[]>([]);
   const drawingRef = useRef(false);
-  const [assets, setAssets] = useState<SpriteEditorAsset[]>([]);
-  const [asset, setAsset] = useState<SpriteEditorAsset | null>(null);
-  const [frameIndex, setFrameIndex] = useState(0);
-  const [tool, setTool] = useState<Tool>("pencil");
-  const [color, setColor] = useState("#e9e3d6");
-  const [revision, setRevision] = useState(0);
-  const [offPalette, setOffPalette] = useState(0);
-  const [dirty, setDirty] = useState(false);
-  const [certifiedDraft, setCertifiedDraft] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-
-  const cells = useMemo(() => {
-    const sheet = sheetRef.current;
-    return asset && sheet
-      ? spriteFrameCells(asset, sheet.width, sheet.height)
-      : [];
-  }, [asset, revision]);
-  const frame =
-    cells[Math.min(frameIndex, Math.max(0, cells.length - 1))] ?? null;
+  const [state, update] = useReducer(updateEditorState, INITIAL_STATE);
+  const { assets, asset, frameIndex, tool, color, offPalette, dirty, certifiedDraft, busy, message } = state;
+  const sheet = sheetRef.current;
+  const cells = asset && sheet ? spriteFrameCells(asset, sheet.width, sheet.height) : [];
+  const frame = cells[Math.min(frameIndex, Math.max(0, cells.length - 1))] ?? null;
 
   const audit = useCallback(() => {
     const sheet = sheetRef.current;
     if (!sheet) return;
     const context = sheet.getContext("2d", { willReadFrequently: true });
     if (!context) return;
-    setOffPalette(
-      offPalettePixelCount(
-        context.getImageData(0, 0, sheet.width, sheet.height).data,
-        DOOM_RAMP,
-      ),
-    );
+    update({ offPalette: offPalettePixelCount(context.getImageData(0, 0, sheet.width, sheet.height).data, DOOM_RAMP) });
   }, []);
 
   const redraw = useCallback(() => {
@@ -87,28 +98,17 @@ export function SpriteEditor({
     if (!context) return;
     context.imageSmoothingEnabled = false;
     context.clearRect(0, 0, visible.width, visible.height);
-    context.drawImage(
-      sheet,
-      active.x,
-      active.y,
-      active.width,
-      active.height,
-      0,
-      0,
-      active.width,
-      active.height,
-    );
+    context.drawImage(sheet, active.x, active.y, active.width, active.height, 0, 0, active.width, active.height);
   }, [frame]);
 
   useEffect(() => {
     redraw();
-  }, [redraw, revision]);
+  }, [redraw]);
 
   const loadAsset = useCallback(
     async (next: SpriteEditorAsset) => {
       if (!window.studio?.sprites) return;
-      setBusy(true);
-      setMessage("");
+      update({ busy: true, message: "" });
       try {
         const result = await window.studio.sprites.load(
           projectId,
@@ -134,17 +134,19 @@ export function SpriteEditor({
         sheetRef.current = sheet;
         undoRef.current = [];
         redoRef.current = [];
-        setAsset(result.asset);
-        setFrameIndex(0);
-        setDirty(false);
-        setCertifiedDraft(false);
-        setRevision((value) => value + 1);
-        setMessage(`${result.asset.origin} · ${result.asset.path}`);
+        update((current) => ({
+          asset: result.asset!,
+          frameIndex: 0,
+          dirty: false,
+          certifiedDraft: false,
+          revision: current.revision + 1,
+          message: `${result.asset!.origin} · ${result.asset!.path}`,
+        }));
         requestAnimationFrame(audit);
       } catch (error) {
-        setMessage(errorMessage(error));
+        update({ message: errorMessage(error) });
       } finally {
-        setBusy(false);
+        update({ busy: false });
       }
     },
     [audit, game, projectId],
@@ -152,12 +154,12 @@ export function SpriteEditor({
 
   const refresh = useCallback(async () => {
     if (!window.studio?.sprites) return;
-    setBusy(true);
+    update({ busy: true });
     try {
       const result = await window.studio.sprites.list(projectId, game);
       if (!result.ok)
         throw new Error(result.error || "sprite catalog unavailable");
-      setAssets(result.assets);
+      update({ assets: result.assets });
       const normalizedGenerated = generatedPath?.replace(/\\/g, "/");
       const generated = normalizedGenerated
         ? result.assets.find(
@@ -175,18 +177,36 @@ export function SpriteEditor({
       if (next && (!asset || assetKey(next) !== assetKey(asset) || generated))
         await loadAsset(next);
     } catch (error) {
-      setMessage(errorMessage(error));
+      update({ message: errorMessage(error) });
     } finally {
-      setBusy(false);
+      update({ busy: false });
     }
   }, [asset, game, generatedPath, loadAsset, projectId]);
 
-  const refreshFromScope = useEffectEvent(() => {
-    void refresh();
-  });
+  const loadScope = useCallback(async () => {
+    update({ busy: true });
+    try {
+      const result = await window.studio.sprites.list(projectId, game);
+      if (!result.ok) throw new Error(result.error || "sprite catalog unavailable");
+      update({ assets: result.assets });
+      const normalizedGenerated = generatedPath?.replace(/\\/g, "/");
+      const generated = normalizedGenerated
+        ? result.assets.find(
+            (candidate) => candidate.origin === "draft" && normalizedGenerated.endsWith(`/drafts/${candidate.path}`),
+          )
+        : null;
+      const next = generated || result.assets[0];
+      if (next) await loadAsset(next);
+    } catch (error) {
+      update({ message: errorMessage(error) });
+    } finally {
+      update({ busy: false });
+    }
+  }, [game, generatedPath, loadAsset, projectId]);
+
   useEffect(() => {
-    refreshFromScope();
-  }, [game, projectId, generatedPath]);
+    void loadScope();
+  }, [loadScope]);
 
   function snapshot(): ImageData | null {
     const sheet = sheetRef.current;
@@ -204,9 +224,7 @@ export function SpriteEditor({
     if (!sheet || !context || !next || !current) return;
     destination.push(current);
     context.putImageData(next, 0, 0);
-    setDirty(true);
-    setCertifiedDraft(false);
-    setRevision((value) => value + 1);
+    update((state) => ({ dirty: true, certifiedDraft: false, revision: state.revision + 1 }));
     audit();
   }
 
@@ -225,9 +243,7 @@ export function SpriteEditor({
     if (!context) return;
     if (tool === "picker") {
       const pixel = context.getImageData(point.x, point.y, 1, 1).data;
-      setColor(
-        `#${[pixel[0], pixel[1], pixel[2]].map((value) => (value ?? 0).toString(16).padStart(2, "0")).join("")}`,
-      );
+      update({ color: `#${[pixel[0], pixel[1], pixel[2]].map((value) => (value ?? 0).toString(16).padStart(2, "0")).join("")}` });
       drawingRef.current = false;
       return;
     }
@@ -236,9 +252,7 @@ export function SpriteEditor({
       context.fillStyle = color;
       context.fillRect(point.x, point.y, 1, 1);
     }
-    setDirty(true);
-    setCertifiedDraft(false);
-    setRevision((value) => value + 1);
+    update((state) => ({ dirty: true, certifiedDraft: false, revision: state.revision + 1 }));
   }
 
   function beginDraw(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -256,8 +270,7 @@ export function SpriteEditor({
   async function saveDraft() {
     const sheet = sheetRef.current;
     if (!asset || !sheet) return;
-    setBusy(true);
-    setMessage("");
+    update({ busy: true, message: "" });
     try {
       const result = await window.studio.sprites.saveDraft({
         projectId,
@@ -271,24 +284,23 @@ export function SpriteEditor({
       if (!result.ok || !result.asset || !result.dataUrl)
         throw new Error(result.error || "draft save failed");
       await loadAsset(result.asset);
-      setCertifiedDraft(true);
-      setOffPalette(0);
-      setMessage(
-        `${result.correctedOffPalette || 0} off-palette pixels corrected · draft saved`,
-      );
+      update({
+        certifiedDraft: true,
+        offPalette: 0,
+        message: `${result.correctedOffPalette || 0} off-palette pixels corrected · draft saved`,
+      });
       const listed = await window.studio.sprites.list(projectId, game);
-      if (listed.ok) setAssets(listed.assets);
+      if (listed.ok) update({ assets: listed.assets });
     } catch (error) {
-      setMessage(errorMessage(error));
+      update({ message: errorMessage(error) });
     } finally {
-      setBusy(false);
+      update({ busy: false });
     }
   }
 
   async function promote() {
     if (!asset || asset.origin !== "draft" || dirty || !certifiedDraft) return;
-    setBusy(true);
-    setMessage("");
+    update({ busy: true, message: "" });
     try {
       const result = await window.studio.sprites.promote(
         projectId,
@@ -299,174 +311,45 @@ export function SpriteEditor({
         throw new Error(result.error || "promotion failed");
       await refresh();
       await loadAsset(result.asset);
-      setMessage(`promoted · provenance preserved · ${result.asset.path}`);
+      update({ message: `promoted · provenance preserved · ${result.asset.path}` });
     } catch (error) {
-      setMessage(errorMessage(error));
+      update({ message: errorMessage(error) });
     } finally {
-      setBusy(false);
+      update({ busy: false });
     }
   }
 
   return (
-    <section className="sprite-editor">
-      <div className="sprite-editor-head">
-        <div>
-          <strong>Pixel editor</strong>
-          <span>Piskel-style frame retouch · drafts first</span>
-        </div>
-        <button
-          className="btn"
-          type="button"
-          disabled={busy}
-          onClick={() => void refresh()}
-        >
-          {busy ? "Working…" : "Reload assets"}
-        </button>
-      </div>
-      <div className="sprite-editor-source">
-        <label>
-          Sprite
-          <select
-            value={asset ? assetKey(asset) : ""}
-            onChange={(event) => {
-              const next = assets.find(
-                (candidate) => assetKey(candidate) === event.target.value,
-              );
-              if (next) void loadAsset(next);
-            }}
-          >
-            {!asset && <option value="">No sprites found</option>}
-            {assets.map((candidate) => (
-              <option key={assetKey(candidate)} value={assetKey(candidate)}>
-                {candidate.id} · {candidate.kind} · {candidate.origin}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span
-          className={`sprite-editor-status ${asset?.origin === "draft" ? "is-draft" : ""}`}
-        >
-          {asset?.origin || "empty"}
-        </span>
-      </div>
-      {asset && frame && (
-        <div className="sprite-editor-workspace">
-          <div className="sprite-editor-tools">
-            {(["pencil", "eraser", "picker"] as Tool[]).map((candidate) => (
-              <button
-                key={candidate}
-                className={`btn ${tool === candidate ? "is-active" : ""}`}
-                type="button"
-                aria-pressed={tool === candidate}
-                onClick={() => setTool(candidate)}
-              >
-                {candidate}
-              </button>
-            ))}
-            <button
-              className="btn"
-              type="button"
-              disabled={!undoRef.current.length}
-              onClick={() => restore(undoRef.current, redoRef.current)}
-            >
-              undo
-            </button>
-            <button
-              className="btn"
-              type="button"
-              disabled={!redoRef.current.length}
-              onClick={() => restore(redoRef.current, undoRef.current)}
-            >
-              redo
-            </button>
-            <input
-              aria-label="Custom pixel color"
-              type="color"
-              value={color}
-              onChange={(event) => setColor(event.target.value)}
-            />
-          </div>
-          <div className="sprite-editor-palette" aria-label="DOOM palette">
-            {DOOM_RAMP.map((swatch) => (
-              <button
-                key={swatch}
-                type="button"
-                aria-label={swatch}
-                title={swatch}
-                className={color === swatch ? "is-active" : ""}
-                aria-pressed={color === swatch}
-                style={{ background: swatch }}
-                onClick={() => {
-                  setColor(swatch);
-                  setTool("pencil");
-                }}
-              />
-            ))}
-          </div>
-          <div className="sprite-editor-canvas-wrap">
-            <canvas
-              ref={canvasRef}
-              className="sprite-editor-canvas"
-              aria-label={`Edit ${frame.label}`}
-              onPointerDown={beginDraw}
-              onPointerMove={draw}
-              onPointerUp={() => {
-                drawingRef.current = false;
-                audit();
-              }}
-              onPointerCancel={() => {
-                drawingRef.current = false;
-                audit();
-              }}
-            />
-          </div>
-          <div className="sprite-editor-frames">
-            {cells.map((cell) => (
-              <button
-                key={cell.index}
-                type="button"
-                className={`btn ${frameIndex === cell.index ? "is-active" : ""}`}
-                aria-pressed={frameIndex === cell.index}
-                onClick={() => setFrameIndex(cell.index)}
-              >
-                {cell.label}
-              </button>
-            ))}
-          </div>
-          <div className="sprite-editor-audit">
-            <span>
-              {offPalette === 0
-                ? "palette clean"
-                : `${offPalette} off-palette pixel${offPalette === 1 ? "" : "s"} · corrected on save`}
-            </span>
-            <span>
-              {asset.provider || "unknown provider"} ·{" "}
-              {asset.prompt || "no prompt"}
-            </span>
-          </div>
-          <div className="sprite-editor-actions">
-            <button
-              className="btn btn-primary"
-              type="button"
-              disabled={busy}
-              onClick={() => void saveDraft()}
-            >
-              Save palette-locked draft
-            </button>
-            <button
-              className="btn"
-              type="button"
-              disabled={
-                busy || asset.origin !== "draft" || dirty || !certifiedDraft
-              }
-              onClick={() => void promote()}
-            >
-              Promote approved draft
-            </button>
-          </div>
-        </div>
-      )}
-      {message && <div className="sprite-editor-message" role="status" aria-live="polite">{message}</div>}
-    </section>
+    <SpriteEditorView
+      assets={assets}
+      asset={asset}
+      cells={cells}
+      frameIndex={frameIndex}
+      tool={tool}
+      color={color}
+      offPalette={offPalette}
+      busy={busy}
+      dirty={dirty}
+      certifiedDraft={certifiedDraft}
+      message={message}
+      canUndo={undoRef.current.length > 0}
+      canRedo={redoRef.current.length > 0}
+      canvasRef={canvasRef}
+      onRefresh={() => void refresh()}
+      onSelect={(next) => void loadAsset(next)}
+      onTool={(next) => update({ tool: next })}
+      onColor={(next) => update({ color: next })}
+      onUndo={() => restore(undoRef.current, redoRef.current)}
+      onRedo={() => restore(redoRef.current, undoRef.current)}
+      onBeginDraw={beginDraw}
+      onDraw={draw}
+      onDrawingEnd={() => {
+        drawingRef.current = false;
+        audit();
+      }}
+      onFrame={(next) => update({ frameIndex: next })}
+      onSave={() => void saveDraft()}
+      onPromote={() => void promote()}
+    />
   );
 }
