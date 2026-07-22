@@ -28,6 +28,7 @@
       "default": "./src/asset-qa/index.ts"
     },
     "./asset-qa.schema.json": "./asset-qa.schema.json",
+    "./ci-gates.schema.json": "./ci-gates.schema.json",
     "./src/*": "./src/*"
   },
   "scripts": {

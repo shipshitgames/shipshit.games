@@ -282,6 +282,48 @@ non-zero if any is stale — drop it into CI or a pre-commit hook.
 bun packages/assetgen/src/cli.ts check
 ```
 
+## `ci-gates` — explicit downstream integrity targets (issue #319)
+
+`assetgen ci-gates` runs index, atlas, and generated-module drift checks only
+from a versioned manifest. Implicit discovery is deliberately invalid: every
+assetgen-format target found in the downstream asset package or games root must
+be declared, every declared target must exist, and every check must report
+current output.
+
+```json
+{
+  "$schema": "./node_modules/@shipshitgames/assetgen/ci-gates.schema.json",
+  "schemaVersion": 1,
+  "package": "@example/assets",
+  "mode": "enforced",
+  "targets": {
+    "indexes": ["assets.index.json"],
+    "atlases": ["example-game"],
+    "codegen": ["example-game"]
+  }
+}
+```
+
+Run the contract with explicit downstream roots:
+
+```bash
+bun packages/assetgen/src/cli.ts ci-gates \
+  --config .github/assetgen/example-assets.ci-gates.json \
+  --assets-dir ../example/packages/assets \
+  --games-root ../example/apps/games
+```
+
+Packages with no adopted assetgen targets must declare `mode: "native-only"`,
+an explanatory `reason`, and three empty target arrays. If an assetgen-format
+index, `<game>.atlas.json`, or `<game>/src/assets.generated.ts` later appears,
+that explicit zero state fails until the manifest switches to `enforced` and
+declares it. The Ship Shit Games CI uses this state for Deadrot today and keeps
+Deadrot's native `assets:index:check` as an independent required gate.
+
+The cross-repo job uses the workflow's read-only `GITHUB_TOKEN` for exactly two
+checkouts (this repository and `shipshitgames/deadrot.com`); it requires no PAT,
+write permission, or generated asset upload.
+
 ## `atlas` — texture atlas packing (issue #92)
 
 `assetgen atlas` packs a game's individual sprite frames into one or more

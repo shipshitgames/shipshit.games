@@ -1,34 +1,210 @@
 import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { dirname, join } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { GAME_SLUGS, type GameSlug } from "../assets-package.ts";
-import { flag, has } from "./args.ts";
-import { isAssetIndexFile } from "./check.ts";
+import { GAME_SLUGS } from "../assets-package.ts";
+import { flag } from "./args.ts";
 import { defaultAssetsDir, defaultGamesRoot } from "./paths.ts";
 
 const commandsDir = dirname(fileURLToPath(import.meta.url));
 const cliPath = join(commandsDir, "..", "cli.ts");
+const ASSET_INDEX_FILE = "assets.index.json";
+const PER_GAME_INDEX = /^assets\.index\.([a-z0-9-]+)\.json$/;
 const ATLAS_MAP = /^([a-z0-9-]+)\.atlas\.json$/;
+const TARGET_NAME = /^[a-z0-9][a-z0-9-]*$/;
+
+export interface AssetgenGateTargets {
+  indexes: string[];
+  atlases: string[];
+  codegen: string[];
+}
+
+export interface AssetgenGateManifest {
+  $schema?: string;
+  schemaVersion: 1;
+  package: string;
+  mode: "enforced" | "native-only";
+  reason?: string;
+  targets: AssetgenGateTargets;
+}
 
 export interface CodegenTarget {
-  game: GameSlug;
+  game: string;
   out: string;
 }
 
 export interface AssetgenGatePlan {
   assetsDir: string;
   gamesRoot: string;
+  configPath: string;
+  package: string;
+  mode: AssetgenGateManifest["mode"];
+  reason?: string;
   indexFiles: string[];
-  skippedIndexFiles: string[];
-  atlasGames: GameSlug[];
+  atlasGames: string[];
   codegenTargets: CodegenTarget[];
 }
 
-function isKnownGame(value: string): value is GameSlug {
-  return GAME_SLUGS.includes(value as GameSlug);
+type CommandRunner = (args: string[]) => Promise<void>;
+
+function record(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function assertKnownKeys(
+  value: Record<string, unknown>,
+  allowed: readonly string[],
+  label: string,
+): void {
+  const allowedSet = new Set(allowed);
+  const unknown = Object.keys(value)
+    .filter((key) => !allowedSet.has(key))
+    .sort();
+  if (unknown.length > 0)
+    throw new Error(`${label} has unknown field(s): ${unknown.join(", ")}`);
+}
+
+function stringArray(value: unknown, label: string): string[] {
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
+  return value.map((entry, index) => {
+    if (typeof entry !== "string" || !TARGET_NAME.test(entry)) {
+      throw new Error(`${label}[${index}] must be a lowercase slug`);
+    }
+    return entry;
+  });
+}
+
+function unique(values: string[], label: string): void {
+  const seen = new Set<string>();
+  for (const value of values) {
+    if (seen.has(value))
+      throw new Error(`${label} contains duplicate ${JSON.stringify(value)}`);
+    seen.add(value);
+  }
+}
+
+function isAssetIndexFile(file: string): boolean {
+  if (file === ASSET_INDEX_FILE) return true;
+  const match = PER_GAME_INDEX.exec(file);
+  return Boolean(
+    match && GAME_SLUGS.includes(match[1] as (typeof GAME_SLUGS)[number]),
+  );
+}
+
+function validateIndexFile(value: unknown, index: number): string {
+  const label = `assetgen CI gate manifest targets.indexes[${index}]`;
+  if (typeof value !== "string" || value.length === 0)
+    throw new Error(`${label} must be a non-empty filename`);
+  if (
+    isAbsolute(value) ||
+    basename(value) !== value ||
+    value.split(/[\\/]/).includes("..")
+  ) {
+    throw new Error(
+      `${label} must be a filename relative to the assets directory`,
+    );
+  }
+  if (!isAssetIndexFile(value))
+    throw new Error(`${label} must be an assets.index*.json filename`);
+  return value;
+}
+
+export function parseAssetgenGateManifest(
+  value: unknown,
+): AssetgenGateManifest {
+  const manifest = record(value, "assetgen CI gate manifest");
+  assertKnownKeys(
+    manifest,
+    ["$schema", "schemaVersion", "package", "mode", "reason", "targets"],
+    "assetgen CI gate manifest",
+  );
+  if (manifest.$schema !== undefined && typeof manifest.$schema !== "string") {
+    throw new Error(
+      "assetgen CI gate manifest $schema must be a string when declared",
+    );
+  }
+  if (manifest.schemaVersion !== 1)
+    throw new Error("assetgen CI gate manifest schemaVersion must be 1");
+  if (
+    typeof manifest.package !== "string" ||
+    manifest.package.trim().length === 0
+  ) {
+    throw new Error(
+      "assetgen CI gate manifest package must be a non-empty string",
+    );
+  }
+  if (manifest.mode !== "enforced" && manifest.mode !== "native-only") {
+    throw new Error(
+      'assetgen CI gate manifest mode must be "enforced" or "native-only"',
+    );
+  }
+  if (
+    manifest.reason !== undefined &&
+    (typeof manifest.reason !== "string" || manifest.reason.trim().length === 0)
+  ) {
+    throw new Error(
+      "assetgen CI gate manifest reason must be a non-empty string when declared",
+    );
+  }
+
+  const targets = record(manifest.targets, "assetgen CI gate manifest targets");
+  assertKnownKeys(
+    targets,
+    ["indexes", "atlases", "codegen"],
+    "assetgen CI gate manifest targets",
+  );
+  if (!Array.isArray(targets.indexes))
+    throw new Error(
+      "assetgen CI gate manifest targets.indexes must be an array",
+    );
+  const indexes = targets.indexes.map(validateIndexFile);
+  const atlases = stringArray(
+    targets.atlases,
+    "assetgen CI gate manifest targets.atlases",
+  );
+  const codegen = stringArray(
+    targets.codegen,
+    "assetgen CI gate manifest targets.codegen",
+  );
+  unique(indexes, "assetgen CI gate manifest targets.indexes");
+  unique(atlases, "assetgen CI gate manifest targets.atlases");
+  unique(codegen, "assetgen CI gate manifest targets.codegen");
+
+  const targetCount = indexes.length + atlases.length + codegen.length;
+  if (manifest.mode === "native-only") {
+    if (targetCount !== 0)
+      throw new Error(
+        "assetgen CI gate manifest native-only mode may not declare assetgen targets",
+      );
+    if (
+      typeof manifest.reason !== "string" ||
+      manifest.reason.trim().length === 0
+    ) {
+      throw new Error(
+        "assetgen CI gate manifest native-only mode requires a reason",
+      );
+    }
+  } else if (targetCount === 0) {
+    throw new Error(
+      "assetgen CI gate manifest enforced mode requires at least one target",
+    );
+  }
+
+  return {
+    ...(typeof manifest.$schema === "string"
+      ? { $schema: manifest.$schema }
+      : {}),
+    schemaVersion: 1,
+    package: manifest.package,
+    mode: manifest.mode,
+    ...(typeof manifest.reason === "string" ? { reason: manifest.reason } : {}),
+    targets: { indexes, atlases, codegen },
+  };
 }
 
 async function readDirNames(dir: string): Promise<string[]> {
@@ -38,7 +214,10 @@ async function readDirNames(dir: string): Promise<string[]> {
 
 async function isAssetgenIndexFormat(path: string): Promise<boolean> {
   try {
-    const parsed = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+    const parsed = JSON.parse(await readFile(path, "utf8")) as Record<
+      string,
+      unknown
+    >;
     return (
       typeof parsed.version === "number" &&
       typeof parsed.generatedFrom === "string" &&
@@ -49,115 +228,226 @@ async function isAssetgenIndexFormat(path: string): Promise<boolean> {
   }
 }
 
-async function discoverIndexFiles(assetsDir: string): Promise<Pick<AssetgenGatePlan, "indexFiles" | "skippedIndexFiles">> {
-  const indexFiles: string[] = [];
-  const skippedIndexFiles: string[] = [];
-
+async function discoverIndexFiles(assetsDir: string): Promise<string[]> {
+  const files: string[] = [];
   for (const file of await readDirNames(assetsDir)) {
-    if (!isAssetIndexFile(file)) continue;
-    if (await isAssetgenIndexFormat(join(assetsDir, file))) indexFiles.push(file);
-    else skippedIndexFiles.push(file);
+    if (
+      isAssetIndexFile(file) &&
+      (await isAssetgenIndexFormat(join(assetsDir, file)))
+    )
+      files.push(file);
   }
-
-  return { indexFiles, skippedIndexFiles };
+  return files;
 }
 
-async function discoverAtlasGames(assetsDir: string): Promise<GameSlug[]> {
-  const games = new Set<GameSlug>();
+async function discoverAtlasGames(assetsDir: string): Promise<string[]> {
+  const games = new Set<string>();
   for (const file of await readDirNames(assetsDir)) {
     const match = ATLAS_MAP.exec(file);
-    if (match && isKnownGame(match[1]!)) games.add(match[1]!);
+    if (match) games.add(match[1]!);
   }
   return [...games].sort();
 }
 
-async function discoverCodegenTargets(gamesRoot: string): Promise<CodegenTarget[]> {
-  const targets: CodegenTarget[] = [];
+async function discoverCodegenGames(gamesRoot: string): Promise<string[]> {
+  const games: string[] = [];
   for (const game of await readDirNames(gamesRoot)) {
-    if (!isKnownGame(game)) continue;
-    const out = join(gamesRoot, game, "src", "assets.generated.ts");
-    if (existsSync(out)) targets.push({ game, out });
+    if (
+      TARGET_NAME.test(game) &&
+      existsSync(join(gamesRoot, game, "src", "assets.generated.ts"))
+    )
+      games.push(game);
   }
-  return targets.sort((a, b) => a.game.localeCompare(b.game));
+  return games.sort();
 }
 
-export async function buildAssetgenGatePlan(options: { assetsDir: string; gamesRoot: string }): Promise<AssetgenGatePlan> {
-  const { indexFiles, skippedIndexFiles } = await discoverIndexFiles(options.assetsDir);
+function assertExactTargets(
+  kind: string,
+  declared: string[],
+  discovered: string[],
+): void {
+  const declaredSet = new Set(declared);
+  const discoveredSet = new Set(discovered);
+  const missing = declared.filter((target) => !discoveredSet.has(target));
+  const undeclared = discovered.filter((target) => !declaredSet.has(target));
+  if (missing.length > 0)
+    throw new Error(
+      `[ci-gates] declared ${kind} target(s) missing: ${missing.join(", ")}`,
+    );
+  if (undeclared.length > 0)
+    throw new Error(
+      `[ci-gates] undeclared ${kind} target(s) found: ${undeclared.join(", ")}`,
+    );
+}
+
+export async function loadAssetgenGateManifest(
+  configPath: string,
+): Promise<AssetgenGateManifest> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(configPath, "utf8")) as unknown;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `could not read assetgen CI gate manifest ${configPath}: ${detail}`,
+    );
+  }
+  return parseAssetgenGateManifest(parsed);
+}
+
+export async function buildAssetgenGatePlan(options: {
+  assetsDir: string;
+  gamesRoot: string;
+  configPath: string;
+}): Promise<AssetgenGatePlan> {
+  const manifest = await loadAssetgenGateManifest(options.configPath);
+  const discoveredIndexes = await discoverIndexFiles(options.assetsDir);
+  const discoveredAtlases = await discoverAtlasGames(options.assetsDir);
+  const discoveredCodegen = await discoverCodegenGames(options.gamesRoot);
+
+  assertExactTargets("index", manifest.targets.indexes, discoveredIndexes);
+  assertExactTargets("atlas", manifest.targets.atlases, discoveredAtlases);
+  assertExactTargets("codegen", manifest.targets.codegen, discoveredCodegen);
+
   return {
     assetsDir: options.assetsDir,
     gamesRoot: options.gamesRoot,
-    indexFiles,
-    skippedIndexFiles,
-    atlasGames: await discoverAtlasGames(options.assetsDir),
-    codegenTargets: await discoverCodegenTargets(options.gamesRoot),
+    configPath: options.configPath,
+    package: manifest.package,
+    mode: manifest.mode,
+    ...(manifest.reason ? { reason: manifest.reason } : {}),
+    indexFiles: manifest.targets.indexes,
+    atlasGames: manifest.targets.atlases,
+    codegenTargets: manifest.targets.codegen.map((game) => ({
+      game,
+      out: join(options.gamesRoot, game, "src", "assets.generated.ts"),
+    })),
   };
 }
 
 function runBun(args: string[]): Promise<void> {
-  console.log(`[ci-gates] $ bun ${args.map((arg) => (/\s/.test(arg) ? JSON.stringify(arg) : arg)).join(" ")}`);
+  console.log(
+    `[ci-gates] $ bun ${args.map((arg) => (/\s/.test(arg) ? JSON.stringify(arg) : arg)).join(" ")}`,
+  );
   return new Promise((resolve, reject) => {
     const child = spawn("bun", args, { stdio: "inherit" });
     child.on("error", reject);
     child.on("exit", (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`bun ${args.join(" ")} exited with ${code ?? "unknown status"}`));
+      else
+        reject(
+          new Error(
+            `bun ${args.join(" ")} exited with ${code ?? "unknown status"}`,
+          ),
+        );
     });
   });
 }
 
-function logPlan(plan: AssetgenGatePlan): void {
-  console.log(`[ci-gates] assets-dir ${plan.assetsDir}`);
-  console.log(`[ci-gates] games-root ${plan.gamesRoot}`);
-
-  if (plan.skippedIndexFiles.length > 0) {
-    console.log(
-      `[ci-gates] skipped non-assetgen index file(s): ${plan.skippedIndexFiles.join(", ")}`
-    );
-  }
-  if (plan.indexFiles.length === 0) console.log("[ci-gates] no assetgen-format assets.index*.json files found");
-  else console.log(`[ci-gates] assetgen index file(s): ${plan.indexFiles.join(", ")}`);
-
-  if (plan.atlasGames.length === 0) console.log("[ci-gates] no committed per-game atlas maps found");
-  else console.log(`[ci-gates] atlas game(s): ${plan.atlasGames.join(", ")}`);
-
-  if (plan.codegenTargets.length === 0) console.log("[ci-gates] no committed per-game assets.generated.ts files found");
-  else console.log(`[ci-gates] codegen game(s): ${plan.codegenTargets.map((target) => target.game).join(", ")}`);
+function portable(path: string): string {
+  return path.split(sep).join("/");
 }
 
-export async function runCiGatesCommand(argv: string[]): Promise<void> {
-  const assetsDir = flag(argv, "assets-dir") || process.env.ASSETGEN_ASSETS_DIR || defaultAssetsDir();
-  const gamesRoot = flag(argv, "games-root") || process.env.ASSETGEN_GAMES_ROOT || defaultGamesRoot();
-  const strict = has(argv, "strict");
+function logPlan(plan: AssetgenGatePlan): void {
+  console.log(
+    `[ci-gates] config ${portable(relative(process.cwd(), plan.configPath) || plan.configPath)}`,
+  );
+  console.log(`[ci-gates] package ${plan.package}`);
+  console.log(`[ci-gates] mode ${plan.mode}`);
+  console.log(`[ci-gates] assets-dir ${plan.assetsDir}`);
+  console.log(`[ci-gates] games-root ${plan.gamesRoot}`);
+  if (plan.reason) console.log(`[ci-gates] reason ${plan.reason}`);
+  console.log(
+    `[ci-gates] index target(s): ${plan.indexFiles.join(", ") || "none (explicit)"}`,
+  );
+  console.log(
+    `[ci-gates] atlas target(s): ${plan.atlasGames.join(", ") || "none (explicit)"}`,
+  );
+  console.log(
+    `[ci-gates] codegen target(s): ${plan.codegenTargets.map((target) => target.game).join(", ") || "none (explicit)"}`,
+  );
+}
 
-  if (!existsSync(assetsDir)) {
-    console.error(`[ci-gates] assets dir not found: ${assetsDir} — pass --assets-dir <@shipshitgames/assets path>`);
-    process.exit(1);
-  }
-  if (!existsSync(gamesRoot)) {
-    console.error(`[ci-gates] games root not found: ${gamesRoot} — pass --games-root <apps/games path>`);
-    process.exit(1);
-  }
-
-  const plan = await buildAssetgenGatePlan({ assetsDir, gamesRoot });
-  logPlan(plan);
-
-  const targetCount = plan.indexFiles.length + plan.atlasGames.length + plan.codegenTargets.length;
-  if (strict && targetCount === 0) {
-    console.error("[ci-gates] no assetgen gate targets found");
-    process.exit(1);
-  }
-
-  if (plan.indexFiles.length > 0) {
-    await runBun([cliPath, "check", "--assets-dir", assetsDir]);
-  }
+export async function executeAssetgenGatePlan(
+  plan: AssetgenGatePlan,
+  runner: CommandRunner = runBun,
+): Promise<void> {
+  if (plan.indexFiles.length > 0)
+    await runner([cliPath, "check", "--assets-dir", plan.assetsDir]);
 
   for (const game of plan.atlasGames) {
-    await runBun([cliPath, "atlas", "--game", game, "--assets-dir", assetsDir, "--out-dir", assetsDir, "--name", game, "--check"]);
+    await runner([
+      cliPath,
+      "atlas",
+      "--game",
+      game,
+      "--assets-dir",
+      plan.assetsDir,
+      "--out-dir",
+      plan.assetsDir,
+      "--name",
+      game,
+      "--check",
+    ]);
   }
 
   for (const target of plan.codegenTargets) {
-    await runBun([cliPath, "codegen", "--game", target.game, "--assets-dir", assetsDir, "--out", target.out, "--check"]);
+    await runner([
+      cliPath,
+      "codegen",
+      "--game",
+      target.game,
+      "--assets-dir",
+      plan.assetsDir,
+      "--out",
+      target.out,
+      "--check",
+    ]);
+  }
+}
+
+export async function runCiGatesCommand(argv: string[]): Promise<void> {
+  const assetsDir =
+    flag(argv, "assets-dir") ||
+    process.env.ASSETGEN_ASSETS_DIR ||
+    defaultAssetsDir();
+  const gamesRoot =
+    flag(argv, "games-root") ||
+    process.env.ASSETGEN_GAMES_ROOT ||
+    defaultGamesRoot();
+  const configPath = flag(argv, "config");
+
+  if (!configPath || configPath.startsWith("--")) {
+    console.error(
+      "[ci-gates] --config <assetgen-ci-gates.json> is required; implicit target discovery is not a valid CI contract",
+    );
+    process.exit(1);
+  }
+  if (!existsSync(assetsDir)) {
+    console.error(
+      `[ci-gates] assets dir not found: ${assetsDir} — pass --assets-dir <assets package path>`,
+    );
+    process.exit(1);
+  }
+  if (!existsSync(gamesRoot)) {
+    console.error(
+      `[ci-gates] games root not found: ${gamesRoot} — pass --games-root <apps/games path>`,
+    );
+    process.exit(1);
   }
 
-  console.log("[ci-gates] complete");
+  try {
+    const plan = await buildAssetgenGatePlan({
+      assetsDir,
+      gamesRoot,
+      configPath,
+    });
+    logPlan(plan);
+    await executeAssetgenGatePlan(plan);
+    console.log("[ci-gates] complete");
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error(`[ci-gates] failed: ${detail}`);
+    process.exit(1);
+  }
 }

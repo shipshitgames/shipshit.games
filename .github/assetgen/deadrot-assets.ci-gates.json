@@ -1,0 +1,12 @@
+{
+  "$schema": "../../packages/assetgen/ci-gates.schema.json",
+  "schemaVersion": 1,
+  "package": "@deadrot/assets",
+  "mode": "native-only",
+  "reason": "Deadrot currently publishes its native generated index and has not adopted an assetgen-format index, atlas map, or generated module.",
+  "targets": {
+    "indexes": [],
+    "atlases": [],
+    "codegen": []
+  }
+}
