@@ -70,6 +70,29 @@ bun packages/assetgen/src/cli.ts generate --provider mock --dry-run \
   --license "internal prototype; review before shipping"
 ```
 
+## `pose-set` — canonical anchor-pose references
+
+`pose-set` turns an entity's promoted catalog variant into the five canonical
+animation references: `idle`, `walk`, `attack`, `hit`, and `death`. The command
+refuses placeholders, aliases, missing files, and paths outside the selected
+asset package. Every generated pose uses the promoted image as a provider
+reference, locks the output to the generated `DESIGN.md` style contract and DOOM
+palette, and records its own image hash, provider provenance, and license scope.
+
+```bash
+bun packages/assetgen/src/cli.ts pose-set \
+  --entity scourge-swarm --game scourge-survivors \
+  --assets-dir ../deadrotcom/packages/assets \
+  --provider mock --usage-log off
+```
+
+Outputs live under
+`sources/pose-sets/<entity>/<game>/{idle,walk,attack,hit,death}.webp` with a
+versioned `pose-set.json`. The public contract is exported as
+`@shipshitgames/assetgen/pose-set` and
+`@shipshitgames/assetgen/pose-set.schema.json`. A complete non-runtime Scourge
+fixture lives in [`examples/pose-sets/scourge-swarm`](./examples/pose-sets/scourge-swarm).
+
 ## `muzzle-tuner` — studio-side weapon flash placement
 
 Deadrot should ship games, not asset tooling. Use `assetgen muzzle-tuner` from
