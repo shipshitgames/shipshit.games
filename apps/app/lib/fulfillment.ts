@@ -11,3 +11,22 @@ export function createSkillsProAccessUrl(userId: string, email: string) {
   url.searchParams.set("token", token);
   return url.toString();
 }
+
+export function createMemberAssetPackAccessUrl(
+  userId: string,
+  email: string,
+  packId: string,
+) {
+  const token = createAccessToken({
+    sub: userId,
+    email,
+    resource: "member-asset-pack",
+    resourceId: packId,
+  });
+  const url = new URL(
+    `/api/access/member-assets/${encodeURIComponent(packId)}`,
+    appUrl(),
+  );
+  url.searchParams.set("token", token);
+  return url.toString();
+}

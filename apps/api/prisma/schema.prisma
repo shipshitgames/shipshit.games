@@ -123,6 +123,19 @@ model SkillsProPurchase {
   @@index([active])
 }
 
+/// Durable audit trail for signed member-content grants and denials.
+model ContentAccessEvent {
+  id         String   @id @default(uuid())
+  userId     String
+  resource   String
+  resourceId String?
+  outcome    String
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([resource, resourceId, createdAt(sort: Desc)])
+}
+
 /// Commits ingested from GitHub push webhooks; feeds /v1/stats/commits.
 model Commit {
   id          String   @id @default(uuid())

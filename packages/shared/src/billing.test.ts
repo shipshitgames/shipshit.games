@@ -4,6 +4,7 @@ import {
   compareBillingVersions,
   hasActiveStudioPass,
   hasSkillsProContentAccess,
+  studioPassAccessState,
   type BillingEntitlements,
   type StudioPassEntitlement,
 } from "./billing";
@@ -39,6 +40,17 @@ test("Studio Pass access requires both an active flag and active Stripe status",
   expect(hasActiveStudioPass(activePass)).toBe(true);
   expect(hasActiveStudioPass({ ...activePass, active: false })).toBe(false);
   expect(hasActiveStudioPass({ ...activePass, status: "canceled" })).toBe(false);
+});
+
+test("Studio Pass portal state distinguishes unclaimed, inactive, and canceled access", () => {
+  expect(studioPassAccessState(null)).toBe("not-claimed");
+  expect(studioPassAccessState(activePass)).toBe("active");
+  expect(
+    studioPassAccessState({ ...activePass, active: false, status: "past_due" }),
+  ).toBe("inactive");
+  expect(
+    studioPassAccessState({ ...activePass, active: false, status: "canceled" }),
+  ).toBe("canceled");
 });
 
 test("Skills Pro access accepts either the subscription or one-time entitlement", () => {
