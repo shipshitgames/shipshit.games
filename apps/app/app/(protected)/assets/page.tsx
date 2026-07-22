@@ -23,7 +23,7 @@ const POSES = [
   "back view",
 ] as const;
 const BATCH_SIZES = [1, 2, 3, 4] as const;
-const PENDING_GENERATION_KEY = "shipshitgames:pending-generation";
+const PENDING_GENERATION_KEY = "shipshitgames:pending-generation:v1";
 const RESUME_POLL_MS = 30_000;
 const MAX_RESUME_POLLS = 20;
 const chip = (active: boolean) =>

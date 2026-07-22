@@ -137,65 +137,80 @@ async function reapExpiredReservations(
   });
   if (!staleJobs.length) return;
 
-  for (const job of staleJobs) {
-    const expired = await transaction.generationJob.updateMany({
-      where: {
-        id: job.id,
-        ownerId,
-        OR: [
-          {
-            status: "processing",
-            leaseExpiresAt: { lte: staleBefore },
-          },
-          {
-            status: "queued",
-            createdAt: { lte: staleBefore },
-          },
-        ],
-      },
-      data: {
-        status: "failed",
-        error: "generation job expired after 24 hours without a worker",
-        leaseOwner: null,
-        leaseExpiresAt: null,
-        completedAt: new Date(),
-      },
-    });
-    if (!expired.count) continue;
-
-    const account = await transaction.generationCreditAccount.findUniqueOrThrow(
-      {
-        where: { ownerId },
-      },
-    );
-    const refundableIncluded =
-      account.includedResetAt.getTime() === job.includedPeriodEndsAt.getTime()
-        ? job.reservedIncludedCredits
-        : 0;
-    await transaction.generationCreditAccount.update({
-      where: { ownerId },
-      data: {
-        includedBalance: { increment: refundableIncluded },
-        purchasedBalance: {
-          increment: job.reservedPurchasedCredits,
+  const expirationResults = await Promise.all(
+    staleJobs.map((job) =>
+      transaction.generationJob.updateMany({
+        where: {
+          id: job.id,
+          ownerId,
+          OR: [
+            {
+              status: "processing",
+              leaseExpiresAt: { lte: staleBefore },
+            },
+            {
+              status: "queued",
+              createdAt: { lte: staleBefore },
+            },
+          ],
         },
-      },
-    });
-    await appendCreditEntries(transaction, {
-      ownerId,
-      jobId: job.id,
-      action: "release",
-      included: refundableIncluded,
-      purchased: job.reservedPurchasedCredits,
-    });
-    await appendCreditEntries(transaction, {
-      ownerId,
-      jobId: job.id,
-      action: "expire",
-      included: job.reservedIncludedCredits - refundableIncluded,
-      purchased: 0,
-    });
-  }
+        data: {
+          status: "failed",
+          error: "generation job expired after 24 hours without a worker",
+          leaseOwner: null,
+          leaseExpiresAt: null,
+          completedAt: new Date(),
+        },
+      }),
+    ),
+  );
+  const expiredJobs = staleJobs.filter((_, index) => expirationResults[index]?.count);
+  if (!expiredJobs.length) return;
+
+  const account = await transaction.generationCreditAccount.findUniqueOrThrow({
+    where: { ownerId },
+  });
+  const refundableIncluded = expiredJobs.reduce(
+    (total, job) =>
+      total +
+      (account.includedResetAt.getTime() === job.includedPeriodEndsAt.getTime()
+        ? job.reservedIncludedCredits
+        : 0),
+    0,
+  );
+  const purchasedCredits = expiredJobs.reduce(
+    (total, job) => total + job.reservedPurchasedCredits,
+    0,
+  );
+  await transaction.generationCreditAccount.update({
+    where: { ownerId },
+    data: {
+      includedBalance: { increment: refundableIncluded },
+      purchasedBalance: { increment: purchasedCredits },
+    },
+  });
+  await Promise.all(
+    expiredJobs.map(async (job) => {
+      const refundableJobIncluded =
+        account.includedResetAt.getTime() === job.includedPeriodEndsAt.getTime()
+          ? job.reservedIncludedCredits
+          : 0;
+      await appendCreditEntries(transaction, {
+        ownerId,
+        jobId: job.id,
+        action: "release",
+        included: refundableJobIncluded,
+        purchased: job.reservedPurchasedCredits,
+      });
+      await appendCreditEntries(transaction, {
+        ownerId,
+        jobId: job.id,
+        action: "expire",
+        included: job.reservedIncludedCredits - refundableJobIncluded,
+        purchased: 0,
+      });
+    }),
+  );
 }
 
 export const generationJobRepository: GenerationJobStore = {
