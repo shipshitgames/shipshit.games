@@ -129,6 +129,18 @@ bun packages/ressources/src/cli.ts promote-skill \
 # sync stable channel-video metadata when yt-dlp is installed
 bun packages/ressources/src/cli.ts source-sync --source ai-oriented-dev --limit 50
 
+# turn one @shipshitshow VOD into publication drafts
+bun packages/ressources/src/cli.ts vod-content \
+  --url "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# offline/keyless review path: each line must start with [MM:SS] or [HH:MM:SS]
+bun packages/ressources/src/cli.ts vod-content \
+  --transcript-file timed-transcript.txt \
+  --title "Building the next milestone" \
+  --url "https://www.youtube.com/watch?v=VIDEO_ID" \
+  --rights user-provided \
+  --provider mock
+
 # report derivative rules and source coverage without reading transcript text
 bun packages/ressources/src/cli.ts rules-report
 bun packages/ressources/src/cli.ts rules-report --out rules-report.md
@@ -138,6 +150,24 @@ bun packages/ressources/src/cli.ts rules-report --out rules-report.md
 sorts entries by upload date then video ID for deterministic review. It fails
 with an installation hint when `yt-dlp` is unavailable. The old `sync-channel`
 name remains as a compatibility alias.
+
+`vod-content` defaults to the checked-in `shipshitshow` source. It preserves
+the yt-dlp caption timestamps and writes one review folder under
+`derivatives/content/shipshitshow/<vod-slug>/` containing:
+
+- `chapters.md` with upload-ready chapter markers
+- `clips.md` with bounded timestamp ranges, hooks, and selection rationale
+- `newsletter.md` with subject, preview text, and an original draft
+- `devlog.md` with a build-in-public draft for the web Log section
+- `stream-content.json` with provider, transcript hash/rights, duration, counts,
+  and output paths
+
+Raw captions are not copied into the output folder. The manifest records a
+SHA-256 digest and reviewed rights state so reruns remain traceable without
+turning the repository into a transcript archive. `--duplicate skip` is the
+default; `overwrite` and `versioned` are explicit alternatives. The `mock`
+provider exercises the full keyless file contract, while the default `codex`
+provider creates editorial drafts. Generated drafts are never auto-published.
 
 `rules-report` reads source, transcript-sidecar, and derivative JSON manifests
 only. Its compact Markdown output groups rules by source, topic, and review
