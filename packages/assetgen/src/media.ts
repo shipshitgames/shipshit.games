@@ -273,8 +273,9 @@ export function outputUrl(output: unknown): string | undefined {
   if (Array.isArray(output)) return output.find((item): item is string => typeof item === "string");
   if (output && typeof output === "object") {
     const obj = output as Record<string, unknown>;
-    const direct = obj.audio_url ?? obj.audioUrl ?? obj.image_url ?? obj.imageUrl ?? obj.url;
+    const direct = obj.audio_url ?? obj.audioUrl ?? obj.image_url ?? obj.imageUrl ?? obj.video_url ?? obj.videoUrl ?? obj.url;
     if (typeof direct === "string") return direct;
+    if (obj.video) return outputUrl(obj.video);
     if (Array.isArray(obj.data)) return outputUrl(obj.data);
     if (obj.output) return outputUrl(obj.output);
   }
@@ -287,6 +288,7 @@ export function mediaTypeFromUrl(url: string): string {
   if (url.endsWith(".mp3")) return "audio/mpeg";
   if (url.endsWith(".ogg")) return "audio/ogg";
   if (url.endsWith(".webm")) return "audio/webm";
+  if (url.endsWith(".mp4")) return "video/mp4";
   if (url.endsWith(".wav")) return "audio/wav";
   if (url.endsWith(".glb")) return "model/gltf-binary";
   return "application/octet-stream";
@@ -300,6 +302,8 @@ export function extensionForMediaType(mediaType: string, url = ""): string {
   if (mediaType === "audio/ogg") return "ogg";
   if (mediaType === "audio/webm") return "webm";
   if (mediaType === "audio/wav") return "wav";
+  if (mediaType === "video/mp4") return "mp4";
+  if (mediaType === "video/webm") return "webm";
   if (mediaType === "model/gltf-binary") return "glb";
   const match = url.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/i);
   return match?.[1]?.toLowerCase() ?? "bin";

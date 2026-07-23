@@ -2,6 +2,8 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
 import { readBillingEntitlements } from "@/lib/billing";
+import { recordContentAccess } from "@/lib/content-access";
+import { privateContentUrl } from "@/lib/content-url";
 import { hasSkillsProContentAccess, primaryEmail } from "@/lib/entitlements";
 import { verifyAccessToken } from "@/lib/access-token";
 import { appUrl } from "@/lib/urls";
@@ -44,11 +46,24 @@ export async function GET(request: NextRequest) {
     primaryEmail(user) !== payload.email ||
     !hasSkillsProContentAccess(entitlements)
   ) {
+    await recordContentAccess({
+      resource: "skills-pro",
+      outcome: "denied",
+    }).catch(() => undefined);
     return new NextResponse("No Skills Pro access", { status: 403 });
   }
 
-  const targetUrl = process.env.SKILLS_PRO_PRIVATE_URL;
-  if (!targetUrl) {
+  let targetUrl: string;
+  try {
+    targetUrl = privateContentUrl(
+      process.env.SKILLS_PRO_PRIVATE_URL,
+      "SKILLS_PRO_PRIVATE_URL",
+    );
+  } catch {
+    await recordContentAccess({
+      resource: "skills-pro",
+      outcome: "unavailable",
+    }).catch(() => undefined);
     return NextResponse.json(
       {
         error: "SKILLS_PRO_PRIVATE_URL is not configured yet.",
@@ -59,5 +74,16 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.redirect(targetUrl, 303);
+  try {
+    await recordContentAccess({ resource: "skills-pro", outcome: "granted" });
+  } catch {
+    return new NextResponse("Access audit is temporarily unavailable", {
+      status: 503,
+    });
+  }
+
+  const response = NextResponse.redirect(targetUrl, 303);
+  response.headers.set("cache-control", "private, no-store");
+  response.headers.set("referrer-policy", "no-referrer");
+  return response;
 }

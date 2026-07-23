@@ -92,7 +92,7 @@ test("ci: mock distillation and transcript/derivative creation produce a valid l
 
     const validation = runCli(tempCliPath, ["validate"]);
     assert.equal(validation.status, 0, validation.stderr);
-    assert.match(validation.stdout, /\[validate\] sources=18 transcripts=8 derivatives=2/);
+    assert.match(validation.stdout, /\[validate\] sources=19 transcripts=8 derivatives=2/);
   } finally {
     rmSync(tempRoot, { force: true, recursive: true });
   }

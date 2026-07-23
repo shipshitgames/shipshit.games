@@ -68,7 +68,42 @@ bun packages/assetgen/src/cli.ts generate --provider mock --dry-run \
   --prompt "a parasite-taken Scourge host sprint cycle" \
   --views front,side,back --frames 4 --fps 12 --scale 1.5 \
   --license "internal prototype; review before shipping"
+
+# Image-to-video sprite expansion: one clip per action/facing, evenly sampled,
+# chroma-keyed, static-pixel locked, pixelized, packed, and registered. Mock runs
+# the complete pipeline without provider keys or ffmpeg.
+bun packages/assetgen/src/cli.ts expand --method video --provider mock \
+  --in ./refs/swarm-husk.png --id swarm-husk --game scourge-survivors \
+  --actions idle:4,run:6,attack:4 --dirs 4 --repo ../deadrotcom
+
+# Real Wan 2.2 image-to-video through fal; Replicate accepts its owner/model id.
+FAL_KEY=... bun packages/assetgen/src/cli.ts expand --method video --provider fal \
+  --model fal-ai/wan/v2.2-a14b/image-to-video --in ./refs/swarm-husk.png \
+  --actions idle:4 --dirs 1 --repo ../deadrotcom
 ```
+
+## `pose-set` — canonical anchor-pose references
+
+`pose-set` turns an entity's promoted catalog variant into the five canonical
+animation references: `idle`, `walk`, `attack`, `hit`, and `death`. The command
+refuses placeholders, aliases, missing files, and paths outside the selected
+asset package. Every generated pose uses the promoted image as a provider
+reference, locks the output to the generated `DESIGN.md` style contract and DOOM
+palette, and records its own image hash, provider provenance, and license scope.
+
+```bash
+bun packages/assetgen/src/cli.ts pose-set \
+  --entity scourge-swarm --game scourge-survivors \
+  --assets-dir ../deadrotcom/packages/assets \
+  --provider mock --usage-log off
+```
+
+Outputs live under
+`sources/pose-sets/<entity>/<game>/{idle,walk,attack,hit,death}.webp` with a
+versioned `pose-set.json`. The public contract is exported as
+`@shipshitgames/assetgen/pose-set` and
+`@shipshitgames/assetgen/pose-set.schema.json`. A complete non-runtime Scourge
+fixture lives in [`examples/pose-sets/scourge-swarm`](./examples/pose-sets/scourge-swarm).
 
 ## `muzzle-tuner` — studio-side weapon flash placement
 
@@ -184,6 +219,21 @@ with:
 curl -fsSL https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js \
   | openssl dgst -sha384 -binary | openssl base64 -A
 ```
+
+### HD-2D bake contract
+
+`@shipshitgames/assetgen/hd2d-bake` exports the versioned, renderer-agnostic
+handoff for the model-to-sprite bake lane. `validateHd2dBakeManifest` checks
+source-model provenance, safe relative paths, camera-family selection, action
+timing, views, pivots/origins, and runtime direction bindings before any stage
+touches a renderer or filesystem. `buildHd2dBakePlan` then emits a canonical
+action × view × frame worklist, clip frame ranges, output paths, and typed
+direction-to-clip bindings.
+
+The checked-in presets cover FPS billboard, top-down, isometric, arcade, and
+side-on reads with bone/blood/hellfire lighting. This contract does not render
+GLBs, sample skeletons, pixelize frames, or write assets; those are explicit
+downstream stages so every boundary stays independently testable.
 
 ## Draft & promote (issue #54)
 
@@ -578,6 +628,24 @@ ramp the grid quantizes to.
 The studio's **Sprites pane** exposes the same step (grid height, bg threshold,
 cutout, palette, before/after) over `studio:pixelize`, which shells out to this exact
 verb — one impl, two surfaces.
+
+### Soft color grade and advisory gamut report
+
+Generated images can opt into the canonical, non-destructive value/temperature
+grade compiled from `DESIGN.md`:
+
+```bash
+bun packages/assetgen/src/cli.ts generate \
+  --id ember-panel --prompt "industrial HUD panel" --kind icon \
+  --soft-grade
+```
+
+The pass interpolates toward `assetgen.gradeParams.softGrade`; it does not snap
+pixels to the DOOM palette and never changes alpha or image dimensions. A
+`reports/<id>.color-gamut.json` sidecar records material source colors outside
+the canonical value/temperature range and is linked from the manifest. The
+report is always advisory (`blocking: false`) and never replaces human review
+or a promotion gate.
 
 ## Design tokens
 

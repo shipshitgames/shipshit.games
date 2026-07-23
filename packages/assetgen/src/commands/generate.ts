@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { resolve, join } from "node:path";
+import { dirname, resolve, join } from "node:path";
 import { GAME_VIEW, buildPrompt } from "../style.ts";
 import { defaultProviderForKind } from "../providers.ts";
 import { runAssetPipeline } from "../pipeline.ts";
@@ -20,13 +20,25 @@ import {
   toSpriteSheetWebp,
   writeBillboardPreview,
 } from "../sprites.ts";
-import { assetsRootForRepo, draftsManifestPath, draftsRoot } from "../drafts.ts";
+import {
+  assetsRootForRepo,
+  draftsManifestPath,
+  draftsRoot,
+} from "../drafts.ts";
 import {
   assertLargeModelSourceUsesLfs,
   buildModelOptimizeReport,
   modelSha256,
 } from "../model-trace.ts";
-import { flag, flagValues, has, intFlag, numberFlag, shortFlagValues } from "./args.ts";
+import { serializeColorGamutReport } from "../soft-grade";
+import {
+  flag,
+  flagValues,
+  has,
+  intFlag,
+  numberFlag,
+  shortFlagValues,
+} from "./args.ts";
 import { defaultRepo } from "./paths.ts";
 import { projectAssetsDir, selectedProject } from "./registry.ts";
 
@@ -35,17 +47,23 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const prompt = flag(argv, "prompt") ?? "";
   const game = flag(argv, "game", "shared")!;
   const kind = flag(argv, "kind", "sprite")!;
-  const spriteMode = kind === "sprite" || kind === "sprite-anim" || has(argv, "views") || has(argv, "frames");
+  const spriteMode =
+    kind === "sprite" ||
+    kind === "sprite-anim" ||
+    has(argv, "views") ||
+    has(argv, "frames");
   const generationKind = spriteMode ? "sprite" : kind;
-  const provider = flag(argv, "provider") || defaultProviderForKind(generationKind);
+  const provider =
+    flag(argv, "provider") || defaultProviderForKind(generationKind);
   const model = flag(argv, "model");
   const size = intFlag(argv, "size", 1024);
   const repoFlag = flag(argv, "repo");
   const repo = repoFlag || defaultRepo(game);
   const assetsDirFlag = flag(argv, "assets-dir");
-  const referenceImages = [...flagValues(argv, "reference"), ...shortFlagValues(argv, "i")].map((path) =>
-    resolve(path),
-  );
+  const referenceImages = [
+    ...flagValues(argv, "reference"),
+    ...shortFlagValues(argv, "i"),
+  ].map((path) => resolve(path));
   // Draft mode (issue #54): stage the asset under src/assets/drafts/ + drafts.json
   // instead of writing the production manifest. Default off — non-draft runs are
   // byte-for-byte unchanged. `assetgen promote` later publishes staged drafts.
@@ -63,15 +81,21 @@ export async function runGenerate(argv: string[]): Promise<void> {
   // Reproducibility seed (issue #55): only the seedable providers honor it.
   // Parsed permissively so 0 is a valid seed; negatives/junk fall back to unset.
   const seedRaw = flag(argv, "seed");
-  const seedParsed = seedRaw === undefined ? Number.NaN : Number.parseInt(seedRaw, 10);
-  const seed = Number.isFinite(seedParsed) && seedParsed >= 0 ? seedParsed : undefined;
+  const seedParsed =
+    seedRaw === undefined ? Number.NaN : Number.parseInt(seedRaw, 10);
+  const seed =
+    Number.isFinite(seedParsed) && seedParsed >= 0 ? seedParsed : undefined;
   // Human-authorship disclosure (issue #55): --authored marks a person touched it.
   const authored = has(argv, "authored");
   const editKind = flag(argv, "edit-kind");
-  const human = authored ? { authored: true, ...(editKind ? { editKind } : {}) } : undefined;
+  const human = authored
+    ? { authored: true, ...(editKind ? { editKind } : {}) }
+    : undefined;
 
   // Audio knobs (issue #21): category drives loop default + manifest record.
-  const category = flag(argv, "category") || (isAudioKind(generationKind) ? generationKind : undefined);
+  const category =
+    flag(argv, "category") ||
+    (isAudioKind(generationKind) ? generationKind : undefined);
   // volume must accept 0 (muted) — numberFlag rejects non-positives (correct for
   // scale), so parse through clampVolume which preserves 0 and defaults junk to 1.
   const volumeRaw = flag(argv, "volume");
@@ -86,7 +110,8 @@ export async function runGenerate(argv: string[]): Promise<void> {
         ? defaultLoopForCategory(category)
         : false;
   const audioMode = !spriteMode && isAudioKind(generationKind);
-  const modelMode = !spriteMode && (generationKind === "model" || generationKind === "3d");
+  const modelMode =
+    !spriteMode && (generationKind === "model" || generationKind === "3d");
 
   // 3D-model knobs (issue #20): Draco geometry is on by default (the mandatory
   // optimize). Generated rig provenance must come from the provider; arbitrary
@@ -96,7 +121,8 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const rigSource = flag(argv, "rig");
   const modelFaceCount = intFlag(argv, "face-count", 300_000);
   const modelPbr = !has(argv, "no-pbr");
-  const modelGenerateType = flag(argv, "generate-type", "Normal") as "Normal" | "Geometry";
+  const modelGenerateType = flag(argv, "generate-type", "Normal") as
+    "Normal" | "Geometry";
   const maxRuntimeMb = numberFlag(argv, "max-runtime-mb", 20);
 
   // Outline-tint postprocess (issue #167): opt-in softening of hard black
@@ -105,6 +131,13 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const outlineTint = has(argv, "outline-tint");
   const outlineTintStrength = numberFlag(argv, "outline-tint-strength", 0.5);
   const outlineTintThreshold = intFlag(argv, "outline-tint-threshold", 32);
+  // Canonical DESIGN.md-driven soft grade. Its sidecar is advisory only.
+  const softGrade = has(argv, "soft-grade");
+  if (softGrade && (audioMode || modelMode)) {
+    console.warn(
+      `[assetgen] --soft-grade applies to image assets; skipped for kind=${generationKind}`,
+    );
+  }
 
   if (!id || (!prompt.trim() && !(modelMode && referenceImages.length === 1))) {
     printGenerateUsage();
@@ -120,37 +153,57 @@ export async function runGenerate(argv: string[]): Promise<void> {
     const { assertModelId } = await import("../model3d.ts");
     assertModelId(id);
   }
-  if (modelMode && modelGenerateType !== "Normal" && modelGenerateType !== "Geometry") {
+  if (
+    modelMode &&
+    modelGenerateType !== "Normal" &&
+    modelGenerateType !== "Geometry"
+  ) {
     throw new Error('--generate-type must be "Normal" or "Geometry"');
   }
 
   // Sprites augment the prompt with a sheet directive so the provider lays out
   // views/frames, then go through the shared pipeline like every other asset.
-  const promptInput = spriteMode ? `${prompt}. ${spritePromptDirective(views, frameCount)}` : prompt;
+  const promptInput = spriteMode
+    ? `${prompt}. ${spritePromptDirective(views, frameCount)}`
+    : prompt;
   const which = dryRun ? "mock" : provider;
   const full = audioMode
     ? buildAudioPrompt({ prompt: promptInput, kind: generationKind })
     : modelMode
       ? promptInput
       : buildPrompt({ prompt: promptInput, game, kind: generationKind });
-  console.log(`[assetgen] provider=${which}${model ? ` model=${model}` : ""} game=${game} kind=${kind} id=${id}`);
+  console.log(
+    `[assetgen] provider=${which}${model ? ` model=${model}` : ""} game=${game} kind=${kind} id=${id}`,
+  );
   console.log(`[prompt] ${full}`);
-  for (const reference of referenceImages) console.log(`[reference] ${reference}`);
+  for (const reference of referenceImages)
+    console.log(`[reference] ${reference}`);
 
-  const project = modelMode && !repoFlag && !assetsDirFlag ? selectedProject() : undefined;
+  const project =
+    modelMode && !repoFlag && !assetsDirFlag ? selectedProject() : undefined;
   const modelAssetsRoot = modelMode
-    ? resolve(assetsDirFlag ?? (project ? projectAssetsDir(project) : assetsRootForRepo(repo)))
+    ? resolve(
+        assetsDirFlag ??
+          (project ? projectAssetsDir(project) : assetsRootForRepo(repo)),
+      )
     : undefined;
   const assetsRoot = modelAssetsRoot ?? assetsRootForRepo(repo);
   const modelOutput = modelAssetsRoot
-    ? { outputRoot: modelAssetsRoot, manifestPath: join(modelAssetsRoot, "assets.json") }
+    ? {
+        outputRoot: modelAssetsRoot,
+        manifestPath: join(modelAssetsRoot, "assets.json"),
+      }
     : {};
 
   const spritePostprocess: AssetPostprocessHook | undefined = spriteMode
     ? async (asset, context) => {
         // Non-image providers (e.g. audio) fall through untouched.
         if (!asset.mediaType.startsWith("image/")) {
-          return { data: asset.data, mediaType: asset.mediaType, extension: asset.extension };
+          return {
+            data: asset.data,
+            mediaType: asset.mediaType,
+            extension: asset.extension,
+          };
         }
         const sprite = await toSpriteSheetWebp(asset.data, {
           id: context.id,
@@ -166,9 +219,12 @@ export async function runGenerate(argv: string[]): Promise<void> {
           size: context.size,
           licenseTerms,
           licenseUrl,
+          softGrade: context.softGrade,
         });
+        const colorGamutReport = sprite.colorGamutReport;
         const meta = sprite.metadata;
         const previewRel = `previews/${context.id}-billboard.html`;
+        const colorReportRel = `reports/${context.id}.color-gamut.json`;
         return {
           data: sprite.data,
           mediaType: "image/webp",
@@ -185,6 +241,18 @@ export async function runGenerate(argv: string[]): Promise<void> {
             views: meta.views,
             sheet: meta.sheet,
             preview: previewRel,
+            ...(colorGamutReport
+              ? {
+                  colorGrade: {
+                    applied: true as const,
+                    advisory: true as const,
+                    blocking: false as const,
+                    report: colorReportRel,
+                    outOfGamutRatio: colorGamutReport.summary.outOfGamutRatio,
+                    material: colorGamutReport.summary.material,
+                  },
+                }
+              : {}),
           },
           licenseExtra: {
             type: meta.license.type,
@@ -202,6 +270,15 @@ export async function runGenerate(argv: string[]): Promise<void> {
               metadata: meta,
             });
             console.log(`[billboard] ${previewPath}`);
+            if (colorGamutReport) {
+              const reportPath = join(outputRoot, colorReportRel);
+              await mkdir(dirname(reportPath), { recursive: true });
+              await writeFile(
+                reportPath,
+                serializeColorGamutReport(colorGamutReport),
+              );
+              console.log(`[color-gamut] advisory ${reportPath}`);
+            }
           },
         };
       }
@@ -213,7 +290,11 @@ export async function runGenerate(argv: string[]): Promise<void> {
     ? async (asset) => {
         // Defensive: anything non-audio falls through untouched.
         if (!asset.mediaType.startsWith("audio/")) {
-          return { data: asset.data, mediaType: asset.mediaType, extension: asset.extension };
+          return {
+            data: asset.data,
+            mediaType: asset.mediaType,
+            extension: asset.extension,
+          };
         }
         const encoded = await encodeAudioWebm(
           asset.data,
@@ -224,7 +305,12 @@ export async function runGenerate(argv: string[]): Promise<void> {
           data: encoded.data,
           mediaType: "audio/webm",
           extension: "webm",
-          entryFields: audioMetadata({ category: category!, volume, loop, duration: encoded.duration }),
+          entryFields: audioMetadata({
+            category: category!,
+            volume,
+            loop,
+            duration: encoded.duration,
+          }),
           licenseExtra: {
             type: "ai-generated",
             terms: licenseTerms ?? "review audio license scope before shipping",
@@ -247,7 +333,10 @@ export async function runGenerate(argv: string[]): Promise<void> {
           MODEL_EXTENSION,
         } = await import("../model3d.ts");
         const result = await optimizeGlb(asset.data, { draco, ktx2 });
-        assertModelRuntimeBudget(result, Math.round(maxRuntimeMb * 1024 * 1024));
+        assertModelRuntimeBudget(
+          result,
+          Math.round(maxRuntimeMb * 1024 * 1024),
+        );
         const rigged = result.summary.skins > 0;
         const sourceRelPath = `sources/models/${id}.glb`;
         const traceRelPath = `sources/models/${id}.optimize.json`;
@@ -277,7 +366,9 @@ export async function runGenerate(argv: string[]): Promise<void> {
             skins: result.summary.skins,
             joints: result.summary.joints,
             pbr: modelPbr && result.summary.textures > 0,
-            ...(asset.provider === "replicate" ? { faceCount: modelFaceCount } : {}),
+            ...(asset.provider === "replicate"
+              ? { faceCount: modelFaceCount }
+              : {}),
             modelTrace: {
               source: sourceRelPath,
               report: traceRelPath,
@@ -288,7 +379,9 @@ export async function runGenerate(argv: string[]): Promise<void> {
           },
           licenseExtra: {
             type: "ai-generated",
-            terms: licenseTerms ?? "review 3D model + rig license scope before shipping",
+            terms:
+              licenseTerms ??
+              "review 3D model + rig license scope before shipping",
             ...(licenseUrl ? { url: licenseUrl } : {}),
             generatedAt,
             rig: {
@@ -306,7 +399,9 @@ export async function runGenerate(argv: string[]): Promise<void> {
               sourcePath: sourceRelPath,
               bytes: asset.data.length,
             });
-            await mkdir(join(outputRoot, "sources", "models"), { recursive: true });
+            await mkdir(join(outputRoot, "sources", "models"), {
+              recursive: true,
+            });
             await writeFile(sourcePath, asset.data);
             await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n");
             if (predictionRelPath) {
@@ -324,7 +419,10 @@ export async function runGenerate(argv: string[]): Promise<void> {
   // src/assets/drafts/. The staging layout mirrors production exactly, so the
   // recorded relative paths are already the post-promote paths.
   const draftOutput = draft
-    ? { outputRoot: draftsRoot(assetsRoot), manifestPath: draftsManifestPath(assetsRoot) }
+    ? {
+        outputRoot: draftsRoot(assetsRoot),
+        manifestPath: draftsManifestPath(assetsRoot),
+      }
     : {};
 
   await runAssetPipeline({
@@ -345,6 +443,7 @@ export async function runGenerate(argv: string[]): Promise<void> {
     outlineTint,
     outlineTintStrength,
     outlineTintThreshold,
+    softGrade,
     human,
     repo,
     ...modelOutput,
@@ -362,7 +461,9 @@ export async function runGenerate(argv: string[]): Promise<void> {
 
   if (draft) {
     const promoteHint = `assetgen promote --id ${id}${game !== "shared" ? ` --game ${game}` : ""}`;
-    console.log(`[draft] staged under ${draftsRoot(assetsRoot)} — run \`${promoteHint}\` to publish`);
+    console.log(
+      `[draft] staged under ${draftsRoot(assetsRoot)} — run \`${promoteHint}\` to publish`,
+    );
   }
 }
 
@@ -379,7 +480,7 @@ function printGenerateUsage(): void {
       "           [--category music|sfx|voice] [--volume 1] [--loop|--no-loop] [--bitrate 128] [--normalize]\n" +
       "           [--ktx2] [--no-draco] [--face-count 300000] [--no-pbr] [--generate-type Normal|Geometry]\n" +
       "           [--max-runtime-mb 20] [--assets-dir <project/packages/assets>]\n" +
-      "           [--outline-tint] [--outline-tint-strength 0.5] [--outline-tint-threshold 32]\n" +
+      "           [--outline-tint] [--outline-tint-strength 0.5] [--outline-tint-threshold 32] [--soft-grade]\n" +
       "           [--license <terms>] [--license-url <url>] [--seed <n>] [--authored] [--edit-kind <label>]\n" +
       "           [--draft]  (stage under src/assets/drafts/; publish later with `assetgen promote`)\n" +
       "  assetgen --id <id> --prompt <text> [--game <slug>|shared]\n" +

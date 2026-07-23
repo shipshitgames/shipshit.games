@@ -20,6 +20,10 @@
       "types": "./src/physics/index.ts",
       "default": "./src/physics/index.ts"
     },
+    "./gym/file": {
+      "types": "./src/gym/file-persistence.ts",
+      "default": "./src/gym/file-persistence.ts"
+    },
     "./assets-manifest.schema.json": "./src/assets/assets-manifest.schema.json"
   },
   "files": [

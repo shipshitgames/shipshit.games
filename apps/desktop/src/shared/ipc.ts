@@ -8,6 +8,10 @@
 export const IPC_INVOKE_CHANNELS = {
   studioGenerate: "studio:generate",
   studioPixelize: "studio:pixelize",
+  spritesList: "sprites:list",
+  spritesLoad: "sprites:load",
+  spritesSaveDraft: "sprites:saveDraft",
+  spritesPromote: "sprites:promote",
   studioListGames: "studio:listGames",
   studioResearch: "studio:research",
   resourcesList: "resources:list",
@@ -98,6 +102,7 @@ export interface GenerateOptions {
   pbr?: boolean;
   generateType?: "Normal" | "Geometry";
   maxRuntimeMb?: number;
+  draft?: boolean;
 }
 
 export interface GenResult {
@@ -127,6 +132,56 @@ export interface PixelizeResult {
   cutout?: { tool: string; reason?: string } | null;
   log?: string;
   error?: string;
+}
+
+export type SpriteEditorOrigin = "draft" | "promoted";
+
+export interface SpriteEditorAsset {
+  id: string;
+  kind: string;
+  game: string;
+  path: string;
+  origin: SpriteEditorOrigin;
+  prompt: string | null;
+  provider: string | null;
+  dimensions: [number, number] | null;
+  frameSize: [number, number] | null;
+  frames: number;
+  fps: number | null;
+  views: string[];
+  sheet: {
+    columns: number;
+    rows: number;
+    usedColumns: number;
+    usedRows: number;
+  } | null;
+  provenance: Record<string, unknown> | null;
+  human: { authored: boolean; editKind?: string } | null;
+  license: Record<string, unknown>;
+}
+
+export interface SpriteEditorListResult {
+  ok: boolean;
+  projectId: string;
+  game: string;
+  assets: SpriteEditorAsset[];
+  error?: string;
+}
+
+export interface SpriteEditorLoadResult {
+  ok: boolean;
+  asset?: SpriteEditorAsset;
+  dataUrl?: string;
+  error?: string;
+}
+
+export interface SpriteEditorSaveResult extends SpriteEditorLoadResult {
+  correctedOffPalette?: number;
+  log?: string;
+}
+
+export interface SpriteEditorPromoteResult extends SpriteEditorLoadResult {
+  log?: string;
 }
 
 export interface ResearchResult {
@@ -317,7 +372,15 @@ export interface FalModelInfo {
 }
 
 export type TerminalStartResult =
-  | { ok: true; id: string; pid: number | null; shell: string; cwd: string; cols: number; rows: number }
+  | {
+      ok: true;
+      id: string;
+      pid: number | null;
+      shell: string;
+      cwd: string;
+      cols: number;
+      rows: number;
+    }
   | { ok: false; error: string };
 
 export interface TerminalPayload {
@@ -508,16 +571,48 @@ export interface StudioApi {
   versions: Record<string, string>;
   generate: (opts: GenerateOptions) => Promise<GenResult>;
   pixelize: (opts: PixelizeOptions) => Promise<PixelizeResult>;
+  sprites: {
+    list: (
+      projectId: string | undefined,
+      game: string,
+    ) => Promise<SpriteEditorListResult>;
+    load: (
+      projectId: string | undefined,
+      game: string,
+      asset: Pick<SpriteEditorAsset, "id" | "kind" | "origin">,
+    ) => Promise<SpriteEditorLoadResult>;
+    saveDraft: (opts: {
+      projectId?: string;
+      game: string;
+      asset: Pick<SpriteEditorAsset, "id" | "kind" | "origin">;
+      dataUrl: string;
+      width: number;
+      height: number;
+      offPaletteCount: number;
+    }) => Promise<SpriteEditorSaveResult>;
+    promote: (
+      projectId: string | undefined,
+      game: string,
+      asset: Pick<SpriteEditorAsset, "id" | "kind" | "origin">,
+    ) => Promise<SpriteEditorPromoteResult>;
+  };
   listGames: () => Promise<string[]>;
   onGenLog: (cb: (chunk: string) => void) => () => void;
-  research: (opts: { url: string; slug: string; provider?: string }) => Promise<ResearchResult>;
+  research: (opts: {
+    url: string;
+    slug: string;
+    provider?: string;
+  }) => Promise<ResearchResult>;
   onResearchLog: (cb: (chunk: string) => void) => () => void;
   resources: {
     list: () => Promise<ResourcesOverview>;
     validate: () => Promise<ResourcesValidationResult>;
     preview: (path: string) => Promise<ResourcesPreviewResult>;
     reveal: (path: string) => Promise<{ ok: boolean; error?: string }>;
-    promoteSkill: (candidatePath: string, approve: boolean) => Promise<ResourcesActionResult>;
+    promoteSkill: (
+      candidatePath: string,
+      approve: boolean,
+    ) => Promise<ResourcesActionResult>;
   };
   transcodeAudio: (opts: {
     files: string[];
@@ -555,35 +650,62 @@ export interface StudioApi {
     }>;
   };
   terminal: {
-    start: (opts?: { cols?: number; rows?: number; cwd?: string }) => Promise<TerminalStartResult>;
+    start: (opts?: {
+      cols?: number;
+      rows?: number;
+      cwd?: string;
+    }) => Promise<TerminalStartResult>;
     write: (id: string, data: string) => Promise<boolean>;
-    resize: (id: string, size: { cols: number; rows: number }) => Promise<boolean>;
+    resize: (
+      id: string,
+      size: { cols: number; rows: number },
+    ) => Promise<boolean>;
     stop: (id: string) => Promise<boolean>;
     onData: (cb: (payload: TerminalPayload) => void) => () => void;
     onExit: (cb: (payload: TerminalExitPayload) => void) => () => void;
   };
   gallery: {
     listGames: () => Promise<string[]>;
-    list: (game: string, opts?: { embedBudget?: number }) => Promise<GalleryResult>;
-    image: (assetPath: string) => Promise<{ dataUrl: string; bytes: number } | null>;
+    list: (
+      game: string,
+      opts?: { embedBudget?: number },
+    ) => Promise<GalleryResult>;
+    image: (
+      assetPath: string,
+    ) => Promise<{ dataUrl: string; bytes: number } | null>;
   };
   moodboard: {
     listGames: () => Promise<string[]>;
     get: (game: string) => Promise<Moodboard>;
     addNote: (game: string, text: string) => Promise<Moodboard>;
     importImages: (game: string) => Promise<Moodboard>;
-    updateItem: (game: string, item: Partial<MoodboardItem> & { id: string }) => Promise<Moodboard>;
-    setVisualTarget: (game: string, id: string, visualTarget: boolean) => Promise<Moodboard>;
+    updateItem: (
+      game: string,
+      item: Partial<MoodboardItem> & { id: string },
+    ) => Promise<Moodboard>;
+    setVisualTarget: (
+      game: string,
+      id: string,
+      visualTarget: boolean,
+    ) => Promise<Moodboard>;
     removeItem: (game: string, id: string) => Promise<Moodboard>;
   };
   lab: {
     listGames: () => Promise<string[]>;
     get: (game: string) => Promise<ArtLab>;
-    setSubject: (game: string, subject: string, kind: string) => Promise<ArtLab>;
+    setSubject: (
+      game: string,
+      subject: string,
+      kind: string,
+    ) => Promise<ArtLab>;
     addVariant: (game: string, variant: ArtLabVariantInput) => Promise<ArtLab>;
     scoreVariant: (game: string, id: string, score: number) => Promise<ArtLab>;
     tagVariant: (game: string, id: string, tags: string[]) => Promise<ArtLab>;
-    annotateVariant: (game: string, id: string, note: string) => Promise<ArtLab>;
+    annotateVariant: (
+      game: string,
+      id: string,
+      note: string,
+    ) => Promise<ArtLab>;
     removeVariant: (game: string, id: string) => Promise<ArtLab>;
     lockVariant: (game: string, id: string) => Promise<ArtLab>;
     clearLock: (game: string) => Promise<ArtLab>;

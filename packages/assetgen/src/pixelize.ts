@@ -17,6 +17,9 @@ import sharp from "sharp";
 import { maybeCutout } from "./cutout.ts";
 import type { CutoutResult } from "./cutout.ts";
 import type { CutoutMode } from "./pixelize-opts.ts";
+import { DOOM_RAMP } from "./pixelize-palette.ts";
+
+export { DOOM_RAMP, PIXELIZE_PALETTES, resolvePaletteByName } from "./pixelize-palette.ts";
 
 export type { CutoutMode } from "./pixelize-opts.ts";
 
@@ -27,28 +30,8 @@ const hexToRgb = (h: string): RGB => {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
 
-// Fixed DOOM ramp (brand tokens + value steps so shading has somewhere to land).
-// Toxic-green is included but should only appear where the source already glows it.
-export const DOOM_RAMP: string[] = [
-  "#000000", "#0a0a0a", "#161214", "#241a1a", // darks
-  "#34343c", "#4a4a52", "#6a655e", "#8a8278", "#b3ab9e", "#e9e3d6", // metal -> bone
-  "#3a0a0e", "#7a0f16", "#c1121f", "#ff2a18", // blood ramp
-  "#5a2e18", "#8a4b2a", "#b06a32", "#d98a4a", // rust ramp
-  "#a83c00", "#ff6a00", "#ffa030", "#ffce5c", // hellfire ramp
-  "#2c5410", "#5a9a18", "#8bdc1f", // toxic ramp (Scourge only)
-];
-
-/** Named palettes the grid can lock to. DOOM is the house ramp + single source of truth. */
-export const PIXELIZE_PALETTES: Record<string, string[]> = { doom: DOOM_RAMP };
-
-/** Resolve a named palette to its hex ramp, or undefined for an unknown name. */
-export function resolvePaletteByName(name?: string): string[] | undefined {
-  if (!name) return undefined;
-  return PIXELIZE_PALETTES[name.toLowerCase()];
-}
-
 let CACHE: { pal: RGB[]; key: string } | null = null;
-function paletteRGB(palette: string[]): RGB[] {
+function paletteRGB(palette: readonly string[]): RGB[] {
   const key = palette.join(",");
   if (CACHE && CACHE.key === key) return CACHE.pal;
   const pal = palette.map(hexToRgb);
@@ -74,11 +57,13 @@ export interface PixelizeOpts {
   /** Target sprite HEIGHT in px (the grid). Rank-and-file ~110, boss ~180. */
   height?: number;
   /** Fixed palette (hex). Defaults to the DOOM ramp. */
-  palette?: string[];
+  palette?: readonly string[];
   /** Luminance (0-255) at/below which a pixel is treated as background -> transparent. */
   bgThreshold?: number;
   /** Trim transparent margins after cutout (default true). */
   trim?: boolean;
+  /** Preserve the source dimensions while still applying alpha/palette guards. */
+  resize?: boolean;
   /** Cutout backend. Default "flood" (preserves existing callers); CLI/studio pass "auto". */
   cutout?: CutoutMode;
   /** Injectable rembg cutout (tests) — defaults to the real maybeCutout. */
@@ -155,7 +140,9 @@ export async function pixelizeDetailed(input: Buffer, opts: PixelizeOpts = {}): 
   // 2. trim, then box-downscale to the target grid
   let s = img;
   if (opts.trim !== false) s = s.trim();
-  s = s.resize({ height, kernel: sharp.kernel.mitchell, fit: "inside", withoutEnlargement: false });
+  if (opts.resize !== false) {
+    s = s.resize({ height, kernel: sharp.kernel.mitchell, fit: "inside", withoutEnlargement: false });
+  }
 
   // 3. quantize to the fixed ramp + hard 1px alpha
   const small = await s.raw().toBuffer({ resolveWithObject: true });

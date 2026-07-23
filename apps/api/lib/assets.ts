@@ -20,6 +20,8 @@ export interface AssetRecord {
   byteSize: number | null;
   ownerId: string | null;
   parentId: string | null;
+  sourceId: string | null;
+  editInstruction: string | null;
   sliceIndex: number | null;
   createdAt: string;
 }
@@ -43,6 +45,8 @@ const RECORD_SELECT = {
   byteSize: true,
   ownerId: true,
   parentId: true,
+  sourceId: true,
+  editInstruction: true,
   sliceIndex: true,
   createdAt: true,
 } as const;
@@ -92,6 +96,8 @@ export interface NewAsset {
   model: string;
   ownerId: string;
   parentId?: string | null;
+  sourceId?: string | null;
+  editInstruction?: string | null;
   sliceIndex?: number | null;
 }
 

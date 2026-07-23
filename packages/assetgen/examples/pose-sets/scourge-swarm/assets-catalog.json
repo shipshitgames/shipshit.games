@@ -1,0 +1,13 @@
+{
+  "version": "example",
+  "entities": [
+    {
+      "id": "scourge-swarm",
+      "promptBase": "Scourge melee swarm creature wearing a conquered rot-flesh host, black chitin, blade forearms, invasive tendrils, and a toxic breach core",
+      "variants": {
+        "scourge-survivors": "source.svg"
+      }
+    }
+  ],
+  "shared": []
+}

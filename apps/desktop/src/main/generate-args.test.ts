@@ -220,6 +220,16 @@ test("absent provenance opts add none of the seed/authored/edit-kind flags", () 
   }
 });
 
+test("draft generation appends --draft without changing the default contract", () => {
+  const { args } = buildGenerateArgs({
+    assetgenPath: ASSETGEN,
+    settings: normalizeSettings({}),
+    opts: { id: "swarm-husk", prompt: "a husk", kind: "sprite", draft: true },
+    target: TARGET,
+  });
+  expect(args.at(-1)).toBe("--draft");
+});
+
 test("model opts append --ktx2/--no-draco/--rig only when present", () => {
   const { args, provider, kind } = buildGenerateArgs({
     assetgenPath: ASSETGEN,

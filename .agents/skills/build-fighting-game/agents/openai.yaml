@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Fighting Game"
+  short_description: "Build a competitive brawler MVP blueprint"
+  default_prompt: "Use $build-fighting-game to plan and implement a fighting-game brawler MVP."
