@@ -173,7 +173,22 @@ test("checked-in fighting blueprint matches Brawl's genres", async () => {
       "Arena mode: damage-percent knockback and stocks",
     ),
   );
-  assert.equal(selectBlueprint(blueprints, "Brawler")?.gameType, "fighting");
+  for (const genre of [
+    "Fighting",
+    "Fighting Game",
+    "Brawler",
+    "Competitive Brawler",
+    "Platform Fighter",
+    "Arena Fighter",
+    "Versus Fighter",
+    "Combat Arena",
+  ]) {
+    assert.equal(
+      selectBlueprint(blueprints, genre)?.gameType,
+      "fighting",
+      `expected ${genre} to select the fighting blueprint`,
+    );
+  }
 });
 
 test("buildPlan orders MVP-first by priority, tags coverage + summary", () => {
