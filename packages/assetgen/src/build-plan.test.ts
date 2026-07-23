@@ -132,6 +132,28 @@ test("checked-in space shooter blueprint matches Starblight's genre", async () =
   );
 });
 
+test("checked-in strategy campaign blueprint matches Warline's genres", async () => {
+  const blueprints = await loadBlueprints(repoSkillsDir);
+  const blueprint = selectBlueprint(blueprints, "Strategy Hub");
+
+  assert.equal(blueprint?.gameType, "strategy-campaign");
+  assert.equal(blueprint?.skill, "build-strategy-campaign-game");
+  assert.deepEqual(
+    blueprint?.assetClasses
+      .filter((assetClass) => assetClass.mvp)
+      .map((assetClass) => assetClass.category),
+    ["model", "ui", "vfx", "music"],
+  );
+  assert.ok(
+    blueprint?.mvpSlice.includes("Fortify, Muster, Deploy, and Recon commands"),
+  );
+  assert.ok(blueprint?.mvpSlice.includes("LIVE PartyKit-ready transport seam"));
+  assert.equal(
+    selectBlueprint(blueprints, "Persistent Strategy Campaign")?.gameType,
+    "strategy-campaign",
+  );
+});
+
 test("checked-in fighting blueprint matches Brawl's genres", async () => {
   const blueprints = await loadBlueprints(repoSkillsDir);
   const blueprint = selectBlueprint(blueprints, "Platform Fighter");
@@ -151,7 +173,22 @@ test("checked-in fighting blueprint matches Brawl's genres", async () => {
       "Arena mode: damage-percent knockback and stocks",
     ),
   );
-  assert.equal(selectBlueprint(blueprints, "Brawler")?.gameType, "fighting");
+  for (const genre of [
+    "Fighting",
+    "Fighting Game",
+    "Brawler",
+    "Competitive Brawler",
+    "Platform Fighter",
+    "Arena Fighter",
+    "Versus Fighter",
+    "Combat Arena",
+  ]) {
+    assert.equal(
+      selectBlueprint(blueprints, genre)?.gameType,
+      "fighting",
+      `expected ${genre} to select the fighting blueprint`,
+    );
+  }
 });
 
 test("buildPlan orders MVP-first by priority, tags coverage + summary", () => {

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Strategy Campaign Game"
+  short_description: "Build a persistent strategy campaign MVP"
+  default_prompt: "Use $build-strategy-campaign-game to plan and implement a persistent strategy campaign MVP."
