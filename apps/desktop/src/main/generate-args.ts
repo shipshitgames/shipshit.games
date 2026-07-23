@@ -2,7 +2,7 @@
 // electron imports so the spawn contract can be unit-tested under bun test.
 import { providerForKind } from "./settings";
 
-function buildGenerateArgs({ assetgenPath, settings, opts = {}, target = {} }: any) {
+function buildGenerateArgs({ assetgenArgs, assetgenPath, settings, opts = {}, target = {} }: any) {
   const game = target.slug || opts?.game || settings.defaultGame;
   const kind = opts?.kind || "sprite";
   const provider = providerForKind(settings, kind, opts?.provider);
@@ -10,7 +10,12 @@ function buildGenerateArgs({ assetgenPath, settings, opts = {}, target = {} }: a
   // Explicit model wins; otherwise only fal pulls the per-kind default from
   // settings — other providers never inherit a model from falModelDefaults.
   const model = opts?.model || (provider === "fal" ? settings.falModelDefaults?.[kind] : "") || "";
-  const args = [assetgenPath, "--provider", provider, "--game", game, "--kind", kind, "--id", opts?.id || "asset", "--prompt", opts?.prompt || "", "--repo", repo];
+  const prefix = Array.isArray(assetgenArgs)
+    ? assetgenArgs.map(String)
+    : assetgenPath
+      ? [String(assetgenPath)]
+      : [];
+  const args = [...prefix, "--provider", provider, "--game", game, "--kind", kind, "--id", opts?.id || "asset", "--prompt", opts?.prompt || "", "--repo", repo];
   if ((kind === "model" || kind === "3d") && target.assetsDir) {
     args.push("--assets-dir", String(target.assetsDir));
   }

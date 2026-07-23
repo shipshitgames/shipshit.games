@@ -182,7 +182,7 @@ async function runCodexCliInProcessPty(opts: ResolvedCodexCliOptions): Promise<C
 }
 
 async function runCodexCliWorker(opts: ResolvedCodexCliOptions): Promise<CodexCliResult> {
-  const worker = join(dirname(fileURLToPath(import.meta.url)), "codex-pty-worker.cjs");
+  const worker = resolveCodexPtyWorker();
   const request = JSON.stringify({
     command: opts.command,
     args: opts.args,
@@ -209,9 +209,9 @@ async function runCodexCliWorker(opts: ResolvedCodexCliOptions): Promise<CodexCl
     }, opts.timeoutMs);
 
     try {
-      child = spawn(process.env.ASSETGEN_NODE_BINARY || "node", [worker], {
+      child = spawn(worker.command, worker.args, {
         cwd: opts.spawnCwd ?? process.cwd(),
-        env: process.env,
+        env: { ...process.env, ...worker.env },
         stdio: ["pipe", "pipe", "pipe"],
       });
     } catch (err) {
@@ -273,6 +273,41 @@ async function runCodexCliWorker(opts: ResolvedCodexCliOptions): Promise<CodexCl
     });
     child.stdin.end(request);
   });
+}
+
+/**
+ * Development runs the checked-in worker through Node. Packaged assetgen
+ * injects its bundled worker and Electron's Node host so the provider never
+ * reaches back into a source checkout or assumes Node is installed separately.
+ */
+export function resolveCodexPtyWorker(
+  env: NodeJS.ProcessEnv = process.env,
+): { command: string; args: string[]; env: Record<string, string> } {
+  const packagedWorker = env.ASSETGEN_PTY_WORKER?.trim();
+  if (packagedWorker) {
+    const rawArgs = env.ASSETGEN_PTY_WORKER_ARGS?.trim();
+    const workerEnv: Record<string, string> =
+      env.ASSETGEN_PTY_WORKER_ELECTRON_RUN_AS_NODE === "1"
+        ? { ELECTRON_RUN_AS_NODE: "1" }
+        : {};
+    if (!rawArgs) return { command: packagedWorker, args: [], env: workerEnv };
+    let args: unknown;
+    try {
+      args = JSON.parse(rawArgs);
+    } catch (error) {
+      throw new Error(`ASSETGEN_PTY_WORKER_ARGS must be a JSON string array: ${String(error)}`);
+    }
+    if (!Array.isArray(args) || !args.every((argument) => typeof argument === "string")) {
+      throw new Error("ASSETGEN_PTY_WORKER_ARGS must be a JSON string array");
+    }
+    return { command: packagedWorker, args, env: workerEnv };
+  }
+  const worker = join(dirname(fileURLToPath(import.meta.url)), "codex-pty-worker.cjs");
+  return {
+    command: env.ASSETGEN_NODE_BINARY?.trim() || "node",
+    args: [worker],
+    env: {},
+  };
 }
 
 function ptyEnv(env: NodeJS.ProcessEnv | undefined): Record<string, string> {

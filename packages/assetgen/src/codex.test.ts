@@ -4,7 +4,12 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { buildCodexAssetInstruction, buildCodexExecArgs, runCodexCli } from "./codex";
+import {
+  buildCodexAssetInstruction,
+  buildCodexExecArgs,
+  resolveCodexPtyWorker,
+  runCodexCli,
+} from "./codex";
 import type { CodexPtyModule, CodexPtyProcess, CodexPtySpawnOptions } from "./codex";
 
 test("buildCodexExecArgs asks Codex to write the exact PNG path", () => {
@@ -34,6 +39,42 @@ test("buildCodexAssetInstruction keeps the asset prompt intact", () => {
   assert.match(instruction, /gpt-image-2/);
   assert.match(instruction, /Scourge host, not a generic monster/);
   assert.match(instruction, /\/tmp\/final\.png/);
+});
+
+test("resolveCodexPtyWorker uses a standalone packaged worker when configured", () => {
+  assert.deepEqual(
+    resolveCodexPtyWorker({
+      ASSETGEN_PTY_WORKER: "/Applications/Studio.app/Contents/MacOS/Ship Shit Games Studio",
+      ASSETGEN_PTY_WORKER_ARGS:
+        '["/Applications/Studio.app/Contents/Resources/tooling-runtime/lib/assetgen-codex-pty.cjs"]',
+      ASSETGEN_PTY_WORKER_ELECTRON_RUN_AS_NODE: "1",
+    }),
+    {
+      command: "/Applications/Studio.app/Contents/MacOS/Ship Shit Games Studio",
+      args: [
+        "/Applications/Studio.app/Contents/Resources/tooling-runtime/lib/assetgen-codex-pty.cjs",
+      ],
+      env: { ELECTRON_RUN_AS_NODE: "1" },
+    },
+  );
+});
+
+test("resolveCodexPtyWorker rejects malformed packaged worker arguments", () => {
+  assert.throws(
+    () => resolveCodexPtyWorker({
+      ASSETGEN_PTY_WORKER: "/runtime/bin/bun",
+      ASSETGEN_PTY_WORKER_ARGS: '{"not":"argv"}',
+    }),
+    /JSON string array/,
+  );
+});
+
+test("resolveCodexPtyWorker keeps the Node sidecar contract in development", () => {
+  const worker = resolveCodexPtyWorker({ ASSETGEN_NODE_BINARY: "/usr/local/bin/node" });
+  assert.equal(worker.command, "/usr/local/bin/node");
+  assert.equal(worker.args.length, 1);
+  assert.deepEqual(worker.env, {});
+  assert.match(worker.args[0]!, /codex-pty-worker\.cjs$/);
 });
 
 test("runCodexCli streams PTY output and verifies the generated file", async () => {

@@ -152,61 +152,55 @@ export function SpriteEditor({
     [audit, game, projectId],
   );
 
-  const refresh = useCallback(async () => {
-    if (!window.studio?.sprites) return;
-    update({ busy: true });
-    try {
-      const result = await window.studio.sprites.list(projectId, game);
-      if (!result.ok)
-        throw new Error(result.error || "sprite catalog unavailable");
-      update({ assets: result.assets });
-      const normalizedGenerated = generatedPath?.replace(/\\/g, "/");
-      const generated = normalizedGenerated
-        ? result.assets.find(
-            (candidate) =>
-              candidate.origin === "draft" &&
-              normalizedGenerated.endsWith(`/drafts/${candidate.path}`),
-          )
-        : null;
-      const current = asset
-        ? result.assets.find(
-            (candidate) => assetKey(candidate) === assetKey(asset),
-          )
-        : null;
-      const next = generated || current || result.assets[0];
-      if (next && (!asset || assetKey(next) !== assetKey(asset) || generated))
-        await loadAsset(next);
-    } catch (error) {
-      update({ message: errorMessage(error) });
-    } finally {
-      update({ busy: false });
-    }
-  }, [asset, game, generatedPath, loadAsset, projectId]);
+  const syncCatalog = useCallback(
+    async (currentAsset: SpriteEditorAsset | null) => {
+      if (!window.studio?.sprites) return;
+      update({ busy: true });
+      try {
+        const result = await window.studio.sprites.list(projectId, game);
+        if (!result.ok)
+          throw new Error(result.error || "sprite catalog unavailable");
+        update({ assets: result.assets });
+        const normalizedGenerated = generatedPath?.replace(/\\/g, "/");
+        const generated = normalizedGenerated
+          ? result.assets.find(
+              (candidate) =>
+                candidate.origin === "draft" &&
+                normalizedGenerated.endsWith(`/drafts/${candidate.path}`),
+            )
+          : null;
+        const current = currentAsset
+          ? result.assets.find(
+              (candidate) =>
+                assetKey(candidate) === assetKey(currentAsset),
+            )
+          : null;
+        const next = generated || current || result.assets[0];
+        if (
+          next &&
+          (!currentAsset ||
+            assetKey(next) !== assetKey(currentAsset) ||
+            generated)
+        ) {
+          await loadAsset(next);
+        }
+      } catch (error) {
+        update({ message: errorMessage(error) });
+      } finally {
+        update({ busy: false });
+      }
+    },
+    [game, generatedPath, loadAsset, projectId],
+  );
 
-  const loadScope = useCallback(async () => {
-    update({ busy: true });
-    try {
-      const result = await window.studio.sprites.list(projectId, game);
-      if (!result.ok) throw new Error(result.error || "sprite catalog unavailable");
-      update({ assets: result.assets });
-      const normalizedGenerated = generatedPath?.replace(/\\/g, "/");
-      const generated = normalizedGenerated
-        ? result.assets.find(
-            (candidate) => candidate.origin === "draft" && normalizedGenerated.endsWith(`/drafts/${candidate.path}`),
-          )
-        : null;
-      const next = generated || result.assets[0];
-      if (next) await loadAsset(next);
-    } catch (error) {
-      update({ message: errorMessage(error) });
-    } finally {
-      update({ busy: false });
-    }
-  }, [game, generatedPath, loadAsset, projectId]);
+  const refresh = useCallback(
+    () => syncCatalog(asset),
+    [asset, syncCatalog],
+  );
 
   useEffect(() => {
-    void loadScope();
-  }, [loadScope]);
+    void syncCatalog(null);
+  }, [syncCatalog]);
 
   function snapshot(): ImageData | null {
     const sheet = sheetRef.current;

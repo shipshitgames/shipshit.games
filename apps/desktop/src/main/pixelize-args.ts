@@ -13,7 +13,8 @@ import {
 } from "../../../../packages/assetgen/src/pixelize-opts.ts";
 
 interface BuildPixelizeArgsInput {
-  assetgenPath: string;
+  assetgenPath?: string;
+  assetgenArgs?: string[];
   inPath: string;
   outPath: string;
   opts?: {
@@ -26,13 +27,18 @@ interface BuildPixelizeArgsInput {
   };
 }
 
-export function buildPixelizeArgs({ assetgenPath, inPath, outPath, opts = {} }: BuildPixelizeArgsInput) {
+export function buildPixelizeArgs({ assetgenPath, assetgenArgs, inPath, outPath, opts = {} }: BuildPixelizeArgsInput) {
   const height = clampHeight(opts?.height);
   const bg = clampBgThreshold(opts?.bgThreshold);
   const cutout = normalizeCutoutMode(opts?.cutout);
   const palette = normalizePaletteName(opts?.palette);
+  const prefix = Array.isArray(assetgenArgs)
+    ? assetgenArgs.map(String)
+    : assetgenPath
+      ? [assetgenPath]
+      : [];
   const args = [
-    assetgenPath,
+    ...prefix,
     "pixelize",
     "--in", inPath,
     "--out", outPath,
