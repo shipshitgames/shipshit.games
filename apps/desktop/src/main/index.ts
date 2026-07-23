@@ -24,6 +24,7 @@ import { DEFAULT_GAME } from "./settings";
 import { buildGenerateArgs } from "./generate-args";
 import { buildPixelizeArgs, decodePixelizeDataUrl, parsePixelizeCutout } from "./pixelize-args";
 import { parseGenerateResult, dataUrlFor } from "./generate-result";
+import { parseWroteLine, streamCommand } from "./stream-command";
 import {
   fingerprintResourceFile,
   parseResourceInventory,
@@ -375,15 +376,16 @@ ipcMain.handle(IPC_CHANNELS.studioTranscodeAudio, async (e, opts) => {
     if (normalize) args.push("-af", "loudnorm");
     args.push(out);
     send(`$ ffmpeg -i ${path.basename(input)} → audio/${category}/${path.basename(out)} (opus ${bitrate}k${normalize ? ", loudnorm" : ""})\n`);
-    const code = await new Promise((resolve) => {
-      let child;
-      try { child = spawn(ffmpeg, args); }
-      catch (err) { send(`spawn failed: ${err}\n`); return resolve(-1); }
-      child.stdout.on("data", (d) => { const s = d.toString(); log += s; send(s); });
-      child.stderr.on("data", (d) => { const s = d.toString(); log += s; send(s); });
-      child.on("error", (err) => { send(`\nffmpeg error: ${err} — is ffmpeg installed and on PATH?\n`); });
-      child.on("close", resolve);
+    const run = await streamCommand({
+      command: ffmpeg,
+      args,
+      onChunk: send,
+      timeoutMs: 300_000,
+      spawnFn: spawn,
+      formatProcessError: (error) => `\nffmpeg error: ${error} — is ffmpeg installed and on PATH?\n`,
     });
+    log += run.log;
+    const code = run.code;
     if (code === 0) {
       try {
         await register(target.manifestPath, {
@@ -415,27 +417,24 @@ ipcMain.handle(IPC_CHANNELS.studioGenerate, async (e, opts) => {
   send(`$ assetgen --provider ${provider} --game ${game} --kind ${kind} --id ${opts?.id}${model ? ` --model ${model}` : ""}\n`);
   send(`[repo] ${repo}\n`);
   send(`[manifest] ${target.manifestPath}\n`);
-  return await new Promise((resolve) => {
-    let child;
-    try { child = spawn("bun", args, { cwd: STUDIO_REPO }); }
-    catch (err) { send(`spawn failed: ${err}\n`); return resolve({ ok: false, log: String(err), path: null, dataUrl: null }); }
-    let buf = "";
-    const onData = (d) => { const s = d.toString(); buf += s; send(s); };
-    child.stdout.on("data", onData);
-    child.stderr.on("data", onData);
-    child.on("error", (err) => { send(`\nprocess error: ${err}\n`); });
-    const killer = setTimeout(() => { try { child.kill("SIGKILL"); send("\n[timed out after 300s]\n"); } catch {} }, 300_000);
-    child.on("close", async (code) => {
-      clearTimeout(killer);
-      const parsed = parseGenerateResult(buf);
-      const p = buf.match(/\[billboard\] (.+?\.html)/);
-      let dataUrl = null, outPath = null, previewPath = null, mediaType = null;
-      if (parsed) { outPath = parsed.path; mediaType = parsed.mediaType; try { dataUrl = dataUrlFor(parsed, await fs.promises.readFile(outPath)); } catch {} }
-      if (p) previewPath = p[1].trim();
-      send(`\n[exit ${code}]\n`);
-      resolve({ ok: code === 0 && !!parsed, log: buf, path: outPath, dataUrl, previewPath, mediaType });
-    });
+  const run = await streamCommand({
+    command: "bun",
+    args,
+    cwd: STUDIO_REPO,
+    onChunk: send,
+    timeoutMs: 300_000,
+    spawnFn: spawn,
   });
+  if (!run.spawned) {
+    return { ok: false, log: run.log, path: null, dataUrl: null };
+  }
+  const parsed = parseGenerateResult(run.log);
+  const p = run.log.match(/\[billboard\] (.+?\.html)/);
+  let dataUrl = null, outPath = null, previewPath = null, mediaType = null;
+  if (parsed) { outPath = parsed.path; mediaType = parsed.mediaType; try { dataUrl = dataUrlFor(parsed, await fs.promises.readFile(outPath)); } catch {} }
+  if (p) previewPath = p[1].trim();
+  send(`\n[exit ${run.code}]\n`);
+  return { ok: run.code === 0 && !!parsed, log: run.log, path: outPath, dataUrl, previewPath, mediaType };
 });
 
 // ---- pixelize (#66): re-grade a generated sprite onto the true DOOM pixel grid ----
@@ -617,25 +616,23 @@ ipcMain.handle(IPC_CHANNELS.studioResearch, async (e, opts) => {
   if (!url) { send("no url provided\n"); return { ok: false, log: "no url", path: null, rules: null }; }
   const args = [RESSOURCES, "distill", "--url", url, "--provider", provider, "--out", out];
   send(`$ ressources distill --url ${url} --provider ${provider} --out ${out}\n`);
-  return await new Promise((resolve) => {
-    let child;
-    try { child = spawn("bun", args, { cwd: STUDIO_REPO, env: process.env }); }
-    catch (err) { send(`spawn failed: ${err}\n`); return resolve({ ok: false, log: String(err), path: null, rules: null }); }
-    let buf = "";
-    const onData = (d) => { const s = d.toString(); buf += s; send(s); };
-    child.stdout.on("data", onData);
-    child.stderr.on("data", onData);
-    child.on("error", (err) => { send(`\nprocess error: ${err}\n`); });
-    const killer = setTimeout(() => { try { child.kill("SIGKILL"); send("\n[timed out after 300s]\n"); } catch {} }, 300_000);
-    child.on("close", async (code) => {
-      clearTimeout(killer);
-      const m = buf.match(/\[wrote\] (.+?\.md)/);
-      let outPath = null, rules = null;
-      if (m) { outPath = m[1].trim(); try { rules = await fs.promises.readFile(outPath, "utf8"); } catch {} }
-      send(`\n[exit ${code}]\n`);
-      resolve({ ok: code === 0 && !!m, log: buf, path: outPath, rules });
-    });
+  const run = await streamCommand({
+    command: "bun",
+    args,
+    cwd: STUDIO_REPO,
+    env: process.env,
+    onChunk: send,
+    timeoutMs: 300_000,
+    spawnFn: spawn,
   });
+  if (!run.spawned) {
+    return { ok: false, log: run.log, path: null, rules: null };
+  }
+  const outPath = parseWroteLine(run.log, "md");
+  let rules = null;
+  if (outPath) { try { rules = await fs.promises.readFile(outPath, "utf8"); } catch {} }
+  send(`\n[exit ${run.code}]\n`);
+  return { ok: run.code === 0 && !!outPath, log: run.log, path: outPath, rules };
 });
 
 /** @type {BrowserWindow | null} */
