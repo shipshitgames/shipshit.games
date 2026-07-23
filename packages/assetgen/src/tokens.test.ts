@@ -49,6 +49,27 @@ gameArtDirection:
   scourge-survivors:
     camera: "first-person billboard sprites"
     read: "readable at FPS combat distance"
+assetgen:
+  styleSuffix: "test authored style using {colors.primary}"
+  negativePrompts:
+    - "test negative"
+  perGameFraming:
+    shared: "test shared framing"
+  kindMap:
+    sprite: "test sprite"
+  scourgeRule:
+    trigger: "\\bscourge\\b"
+    flags: "i"
+    clause: "test parasite takeover using {colors.toxic}"
+  gradeParams:
+    pixelGrid: 110
+    blackPoint: "{colors.void}"
+  referenceImages:
+    shared: "test-style.webp"
+  providers:
+    default: "openai"
+    openai:
+      model: "test-image-model"
 ---
 
 # Test design
@@ -79,8 +100,8 @@ test("runTokens writes all generated token artifacts without an assets catalog",
 
   const style = await readFile(styleGeneratedPath, "utf8");
   assert.match(style, /PALETTE_LINE/);
-  assert.match(style, /gpt-image-2/);
-  assert.match(style, /Scourge subjects must read as host-dependent parasite takeover/);
+  assert.match(style, /test-image-model/);
+  assert.match(style, /test parasite takeover using #8bdc1f/);
 
   const tokensTs = await readFile(join(assetsDir, "tokens", "tokens.ts"), "utf8");
   assert.match(tokensTs, /primary: 0xc1121f/);
@@ -97,6 +118,27 @@ test("runTokens writes all generated token artifacts without an assets catalog",
   assert.equal(tokensJson.notice.includes("DO NOT EDIT"), true);
   assert.equal(tokensJson.components["button-primary"].backgroundColor, "#c1121f");
   assert.equal(tokensJson.assetgen.gradeParams.pixelGrid, 110);
+});
+
+test("runTokens rejects DESIGN.md without the authored assetgen canon", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "assetgen-tokens-missing-canon-test-"));
+  const designPath = join(dir, "DESIGN.md");
+  await writeFile(
+    designPath,
+    `---
+version: "9.9.9"
+colors:
+  primary: "#c1121f"
+pixelArt:
+  palette: "void, blood, bone"
+---
+`,
+  );
+
+  await assert.rejects(
+    runTokens({ design: designPath, assetsDir: join(dir, "assets") }),
+    /DESIGN\.md frontmatter assetgen is required and must be an object/,
+  );
 });
 
 test("runTokens emits centralized fonts.css with Google Fonts import + delivery metadata", async () => {

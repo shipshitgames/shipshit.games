@@ -278,8 +278,8 @@ assetgen:
     rothulk: "side-on platformer sprite, profile silhouette, clear traversal pose"
     shared: "game asset"
   kindMap:
-    sprite: "game sprite"
     texture: "seamless tileable texture"
+    sprite: "game sprite"
     ui: "HUD or interface element"
     icon: "inventory or tool icon"
     fx: "effect sprite"
