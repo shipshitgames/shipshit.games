@@ -1,7 +1,7 @@
 import { DEFAULT_FAL_MODEL, FAL_KEY_CONFIG, FAL_MODELS } from "./fal.ts";
 import type { FalModel } from "./fal.ts";
 import type { ProviderKeyConfig } from "./keys.ts";
-import { REPLICATE_KEY_CONFIG } from "./replicate.ts";
+import { HUNYUAN_3D_MODEL, REPLICATE_KEY_CONFIG } from "./replicate.ts";
 
 /**
  * The pure provider catalog — every fact about a provider that does NOT need its
@@ -54,8 +54,8 @@ export const DEFAULT_PROVIDER_BY_KIND: Record<string, ProviderId> = {
   music: "suno",
   sfx: "suno",
   voice: "suno",
-  model: "meshy",
-  "3d": "meshy",
+  model: "replicate",
+  "3d": "replicate",
 };
 
 /**
@@ -67,6 +67,8 @@ export interface ProviderDescriptor {
   label: string;
   supports: readonly string[];
   defaultModel?: string;
+  /** Per-kind defaults when one provider spans incompatible model families. */
+  defaultModels?: Readonly<Record<string, string>>;
   models?: readonly FalModel[];
   key?: ProviderKeyConfig;
   /** The adapter consumes referenceImages instead of silently ignoring them. */
@@ -103,7 +105,12 @@ export const PROVIDER_CATALOG: Record<ProviderId, ProviderDescriptor> = {
     label: "Replicate",
     supports: [...IMAGE_KINDS, ...MODEL_KINDS],
     defaultModel: "black-forest-labs/flux-schnell",
+    defaultModels: {
+      model: HUNYUAN_3D_MODEL,
+      "3d": HUNYUAN_3D_MODEL,
+    },
     key: REPLICATE_KEY_CONFIG,
+    referenceImages: true,
   },
   meshy: {
     id: "meshy",

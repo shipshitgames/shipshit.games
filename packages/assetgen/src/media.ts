@@ -21,6 +21,8 @@ export interface GeneratedAssetMeta {
   modelVersion?: string;
   seed?: number;
   requestId?: string;
+  /** sha256/16 of the reference image consumed by an image-to-model provider. */
+  inputImageHash?: string;
   reproducible: boolean;
 }
 
@@ -31,6 +33,8 @@ export interface GeneratedAsset {
   model?: string;
   /** Provider reproducibility metadata (model/seed/requestId/reproducible). */
   meta?: GeneratedAssetMeta;
+  /** Provider response persisted as a source sidecar by workflows that require it. */
+  providerRecord?: unknown;
   /** Provenance for generated media — commercial rights are plan-dependent for some providers. */
   license?: {
     type?: string;

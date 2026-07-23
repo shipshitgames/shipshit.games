@@ -11,13 +11,18 @@ import { errorMessage } from "../lib/studio";
 // GLB → mandatory gltf-transform optimize (Draco geometry, encoder-gated KTX2 else
 // WebP textures) → manifest entry — then previews the optimized GLB in-process with
 // the Draco+KTX2-wired three.js loader (ModelPreview).
-const MODEL_PROVIDERS = ["meshy", "tripo", "mock"];
+const MODEL_PROVIDERS = ["replicate", "meshy", "tripo", "mock"];
 
 export function ModelPane() {
   const [form, patch] = usePatchState({
     id: "stone-golem",
     prompt: "a hulking moss-covered stone golem, game-ready, neutral T-pose",
-    provider: "meshy",
+    provider: "replicate",
+    referenceImage: "",
+    faceCount: "300000",
+    pbr: true,
+    generateType: "Normal",
+    maxRuntimeMb: "20",
     rig: "",
     draco: true,
     ktx2: false,
@@ -27,7 +32,7 @@ export function ModelPane() {
   const [result, setResult] = useState<GenResult | null>(null);
   const [log, setLog] = useStreamLog(window.studio?.onGenLog);
   const selection = useProjectSelection((settings) => {
-    patch({ provider: settings.providerDefaults.model || settings.providerDefaults["3d"] || "meshy" });
+    patch({ provider: settings.providerDefaults.model || settings.providerDefaults["3d"] || "replicate" });
   });
   const { game, selectedProject } = selection;
 
@@ -48,6 +53,11 @@ export function ModelPane() {
         draco: form.draco,
         ktx2: form.ktx2,
         rig: form.rig.trim() || undefined,
+        referenceImage: form.referenceImage.trim() || undefined,
+        faceCount: Number.parseInt(form.faceCount, 10) || undefined,
+        pbr: form.pbr,
+        generateType: form.generateType as "Normal" | "Geometry",
+        maxRuntimeMb: Number.parseFloat(form.maxRuntimeMb) || undefined,
         license: form.license,
       }));
     } catch (e) {
@@ -64,6 +74,7 @@ export function ModelPane() {
       <div className="gen-form">
         <TextField label="Asset ID" value={form.id} onChange={(id) => patch({ id })} placeholder="stone-golem" />
         <TextAreaField label="Prompt" grow value={form.prompt} onChange={(prompt) => patch({ prompt })} />
+        <TextField label="Reference image (optional)" value={form.referenceImage} onChange={(referenceImage) => patch({ referenceImage })} placeholder="/path/to/concept.png" />
         <GameField selection={selection} />
         <div className="gen-row">
           <SelectField label="Provider" value={form.provider} onChange={(provider) => patch({ provider })}>
@@ -72,16 +83,25 @@ export function ModelPane() {
           <TextField label="Rig source" value={form.rig} onChange={(rig) => patch({ rig })} placeholder="provider default" />
         </div>
         <div className="gen-row">
+          <TextField label="Face target" value={form.faceCount} onChange={(faceCount) => patch({ faceCount })} placeholder="300000" />
+          <TextField label="Runtime budget (MiB)" value={form.maxRuntimeMb} onChange={(maxRuntimeMb) => patch({ maxRuntimeMb })} placeholder="20" />
+          <SelectField label="Generation" value={form.generateType} onChange={(generateType) => patch({ generateType })}>
+            <option value="Normal">Textured</option>
+            <option value="Geometry">Geometry only</option>
+          </SelectField>
+        </div>
+        <div className="gen-row">
           <label className="check"><input type="checkbox" checked={form.draco} onChange={(e) => patch({ draco: e.target.checked })} /><span>Draco geometry</span></label>
           <label className="check"><input type="checkbox" checked={form.ktx2} onChange={(e) => patch({ ktx2: e.target.checked })} /><span>KTX2 textures (else WebP)</span></label>
+          <label className="check"><input type="checkbox" checked={form.pbr} onChange={(e) => patch({ pbr: e.target.checked })} /><span>PBR materials</span></label>
         </div>
         <TextField label="License record" value={form.license} onChange={(license) => patch({ license })} />
         <div className="hint">3D provider <b>{form.provider}</b> · optimize: Draco {form.draco ? "on" : "off"} · textures {form.ktx2 ? "KTX2→WebP fallback" : "WebP"} · change defaults in Settings (topbar gear)</div>
         <ProjectManifestNote project={selectedProject} />
-        <button className="btn btn-primary" type="button" disabled={busy || !form.id || !form.prompt || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
+        <button className="btn btn-primary" type="button" disabled={busy || !form.id || (!form.prompt && !form.referenceImage) || !!(selectedProject && !selectedProject.valid)} onClick={generate}>
           {busy ? "Sculpting…" : "Generate"}
         </button>
-        <p className="note">Drives Meshy/Tripo (or mock), runs the mandatory gltf-transform optimize, writes the .glb + records optimized/compression/animations + a license.rig entry. KTX2 needs a KTX-Software encoder; without one, textures fall back to WebP.</p>
+        <p className="note">Replicate Hunyuan 3D 3.1 is the default and accepts either the prompt or one concept image. Meshy/Tripo remain available. Every result is optimized, budget-checked, and stored with source, prediction, provenance, and license traces.</p>
       </div>
       <div className="gen-preview">
         {showPreview ? (

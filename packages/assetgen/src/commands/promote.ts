@@ -1,6 +1,9 @@
+import { resolve } from "node:path";
+
 import { assetsRootForRepo, draftsManifestPath, promoteDrafts, readDraftManifest } from "../drafts.ts";
 import { flag, has } from "./args.ts";
 import { defaultRepo } from "./paths.ts";
+import { projectAssetsDir, selectedProject } from "./registry.ts";
 
 /**
  * `assetgen promote` — publish staged drafts (issue #54).
@@ -10,7 +13,9 @@ import { defaultRepo } from "./paths.ts";
  */
 export async function runPromoteCommand(argv: string[]): Promise<void> {
   const game = flag(argv, "game", "shared")!;
-  const repo = flag(argv, "repo") || defaultRepo(game);
+  const repoFlag = flag(argv, "repo");
+  const repo = repoFlag || defaultRepo(game);
+  const assetsDir = flag(argv, "assets-dir");
   const all = has(argv, "all");
   const ids = collectIds(argv);
 
@@ -19,7 +24,8 @@ export async function runPromoteCommand(argv: string[]): Promise<void> {
     process.exit(1);
   }
 
-  const assetsRoot = assetsRootForRepo(repo);
+  const project = !repoFlag && !assetsDir ? selectedProject() : undefined;
+  const assetsRoot = resolve(assetsDir ?? (project ? projectAssetsDir(project) : assetsRootForRepo(repo)));
 
   try {
     const result = await promoteDrafts({ assetsRoot, all, ids, log: (line) => console.log(line) });
@@ -60,6 +66,7 @@ function printPromoteUsage(): void {
   console.error(
     "usage:\n" +
       "  assetgen promote (--id <id>[,<id>] | --all) [--game <slug>|shared] [--repo <game-repo-path>]\n" +
+      "           [--assets-dir <project/packages/assets>]\n" +
       "\n" +
       "  Publishes drafts staged by `assetgen generate --draft`: moves their files\n" +
       "  into src/assets, registers them in assets.json, and prunes drafts.json.\n" +

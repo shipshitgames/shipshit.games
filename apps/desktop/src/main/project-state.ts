@@ -1,5 +1,7 @@
 // Project/settings orchestration kept free of Electron imports so its fallback,
 // persistence, and merge contracts can be characterized with injected file I/O.
+import path from "node:path";
+
 import {
   manifestPathForRepo,
   projectFromRepoPath,
@@ -144,9 +146,11 @@ function createProjectState(options: any = {}) {
         source: "discovered",
       });
     }
+    const assetsDir = path.join(project.repoPath, "packages", "assets");
     return {
       ...project,
       manifestPath: manifestPathForRepo(project.repoPath),
+      ...(pathExists(assetsDir) ? { assetsDir } : {}),
     };
   }
 

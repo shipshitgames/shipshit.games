@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { extname } from "node:path";
+
 import { getKey, missingKeyMessage } from "./keys";
 import { downloadGeneratedAsset, outputUrl } from "./media";
 import type { GeneratedAsset } from "./media";
@@ -16,6 +20,10 @@ export const REPLICATE_KEY_CONFIG = {
   label: "Replicate",
 } as const;
 
+export const HUNYUAN_3D_MODEL = "tencent/hunyuan-3d-3.1";
+export const HUNYUAN_3D_DEFAULT_FACE_COUNT = 300_000;
+export const HUNYUAN_3D_MAX_IMAGE_BYTES = 6_000_000;
+
 export interface ReplicateRequestOptions {
   model: string;
   /** Extra model input merged with the canonical prompt. */
@@ -32,6 +40,13 @@ export interface ReplicateRequestOptions {
   onPrediction?: (
     prediction: Readonly<ReplicatePrediction>,
   ) => void | Promise<void>;
+}
+
+export interface Hunyuan3dRequestOptions extends Omit<ReplicateRequestOptions, "input"> {
+  referenceImage?: string;
+  enablePbr?: boolean;
+  faceCount?: number;
+  generateType?: "Normal" | "Geometry";
 }
 
 export interface ReplicateDeps {
@@ -66,6 +81,33 @@ export function replicatePredictionBody(
   return { input: { ...input, prompt } };
 }
 
+export function hunyuan3dPredictionInput(options: {
+  prompt: string;
+  image?: string;
+  enablePbr?: boolean;
+  faceCount?: number;
+  generateType?: "Normal" | "Geometry";
+}): Record<string, unknown> {
+  const faceCount = options.faceCount ?? HUNYUAN_3D_DEFAULT_FACE_COUNT;
+  if (!Number.isInteger(faceCount) || faceCount < 40_000 || faceCount > 1_500_000) {
+    throw new Error("Hunyuan 3D face count must be an integer between 40000 and 1500000");
+  }
+  const generateType = options.generateType ?? "Normal";
+  if (generateType !== "Normal" && generateType !== "Geometry") {
+    throw new Error('Hunyuan 3D generate type must be "Normal" or "Geometry"');
+  }
+  const prompt = options.prompt.trim();
+  if (!options.image && !prompt) {
+    throw new Error("Hunyuan 3D requires a prompt or one reference image");
+  }
+  return {
+    ...(options.image ? { image: options.image } : { prompt }),
+    enable_pbr: options.enablePbr ?? true,
+    face_count: faceCount,
+    generate_type: generateType,
+  };
+}
+
 export async function uploadReplicateFile(
   image: Buffer,
   deps: ReplicateDeps = {},
@@ -95,9 +137,9 @@ export async function uploadReplicateFile(
   return url;
 }
 
-export async function createReplicatePrediction(
+async function createReplicatePredictionForInput(
   key: string,
-  prompt: string,
+  input: Readonly<Record<string, unknown>>,
   opts: ReplicateRequestOptions,
   fetchImpl: typeof fetch = fetch,
 ): Promise<ReplicatePrediction> {
@@ -110,7 +152,7 @@ export async function createReplicatePrediction(
         "content-type": "application/json",
         prefer: "wait=60",
       },
-      body: JSON.stringify(replicatePredictionBody(prompt, opts.input)),
+      body: JSON.stringify({ input }),
       signal: AbortSignal.timeout(opts.requestTimeoutMs ?? 120_000),
     },
   );
@@ -121,6 +163,15 @@ export async function createReplicatePrediction(
   );
   await opts.onPrediction?.(prediction);
   return prediction;
+}
+
+export async function createReplicatePrediction(
+  key: string,
+  prompt: string,
+  opts: ReplicateRequestOptions,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ReplicatePrediction> {
+  return createReplicatePredictionForInput(key, replicatePredictionBody(prompt, opts.input).input, opts, fetchImpl);
 }
 
 export async function waitForReplicatePrediction(
@@ -211,9 +262,89 @@ export async function resumeReplicateAsset(
     throw new Error(
       "replicate: prediction completed without a downloadable output URL",
     );
-  return downloadGeneratedAsset(url, opts.model, fetchImpl, {
+  const downloaded = await downloadGeneratedAsset(url, opts.model, fetchImpl, {
     timeoutMs: opts.requestTimeoutMs,
   });
+  return {
+    ...downloaded,
+    meta: {
+      model: opts.model,
+      requestId: completed.id,
+      reproducible: false,
+    },
+    providerRecord: completed,
+  };
+}
+
+export async function generateHunyuan3dAsset(
+  prompt: string,
+  opts: Hunyuan3dRequestOptions,
+  deps: ReplicateDeps = {},
+): Promise<GeneratedAsset> {
+  const key = requireReplicateKey(deps.resolveKey);
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const reference = opts.referenceImage ? await hunyuanReferenceImage(opts.referenceImage) : undefined;
+  const input = hunyuan3dPredictionInput({
+    prompt,
+    image: reference?.dataUri,
+    enablePbr: opts.enablePbr,
+    faceCount: opts.faceCount,
+    generateType: opts.generateType,
+  });
+  const prediction = await createReplicatePredictionForInput(key, input, opts, fetchImpl);
+  const completed = await waitForReplicatePrediction(prediction, key, opts, deps);
+  const url = outputUrl(completed.output);
+  if (!url) throw new Error("replicate: Hunyuan 3D prediction completed without a downloadable GLB URL");
+  const downloaded = await downloadGeneratedAsset(url, opts.model, fetchImpl, {
+    timeoutMs: opts.requestTimeoutMs,
+  });
+  assertGlb(downloaded.data);
+  return {
+    ...downloaded,
+    mediaType: "model/gltf-binary",
+    extension: "glb",
+    meta: {
+      model: opts.model,
+      requestId: completed.id,
+      inputImageHash: reference?.hash,
+      reproducible: false,
+    },
+    providerRecord: completed,
+  };
+}
+
+async function hunyuanReferenceImage(path: string): Promise<{ dataUri: string; hash: string }> {
+  const mediaType = imageMediaType(path);
+  const data = await readFile(path);
+  if (data.length > HUNYUAN_3D_MAX_IMAGE_BYTES) {
+    throw new Error(
+      `Hunyuan 3D reference image is ${data.length} bytes; maximum is ${HUNYUAN_3D_MAX_IMAGE_BYTES}`,
+    );
+  }
+  return {
+    dataUri: `data:${mediaType};base64,${data.toString("base64")}`,
+    hash: createHash("sha256").update(data).digest("hex").slice(0, 16),
+  };
+}
+
+function imageMediaType(path: string): string {
+  switch (extname(path).toLowerCase()) {
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".webp":
+      return "image/webp";
+    default:
+      throw new Error(`Hunyuan 3D reference image must be jpg, jpeg, png, or webp: ${path}`);
+  }
+}
+
+function assertGlb(data: Buffer): void {
+  if (data.length < 12 || data.readUInt32LE(0) !== 0x46546c67) {
+    throw new Error(`replicate: Hunyuan 3D output is not a valid GLB (${data.length} bytes)`);
+  }
 }
 
 function requireReplicateKey(resolveKey: ReplicateDeps["resolveKey"]): string {

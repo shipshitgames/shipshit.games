@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { test } from "node:test";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
+import { buildMinimalGlb } from "./glb-fixture";
 import {
+  HUNYUAN_3D_MODEL,
+  generateHunyuan3dAsset,
   generateReplicateAsset,
+  hunyuan3dPredictionInput,
   replicatePredictionBody,
   resumeReplicateAsset,
   uploadReplicateFile,
@@ -44,6 +52,72 @@ test("replicatePredictionBody merges provider input without allowing prompt repl
       },
     },
   );
+});
+
+test("hunyuan3dPredictionInput sends exactly one of prompt or image with game-ready defaults", () => {
+  assert.deepEqual(hunyuan3dPredictionInput({ prompt: "a parasite host" }), {
+    prompt: "a parasite host",
+    enable_pbr: true,
+    face_count: 300_000,
+    generate_type: "Normal",
+  });
+  assert.deepEqual(
+    hunyuan3dPredictionInput({
+      prompt: "ignored for image lane",
+      image: "data:image/png;base64,AAAA",
+      enablePbr: false,
+      faceCount: 120_000,
+      generateType: "Geometry",
+    }),
+    {
+      image: "data:image/png;base64,AAAA",
+      enable_pbr: false,
+      face_count: 120_000,
+      generate_type: "Geometry",
+    },
+  );
+});
+
+test("generateHunyuan3dAsset records prediction and input-image provenance", async () => {
+  const root = await mkdtemp(join(tmpdir(), "assetgen-hunyuan-"));
+  const reference = join(root, "host.png");
+  const referenceBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  await writeFile(reference, referenceBytes);
+  const glb = buildMinimalGlb();
+  let input: Record<string, unknown> | undefined;
+  const { fetchImpl } = fakeFetch((url, init) => {
+    if (url.endsWith(`/models/${HUNYUAN_3D_MODEL}/predictions`)) {
+      input = JSON.parse(String(init?.body)).input;
+      return Response.json({
+        id: "hunyuan-prediction-1",
+        status: "succeeded",
+        output: "https://replicate.delivery/model.glb",
+      });
+    }
+    if (url === "https://replicate.delivery/model.glb") {
+      return new Response(new Uint8Array(glb), {
+        headers: { "content-type": "model/gltf-binary" },
+      });
+    }
+    throw new Error(`unexpected fetch ${url}`);
+  });
+
+  const asset = await generateHunyuan3dAsset(
+    "parasite host",
+    { model: HUNYUAN_3D_MODEL, referenceImage: reference },
+    { fetchImpl, resolveKey: () => "unit-key" },
+  );
+
+  assert.equal("prompt" in input!, false);
+  assert.match(String(input?.image), /^data:image\/png;base64,/);
+  assert.equal(asset.mediaType, "model/gltf-binary");
+  assert.equal(asset.extension, "glb");
+  assert.equal(asset.meta?.requestId, "hunyuan-prediction-1");
+  assert.equal(
+    asset.meta?.inputImageHash,
+    createHash("sha256").update(referenceBytes).digest("hex").slice(0, 16),
+  );
+  assert.equal((asset.providerRecord as { id: string }).id, "hunyuan-prediction-1");
 });
 
 test("uploadReplicateFile posts multipart bytes and returns the Files API URL", async () => {

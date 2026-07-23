@@ -85,6 +85,35 @@ Omit `--out-transcript` when the raw text must not be stored. Source-aware
 distillation still writes the transcript metadata sidecar and the original
 rules derivative.
 
+## Repurpose VODs
+
+Turn one `@shipshitshow` VOD into reviewable publication drafts while
+preserving timestamp and rights provenance:
+
+```bash
+bun packages/ressources/src/cli.ts vod-content \
+  --url "https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
+For an offline or keyless review, provide a cleared transcript whose lines
+start with `[MM:SS]` or `[HH:MM:SS]`:
+
+```bash
+bun packages/ressources/src/cli.ts vod-content \
+  --transcript-file timed-transcript.txt \
+  --title "Building the next milestone" \
+  --url "https://www.youtube.com/watch?v=VIDEO_ID" \
+  --rights user-provided \
+  --provider mock
+```
+
+Each run writes a review folder under
+`derivatives/content/shipshitshow/<vod-slug>/` with upload-ready chapters,
+bounded clip candidates, a newsletter draft, a build-in-public devlog, and a
+`stream-content.json` provenance manifest. Raw captions are not copied into the
+output folder. The default `codex` provider creates editorial drafts; `mock`
+proves the complete file contract without a key. Nothing is auto-published.
+
 ## Create records explicitly
 
 Create a transcript placeholder before dropping in cleared text:

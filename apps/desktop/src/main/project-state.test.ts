@@ -103,6 +103,17 @@ test("resolveProjectTarget preserves the requested, game, active, and fallback o
   expect(fallback.state.resolveProjectTarget().slug).toBe("alpha");
 });
 
+test("resolveProjectTarget exposes the active IP asset package when present", () => {
+  const harness = createHarness({}, ["deadrot"]);
+  const assetsDir = path.join(harness.repos.deadrot, "packages", "assets");
+  fs.mkdirSync(assetsDir, { recursive: true });
+
+  expect(harness.state.resolveProjectTarget({ game: "deadrot" })).toMatchObject({
+    repoPath: harness.repos.deadrot,
+    assetsDir,
+  });
+});
+
 test("persistProjects excludes discovered records and updates the active default game", () => {
   const harness = createHarness();
   const registeredRoot = createRepo(tempRoot(), "registered-ip");

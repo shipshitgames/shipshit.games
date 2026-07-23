@@ -17,7 +17,7 @@ import {
   providerSupportsKind,
 } from "./provider-catalog.ts";
 import type { AssetKind, ProviderDescriptor, ProviderId, ProviderKeyConfig } from "./provider-catalog.ts";
-import { generateReplicateAsset } from "./replicate.ts";
+import { HUNYUAN_3D_MODEL, generateHunyuan3dAsset, generateReplicateAsset } from "./replicate.ts";
 
 export type { GeneratedAsset } from "./media.ts";
 export { extensionForMediaType } from "./media.ts";
@@ -51,6 +51,12 @@ export interface ProviderOptions {
    * polls, so without this a single hung connection blocks indefinitely.
    */
   requestTimeoutMs?: number;
+  /** Hunyuan 3D output face target (40,000–1,500,000). */
+  modelFaceCount?: number;
+  /** Generate physically based materials for supported model providers. */
+  modelPbr?: boolean;
+  /** Textured normal output or geometry-only output. */
+  modelGenerateType?: "Normal" | "Geometry";
 }
 
 export interface AssetProvider {
@@ -58,6 +64,7 @@ export interface AssetProvider {
   label: string;
   supports: readonly string[];
   defaultModel?: string;
+  defaultModels?: Readonly<Record<string, string>>;
   models?: readonly FalModel[];
   key?: ProviderKeyConfig;
   referenceImages?: boolean;
@@ -210,10 +217,36 @@ function imageMimeType(path: string): string | null {
 
 async function generateReplicate(kind: AssetKind, prompt: string, opts: ProviderOptions): Promise<GeneratedAsset> {
   const provider = assetProviders.replicate;
+  const model = opts.model ?? provider.defaultModels?.[kind] ?? provider.defaultModel;
+  if (!model) throw new Error("Replicate model assets require --model <owner/model> or a configured model id");
+  if (MODEL_KINDS.includes(kind as any) && model === HUNYUAN_3D_MODEL) {
+    const referenceImages = opts.referenceImages ?? [];
+    if (referenceImages.length > 1) {
+      throw new Error("Hunyuan 3D accepts at most one reference image");
+    }
+    const key = providerKey(provider);
+    if (!key) throw missingKeyMessage(provider.key!);
+    return generateHunyuan3dAsset(
+      prompt,
+      {
+        model,
+        referenceImage: referenceImages[0],
+        enablePbr: opts.modelPbr,
+        faceCount: opts.modelFaceCount,
+        generateType: opts.modelGenerateType,
+        timeoutMs: opts.timeoutMs,
+        pollIntervalMs: opts.pollIntervalMs,
+        requestTimeoutMs: opts.requestTimeoutMs,
+        log: opts.log,
+      },
+      { resolveKey: () => key },
+    );
+  }
+  if (opts.referenceImages?.length) {
+    throw new Error(`Replicate model ${model} does not declare a reference-image input contract`);
+  }
   const key = providerKey(provider);
   if (!key) throw missingKeyMessage(provider.key!);
-  const model = opts.model ?? (MODEL_KINDS.includes(kind as any) ? undefined : provider.defaultModel);
-  if (!model) throw new Error("Replicate model assets require --model <owner/model> or a configured model id");
   return generateReplicateAsset(
     prompt,
     {
@@ -437,20 +470,30 @@ export async function runModelTask(
     const poll = client.pollTask(taskId, key, opts);
     const pollRes = await fetchImpl(poll.url, { headers: poll.headers, signal: AbortSignal.timeout(requestTimeoutMs) });
     if (!pollRes.ok) throw new Error(`${client.id} poll ${pollRes.status}: ${await pollRes.text()}`);
-    const status = client.parseStatus(await pollRes.json());
+    const statusRecord = await pollRes.json();
+    const status = client.parseStatus(statusRecord);
     opts.log?.(`[${client.id}] ${status.state}\n`);
     if (status.done) {
       if (!status.succeeded) throw new Error(`${client.id}: task ${status.state}`);
       if (!status.glbUrl) throw new Error(`${client.id}: task succeeded without a GLB url`);
       // Bound the final download like the create/poll requests, and constrain it
       // to https + the vendor's CDN — the glbUrl is provider-supplied (SSRF).
-      const asset = await downloadGeneratedAsset(status.glbUrl, opts.model ?? provider.defaultModel, deps.fetchImpl, {
+      const model = opts.model ?? provider.defaultModel;
+      const asset = await downloadGeneratedAsset(status.glbUrl, model, deps.fetchImpl, {
         timeoutMs: requestTimeoutMs,
         allowedHosts: resolveDownloadHosts(client),
         trustedOrigins: resolveTrustedOrigins(client),
       });
       assertGlbBody(asset.data, client.id);
-      return asset;
+      return {
+        ...asset,
+        meta: {
+          model,
+          requestId: taskId,
+          reproducible: false,
+        },
+        providerRecord: statusRecord,
+      };
     }
     if (Date.now() - started > timeoutMs) {
       throw new Error(`${client.id}: timed out after ${Math.round(timeoutMs / 1000)}s`);

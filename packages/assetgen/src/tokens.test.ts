@@ -49,6 +49,34 @@ gameArtDirection:
   scourge-survivors:
     camera: "first-person billboard sprites"
     read: "readable at FPS combat distance"
+assetgen:
+  styleSuffix: "test authored style using {colors.primary}"
+  negativePrompts:
+    - "test negative"
+  perGameFraming:
+    shared: "test shared framing"
+  kindMap:
+    sprite: "test sprite"
+  scourgeRule:
+    trigger: "\\bscourge\\b"
+    flags: "i"
+    clause: "test parasite takeover using {colors.toxic}"
+  gradeParams:
+    pixelGrid: 110
+    blackPoint: "{colors.void}"
+    softGrade:
+      strength: 0.18
+      valueRange: [0.04, 0.9]
+      temperatureRange: [0.0, 0.45]
+      alphaThreshold: 8
+      materialPixelRatio: 0.05
+      exampleLimit: 8
+  referenceImages:
+    shared: "test-style.webp"
+  providers:
+    default: "openai"
+    openai:
+      model: "test-image-model"
 ---
 
 # Test design
@@ -79,23 +107,34 @@ test("runTokens writes all generated token artifacts without an assets catalog",
 
   const style = await readFile(styleGeneratedPath, "utf8");
   assert.match(style, /PALETTE_LINE/);
-  assert.match(style, /gpt-image-2/);
-  assert.match(style, /Scourge subjects must read as host-dependent parasite takeover/);
+  assert.match(style, /test-image-model/);
+  assert.match(style, /test parasite takeover using #8bdc1f/);
 
-  const tokensTs = await readFile(join(assetsDir, "tokens", "tokens.ts"), "utf8");
+  const tokensTs = await readFile(
+    join(assetsDir, "tokens", "tokens.ts"),
+    "utf8",
+  );
   assert.match(tokensTs, /primary: 0xc1121f/);
   assert.match(tokensTs, /"label": "Oswald, sans-serif"/);
 
-  const themeCss = await readFile(join(assetsDir, "tokens", "theme.css"), "utf8");
+  const themeCss = await readFile(
+    join(assetsDir, "tokens", "theme.css"),
+    "utf8",
+  );
   assert.match(themeCss, /--color-primary: #c1121f/);
   assert.match(themeCss, /--font-display: Oswald, sans-serif/);
   assert.match(themeCss, /--shadow-ember: 0 0 0 1px rgba\(255,106,0,0\.35\)/);
   assert.equal(await readFile(webThemePath, "utf8"), themeCss);
 
-  const tokensJson = JSON.parse(await readFile(join(assetsDir, "tokens", "tokens.json"), "utf8"));
+  const tokensJson = JSON.parse(
+    await readFile(join(assetsDir, "tokens", "tokens.json"), "utf8"),
+  );
   assert.equal(tokensJson.version, "9.9.9");
   assert.equal(tokensJson.notice.includes("DO NOT EDIT"), true);
-  assert.equal(tokensJson.components["button-primary"].backgroundColor, "#c1121f");
+  assert.equal(
+    tokensJson.components["button-primary"].backgroundColor,
+    "#c1121f",
+  );
   assert.equal(tokensJson.assetgen.gradeParams.pixelGrid, 110);
   assert.deepEqual(tokensJson.assetgen.gradeParams.softGrade, {
     strength: 0.18,
@@ -105,6 +144,29 @@ test("runTokens writes all generated token artifacts without an assets catalog",
     materialPixelRatio: 0.05,
     exampleLimit: 8,
   });
+});
+
+test("runTokens rejects DESIGN.md without the authored assetgen canon", async () => {
+  const dir = await mkdtemp(
+    join(tmpdir(), "assetgen-tokens-missing-canon-test-"),
+  );
+  const designPath = join(dir, "DESIGN.md");
+  await writeFile(
+    designPath,
+    `---
+version: "9.9.9"
+colors:
+  primary: "#c1121f"
+pixelArt:
+  palette: "void, blood, bone"
+---
+`,
+  );
+
+  await assert.rejects(
+    runTokens({ design: designPath, assetsDir: join(dir, "assets") }),
+    /DESIGN\.md frontmatter assetgen is required and must be an object/,
+  );
 });
 
 test("runTokens emits centralized fonts.css with Google Fonts import + delivery metadata", async () => {
@@ -122,13 +184,21 @@ test("runTokens emits centralized fonts.css with Google Fonts import + delivery 
     webThemePath,
   });
 
-  const fontsCss = await readFile(join(assetsDir, "tokens", "fonts.css"), "utf8");
-  assert.match(fontsCss, /@import url\("https:\/\/fonts\.googleapis\.com\/css2\?/);
+  const fontsCss = await readFile(
+    join(assetsDir, "tokens", "fonts.css"),
+    "utf8",
+  );
+  assert.match(
+    fontsCss,
+    /@import url\("https:\/\/fonts\.googleapis\.com\/css2\?/,
+  );
   assert.match(fontsCss, /family=Inter:wght@400;500;600;700;800/);
   assert.match(fontsCss, /family=Oswald:wght@700/);
   assert.match(fontsCss, /--font-display: Oswald, sans-serif/);
 
-  const tokensJson = JSON.parse(await readFile(join(assetsDir, "tokens", "tokens.json"), "utf8"));
+  const tokensJson = JSON.parse(
+    await readFile(join(assetsDir, "tokens", "tokens.json"), "utf8"),
+  );
   assert.equal(tokensJson.fontDelivery.strategy, "google-fonts-css2");
   assert.equal(tokensJson.fontDelivery.cssFile, "fonts.css");
   assert.deepEqual(tokensJson.fontDelivery.imports, [
@@ -199,7 +269,7 @@ test("runTokens check reports drift without rewriting artifacts", async () => {
     styleGeneratedPath,
     webThemePath,
   });
-  await writeFile(tokensJsonPath, "{\"stale\":true}\n");
+  await writeFile(tokensJsonPath, '{"stale":true}\n');
 
   const result = await runTokens({
     check: true,
@@ -210,5 +280,5 @@ test("runTokens check reports drift without rewriting artifacts", async () => {
   });
 
   assert.equal(result.drift, true);
-  assert.equal(await readFile(tokensJsonPath, "utf8"), "{\"stale\":true}\n");
+  assert.equal(await readFile(tokensJsonPath, "utf8"), '{"stale":true}\n');
 });
