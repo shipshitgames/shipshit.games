@@ -74,6 +74,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           model: source.record.model,
           ownerId: auth.userId,
           parentId: id,
+          sourceId: source.record.sourceId,
+          editInstruction: source.record.editInstruction,
           sliceIndex: index,
         },
         frame.data,
