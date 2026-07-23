@@ -113,8 +113,46 @@ test("e2e: mock model generation optimizes the GLB and records model metadata", 
     assert.equal(entry.license.type, "ai-generated");
     assert.equal(entry.license.rig.rigged, true);
     assert.deepEqual(entry.license.rig.animations, ["idle"]);
+    assert.equal(entry.modelTrace.source, "sources/models/e2e-golem.glb");
+    assert.equal(entry.modelTrace.report, "sources/models/e2e-golem.optimize.json");
+    assert.equal(existsSync(join(repo, "src/assets", entry.modelTrace.source)), true);
+    assert.equal(existsSync(join(repo, "src/assets", entry.modelTrace.report)), true);
   } finally {
     await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("e2e: selected project routes model output to its shared assets package", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "assetgen-model-e2e-project-"));
+  try {
+    const result = await runCli(
+      [
+        "generate",
+        "--id",
+        "project-golem",
+        "--prompt",
+        "a project-scoped stone golem",
+        "--kind",
+        "model",
+        "--provider",
+        "mock",
+        "--game",
+        "shared",
+        "--usage-log",
+        "off",
+      ],
+      { ASSETGEN_PROJECT_ROOT: projectRoot },
+    );
+    assert.equal(result.exitCode, 0, `cli failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+
+    const assetsRoot = join(projectRoot, "packages/assets");
+    assert.equal(existsSync(join(assetsRoot, "models/project-golem.glb")), true);
+    assert.equal(existsSync(join(assetsRoot, "sources/models/project-golem.glb")), true);
+    const manifest = JSON.parse(await readFile(join(assetsRoot, "assets.json"), "utf8"));
+    assert.equal(manifest.assets[0].path, "models/project-golem.glb");
+    assert.equal(existsSync(join(projectRoot, "src/assets/assets.json")), false);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
   }
 });
 

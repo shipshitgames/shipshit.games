@@ -269,192 +269,25 @@ export async function runTokens(opts: RunTokensOptions = {}): Promise<TokensResu
 }
 
 function buildAssetgenConfig(design: JsonObject, colors: Record<string, string>): AssetgenConfig {
-  const derived = derivedAssetgenConfig(design, colors);
-  const authored = deepResolve(design.assetgen ?? {}, colors);
-  const authoredObject = isRecord(authored) ? authored : {};
-  const authoredRule = objectMap(authoredObject.scourgeRule);
+  const authored = requiredObject(deepResolve(design.assetgen, colors), "assetgen");
+  const authoredRule = requiredObject(authored.scourgeRule, "assetgen.scourgeRule");
+  const pixelArt = requiredObject(design.pixelArt, "pixelArt");
 
   return {
-    styleSuffix: stringValue(authoredObject.styleSuffix, derived.styleSuffix),
-    paletteLine: stringValue(authoredObject.paletteLine, derived.paletteLine),
-    negativePrompts: stringArray(authoredObject.negativePrompts, derived.negativePrompts),
-    perGameFraming: stringMap(authoredObject.perGameFraming, derived.perGameFraming),
-    kindMap: stringMap(authoredObject.kindMap, derived.kindMap),
+    styleSuffix: requiredString(authored.styleSuffix, "assetgen.styleSuffix"),
+    paletteLine: requiredString(pixelArt.palette, "pixelArt.palette"),
+    negativePrompts: requiredStringArray(authored.negativePrompts, "assetgen.negativePrompts"),
+    perGameFraming: requiredStringMap(authored.perGameFraming, "assetgen.perGameFraming"),
+    kindMap: requiredStringMap(authored.kindMap, "assetgen.kindMap"),
     scourgeRule: {
-      trigger: stringValue(authoredRule.trigger, derived.scourgeRule.trigger),
-      flags: stringValue(authoredRule.flags, derived.scourgeRule.flags),
-      clause: stringValue(authoredRule.clause, derived.scourgeRule.clause),
+      trigger: requiredString(authoredRule.trigger, "assetgen.scourgeRule.trigger"),
+      flags: requiredString(authoredRule.flags, "assetgen.scourgeRule.flags"),
+      clause: requiredString(authoredRule.clause, "assetgen.scourgeRule.clause"),
     },
-    gradeParams: objectMap(authoredObject.gradeParams, derived.gradeParams),
-    referenceImages: stringMap(authoredObject.referenceImages, derived.referenceImages),
-    providers: objectMap(authoredObject.providers, derived.providers),
+    gradeParams: requiredObject(authored.gradeParams, "assetgen.gradeParams"),
+    referenceImages: requiredStringMap(authored.referenceImages, "assetgen.referenceImages"),
+    providers: requiredObject(authored.providers, "assetgen.providers"),
   };
-}
-
-function derivedAssetgenConfig(design: JsonObject, colors: Record<string, string>): AssetgenConfig {
-  const pixelArt = objectMap(design.pixelArt);
-  const gameArtDirection = objectMap(design.gameArtDirection);
-  const gridHeight = stringValue(pixelArt.gridHeight, "110px");
-  const pixelGrid = Number.parseInt(gridHeight, 10) || 110;
-  const paletteLine = stringValue(
-    pixelArt.palette,
-    "void, coal, gunmetal, blood, rust, bone, hellfire; toxic only for Scourge assets",
-  );
-
-  return {
-    styleSuffix: [
-      stringValue(pixelArt.medium, "high-detail medium-chunky pixel art"),
-      `game sprite on a visible chunky pixel grid, roughly ${gridHeight} tall`,
-      stringValue(pixelArt.rendering, "visible square pixels, hard edges, no anti-aliasing"),
-      stringValue(pixelArt.shading, "ordered dithering, subtle dark outline, hellfire rim light"),
-      `fixed limited DOOM palette of ${paletteLine}`,
-      stringValue(pixelArt.references, "Blasphemous, Dead Cells, remastered 1990s DOOM sprites"),
-      "detailed but not noisy",
-      "NO neon, no text, no watermark, no UI, single subject only, near-black background",
-      "must read as chunky pixel art made of visible square pixels",
-      "NOT a smooth 3D render, NOT photorealistic, NOT anti-aliased, NOT painted concept art",
-    ]
-      .filter(Boolean)
-      .join(", "),
-    paletteLine,
-    negativePrompts: [
-      "smooth 3D render",
-      "rendered 3D model",
-      "photorealistic",
-      "photographic",
-      "anti-aliased smooth edges",
-      "airbrushed",
-      "painted concept art",
-      "blurry",
-      "hi-fi render",
-      "cel-shaded cartoon",
-      "anime",
-      "cute",
-      "chibi",
-      "slender elegant graceful proportions",
-      "symmetrical pretty anatomy",
-      "clean plate-armor fantasy knight",
-      "medieval robes capes or swords",
-      "clean minimal sci-fi",
-      "superhero proportions",
-      "soft diffuse even lighting",
-      "bright daylight",
-      "pastel colors",
-      "rainbow saturation",
-      "cool blue or teal grade",
-      "magenta cyan or any neon glow",
-      "clean white background",
-      "background scenery or landscape",
-      "multiple characters",
-      "text watermark or logo",
-      "UI frames or HUD",
-      "cropped or close-up framing that hides the silhouette",
-    ],
-    perGameFraming: buildGameFraming(gameArtDirection),
-    kindMap: {
-      texture: "seamless tileable texture",
-    },
-    scourgeRule: {
-      trigger: "\\bscourge\\b",
-      flags: "i",
-      clause:
-        `Scourge subjects must read as host-dependent parasite takeover: overwritten host material, ruptures, tendrils, embedded toxic-green (${colors.toxic ?? "#8bdc1f"}) breach cores, black chitin over stolen bone or metal, and invasive growth; vary host family among flesh, chitin, mycelial, machine-graft, bone-titan, or voidship; never a standalone generic demon or alien`,
-    },
-    gradeParams: {
-      pixelGrid,
-      downscale: "box",
-      nearestFilter: true,
-      dither: "ordered",
-      antialias: false,
-      hardRemap: true,
-      targetPalette: "doom",
-      palettePath: "lore/Art/grade/doom.gpl",
-      outline: "subtle-dark",
-      preserveEmissive: true,
-      blackPoint: colors.void ?? "#0a0a0a",
-      encode: "webp-lossless",
-      softGrade: {
-        strength: 0.18,
-        valueRange: [0.04, 0.9],
-        temperatureRange: [0, 0.45],
-        alphaThreshold: 8,
-        materialPixelRatio: 0.05,
-        exampleLimit: 8,
-      },
-      cutout: {
-        tool: "rembg",
-        order: "after-generate-before-downscale",
-      },
-    },
-    referenceImages: {
-      "scourge-survivors": "lore/Art/style-refs/scourge-survivors.webp",
-      deadlane: "lore/Art/style-refs/deadlane.webp",
-      pactfall: "lore/Art/style-refs/pactfall.webp",
-      starblight: "lore/Art/style-refs/starblight.webp",
-      redline: "lore/Art/style-refs/redline.webp",
-      rothulk: "lore/Art/style-refs/rothulk.webp",
-      shared: "lore/Art/style-refs/scourge-survivors.webp",
-    },
-    providers: {
-      default: "openai",
-      size: "1024x1536",
-      candidates: 4,
-      openai: {
-        model: "gpt-image-2",
-        quality: "high",
-        output_format: "png",
-        background: "opaque",
-        seed: null,
-        negativeMode: "fold",
-        styleRef: "image_refs",
-        styleRefNote:
-          "match the rendering style, lighting and palette of the reference image; new creature described in the prompt",
-      },
-      fal: {
-        model: "fal-ai/flux/dev",
-        image_size: "square_hd",
-        guidance_scale: 3.5,
-        num_inference_steps: 28,
-        seed: 42,
-        negativeMode: "param",
-        styleRef: "redux",
-        image_prompt_strength: 0.18,
-        styleRefNote:
-          "ref controls STYLE not SHAPE; seed reproducibility breaks once an image ref is attached (non-deterministic vision embedding)",
-      },
-      codex: {
-        model: "gpt-image-2",
-        negativeMode: "fold",
-        seed: null,
-        background: "opaque",
-        note: "conversational/no-seed path; good for the noob loop, not batch determinism",
-      },
-    },
-  };
-}
-
-function buildGameFraming(gameArtDirection: JsonObject): Record<string, string> {
-  const defaults: Record<string, string> = {
-    "scourge-survivors": "first-person game billboard sprite, front-facing, full body",
-    deadlane: "top-down / high-angle game sprite, silhouette readable from above",
-    pactfall: "isometric 3/4-view game sprite, champion scale",
-    starblight: "side-on / top-down arcade space-shooter sprite, crisp readable silhouette",
-    redline: "side-on runner sprite, profile silhouette readable at courier-lane speed",
-    rothulk: "side-on platformer sprite, profile silhouette, clear readable pose",
-    shared: "game asset",
-  };
-
-  const frames = { ...defaults };
-  for (const [game, value] of Object.entries(gameArtDirection)) {
-    const direction = objectMap(value);
-    const parts =
-      game === "shared"
-        ? [direction.medium, direction.renderRules, direction.paletteRules]
-        : [direction.camera, direction.read];
-    const framing = parts.filter((part): part is string => typeof part === "string" && part.length > 0).join("; ");
-    if (framing) frames[game] = framing;
-  }
-  return frames;
 }
 
 function buildFonts(typography: JsonObject): Record<string, string> {
@@ -552,6 +385,28 @@ function stringArray(value: unknown, fallback: string[]): string[] {
 
 function stringValue(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function requiredObject(value: unknown, path: string): JsonObject {
+  if (isRecord(value)) return value;
+  throw new Error(`DESIGN.md frontmatter ${path} is required and must be an object`);
+}
+
+function requiredString(value: unknown, path: string): string {
+  if (typeof value === "string" && value.length > 0) return value;
+  throw new Error(`DESIGN.md frontmatter ${path} is required and must be a non-empty string`);
+}
+
+function requiredStringArray(value: unknown, path: string): string[] {
+  if (Array.isArray(value) && value.every((item) => typeof item === "string")) return value;
+  throw new Error(`DESIGN.md frontmatter ${path} is required and must be an array of strings`);
+}
+
+function requiredStringMap(value: unknown, path: string): Record<string, string> {
+  if (isRecord(value) && Object.values(value).every((item) => typeof item === "string")) {
+    return value as Record<string, string>;
+  }
+  throw new Error(`DESIGN.md frontmatter ${path} is required and must contain only string values`);
 }
 
 function isRecord(value: unknown): value is JsonObject {

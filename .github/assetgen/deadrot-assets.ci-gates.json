@@ -1,0 +1,12 @@
+{
+  "$schema": "../../packages/assetgen/ci-gates.schema.json",
+  "schemaVersion": 1,
+  "package": "@deadrot/assets",
+  "mode": "enforced",
+  "reason": "Deadrot has adopted assetgen codegen for Scourge Survivors while its package-native index remains independently required.",
+  "targets": {
+    "indexes": [],
+    "atlases": [],
+    "codegen": ["scourge-survivors"]
+  }
+}

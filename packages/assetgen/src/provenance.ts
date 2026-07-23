@@ -26,6 +26,8 @@ export interface AssetProvenance {
   styleSuffixHash: string;
   /** Provider request id, when one is returned (fal exposes this). */
   requestId?: string;
+  /** sha256/16 of the reference image consumed by an image-to-model provider. */
+  inputImageHash?: string;
   /** ISO calendar date the asset was generated. */
   date: string;
 }
@@ -58,6 +60,7 @@ export interface ProvenanceMeta {
   modelVersion?: string;
   seed?: number;
   requestId?: string;
+  inputImageHash?: string;
   reproducible?: boolean;
 }
 
@@ -85,6 +88,7 @@ export function buildProvenance(input: BuildProvenanceInput): AssetProvenance {
   if (meta.modelVersion) provenance.modelVersion = meta.modelVersion;
   if (meta.seed !== undefined) provenance.seed = meta.seed;
   if (meta.requestId) provenance.requestId = meta.requestId;
+  if (meta.inputImageHash) provenance.inputImageHash = meta.inputImageHash;
   return provenance;
 }
 

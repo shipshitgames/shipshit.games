@@ -33,7 +33,7 @@ test("buildProvenance defaults reproducible to false and omits absent meta field
   });
 });
 
-test("buildProvenance threads honored seed, model, version, and requestId from provider meta", () => {
+test("buildProvenance threads honored seed, model, version, requestId, and input image hash", () => {
   const provenance = buildProvenance({
     provider: "fal",
     prompt: "a husk",
@@ -44,6 +44,7 @@ test("buildProvenance threads honored seed, model, version, and requestId from p
       modelVersion: "1.1",
       seed: 7,
       requestId: "req-123",
+      inputImageHash: "0123456789abcdef",
       reproducible: true,
     },
   });
@@ -52,6 +53,7 @@ test("buildProvenance threads honored seed, model, version, and requestId from p
   assert.equal(provenance.model, "fal-ai/flux/dev");
   assert.equal(provenance.modelVersion, "1.1");
   assert.equal(provenance.requestId, "req-123");
+  assert.equal(provenance.inputImageHash, "0123456789abcdef");
   assert.equal(provenance.date, "2026-06-14");
 });
 

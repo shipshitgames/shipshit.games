@@ -52,12 +52,19 @@ export interface DraftManifest {
 
 /**
  * Relative file paths an entry occupies on disk (under whichever root holds it):
- * the asset itself plus any sidecars — the sprite billboard preview and the
- * sprite-anim frame map. Duplicates and blanks are dropped.
+ * the asset itself plus sprite previews/frame maps and model source/trace/
+ * prediction sidecars. Duplicates and blanks are dropped.
  */
 export function filesForEntry(entry: AssetEntry): string[] {
   const seen = new Set<string>();
-  for (const candidate of [entry.path, entry.preview, entry.animation]) {
+  for (const candidate of [
+    entry.path,
+    entry.preview,
+    entry.animation,
+    entry.modelTrace?.source,
+    entry.modelTrace?.report,
+    entry.modelTrace?.prediction,
+  ]) {
     if (typeof candidate === "string" && candidate.length > 0) seen.add(candidate);
   }
   return [...seen];

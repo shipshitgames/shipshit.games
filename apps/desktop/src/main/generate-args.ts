@@ -16,6 +16,9 @@ function buildGenerateArgs({ assetgenArgs, assetgenPath, settings, opts = {}, ta
       ? [String(assetgenPath)]
       : [];
   const args = [...prefix, "--provider", provider, "--game", game, "--kind", kind, "--id", opts?.id || "asset", "--prompt", opts?.prompt || "", "--repo", repo];
+  if ((kind === "model" || kind === "3d") && target.assetsDir) {
+    args.push("--assets-dir", String(target.assetsDir));
+  }
   if (opts?.views) args.push("--views", String(opts.views));
   if (opts?.frames) args.push("--frames", String(opts.frames));
   if (opts?.fps) args.push("--fps", String(opts.fps));
@@ -43,6 +46,11 @@ function buildGenerateArgs({ assetgenArgs, assetgenPath, settings, opts = {}, ta
   if (opts?.ktx2) args.push("--ktx2");
   if (opts?.draco === false) args.push("--no-draco");
   if (opts?.rig) args.push("--rig", String(opts.rig));
+  if (opts?.referenceImage) args.push("--reference", String(opts.referenceImage));
+  if (opts?.faceCount) args.push("--face-count", String(opts.faceCount));
+  if (opts?.pbr === false) args.push("--no-pbr");
+  if (opts?.generateType) args.push("--generate-type", String(opts.generateType));
+  if (opts?.maxRuntimeMb) args.push("--max-runtime-mb", String(opts.maxRuntimeMb));
   // --model stays last so existing slice(-2) assertions hold.
   if (model) args.push("--model", String(model));
   return { args, provider, game, kind, repo, model };

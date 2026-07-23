@@ -57,6 +57,10 @@ export interface AssetEntry {
   textures?: number;
   skins?: number;
   joints?: number;
+  /** Whether the generated model carries PBR texture output. */
+  pbr?: boolean;
+  /** Requested provider face target for generated models. */
+  faceCount?: number;
   /** Preserved raw/optimized model lineage and the optimization report used at registration. */
   modelTrace?: ModelTrace;
   /** Non-blocking color-quality evidence emitted by the optional soft-grade pass. */
@@ -80,6 +84,8 @@ export interface ColorGradeTrace {
 export interface ModelTrace {
   report: string;
   source: string;
+  /** Raw provider response for generation audits and reproducibility. */
+  prediction?: string;
   sourceSha256: string;
   optimizedSha256: string;
 }

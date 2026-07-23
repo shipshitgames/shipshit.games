@@ -144,7 +144,8 @@ Beatoven, ffmpeg transcodes, and mock runs.
 
 Omitting `--provider` uses the per-kind default: sprites/maps use `codex`,
 textures/icons use `openai`, audio kinds use `suno`, and model/3D assets use
-`meshy`. Pass `--provider` to override a single run.
+Replicate's `tencent/hunyuan-3d-3.1`. Pass `--provider` to override a single
+run; `meshy` and `tripo` remain supported alternate 3D adapters.
 
 Sprite generation post-processes the provider image into a power-of-two
 transparent `.webp`, pads uneven view/frame counts into stable sheet cells,
@@ -162,6 +163,13 @@ manifest primitives as `generate --kind model`:
 bun packages/assetgen/src/cli.ts model generate \
   --id breach-golem --prompt "a parasite-taken siege golem" \
   --provider mock --repo ./games/example
+
+# The default Hunyuan lane accepts either text or one concept image. It enables
+# PBR, targets 300k faces, and refuses an optimized runtime GLB above 20 MiB.
+bun packages/assetgen/src/cli.ts model generate \
+  --id breach-golem --prompt "a parasite-taken siege golem" \
+  --reference ./concepts/breach-golem.png \
+  --face-count 300000 --max-runtime-mb 20
 
 # Imported/provider GLB: preserve the source, optimize the runtime copy, and
 # write a hash-addressed trace report beside it.
@@ -188,6 +196,13 @@ Registration preserves the raw GLB and normalized trace report under
 `src/assets/sources/models` alongside the optimized runtime model. The source
 directory is deliberately excluded from runtime asset indexes and game orphan
 checks while remaining addressable through the manifest's `modelTrace` fields.
+Provider-backed model generation uses the same source-preservation layout and
+also writes `<id>.prediction.json`. Raw sources above 20 MiB are refused unless
+the target repository tracks `sources/models/*.glb` through Git LFS; only the
+optimized `models/*.glb` is a runtime asset. With
+`ASSETGEN_PROJECT_ROOT`/`ASSETGEN_IP` selected (or
+`--assets-dir` supplied), model generation and promotion resolve directly to the
+IP's `packages/assets` instead of a sibling-path heuristic.
 Imported models only receive AI disclosure or prompt provenance when explicitly
 supplied. Generated models derive rig provenance from their provider. For
 imports, `model register --rig` accepts only
@@ -331,6 +346,50 @@ non-zero if any is stale — drop it into CI or a pre-commit hook.
 ```bash
 bun packages/assetgen/src/cli.ts check
 ```
+
+## `ci-gates` — explicit downstream integrity targets (issue #319)
+
+`assetgen ci-gates` runs index, atlas, and generated-module drift checks only
+from a versioned manifest. Implicit discovery is deliberately invalid: every
+assetgen-format target found in the downstream asset package or games root must
+be declared, every declared target must exist, and every check must report
+current output.
+
+```json
+{
+  "$schema": "./node_modules/@shipshitgames/assetgen/ci-gates.schema.json",
+  "schemaVersion": 1,
+  "package": "@example/assets",
+  "mode": "enforced",
+  "targets": {
+    "indexes": ["assets.index.json"],
+    "atlases": ["example-game"],
+    "codegen": ["example-game"]
+  }
+}
+```
+
+Run the contract with explicit downstream roots:
+
+```bash
+bun packages/assetgen/src/cli.ts ci-gates \
+  --config .github/assetgen/example-assets.ci-gates.json \
+  --assets-dir ../example/packages/assets \
+  --games-root ../example/apps/games
+```
+
+Packages with no adopted assetgen targets must declare `mode: "native-only"`,
+an explanatory `reason`, and three empty target arrays. If an assetgen-format
+index, `<game>.atlas.json`, or `<game>/src/assets.generated.ts` later appears,
+that explicit zero state fails until the manifest switches to `enforced` and
+declares it. The Ship Shit Games CI declares Deadrot's currently adopted
+Scourge Survivors codegen target and keeps Deadrot's native
+`assets:index:check` as an independent required gate until the remaining target
+types are adopted.
+
+The cross-repo job uses the workflow's read-only `GITHUB_TOKEN` for exactly two
+checkouts (this repository and `shipshitgames/deadrot.com`); it requires no PAT,
+write permission, or generated asset upload.
 
 ## `atlas` — texture atlas packing (issue #92)
 
@@ -705,7 +764,9 @@ alongside the other token gates.
 - `codex` — delegates to the local authed `codex` CLI via node-pty (no key wiring needed)
 - `openai` — **gpt-image-2** (`--model` to override), transparent PNG; with `--reference`/`-i` it uses the image edit endpoint and attaches up to 16 local png/jpg/webp references
 - `fal` — FLUX; with `--reference`/`-i` it embeds local references as data URLs with the configured style-reference strength
-- `replicate` — model runner for image/model providers (`--model owner/model`)
+- `replicate` — image/model runner; `tencent/hunyuan-3d-3.1` is the default 3D
+  model and supports text or one `--reference` image, with Meshy/Tripo retained
+  as explicit alternates
 - `meshy` — Meshy text-to-3D task adapter; downloads GLB and runs the model optimize path
 - `tripo` — Tripo text-to-model task adapter; prefers PBR GLB output when available
 - `suno` — audio provider adapter; requires `SUNO_API_BASE_URL` for the licensed endpoint
@@ -738,7 +799,8 @@ Every provider call appends a local JSONL event to:
 ~/.shipshitgames/assetgen/usage.jsonl
 ```
 
-The log stores provider, kind, model, id, output path, duration, and success/failure.
+The log stores provider, kind, model, provider request id (when returned), id,
+output path, duration, available cost fields, and success/failure.
 It stores a prompt hash and character count, not raw prompt text. Override the path
 with `--usage-log <path>` or disable with `--usage-log off`.
 
