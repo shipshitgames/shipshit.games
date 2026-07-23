@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shipshit.games/schemas/assetgen-ci-gates-v1.json",
+  "title": "Assetgen CI gate targets",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "package", "mode", "targets"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "package": { "type": "string", "minLength": 1 },
+    "mode": { "enum": ["enforced", "native-only"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["indexes", "atlases", "codegen"],
+      "properties": {
+        "indexes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^assets\\.index(?:\\.[a-z0-9-]+)?\\.json$"
+          }
+        },
+        "atlases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/slug" }
+        },
+        "codegen": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/slug" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "mode": { "const": "native-only" } },
+        "required": ["mode"]
+      },
+      "then": {
+        "required": ["reason"],
+        "properties": {
+          "targets": {
+            "properties": {
+              "indexes": { "maxItems": 0 },
+              "atlases": { "maxItems": 0 },
+              "codegen": { "maxItems": 0 }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "targets": {
+            "anyOf": [
+              { "properties": { "indexes": { "minItems": 1 } } },
+              { "properties": { "atlases": { "minItems": 1 } } },
+              { "properties": { "codegen": { "minItems": 1 } } }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

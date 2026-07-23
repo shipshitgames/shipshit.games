@@ -29,7 +29,7 @@
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:tokens": "turbo run check:tokens",
     "check:content": "bun apps/web/scripts/sync-content.ts --check",
-    "check:assetgen-gates": "bun packages/assetgen/src/cli.ts ci-gates",
+    "check:assetgen-gates": "bun packages/assetgen/src/cli.ts ci-gates --config .github/assetgen/deadrot-assets.ci-gates.json",
     "sync:content": "bun apps/web/scripts/sync-content.ts",
     "release": "bun scripts/release.mjs",
     "release:run": "bun scripts/release.mjs --execute",

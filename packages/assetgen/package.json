@@ -36,6 +36,7 @@
       "default": "./src/hd2d-bake.ts"
     },
     "./asset-qa.schema.json": "./asset-qa.schema.json",
+    "./ci-gates.schema.json": "./ci-gates.schema.json",
     "./pose-set.schema.json": "./pose-set.schema.json",
     "./src/*": "./src/*"
   },
