@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn as nodeSpawn } from "node:child_process";
 
+import type { GymTesterConfig } from "../shared/ipc";
+
 const GYM_DECLARATION_FILES = ["studio.gyms.json", path.join(".shipshit", "gyms.json")];
 const SPAWN_SETTLE_MS = 300;
 
@@ -67,6 +69,107 @@ function readJson(file) {
   }
 }
 
+const GYM_TESTER_DEFAULTS = {
+  ready: "canvas",
+  readyTimeoutMs: 15000,
+  canvas: "canvas",
+  press: [],
+  hold: [],
+  shots: [],
+  observeMs: 2000,
+  frames: 0,
+  checkBlank: true,
+  bootTimeoutMs: 30000,
+} satisfies GymTesterConfig;
+
+function testerString(raw, key, fallback) {
+  const value = raw[key];
+  if (value === undefined) return { value: fallback };
+  if (typeof value !== "string") return { error: `tester.${key} must be a string` };
+  return { value: value.trim() || fallback };
+}
+
+function testerNumber(raw, key, fallback, min, max) {
+  const value = raw[key];
+  if (value === undefined) return { value: fallback };
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return { error: `tester.${key} must be a finite number` };
+  }
+  return { value: Math.max(min, Math.min(max, Math.round(value))) };
+}
+
+function testerList(raw, key) {
+  const value = raw[key];
+  if (value === undefined) return { value: [] };
+  const entries = typeof value === "string" ? [value] : value;
+  if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string")) {
+    return { error: `tester.${key} must be a string or an array of strings` };
+  }
+  const normalized = [];
+  for (const entry of entries) {
+    const trimmed = entry.trim();
+    if (trimmed) normalized.push(trimmed);
+  }
+  return { value: normalized };
+}
+
+// Mirrors tester's parseHold: "<key>:<ms>" with a non-empty key and ms >= 0.
+function validHoldEntry(entry) {
+  const sep = entry.lastIndexOf(":");
+  if (sep <= 0 || sep === entry.length - 1) return false;
+  const ms = Number(entry.slice(sep + 1).trim());
+  return entry.slice(0, sep).trim().length > 0 && Number.isFinite(ms) && ms >= 0;
+}
+
+function pressKeys(entries) {
+  const keys = [];
+  for (const entry of entries) {
+    for (const key of entry.split(",")) {
+      const trimmed = key.trim();
+      if (trimmed) keys.push(trimmed);
+    }
+  }
+  return keys;
+}
+
+function normalizeGymTester(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { error: "tester must be an object" };
+  }
+  const ready = testerString(raw, "ready", GYM_TESTER_DEFAULTS.ready);
+  const canvas = testerString(raw, "canvas", GYM_TESTER_DEFAULTS.canvas);
+  const readyTimeoutMs = testerNumber(raw, "readyTimeoutMs", GYM_TESTER_DEFAULTS.readyTimeoutMs, 1000, 120000);
+  const observeMs = testerNumber(raw, "observeMs", GYM_TESTER_DEFAULTS.observeMs, 0, 60000);
+  const frames = testerNumber(raw, "frames", GYM_TESTER_DEFAULTS.frames, 0, 12);
+  const bootTimeoutMs = testerNumber(raw, "bootTimeoutMs", GYM_TESTER_DEFAULTS.bootTimeoutMs, 1000, 180000);
+  const press = testerList(raw, "press");
+  const hold = testerList(raw, "hold");
+  const shots = testerList(raw, "shots");
+  for (const field of [ready, canvas, readyTimeoutMs, observeMs, frames, bootTimeoutMs, press, hold, shots]) {
+    if (field.error) return { error: field.error };
+  }
+  if (raw.checkBlank !== undefined && typeof raw.checkBlank !== "boolean") {
+    return { error: "tester.checkBlank must be a boolean" };
+  }
+  const badHold = hold.value.find((entry) => !validHoldEntry(entry));
+  if (badHold !== undefined) return { error: `tester.hold entry "${badHold}" must be "<key>:<ms>"` };
+  return {
+    tester: {
+      ready: ready.value,
+      readyTimeoutMs: readyTimeoutMs.value,
+      canvas: canvas.value,
+      // --press takes a comma list, so comma-joined entries flatten to keys.
+      press: pressKeys(press.value),
+      hold: hold.value,
+      shots: shots.value,
+      observeMs: observeMs.value,
+      frames: frames.value,
+      checkBlank: raw.checkBlank === undefined ? GYM_TESTER_DEFAULTS.checkBlank : raw.checkBlank,
+      bootTimeoutMs: bootTimeoutMs.value,
+    },
+  };
+}
+
 function normalizeGym(raw, repoPath, index) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return { error: `gyms[${index}] must be an object` };
@@ -87,6 +190,13 @@ function normalizeGym(raw, repoPath, index) {
     return { error: `gyms[${index}] must define script, command, or url` };
   }
 
+  let tester = null;
+  if (raw.tester !== undefined && raw.tester !== null) {
+    const normalized = normalizeGymTester(raw.tester);
+    if (normalized.error) return { error: `gyms[${index}] ${normalized.error}` };
+    tester = normalized.tester;
+  }
+
   return {
     gym: {
       id,
@@ -98,6 +208,7 @@ function normalizeGym(raw, repoPath, index) {
       args,
       url: url || null,
       cwd,
+      tester,
     },
   };
 }
@@ -264,9 +375,11 @@ function createGymLauncher(options: any = {}) {
 
 export {
   GYM_DECLARATION_FILES,
+  GYM_TESTER_DEFAULTS,
   createGymLauncher,
   declarationPathForRepo,
   normalizeGym,
+  normalizeGymTester,
   readGymDeclaration,
   slugifyGym,
 };

@@ -9,7 +9,10 @@ import { spawn, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { readAssetBaseUrl } from "@shipshitgames/shared";
-import { IPC_CHANNELS } from "../shared/ipc";
+import {
+  IPC_CHANNELS,
+  type GymCheckEventPayload,
+} from "../shared/ipc";
 import { readSharedGameSlugs } from "./game-slugs";
 import { createTerminalManager, terminalShell } from "./terminal-manager";
 import { hardenWindow } from "./window-security";
@@ -20,6 +23,7 @@ import { createArtLabStore } from "./art-lab";
 import { createMapsStore } from "./maps";
 import { createGallery } from "./gallery";
 import { createGymLauncher } from "./gyms";
+import { createGymCheckRunner } from "./gym-check";
 import {
   missingToolingRuntimePaths,
   resolveToolingRuntime,
@@ -254,6 +258,13 @@ const gyms = createGymLauncher({
   openExternal: (url) => electronShell.openExternal(url),
   env: process.env,
 });
+const gymChecks = createGymCheckRunner({
+  gyms,
+  rootDir: () => path.join(app.getPath("userData"), "gym-checks"),
+  testerCommand: () => toolingRuntime.tester,
+  channel: () => process.env.SSG_TESTER_CHANNEL || "",
+  env: () => process.env,
+});
 
 // ---- keys (macOS keychain, shipcode-style) ----
 const KEY_SERVICES = { openai: "shipshit-openai", fal: "shipshit-fal", replicate: "shipshit-replicate", meshy: "shipshit-meshy", tripo: "shipshit-tripo", suno: "shipshit-suno", elevenlabs: "shipshit-elevenlabs", beatoven: "shipshit-beatoven" };
@@ -310,6 +321,26 @@ ipcMain.handle(IPC_CHANNELS.projectsSetActive, (_e, id) => {
 
 ipcMain.handle(IPC_CHANNELS.gymsList, () => gyms.list());
 ipcMain.handle(IPC_CHANNELS.gymsLaunch, (_e, payload = {}) => gyms.launch(payload));
+ipcMain.handle(IPC_CHANNELS.gymsCheckStart, (event, payload = {}) => {
+  const send = (update: GymCheckEventPayload) => {
+    if (!event.sender.isDestroyed()) {
+      event.sender.send(IPC_CHANNELS.gymsCheckEvent, update);
+    }
+  };
+  return gymChecks.start(payload, send);
+});
+ipcMain.handle(IPC_CHANNELS.gymsCheckList,
+  (_event, payload = {}) => gymChecks.list(payload),
+);
+ipcMain.handle(IPC_CHANNELS.gymsCheckGet,
+  (_event, payload = {}) => gymChecks.get(payload.runId),
+);
+ipcMain.handle(IPC_CHANNELS.gymsCheckStop,
+  (_event, payload = {}) => gymChecks.stop(payload.runId),
+);
+ipcMain.handle(IPC_CHANNELS.gymsCheckImage,
+  (_event, payload = {}) => gymChecks.image(payload.runId, payload.file),
+);
 
 ipcMain.handle(IPC_CHANNELS.terminalStart, (e, opts) => {
   e.sender.once("destroyed", () => terminalManager.disposeForWebContents(e.sender.id));
@@ -785,11 +816,18 @@ function createWindow() {
   hardenWindow(mainWindow.webContents, allowedUrl, electronShell);
   if (isDev) { mainWindow.loadURL(DEV_SERVER_URL); mainWindow.webContents.openDevTools({ mode: "detach" }); }
   else { mainWindow.loadFile(indexHtml); }
-  mainWindow.on("closed", () => { terminalManager.disposeAll(); mainWindow = null; });
+  mainWindow.on("closed", () => {
+    terminalManager.disposeAll();
+    gymChecks.disposeAll();
+    mainWindow = null;
+  });
 }
 app.whenReady().then(() => {
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
-app.on("before-quit", () => terminalManager.disposeAll());
+app.on("before-quit", () => {
+  terminalManager.disposeAll();
+  gymChecks.disposeAll();
+});
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });

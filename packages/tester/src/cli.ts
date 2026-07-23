@@ -16,7 +16,7 @@ import {
   type TesterOptions,
 } from "./types.ts";
 
-const USAGE = `tester — browser QA harness for canvas/WebGL games
+export const USAGE = `tester — browser QA harness for canvas/WebGL games
 
 Usage:
   tester --url <url> [options]
@@ -44,6 +44,7 @@ Run:
   --nav-timeout <ms>    navigation timeout (default 30000)
   --click-timeout <ms>  timeout for click steps (default 5000)
   --headed              run a headed browser (default headless)
+  --channel <name>      browser channel, e.g. chrome (default: Playwright-managed chromium)
 
 Output:
   --out <dir>           deterministic output folder (default "game-test-output")
@@ -76,6 +77,7 @@ const VALUE_KEYS = new Set([
   "viewport",
   "nav-timeout",
   "click-timeout",
+  "channel",
   "report-json",
   "report-md",
 ]);
@@ -205,6 +207,7 @@ export async function buildOptions(args: RawArgs): Promise<TesterOptions> {
     navTimeoutMs: numberOption(values, "nav-timeout", 30000),
     clickTimeoutMs: numberOption(values, "click-timeout", 5000),
     headed: flags.has("headed"),
+    channel: values.get("channel") ?? "",
     reportJsonPath: values.get("report-json") ?? join(outDir, "report.json"),
     reportMarkdownPath: values.get("report-md") ?? join(outDir, "report.md"),
   };

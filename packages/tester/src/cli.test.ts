@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildOptions, exitCodeForReport, numberOption, parseArgs, parseReadySpec, parseViewport } from "./cli.ts";
+import { buildOptions, exitCodeForReport, numberOption, parseArgs, parseReadySpec, parseViewport, USAGE } from "./cli.ts";
 
 describe("parseArgs", () => {
   test("parses value flags, boolean flags, and ordered inline steps", () => {
@@ -98,5 +98,17 @@ describe("buildOptions", () => {
   test("--ready defaults its canvas selector to --canvas", async () => {
     const opts = await buildOptions(parseArgs(["--url", "u", "--canvas", "#game", "--ready", "canvas"]));
     expect(opts.ready).toEqual({ kind: "canvas", selector: "#game" });
+  });
+
+  test("--channel parses both flag forms and defaults to the Playwright chromium", async () => {
+    expect((await buildOptions(parseArgs(["--url", "u"]))).channel).toBe("");
+    expect((await buildOptions(parseArgs(["--url", "u", "--channel", "chrome"]))).channel).toBe("chrome");
+    expect((await buildOptions(parseArgs(["--url", "u", "--channel=chrome"]))).channel).toBe("chrome");
+  });
+});
+
+describe("USAGE", () => {
+  test("documents --channel", () => {
+    expect(USAGE).toContain("--channel");
   });
 });

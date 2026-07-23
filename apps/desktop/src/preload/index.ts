@@ -4,6 +4,7 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 
 import {
   IPC_CHANNELS,
+  IPC_EVENT_CHANNELS,
   type StudioApi,
   type StudioEventPayloads,
 } from "../shared/ipc";
@@ -68,6 +69,16 @@ const studioApi: StudioApi = {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.gymsList),
     launch: (projectId, gymId) => ipcRenderer.invoke(IPC_CHANNELS.gymsLaunch, { projectId, gymId }),
   },
+  // Gym checks (#305): boot a gym, wait for its url, drive it with the tester
+  // CLI in the main process; progress streams over gyms:check-event.
+  gymChecks: {
+    start: (projectId, gymId) => ipcRenderer.invoke(IPC_CHANNELS.gymsCheckStart, { projectId, gymId }),
+    list: (projectId) => ipcRenderer.invoke(IPC_CHANNELS.gymsCheckList, { projectId }),
+    get: (runId) => ipcRenderer.invoke(IPC_CHANNELS.gymsCheckGet, { runId }),
+    stop: (runId) => ipcRenderer.invoke(IPC_CHANNELS.gymsCheckStop, { runId }),
+    image: (runId, file) => ipcRenderer.invoke(IPC_CHANNELS.gymsCheckImage, { runId, file }),
+  },
+  onGymCheckEvent: (callback) => subscribe(IPC_EVENT_CHANNELS.gymsCheckEvent, callback),
   keys: {
     status: () => ipcRenderer.invoke(IPC_CHANNELS.keysStatus),
     set: (provider, key) => ipcRenderer.invoke(IPC_CHANNELS.keysSet, { provider, key }),

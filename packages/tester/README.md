@@ -73,6 +73,12 @@ For complex sequences pass a JSON script with `--script <path|->` (`-` reads std
 }
 ```
 
+### Browser channel (`--channel`)
+
+By default the harness launches the Playwright-managed Chromium (installed via
+`bun run browsers`). Pass `--channel chrome` to launch a preinstalled Chrome
+instead — the go-to on CI runners that ship Chrome but no Playwright browsers.
+
 ### Blank detection
 
 After the script and an observe window, the harness downscales the canvas and

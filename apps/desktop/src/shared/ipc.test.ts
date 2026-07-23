@@ -22,7 +22,9 @@ test("every invoke channel is wired through main and preload", () => {
 test("every event channel is emitted by main and subscribed by preload", () => {
   const emitters = `${mainSource}\n${terminalSource}`;
   for (const channelKey of Object.keys(IPC_EVENT_CHANNELS)) {
-    expect(emitters).toContain(`IPC_CHANNELS.${channelKey}`);
-    expect(preloadSource).toContain(`IPC_CHANNELS.${channelKey}`);
+    // IPC_CHANNELS spreads IPC_EVENT_CHANNELS, so either constant is the same value.
+    const usage = new RegExp(`IPC(?:_EVENT)?_CHANNELS\\.${channelKey}\\b`);
+    expect(emitters).toMatch(usage);
+    expect(preloadSource).toMatch(usage);
   }
 });

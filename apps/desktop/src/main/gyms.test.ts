@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createGymLauncher, readGymDeclaration } from "./gyms";
+import { createGymLauncher, normalizeGymTester, readGymDeclaration } from "./gyms";
 
 const temps = [];
 
@@ -157,6 +157,96 @@ test("launch still runs a valid gym when a sibling declaration entry is invalid"
 
   expect(result.ok).toBe(true);
   expect(calls[0].args).toEqual(["run", "gym:playground"]);
+});
+
+test("a gym without a tester block reads back with tester null", () => {
+  const root = tempRepo();
+  writeDeclaration(root, { gyms: [{ id: "playfield", url: "http://localhost:5199/" }] });
+
+  const result = readGymDeclaration(root);
+
+  expect(result.error).toBeNull();
+  expect(result.gyms[0].tester).toBeNull();
+});
+
+test("an empty tester block fills every default", () => {
+  const root = tempRepo();
+  writeDeclaration(root, { gyms: [{ id: "playfield", url: "http://localhost:5199/", tester: {} }] });
+
+  const result = readGymDeclaration(root);
+
+  expect(result.error).toBeNull();
+  expect(result.gyms[0].tester).toEqual({
+    ready: "canvas",
+    readyTimeoutMs: 15000,
+    canvas: "canvas",
+    press: [],
+    hold: [],
+    shots: [],
+    observeMs: 2000,
+    frames: 0,
+    checkBlank: true,
+    bootTimeoutMs: 30000,
+  });
+});
+
+test("tester numbers clamp to their documented ranges", () => {
+  const normalized = normalizeGymTester({
+    readyTimeoutMs: 50,
+    observeMs: 999999,
+    frames: 99,
+    bootTimeoutMs: 1_000_000_000,
+  });
+
+  expect(normalized.error).toBeUndefined();
+  expect(normalized.tester).toMatchObject({
+    readyTimeoutMs: 1000,
+    observeMs: 60000,
+    frames: 12,
+    bootTimeoutMs: 180000,
+  });
+});
+
+test("tester press/hold/shots accept a string or an array of strings", () => {
+  const fromStrings = normalizeGymTester({ press: "ArrowUp, Space", hold: "ArrowRight:500", shots: "boot" });
+  expect(fromStrings.tester).toMatchObject({
+    press: ["ArrowUp", "Space"],
+    hold: ["ArrowRight:500"],
+    shots: ["boot"],
+  });
+
+  const fromArrays = normalizeGymTester({ press: ["ArrowUp,Space", "KeyW"], hold: ["a:100", "d:200"], shots: ["boot", "after"] });
+  expect(fromArrays.tester).toMatchObject({
+    press: ["ArrowUp", "Space", "KeyW"],
+    hold: ["a:100", "d:200"],
+    shots: ["boot", "after"],
+  });
+});
+
+test("an invalid tester block invalidates only that gym entry", () => {
+  const root = tempRepo();
+  writeDeclaration(root, {
+    gyms: [
+      { id: "broken", url: "http://localhost:5199/", tester: { hold: ["nope"] } },
+      { id: "playfield", url: "http://localhost:5200/" },
+    ],
+  });
+
+  const result = readGymDeclaration(root);
+
+  expect(result.error).toContain("gyms[0]");
+  expect(result.error).toContain("tester.hold");
+  expect(result.gyms.map((gym) => gym.id)).toEqual(["playfield"]);
+});
+
+test("normalizeGymTester rejects wrong types and non-finite numbers", () => {
+  expect(normalizeGymTester("yes").error).toContain("tester must be an object");
+  expect(normalizeGymTester({ readyTimeoutMs: "fast" }).error).toContain("tester.readyTimeoutMs");
+  expect(normalizeGymTester({ observeMs: Number.NaN }).error).toContain("tester.observeMs");
+  expect(normalizeGymTester({ bootTimeoutMs: Infinity }).error).toContain("tester.bootTimeoutMs");
+  expect(normalizeGymTester({ press: [7] }).error).toContain("tester.press");
+  expect(normalizeGymTester({ checkBlank: "yes" }).error).toContain("tester.checkBlank");
+  expect(normalizeGymTester({ hold: ["ArrowUp:"] }).error).toContain("tester.hold");
 });
 
 test("launch surfaces a readable spawn failure", async () => {

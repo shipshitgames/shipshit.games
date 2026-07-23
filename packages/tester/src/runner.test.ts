@@ -51,6 +51,7 @@ function baseOptions(url: string, outDir: string, overrides: Partial<TesterOptio
     navTimeoutMs: 10000,
     clickTimeoutMs: 5000,
     headed: false,
+    channel: "",
     reportJsonPath: join(outDir, "report.json"),
     reportMarkdownPath: join(outDir, "report.md"),
     ...overrides,
