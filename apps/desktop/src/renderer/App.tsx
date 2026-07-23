@@ -12,6 +12,7 @@ import { MapsPane } from "./panes/MapsPane";
 import { ModelPane } from "./panes/ModelPane";
 import { MoodboardPane } from "./panes/MoodboardPane";
 import { MusicPane } from "./panes/MusicPane";
+import { PlayLabPane } from "./panes/PlayLabPane";
 import { ProjectsPane } from "./panes/ProjectsPane";
 import { ResearchPane } from "./panes/ResearchPane";
 import { ResourcesPane } from "./panes/ResourcesPane";
@@ -23,6 +24,7 @@ import { TerminalPane } from "./panes/TerminalPane";
 // placeholder. Provider + keys are configured once in Settings (topbar gear).
 const PANES: Partial<Record<SectionId, ComponentType>> = {
   projects: ProjectsPane,
+  "play-lab": PlayLabPane,
   gyms: GymsPane,
   gallery: GalleryPane,
   maps: MapsPane,

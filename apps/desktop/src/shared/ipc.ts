@@ -27,6 +27,9 @@ export const IPC_INVOKE_CHANNELS = {
   projectsAdd: "projects:add",
   projectsRemove: "projects:remove",
   projectsSetActive: "projects:setActive",
+  playLabContext: "playLab:context",
+  loreList: "lore:list",
+  loreRead: "lore:read",
   gymsList: "gyms:list",
   gymsLaunch: "gyms:launch",
   gymsCheckStart: "gyms:checkStart",
@@ -322,6 +325,89 @@ export interface GymTesterConfig {
   frames: number;
   checkBlank: boolean;
   bootTimeoutMs: number;
+}
+
+export interface LoreVaultSummary {
+  id: string;
+  name: string;
+  repoPath: string;
+  vaultRoot: string;
+  exists: boolean;
+  noteCount: number;
+  source: "registered" | "discovered";
+  error: string | null;
+}
+
+export interface LoreNoteSummary {
+  path: string;
+  title: string;
+  folder: string;
+  bytes: number;
+  updatedAt: string | null;
+  excerpt: string;
+  tags: string[];
+  wikiLinks: string[];
+  backlinks: string[];
+}
+
+export interface LoreNote extends LoreNoteSummary {
+  content: string;
+  frontmatter: Record<string, string>;
+  headings: string[];
+}
+
+export interface LoreVaultState {
+  vaults: LoreVaultSummary[];
+  activeVaultId: string;
+  root: string | null;
+  notes: LoreNoteSummary[];
+  error: string | null;
+}
+
+export interface PlayLabMapSummary {
+  id: string;
+  path: string;
+}
+
+export interface PlayLabGameSummary {
+  slug: string;
+  name: string;
+  path: string;
+  packageName: string | null;
+  scripts: Record<string, string>;
+  maps: PlayLabMapSummary[];
+}
+
+export interface PlayLabProjectSummary {
+  id: string;
+  name: string;
+  slug: string;
+  repoPath: string;
+  source: "registered" | "discovered";
+  isActive: boolean;
+  exists: boolean;
+  valid: boolean;
+  error: string | null;
+  packageName: string | null;
+  loreRoot: string;
+  loreExists: boolean;
+  loreFileCount: number;
+  gamesRoot: string;
+  games: PlayLabGameSummary[];
+  assetsRoot: string;
+  assetsExists: boolean;
+  assetCatalogPath: string;
+  assetCatalogExists: boolean;
+  assetIndexPath: string;
+  assetIndexExists: boolean;
+}
+
+export interface PlayLabContext {
+  project: PlayLabProjectSummary;
+  lore: LoreNoteSummary[];
+  games: PlayLabGameSummary[];
+  promptContext: string;
+  truncated: boolean;
 }
 
 export interface GymSummary {
@@ -721,6 +807,16 @@ export interface StudioApi {
     add: () => Promise<ProjectState>;
     remove: (id: string) => Promise<ProjectState>;
     setActive: (id: string) => Promise<ProjectState>;
+  };
+  playLab: {
+    context: (
+      projectId?: string,
+      refresh?: boolean,
+    ) => Promise<PlayLabContext | null>;
+  };
+  lore: {
+    list: (projectId?: string, refresh?: boolean) => Promise<LoreVaultState>;
+    read: (projectId: string | undefined, path: string) => Promise<LoreNote | null>;
   };
   gyms: {
     list: () => Promise<GymsState>;
