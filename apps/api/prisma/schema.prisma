@@ -34,12 +34,17 @@ model Asset {
   parentId    String?
   parent      Asset?   @relation("AssetSlices", fields: [parentId], references: [id], onDelete: SetNull)
   slices      Asset[]  @relation("AssetSlices")
+  sourceId    String?
+  source      Asset?   @relation("AssetEdits", fields: [sourceId], references: [id], onDelete: SetNull)
+  edits       Asset[]  @relation("AssetEdits")
+  editInstruction String?
   sliceIndex  Int?
   createdAt   DateTime @default(now())
 
   @@index([createdAt(sort: Desc)])
   @@index([gameSlug])
   @@index([parentId])
+  @@index([sourceId])
   @@index([storageKey])
   @@unique([parentId, sliceIndex])
 }
