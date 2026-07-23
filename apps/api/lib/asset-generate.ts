@@ -59,6 +59,10 @@ interface ReplicateOptions {
 
 export interface AssetGenerateDeps {
   requireAuth: (request: Request) => Promise<AuthenticatedUser | Response>;
+  requireStudioPass: (
+    auth: AuthenticatedUser,
+    request: Request,
+  ) => Promise<Response | null>;
   games: readonly GameOption[];
   jobs: GenerationJobStore;
   resolveReplicateKey: () => string | undefined;
@@ -349,6 +353,8 @@ export async function handleAssetGenerate(
 ): Promise<Response> {
   const auth = await deps.requireAuth(request);
   if (auth instanceof Response) return auth;
+  const entitlementFailure = await deps.requireStudioPass(auth, request);
+  if (entitlementFailure) return entitlementFailure;
 
   const body = await request
     .json()

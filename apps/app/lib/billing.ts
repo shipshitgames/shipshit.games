@@ -10,9 +10,13 @@ function isBillingEntitlements(value: unknown): value is BillingEntitlements {
   if (!isRecord(value)) return false;
   const studioPass = value.studioPass;
   const skillsProOneTime = value.skillsProOneTime;
+  const internalGrant = value.studioPassInternalGrant;
+  const accountExists = value.accountExists;
   return (
     (studioPass === null || isRecord(studioPass)) &&
-    (skillsProOneTime === null || isRecord(skillsProOneTime))
+    (skillsProOneTime === null || isRecord(skillsProOneTime)) &&
+    (internalGrant === undefined || typeof internalGrant === "boolean") &&
+    (accountExists === undefined || typeof accountExists === "boolean")
   );
 }
 

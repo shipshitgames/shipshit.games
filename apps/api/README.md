@@ -11,7 +11,7 @@ other brands (deadrot) can run the same image with different env on the same hos
 | `GET /health` | public | liveness + brand name |
 | `GET /v1/assets` | Clerk JWT | Asset Lab gallery (metadata) |
 | `GET /v1/assets/:id/file` | Clerk JWT | compatibility asset file route; redirects to CDN or streams bytes |
-| `POST /v1/assets/generate` | Clerk JWT | durable nano-banana-2 sprite generation |
+| `POST /v1/assets/generate` | Clerk JWT + Studio Pass | durable nano-banana-2 sprite generation |
 | `GET /v1/assets/generate/:jobId` | Clerk JWT | owner-scoped generation job state/result |
 | `POST /v1/assets/:id/slice` | Clerk JWT | slice a generated pose sheet into frame assets |
 | `POST /v1/assets/zip` | Clerk JWT | zip selected asset files for download |
@@ -25,6 +25,23 @@ other brands (deadrot) can run the same image with different env on the same hos
 
 `/v1/*` expects `Authorization: Bearer <Clerk session JWT>`; apps/app proxies
 server-side and forwards the caller's token (see `apps/app/lib/api.ts`).
+
+### Studio access policy
+
+Hosted provider generation requires a canonical PostgreSQL entitlement: an
+active/trialing Studio Pass subscription or `User.studioPassInternalGrant`
+set by an operator. Missing user mirrors, inactive/canceled subscriptions, and
+database failures fail closed before credit reservation or provider work.
+
+Reading, exporting, and deterministically transforming existing assets remains
+free for authenticated accounts. Those operations are never public: every list,
+file, zip, source-image, and slice query requires the verified Clerk user id and
+includes `ownerId` in the database predicate. This preserves tenant isolation
+without holding a user's existing files hostage after cancellation.
+
+Authentication failures and Studio Pass grants, denials, and availability
+failures are stored separately in `ApiAccessEvent`, including the boundary,
+reason, route, trusted user id when available, and timestamp.
 
 ## Env
 

@@ -60,11 +60,91 @@ export type SkillsProOneTimeEntitlement = BillingVersion & {
 export type BillingEntitlements = {
   studioPass: StudioPassEntitlement | null;
   skillsProOneTime: SkillsProOneTimeEntitlement | null;
+  /** Operator-controlled grant stored on the canonical API user row. */
+  studioPassInternalGrant?: boolean;
+  /** False when the authenticated Clerk subject has no mirrored API user. */
+  accountExists?: boolean;
 };
 
 export function hasActiveStudioPass(pass: StudioPassEntitlement | null) {
   return Boolean(pass?.active && isActiveSubscriptionStatus(pass.status));
 }
+
+export type StudioPassAccessReason =
+  | "active-subscription"
+  | "internal-grant"
+  | "missing-account"
+  | "no-entitlement"
+  | "canceled"
+  | "inactive";
+
+export type StudioPassAccessDecision =
+  | {
+      allowed: true;
+      reason: "active-subscription" | "internal-grant";
+      status: string;
+    }
+  | {
+      allowed: false;
+      reason:
+        | "missing-account"
+        | "no-entitlement"
+        | "canceled"
+        | "inactive";
+      status: string | null;
+    };
+
+export function evaluateStudioPassAccess(
+  entitlements: BillingEntitlements,
+): StudioPassAccessDecision {
+  const pass = entitlements.studioPass;
+  if (entitlements.accountExists === false) {
+    return { allowed: false, reason: "missing-account", status: null };
+  }
+  if (entitlements.studioPassInternalGrant === true) {
+    return { allowed: true, reason: "internal-grant", status: "internal" };
+  }
+  if (pass && hasActiveStudioPass(pass)) {
+    return {
+      allowed: true,
+      reason: "active-subscription",
+      status: pass.status,
+    };
+  }
+  if (!pass) {
+    return { allowed: false, reason: "no-entitlement", status: null };
+  }
+  if (pass.status === "canceled") {
+    return {
+      allowed: false,
+      reason: "canceled",
+      status: pass.status,
+    };
+  }
+  return {
+    allowed: false,
+    reason: "inactive",
+    status: pass.status,
+  };
+}
+
+export function hasStudioPassAccess(
+  entitlements: BillingEntitlements,
+): boolean {
+  return evaluateStudioPassAccess(entitlements).allowed;
+}
+
+/**
+ * Hosted provider generation is paid Studio Pass functionality. Reading,
+ * exporting, and deterministically transforming assets remains available to
+ * any authenticated account, but every query must remain owner-scoped.
+ */
+export const STUDIO_ASSET_ACCESS_POLICY = {
+  hostedGeneration: "studio-pass",
+  ownedAssetRead: "authenticated-owner",
+  ownedAssetExport: "authenticated-owner",
+  ownedAssetTransform: "authenticated-owner",
+} as const;
 
 export type StudioPassAccessState =
   "active" | "canceled" | "inactive" | "not-claimed";
@@ -80,7 +160,7 @@ export function studioPassAccessState(
 
 export function hasSkillsProContentAccess(entitlements: BillingEntitlements) {
   return (
-    hasActiveStudioPass(entitlements.studioPass) ||
+    hasStudioPassAccess(entitlements) ||
     Boolean(entitlements.skillsProOneTime?.active)
   );
 }

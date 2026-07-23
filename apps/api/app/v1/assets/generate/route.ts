@@ -12,6 +12,7 @@ import { assetUrl, readAssetImage, saveAsset } from "@/lib/assets";
 import { aspectRatioFor, SHEET_POSES, spritePrompt } from "@/lib/asset-prompt";
 import { db } from "@/lib/db";
 import { generationJobRepository } from "@/lib/generation-job-repository";
+import { requireStudioPass } from "@/lib/studio-access";
 
 export const runtime = "nodejs";
 // Generation polls Replicate for minutes per image.
@@ -20,6 +21,7 @@ export const maxDuration = 300;
 export async function POST(request: Request): Promise<Response> {
   return handleAssetGenerate(request, {
     requireAuth,
+    requireStudioPass,
     games: GAMES,
     jobs: generationJobRepository,
     resolveReplicateKey,

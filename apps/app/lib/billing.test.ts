@@ -14,6 +14,8 @@ beforeEach(() => {
 test("returns entitlements only when the API subject matches the expected user", async () => {
   const entitlements = {
     studioPass: null,
+    studioPassInternalGrant: false,
+    accountExists: true,
     skillsProOneTime: {
       productKey: "games-skills-pro",
       active: true,
@@ -35,6 +37,24 @@ test("returns entitlements only when the API subject matches the expected user",
   expect(apiFetch).toHaveBeenCalledWith("/v1/billing/entitlements", {
     cache: "no-store",
   });
+});
+
+test("rejects malformed canonical grant fields", async () => {
+  apiFetch.mockImplementationOnce(async () =>
+    Response.json({
+      userId: "user_signed",
+      entitlements: {
+        studioPass: null,
+        skillsProOneTime: null,
+        studioPassInternalGrant: "yes",
+        accountExists: true,
+      },
+    }),
+  );
+
+  await expect(
+    readBillingEntitlements("user_signed"),
+  ).rejects.toThrow("Billing API returned an invalid response");
 });
 
 test("rejects entitlements authenticated for a different subject", async () => {

@@ -56,14 +56,15 @@ model Asset {
 
 /// Mirror of Clerk users, maintained by the Clerk webhook.
 model User {
-  id        String    @id // Clerk user id
-  email     String?
-  firstName String?
-  lastName  String?
-  imageUrl  String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id                      String    @id // Clerk user id
+  email                   String?
+  firstName               String?
+  lastName                String?
+  imageUrl                String?
+  studioPassInternalGrant Boolean   @default(false)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  deletedAt               DateTime?
 }
 
 /// Audit log of every verified webhook delivery (stripe | clerk | github).
@@ -242,6 +243,21 @@ model ContentAccessEvent {
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([resource, resourceId, createdAt(sort: Desc)])
+}
+
+/// Durable server-side audit trail for API authentication and entitlement
+/// boundary decisions. Authentication failures have no trusted user id.
+model ApiAccessEvent {
+  id        String   @id @default(uuid())
+  userId    String?
+  boundary  String
+  outcome   String
+  reason    String
+  route     String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([boundary, outcome, createdAt(sort: Desc)])
 }
 
 /// Commits ingested from GitHub push webhooks; feeds /v1/stats/commits.

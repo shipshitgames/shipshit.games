@@ -156,16 +156,23 @@ export default function AssetsPage() {
             await new Promise((resolve) => setTimeout(resolve, RESUME_POLL_MS));
             continue;
           }
-          if (!res.ok) {
-            throw new Error(`Request failed (${res.status})`);
-          }
           let json: Record<string, unknown>;
           try {
             json = (await res.json()) as Record<string, unknown>;
           } catch {
+            if (!res.ok) {
+              throw new Error(`Request failed (${res.status})`);
+            }
             keepPending = true;
             await new Promise((resolve) => setTimeout(resolve, RESUME_POLL_MS));
             continue;
+          }
+          if (!res.ok) {
+            throw new Error(
+              typeof json.error === "string"
+                ? json.error
+                : `Request failed (${res.status})`,
+            );
           }
           if (res.status === 202) {
             keepPending = true;
