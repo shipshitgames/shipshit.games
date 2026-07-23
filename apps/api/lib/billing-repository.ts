@@ -150,23 +150,27 @@ export const billingRepository: BillingRepository = {
   },
 
   async readEntitlements(userId) {
-    const [studioPass, skillsProOneTime] = await Promise.all([
+    const [user, studioPass, skillsProOneTime] = await Promise.all([
+      db.user.findFirst({
+        where: { id: userId, deletedAt: null },
+        select: { studioPassInternalGrant: true },
+      }),
       db.studioPassSubscription.findUnique({ where: { userId } }),
       db.skillsProPurchase.findUnique({ where: { userId } }),
     ]);
     const skillsPro = skillsProOneTime
       ? skillsProFromRow(skillsProOneTime)
       : null;
+    let skillsProEntitlement: SkillsProOneTimeEntitlement | null = null;
     if (skillsPro) {
       const { userId: _userId, ...entitlement } = skillsPro;
-      return {
-        studioPass: studioPass ? studioPassFromRow(studioPass) : null,
-        skillsProOneTime: entitlement,
-      };
+      skillsProEntitlement = entitlement;
     }
     return {
       studioPass: studioPass ? studioPassFromRow(studioPass) : null,
-      skillsProOneTime: null,
+      skillsProOneTime: skillsProEntitlement,
+      studioPassInternalGrant: user?.studioPassInternalGrant === true,
+      accountExists: Boolean(user),
     };
   },
 

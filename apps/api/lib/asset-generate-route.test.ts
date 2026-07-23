@@ -282,9 +282,12 @@ let replicateKey: string | undefined = "unit-key";
 let jobs = new MemoryGenerationJobs();
 let requestSequence = 0;
 
-function buildDeps(): AssetGenerateDeps {
+function buildDeps(
+  overrides: Partial<AssetGenerateDeps> = {},
+): AssetGenerateDeps {
   return {
     requireAuth: async () => ({ userId: "user-1" }),
+    requireStudioPass: async () => null,
     games: [{ slug: "scourge-survivors", title: "Scourge Survivors" }],
     jobs,
     resolveReplicateKey: () => replicateKey,
@@ -305,6 +308,7 @@ function buildDeps(): AssetGenerateDeps {
     includedResetAt: async () => new Date("2026-08-01T00:00:00.000Z"),
     workerId: () => "worker-1",
     sleep: async () => {},
+    ...overrides,
   };
 }
 
@@ -361,6 +365,7 @@ beforeEach(() => {
 async function post(
   body: Record<string, unknown>,
   key?: string,
+  overrides?: Partial<AssetGenerateDeps>,
 ): Promise<Response> {
   requestSequence += 1;
   return handleAssetGenerate(
@@ -372,9 +377,30 @@ async function post(
       },
       body: JSON.stringify(body),
     }),
-    buildDeps(),
+    buildDeps(overrides),
   );
 }
+
+test("generation rejects missing Studio Pass before validation or reservation", async () => {
+  const response = await post(
+    {},
+    undefined,
+    {
+      requireStudioPass: async () =>
+        Response.json(
+          { error: "studio pass required" },
+          { status: 403 },
+        ),
+    },
+  );
+
+  expect(response.status).toBe(403);
+  expect(await response.json()).toEqual({
+    error: "studio pass required",
+  });
+  expect(jobs.jobs.size).toBe(0);
+  expect(generateReplicateAsset).not.toHaveBeenCalled();
+});
 
 test("generate route preserves validation and pre-reservation error statuses", async () => {
   let response = await post({ gameSlug: "scourge-survivors" });

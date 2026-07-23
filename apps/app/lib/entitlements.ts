@@ -8,6 +8,7 @@ export type {
 export {
   hasActiveStudioPass,
   hasSkillsProContentAccess,
+  hasStudioPassAccess,
 } from "@shipshitgames/shared";
 
 export function primaryEmail(user: User | null | undefined) {
