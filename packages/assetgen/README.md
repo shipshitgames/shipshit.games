@@ -591,6 +591,24 @@ The studio's **Sprites pane** exposes the same step (grid height, bg threshold,
 cutout, palette, before/after) over `studio:pixelize`, which shells out to this exact
 verb — one impl, two surfaces.
 
+### Soft color grade and advisory gamut report
+
+Generated images can opt into the canonical, non-destructive value/temperature
+grade compiled from `DESIGN.md`:
+
+```bash
+bun packages/assetgen/src/cli.ts generate \
+  --id ember-panel --prompt "industrial HUD panel" --kind icon \
+  --soft-grade
+```
+
+The pass interpolates toward `assetgen.gradeParams.softGrade`; it does not snap
+pixels to the DOOM palette and never changes alpha or image dimensions. A
+`reports/<id>.color-gamut.json` sidecar records material source colors outside
+the canonical value/temperature range and is linked from the manifest. The
+report is always advisory (`blocking: false`) and never replaces human review
+or a promotion gate.
+
 ## Design tokens
 
 `assetgen tokens` compiles the reviewed `DESIGN.md` frontmatter into generated

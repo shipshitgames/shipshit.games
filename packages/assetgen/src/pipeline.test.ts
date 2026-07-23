@@ -47,6 +47,7 @@ test("runAssetPipeline enforces the five-step contract and returns a hot preview
   assert.equal(result.preview.mediaType, "image/webp");
   assert.match(result.preview.dataUrl ?? "", /^data:image\/webp;base64,/);
   assert.equal(existsSync(result.outputPath), true);
+  assert.equal(result.entry.colorGrade, undefined);
 
   const manifest = JSON.parse(await readFile(result.manifestPath, "utf8"));
   assert.deepEqual(manifest.assets[0].license, {
@@ -55,6 +56,37 @@ test("runAssetPipeline enforces the five-step contract and returns a hot preview
     date: "2026-06-07",
     kind: "sprite",
   });
+});
+
+test("runAssetPipeline soft grade writes a linked non-blocking gamut report", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-pipeline-grade-test-"));
+  const outputRoot = join(repo, "src/assets");
+  const result = await runAssetPipeline({
+    id: "graded-icon",
+    prompt: "a cold blue industrial icon",
+    game: "shared",
+    kind: "icon",
+    provider: "mock",
+    size: 64,
+    outputRoot,
+    usageLogPath: "off",
+    softGrade: true,
+  });
+
+  assert.deepEqual({ ...result.entry.colorGrade, outOfGamutRatio: undefined, material: undefined }, {
+    applied: true,
+    advisory: true,
+    blocking: false,
+    report: "reports/graded-icon.color-gamut.json",
+    outOfGamutRatio: undefined,
+    material: undefined,
+  });
+  assert.ok(result.entry.colorGrade!.outOfGamutRatio >= 0 && result.entry.colorGrade!.outOfGamutRatio <= 1);
+  assert.equal(typeof result.entry.colorGrade!.material, "boolean");
+  const report = JSON.parse(await readFile(join(outputRoot, result.entry.colorGrade!.report), "utf8"));
+  assert.equal(report.advisory, true);
+  assert.equal(report.blocking, false);
+  assert.deepEqual(report.dimensions, [64, 64]);
 });
 
 test("generateOne reports the selected provider/model before postprocess runs", async () => {
