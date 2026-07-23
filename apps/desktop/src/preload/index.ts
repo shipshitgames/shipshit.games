@@ -65,6 +65,16 @@ const studioApi: StudioApi = {
     remove: (id) => ipcRenderer.invoke(IPC_CHANNELS.projectsRemove, id),
     setActive: (id) => ipcRenderer.invoke(IPC_CHANNELS.projectsSetActive, id),
   },
+  playLab: {
+    context: (projectId, refresh) =>
+      ipcRenderer.invoke(IPC_CHANNELS.playLabContext, { projectId, refresh }),
+  },
+  lore: {
+    list: (projectId, refresh) =>
+      ipcRenderer.invoke(IPC_CHANNELS.loreList, { projectId, refresh }),
+    read: (projectId, path) =>
+      ipcRenderer.invoke(IPC_CHANNELS.loreRead, { projectId, path }),
+  },
   gyms: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.gymsList),
     launch: (projectId, gymId) => ipcRenderer.invoke(IPC_CHANNELS.gymsLaunch, { projectId, gymId }),

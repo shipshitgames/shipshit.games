@@ -5,6 +5,7 @@ import {
   Dumbbell,
   FlaskConical,
   Folder,
+  Gamepad2,
   Images,
   LayoutGrid,
   Map as MapIcon,
@@ -15,6 +16,7 @@ import {
 
 export type SectionId =
   | "projects"
+  | "play-lab"
   | "gyms"
   | "gallery"
   | "maps"
@@ -31,6 +33,7 @@ export type Section = { id: SectionId; label: string; group: Group; icon: Lucide
 
 export const SECTIONS: Section[] = [
   { id: "projects", label: "Projects", group: "Codegen", icon: Folder, blurb: "Local game repos, target manifests, and asset catalogs." },
+  { id: "play-lab", label: "Play Lab", group: "Codegen", icon: Gamepad2, blurb: "Inspect an IP repo's playable slices, canon graph, assets, and reusable prompt context." },
   { id: "gyms", label: "Gyms", group: "Codegen", icon: Dumbbell, blurb: "Per-game validation surfaces for animation, bounds, hit frames, and tuning." },
   { id: "maps", label: "Maps", group: "Generators", icon: MapIcon, blurb: "Breach-zone layouts and arena maps for the Scourge front." },
   { id: "sprites", label: "Sprites", group: "Generators", icon: Sparkles, blurb: "Forge DOOM-grade billboards and enemy cutouts — straight into a game's assets." },

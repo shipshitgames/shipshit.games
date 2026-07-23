@@ -18,6 +18,8 @@ import { createTerminalManager, terminalShell } from "./terminal-manager";
 import { hardenWindow } from "./window-security";
 import { projectFromRepoPath } from "./projects";
 import { createProjectState } from "./project-state";
+import { createLoreVaultStore } from "./lore-vault";
+import { createPlayLabStore } from "./play-lab";
 import { createMoodboardStore } from "./moodboards";
 import { createArtLabStore } from "./art-lab";
 import { createMapsStore } from "./maps";
@@ -251,6 +253,14 @@ const {
   resolveProjectTarget,
 } = projectState;
 
+const loreVault = createLoreVaultStore({
+  repos: () => allProjects(),
+});
+const playLab = createPlayLabStore({
+  projects: () => allProjects(),
+  activeProjectId: () => listProjectState().activeProjectId,
+  loreVault,
+});
 const gyms = createGymLauncher({
   projects: () => allProjects(),
   activeProjectId: () => listProjectState().activeProjectId,
@@ -318,6 +328,16 @@ ipcMain.handle(IPC_CHANNELS.projectsSetActive, (_e, id) => {
   persistProjects(settings.projects || [], project.id);
   return listProjectState();
 });
+
+ipcMain.handle(IPC_CHANNELS.playLabContext, (_e, payload = {}) => (
+  playLab.context(payload.projectId, payload.refresh === true)
+));
+ipcMain.handle(IPC_CHANNELS.loreList, (_e, payload = {}) => (
+  loreVault.list(payload.projectId, payload.refresh === true)
+));
+ipcMain.handle(IPC_CHANNELS.loreRead, (_e, payload = {}) => (
+  loreVault.read(payload.projectId, payload.path)
+));
 
 ipcMain.handle(IPC_CHANNELS.gymsList, () => gyms.list());
 ipcMain.handle(IPC_CHANNELS.gymsLaunch, (_e, payload = {}) => gyms.launch(payload));
