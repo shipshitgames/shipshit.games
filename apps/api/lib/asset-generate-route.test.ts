@@ -19,6 +19,8 @@ const saveAsset = mock(async (_asset: Parameters<AssetGenerateDeps["saveAsset"]>
   byteSize: 4,
   ownerId: "user-1",
   parentId: null,
+  sourceId: null,
+  editInstruction: null,
   sliceIndex: null,
   createdAt: "2026-07-16T00:00:00.000Z",
 }));
@@ -29,6 +31,7 @@ const generateReplicateAsset = mock(async (_prompt: string, _opts: unknown, _dep
   extension: "png",
   model: "google/nano-banana-2",
 }));
+const buildSpritePrompt = mock(({ subject }: { subject: string }) => `sprite: ${subject}`);
 
 let replicateKey: string | undefined = "unit-key";
 
@@ -46,7 +49,7 @@ const deps: AssetGenerateDeps = {
   uploadReplicateFile,
   sheetPoses: ["idle", "attacking", "running", "jumping"],
   aspectRatioFor: (sheetPoses) => (sheetPoses?.length ? "21:9" : "1:1"),
-  spritePrompt: ({ subject }) => `sprite: ${subject}`,
+  spritePrompt: buildSpritePrompt,
   generateReplicateAsset,
   saveAsset,
   assetUrl: ({ id }) => `/v1/assets/${id}/file`,
@@ -59,6 +62,7 @@ beforeEach(() => {
   saveAsset.mockClear();
   uploadReplicateFile.mockClear();
   generateReplicateAsset.mockClear();
+  buildSpritePrompt.mockClear();
   count.mockImplementation(async () => 0);
   readAssetImage.mockImplementation(async () => null);
   uploadReplicateFile.mockImplementation(async () => "https://files.replicate.com/reference.png");
@@ -68,6 +72,7 @@ beforeEach(() => {
     extension: "png",
     model: "google/nano-banana-2",
   }));
+  buildSpritePrompt.mockImplementation(({ subject }) => `sprite: ${subject}`);
 });
 
 async function post(body: Record<string, unknown>): Promise<Response> {
@@ -159,4 +164,56 @@ test("generate route forwards the uploaded reference URL as image_input", async 
       image_input: ["https://files.replicate.com/reference.png"],
     },
   });
+});
+
+test("generate route validates edit requests before provider spend", async () => {
+  let response = await post({
+    prompt: "Warden",
+    gameSlug: "scourge-survivors",
+    editInstruction: "add shoulder armor",
+  });
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({
+    error: "sourceId is required when editInstruction is set",
+  });
+
+  response = await post({
+    prompt: "Warden",
+    gameSlug: "scourge-survivors",
+    sourceId: "3d0a0cf5-b7a2-4cf0-8b4a-dc0ec45b2ec2",
+    editInstruction: " ",
+  });
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: "editInstruction must not be empty" });
+  expect(readAssetImage).not.toHaveBeenCalled();
+  expect(generateReplicateAsset).not.toHaveBeenCalled();
+});
+
+test("generate route preserves edit lineage and supports edit batches", async () => {
+  readAssetImage.mockImplementationOnce(async () => Buffer.from([1, 2, 3]));
+
+  const response = await post({
+    prompt: "Warden",
+    description: "bone armor",
+    gameSlug: "scourge-survivors",
+    sourceId: "3d0a0cf5-b7a2-4cf0-8b4a-dc0ec45b2ec2",
+    editInstruction: "  add a glowing toxic core  ",
+    count: 3,
+  });
+
+  expect(response.status).toBe(200);
+  expect(generateReplicateAsset).toHaveBeenCalledTimes(3);
+  expect(buildSpritePrompt).toHaveBeenCalledWith(
+    expect.objectContaining({
+      fromReference: true,
+      editInstruction: "add a glowing toxic core",
+    }),
+  );
+  expect(saveAsset).toHaveBeenCalledTimes(3);
+  for (const call of saveAsset.mock.calls) {
+    expect(call[0]).toMatchObject({
+      sourceId: "3d0a0cf5-b7a2-4cf0-8b4a-dc0ec45b2ec2",
+      editInstruction: "add a glowing toxic core",
+    });
+  }
 });

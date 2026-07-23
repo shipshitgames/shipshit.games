@@ -18,6 +18,7 @@ test("outputUrl finds the first usable URL across provider response shapes", () 
   assert.equal(outputUrl({ url: "https://x.test/c.png" }), "https://x.test/c.png");
   assert.equal(outputUrl({ audio_url: "https://x.test/d.mp3" }), "https://x.test/d.mp3");
   assert.equal(outputUrl({ image_url: "https://x.test/e.png" }), "https://x.test/e.png");
+  assert.equal(outputUrl({ video: { url: "https://x.test/e.mp4" } }), "https://x.test/e.mp4");
   assert.equal(outputUrl({ data: ["https://x.test/f.png"] }), "https://x.test/f.png");
   assert.equal(outputUrl({ output: { url: "https://x.test/g.png" } }), "https://x.test/g.png");
   assert.equal(outputUrl({ output: { data: ["https://x.test/h.png"] } }), "https://x.test/h.png");
@@ -32,6 +33,7 @@ test("mediaTypeFromUrl maps known extensions and falls back to octet-stream", ()
   assert.equal(mediaTypeFromUrl("https://x.test/a.mp3"), "audio/mpeg");
   assert.equal(mediaTypeFromUrl("https://x.test/a.ogg"), "audio/ogg");
   assert.equal(mediaTypeFromUrl("https://x.test/a.webm"), "audio/webm");
+  assert.equal(mediaTypeFromUrl("https://x.test/a.mp4"), "video/mp4");
   assert.equal(mediaTypeFromUrl("https://x.test/a.wav"), "audio/wav");
   assert.equal(mediaTypeFromUrl("https://x.test/a.glb"), "model/gltf-binary");
   // .png is deliberately unmapped — image providers send a content-type header.
@@ -43,6 +45,7 @@ test("extensionForMediaType maps media types, then sniffs the URL, then bins out
   assert.equal(extensionForMediaType("image/webp"), "webp");
   assert.equal(extensionForMediaType("image/jpeg"), "jpg");
   assert.equal(extensionForMediaType("audio/mpeg"), "mp3");
+  assert.equal(extensionForMediaType("video/mp4"), "mp4");
   assert.equal(extensionForMediaType("model/gltf-binary"), "glb");
   assert.equal(extensionForMediaType("application/octet-stream", "https://x.test/file.PNG?sig=abc"), "png");
   assert.equal(extensionForMediaType("application/octet-stream", "https://x.test/file"), "bin");

@@ -162,6 +162,7 @@ try {
     join(consumerDir, "smoke.ts"),
     `import {
   AssetCatalog,
+  createGymHarness,
   RectBounds,
 } from "@shipshitgames/engine";
 import manifestSchema from "@shipshitgames/engine/assets-manifest.schema.json" with { type: "json" };
@@ -193,6 +194,7 @@ assert(sheet.columns === 4, "assetgen columns drifted");
 assert(sheet.rows === 4, "assetgen rows drifted");
 assert(JSON.stringify(sheet.clips.all?.frames) === "[0,1,2,3]", "assetgen clip frames drifted");
 assert(RectBounds.square(10).containsXZ(9, -9), "root export smoke failed");
+assert(typeof createGymHarness === "function", "gym harness root export smoke failed");
 assert(typeof createRoomServer === "function", "net/server export smoke failed");
 assert(typeof PhysicsSystem.create === "function", "physics export smoke failed");
 assert(manifestSchema.title === "@shipshitgames/engine assets manifest", "schema export smoke failed");

@@ -69,6 +69,16 @@ test("pixelize snaps to the target grid height and locks every opaque pixel to t
   expect(opaque).toBeGreaterThan(0); // the subject survives the cutout
 });
 
+test("palette locking can preserve an edited sprite sheet's exact geometry", async () => {
+  const raw = await sharp({
+    create: { width: 64, height: 32, channels: 4, background: { r: 31, g: 83, b: 147, alpha: 1 } },
+  }).png().toBuffer();
+  const out = await pixelize(raw, { cutout: "none", trim: false, resize: false });
+  const meta = await sharp(out).metadata();
+  expect([meta.width, meta.height]).toEqual([64, 32]);
+  expect(await assertPaletteLocked(out)).toBe(64 * 32);
+});
+
 test("default cutout is the flood-fill (unchanged behavior for existing callers)", async () => {
   const raw = await subjectOnVoid();
   const res = await pixelizeDetailed(raw, { height: 24 });

@@ -12,6 +12,9 @@ export * from "./assets";
 /** Canonical billing and entitlement read model shared by the API and app. */
 export * from "./billing";
 
+/** Canonical member-content access resources and audit outcomes. */
+export * from "./content-access";
+
 /** Lifecycle status of a game in the gallery. */
 export type GameStatus = "finished" | "playable" | "prototype" | "in-dev" | "concept";
 

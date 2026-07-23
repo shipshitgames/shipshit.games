@@ -154,6 +154,28 @@ test("checked-in strategy campaign blueprint matches Warline's genres", async ()
   );
 });
 
+test("checked-in fighting blueprint matches Brawl's genres", async () => {
+  const blueprints = await loadBlueprints(repoSkillsDir);
+  const blueprint = selectBlueprint(blueprints, "Platform Fighter");
+
+  assert.equal(blueprint?.gameType, "fighting");
+  assert.equal(blueprint?.skill, "build-fighting-game");
+  assert.deepEqual(
+    blueprint?.assetClasses
+      .filter((assetClass) => assetClass.mvp)
+      .map((assetClass) => assetClass.category),
+    ["sprite", "ui", "vfx", "music"],
+  );
+  assert.ok(blueprint?.mvpSlice.includes("4 fighter pose-sheet sets"));
+  assert.ok(blueprint?.mvpSlice.includes("Duel mode: 1v1 KO"));
+  assert.ok(
+    blueprint?.mvpSlice.includes(
+      "Arena mode: damage-percent knockback and stocks",
+    ),
+  );
+  assert.equal(selectBlueprint(blueprints, "Brawler")?.gameType, "fighting");
+});
+
 test("buildPlan orders MVP-first by priority, tags coverage + summary", () => {
   const plan = buildPlan({
     project: "deadrot",

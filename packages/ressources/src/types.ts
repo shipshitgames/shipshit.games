@@ -76,6 +76,66 @@ export interface TranscriptResource {
   };
 }
 
+export interface TimedTranscriptSegment {
+  startSeconds: number;
+  durationSeconds: number;
+  text: string;
+}
+
+export type StreamContentProvider = "codex" | "mock";
+
+export interface StreamChapter {
+  startSeconds: number;
+  title: string;
+}
+
+export interface StreamClipCandidate {
+  startSeconds: number;
+  endSeconds: number;
+  title: string;
+  hook: string;
+  rationale: string;
+}
+
+export interface GeneratedStreamContent {
+  chapters: StreamChapter[];
+  clips: StreamClipCandidate[];
+  newsletter: {
+    subject: string;
+    previewText: string;
+    markdown: string;
+  };
+  devlog: {
+    title: string;
+    summary: string;
+    markdown: string;
+  };
+}
+
+export interface StreamContentManifest {
+  schemaVersion: 1;
+  slug: string;
+  sourceSlug: string;
+  title: string;
+  url: string;
+  createdAt: string;
+  provider: StreamContentProvider;
+  transcript: {
+    sha256: string;
+    rightsStatus: TranscriptRightsStatus;
+    segmentCount: number;
+    durationSeconds: number;
+  };
+  outputs: {
+    chapters: string;
+    clips: string;
+    newsletter: string;
+    devlog: string;
+  };
+  chapterCount: number;
+  clipCount: number;
+}
+
 export interface DerivativeManifest {
   schemaVersion: 1;
   slug: string;

@@ -6,6 +6,7 @@
 import { mkdtemp, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { TimedTranscriptSegment } from "./types";
 import { execYtDlp, parseVideoId, ytDlpAvailable } from "./ytdlp";
 
 const UA =
@@ -16,6 +17,7 @@ export interface TranscriptResult {
   videoId: string;
   title: string;
   transcript: string;
+  segments: TimedTranscriptSegment[];
   source: "watch-page" | "yt-dlp";
 }
 
@@ -64,23 +66,60 @@ function pickEnglishTrack(tracks: any[]): any | undefined {
   );
 }
 
-function flattenJson3(json: any): string {
-  const events: any[] = json?.events ?? [];
-  const parts: string[] = [];
+export function parseJson3Transcript(json: unknown): {
+  transcript: string;
+  segments: TimedTranscriptSegment[];
+} {
+  const object =
+    typeof json === "object" && json !== null
+      ? (json as Record<string, unknown>)
+      : {};
+  const events = Array.isArray(object.events) ? object.events : [];
+  const segments: TimedTranscriptSegment[] = [];
   for (const event of events) {
-    const segments: any[] = event?.segs ?? [];
-    const line = segments
-      .map((segment) => segment?.utf8 ?? "")
+    if (typeof event !== "object" || event === null || Array.isArray(event))
+      continue;
+    const record = event as Record<string, unknown>;
+    const eventSegments = Array.isArray(record.segs) ? record.segs : [];
+    const line = eventSegments
+      .map((segment) =>
+        typeof segment === "object" &&
+        segment !== null &&
+        !Array.isArray(segment)
+          ? String((segment as Record<string, unknown>).utf8 ?? "")
+          : "",
+      )
       .join("")
       .replace(/\s+/g, " ")
       .trim();
-    if (line) parts.push(line);
+    if (!line) continue;
+    const startSeconds =
+      typeof record.tStartMs === "number" && Number.isFinite(record.tStartMs)
+        ? Math.max(0, record.tStartMs / 1000)
+        : 0;
+    const durationSeconds =
+      typeof record.dDurationMs === "number" &&
+      Number.isFinite(record.dDurationMs)
+        ? Math.max(0, record.dDurationMs / 1000)
+        : 0;
+    const previous = segments.at(-1);
+    if (previous?.text === line) {
+      previous.durationSeconds = Math.max(
+        previous.durationSeconds,
+        startSeconds + durationSeconds - previous.startSeconds,
+      );
+      continue;
+    }
+    segments.push({ startSeconds, durationSeconds, text: line });
   }
-  const out: string[] = [];
-  for (const part of parts) {
-    if (out[out.length - 1] !== part) out.push(part);
-  }
-  return out.join(" ").replace(/\s+/g, " ").trim();
+  return {
+    transcript: segments
+      .map((segment) => segment.text)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim(),
+    segments,
+  };
 }
 
 async function viaWatchPage(videoId: string): Promise<TranscriptResult> {
@@ -101,9 +140,9 @@ async function viaWatchPage(videoId: string): Promise<TranscriptResult> {
   const url = track.baseUrl + (track.baseUrl.includes("fmt=") ? "" : "&fmt=json3");
   const capRes = await fetch(url, { headers: { "user-agent": UA } });
   if (!capRes.ok) throw new Error(`timedtext HTTP ${capRes.status}`);
-  const transcript = flattenJson3(await capRes.json());
+  const { transcript, segments } = parseJson3Transcript(await capRes.json());
   if (!transcript) throw new Error("caption track was empty");
-  return { videoId, title, transcript, source: "watch-page" };
+  return { videoId, title, transcript, segments, source: "watch-page" };
 }
 
 function rankCaptionFile(file: string): number {
@@ -153,9 +192,9 @@ async function viaYtDlp(videoId: string): Promise<TranscriptResult> {
     .sort((a, b) => rankCaptionFile(a) - rankCaptionFile(b));
   if (!files.length) throw new Error("yt-dlp wrote no caption file");
   const json = JSON.parse(await readFile(join(dir, files[0]!), "utf8"));
-  const transcript = flattenJson3(json);
+  const { transcript, segments } = parseJson3Transcript(json);
   if (!transcript) throw new Error("yt-dlp caption file was empty");
-  return { videoId, title, transcript, source: "yt-dlp" };
+  return { videoId, title, transcript, segments, source: "yt-dlp" };
 }
 
 export async function fetchTranscript(
