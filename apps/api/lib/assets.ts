@@ -27,6 +27,8 @@ export interface AssetRecord {
   generationJobId: string | null;
   generationBatchIndex: number | null;
   parentId: string | null;
+  sourceId: string | null;
+  editInstruction: string | null;
   sliceIndex: number | null;
   createdAt: string;
 }
@@ -51,6 +53,8 @@ const RECORD_SELECT = {
   generationJobId: true,
   generationBatchIndex: true,
   parentId: true,
+  sourceId: true,
+  editInstruction: true,
   sliceIndex: true,
   createdAt: true,
 } as const;
@@ -106,6 +110,8 @@ export interface NewAsset {
   generationJobId?: string | null;
   generationBatchIndex?: number | null;
   parentId?: string | null;
+  sourceId?: string | null;
+  editInstruction?: string | null;
   sliceIndex?: number | null;
 }
 

@@ -20,6 +20,7 @@ const MAX_BATCH = 4;
 const MAX_PROVIDER_ATTEMPTS = 3;
 const MAX_PROVIDER_RUN_MS = 30 * 60 * 1000;
 const LEASE_MS = 6 * 60 * 1000;
+const MAX_EDIT_INSTRUCTION_LENGTH = 500;
 
 interface AuthenticatedUser {
   userId: string;
@@ -95,6 +96,7 @@ interface GenerateRequest extends Record<string, unknown> {
   pose?: string;
   count: number;
   sourceId?: string;
+  editInstruction?: string;
   sheet: boolean;
 }
 
@@ -351,7 +353,16 @@ export async function handleAssetGenerate(
   const body = await request
     .json()
     .catch(() => ({}) as Record<string, unknown>);
-  const { prompt, description, gameSlug, pose, count, sourceId, sheet } = body;
+  const {
+    prompt,
+    description,
+    gameSlug,
+    pose,
+    count,
+    sourceId,
+    editInstruction,
+    sheet,
+  } = body;
   if (typeof prompt !== "string" || !prompt.trim()) {
     return Response.json({ error: "prompt is required" }, { status: 400 });
   }
@@ -359,6 +370,34 @@ export async function handleAssetGenerate(
   if (!game) {
     return Response.json(
       { error: `unknown game: ${gameSlug}` },
+      { status: 400 },
+    );
+  }
+  if (sourceId !== undefined && typeof sourceId !== "string") {
+    return Response.json(
+      { error: "sourceId must be a string" },
+      { status: 400 },
+    );
+  }
+  const normalizedEditInstruction =
+    typeof editInstruction === "string" ? editInstruction.trim() : "";
+  if (editInstruction !== undefined && !normalizedEditInstruction) {
+    return Response.json(
+      { error: "editInstruction must not be empty" },
+      { status: 400 },
+    );
+  }
+  if (normalizedEditInstruction.length > MAX_EDIT_INSTRUCTION_LENGTH) {
+    return Response.json(
+      {
+        error: `editInstruction must be ${MAX_EDIT_INSTRUCTION_LENGTH} characters or fewer`,
+      },
+      { status: 400 },
+    );
+  }
+  if (normalizedEditInstruction && !sourceId) {
+    return Response.json(
+      { error: "sourceId is required when editInstruction is set" },
       { status: 400 },
     );
   }
@@ -382,7 +421,10 @@ export async function handleAssetGenerate(
       ? { description: description.trim() }
       : {}),
     ...(typeof pose === "string" ? { pose } : {}),
-    ...(sourceId ? { sourceId: String(sourceId) } : {}),
+    ...(sourceId ? { sourceId } : {}),
+    ...(normalizedEditInstruction
+      ? { editInstruction: normalizedEditInstruction }
+      : {}),
   };
   let source: Buffer | null = null;
   if (normalized.sourceId) {
@@ -480,6 +522,7 @@ export async function handleAssetGenerate(
     pose: normalized.pose,
     sheetPoses,
     fromReference: Boolean(referenceUrl),
+    editInstruction: normalized.editInstruction,
   });
   const providerInput: Record<string, unknown> = {
     aspect_ratio: deps.aspectRatioFor(sheetPoses),
@@ -522,38 +565,52 @@ export async function handleAssetGenerate(
   if (!renewed) return processingResponse(claimed.job.id);
 
   const persisted = await Promise.all(
-    results.map(async (result, batchIndex): Promise<{ asset: SavedAsset | null; error: string | null }> => {
-      if (result.status === "rejected") {
-        return { asset: null, error: generationErrorText(result.reason) };
-      }
-      try {
-        const record = await deps.saveAsset(
-          {
-            subject: normalized.prompt,
-            description: normalized.description ?? null,
-            fullPrompt,
-            style: "art bible",
-            pose: sheetPoses ? null : (normalized.pose ?? null),
-            sheetPoses: sheetPoses ?? [],
-            gameSlug: game.slug,
-            game: game.title,
-            model: MODEL,
-            ownerId: auth.userId,
-            generationJobId: claimed.job.id,
-            generationBatchIndex: batchIndex,
-          },
-          result.value.data,
-        );
-        return { asset: { ...record, url: deps.assetUrl(record) }, error: null };
-      } catch (error) {
-        return { asset: null, error: generationErrorText(error) };
-      }
-    }),
+    results.map(
+      async (
+        result,
+        batchIndex,
+      ): Promise<{ asset: SavedAsset | null; error: string | null }> => {
+        if (result.status === "rejected") {
+          return { asset: null, error: generationErrorText(result.reason) };
+        }
+        try {
+          const record = await deps.saveAsset(
+            {
+              subject: normalized.prompt,
+              description: normalized.description ?? null,
+              fullPrompt,
+              style: "art bible",
+              pose: sheetPoses ? null : (normalized.pose ?? null),
+              sheetPoses: sheetPoses ?? [],
+              gameSlug: game.slug,
+              game: game.title,
+              model: MODEL,
+              ownerId: auth.userId,
+              generationJobId: claimed.job.id,
+              generationBatchIndex: batchIndex,
+              sourceId: normalized.sourceId ?? null,
+              editInstruction: normalized.editInstruction ?? null,
+            },
+            result.value.data,
+          );
+          return {
+            asset: { ...record, url: deps.assetUrl(record) },
+            error: null,
+          };
+        } catch (error) {
+          return { asset: null, error: generationErrorText(error) };
+        }
+      },
+    ),
   );
   const saved = persisted.flatMap(({ asset }) => (asset ? [asset] : []));
   const errors = persisted.flatMap(({ error }) => (error ? [error] : []));
 
   if (!saved.length) {
+    const providerProducedOutput = results.some(
+      (result) => result.status === "fulfilled",
+    );
+    if (providerProducedOutput) return processingResponse(claimed.job.id);
     return failJobResponse(
       deps,
       auth.userId,

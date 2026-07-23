@@ -7,6 +7,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   model: async () => (await import("./commands/model.ts")).runModelCommand,
   preview: async () => (await import("./commands/preview.ts")).runPreviewCommand,
   expand: async () => (await import("./commands/expand.ts")).runExpand, // #71
+  "pose-set": async () => (await import("./commands/pose-set.ts")).runPoseSetCommand, // #327
   "import-aseprite": async () => (await import("./commands/import-aseprite.ts")).runImportAseprite, // #78
 
   games: async () => (await import("./commands/games.ts")).runGamesCommand,

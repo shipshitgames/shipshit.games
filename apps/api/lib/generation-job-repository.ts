@@ -137,34 +137,33 @@ async function reapExpiredReservations(
   });
   if (!staleJobs.length) return;
 
-  const expirationResults = await Promise.all(
-    staleJobs.map((job) =>
-      transaction.generationJob.updateMany({
-        where: {
-          id: job.id,
-          ownerId,
-          OR: [
-            {
-              status: "processing",
-              leaseExpiresAt: { lte: staleBefore },
-            },
-            {
-              status: "queued",
-              createdAt: { lte: staleBefore },
-            },
-          ],
-        },
-        data: {
-          status: "failed",
-          error: "generation job expired after 24 hours without a worker",
-          leaseOwner: null,
-          leaseExpiresAt: null,
-          completedAt: new Date(),
-        },
-      }),
-    ),
-  );
-  const expiredJobs = staleJobs.filter((_, index) => expirationResults[index]?.count);
+  const expiredJobs: typeof staleJobs = [];
+  for (const job of staleJobs) {
+    const expiration = await transaction.generationJob.updateMany({
+      where: {
+        id: job.id,
+        ownerId,
+        OR: [
+          {
+            status: "processing",
+            leaseExpiresAt: { lte: staleBefore },
+          },
+          {
+            status: "queued",
+            createdAt: { lte: staleBefore },
+          },
+        ],
+      },
+      data: {
+        status: "failed",
+        error: "generation job expired after 24 hours without a worker",
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        completedAt: new Date(),
+      },
+    });
+    if (expiration.count) expiredJobs.push(job);
+  }
   if (!expiredJobs.length) return;
 
   const account = await transaction.generationCreditAccount.findUniqueOrThrow({
@@ -189,28 +188,26 @@ async function reapExpiredReservations(
       purchasedBalance: { increment: purchasedCredits },
     },
   });
-  await Promise.all(
-    expiredJobs.map(async (job) => {
-      const refundableJobIncluded =
-        account.includedResetAt.getTime() === job.includedPeriodEndsAt.getTime()
-          ? job.reservedIncludedCredits
-          : 0;
-      await appendCreditEntries(transaction, {
-        ownerId,
-        jobId: job.id,
-        action: "release",
-        included: refundableJobIncluded,
-        purchased: job.reservedPurchasedCredits,
-      });
-      await appendCreditEntries(transaction, {
-        ownerId,
-        jobId: job.id,
-        action: "expire",
-        included: job.reservedIncludedCredits - refundableJobIncluded,
-        purchased: 0,
-      });
-    }),
-  );
+  for (const job of expiredJobs) {
+    const refundableJobIncluded =
+      account.includedResetAt.getTime() === job.includedPeriodEndsAt.getTime()
+        ? job.reservedIncludedCredits
+        : 0;
+    await appendCreditEntries(transaction, {
+      ownerId,
+      jobId: job.id,
+      action: "release",
+      included: refundableJobIncluded,
+      purchased: job.reservedPurchasedCredits,
+    });
+    await appendCreditEntries(transaction, {
+      ownerId,
+      jobId: job.id,
+      action: "expire",
+      included: job.reservedIncludedCredits - refundableJobIncluded,
+      purchased: 0,
+    });
+  }
 }
 
 export const generationJobRepository: GenerationJobStore = {

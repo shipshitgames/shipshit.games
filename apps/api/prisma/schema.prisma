@@ -24,8 +24,8 @@ model Asset {
   sheetPoses           String[]       @default([])
   gameSlug             String?
   game                 String?
-  model                String
-  image                Bytes?
+  model                 String
+  image                 Bytes?
   storageKey           String?
   imageUrl             String?
   mediaType            String         @default("image/png")
@@ -37,6 +37,10 @@ model Asset {
   parentId             String?
   parent               Asset?         @relation("AssetSlices", fields: [parentId], references: [id], onDelete: SetNull)
   slices               Asset[]        @relation("AssetSlices")
+  sourceId             String?
+  source               Asset?         @relation("AssetEdits", fields: [sourceId], references: [id], onDelete: SetNull)
+  edits                Asset[]        @relation("AssetEdits")
+  editInstruction      String?
   sliceIndex           Int?
   createdAt            DateTime       @default(now())
 
@@ -45,6 +49,7 @@ model Asset {
   @@index([createdAt(sort: Desc)])
   @@index([gameSlug])
   @@index([parentId])
+  @@index([sourceId])
   @@index([storageKey])
   @@index([generationJobId])
 }
@@ -224,6 +229,19 @@ model GenerationCreditLedger {
 
   @@index([ownerId, createdAt(sort: Desc)])
   @@index([generationJobId])
+}
+
+/// Durable audit trail for signed member-content grants and denials.
+model ContentAccessEvent {
+  id         String   @id @default(uuid())
+  userId     String
+  resource   String
+  resourceId String?
+  outcome    String
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([resource, resourceId, createdAt(sort: Desc)])
 }
 
 /// Commits ingested from GitHub push webhooks; feeds /v1/stats/commits.

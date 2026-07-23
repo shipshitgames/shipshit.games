@@ -17,6 +17,8 @@ other brands (deadrot) can run the same image with different env on the same hos
 | `POST /v1/assets/zip` | Clerk JWT | zip selected asset files for download |
 | `GET /v1/stats/commits` | Clerk JWT | commit activity from GitHub pushes |
 | `GET /v1/billing/entitlements` | Clerk JWT | canonical Studio Pass + Skills Pro state |
+| `GET /v1/content/access-events` | Clerk JWT | current user's signed-content audit history |
+| `POST /v1/content/access-events` | Clerk JWT | record a validated signed-content outcome |
 | `POST /webhooks/stripe` | Stripe signature | idempotent billing ingestion + fulfillment |
 | `POST /webhooks/clerk` | svix signature | User mirror sync + event log |
 | `POST /webhooks/github` | HMAC sha256 | commit ingestion + event log |
@@ -54,6 +56,11 @@ Stripe must have exactly one webhook destination for this product:
 webhook and never mutates entitlement state. Verified deliveries are retained
 with processing status, attempt count, and the last error; failed deliveries
 are safe to retry, while completed event ids are no-ops.
+
+Signed Skills Pro and member-pack routes write a durable `ContentAccessEvent`
+before granting access. Events retain only the Clerk user id, resource, optional
+pack id, outcome, and timestamp; private download URLs and access tokens are
+never stored.
 
 When `ASSET_STORAGE_BUCKET` is unset, Asset Lab keeps the old local-development
 fallback and stores image bytes in Postgres. When it is set, new generations are

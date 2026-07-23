@@ -40,7 +40,7 @@ Tools live here; shipped outputs live downstream.
   generated asset metadata.
 - `apps/desktop` is the local studio cockpit: project registry, keychain-backed
   providers, local filesystem writes, terminal/CLI execution, previews, and game
-  gyms. This is the Shipshitcode/Cursor-for-games surface.
+  gyms. This is the Ship Games Studio/Cursor-for-games surface.
 - `apps/cli` is the npm/npx entrypoint for scaffolding, automation, and
   non-GUI workflows.
 - `apps/docs` documents the actual commands, contracts, and production loops.
@@ -168,7 +168,7 @@ primary motion; a lifetime tier may return later as a bundle experiment
 
 See also:
 
-- [`docs/shipshitcode-roadmap.md`](docs/shipshitcode-roadmap.md)
+- [`docs/ship-games-studio-roadmap.md`](docs/ship-games-studio-roadmap.md)
 - [`docs/asset-generation-roadmap.md`](docs/asset-generation-roadmap.md)
 - [`docs/deadrot-dogfood-loop.md`](docs/deadrot-dogfood-loop.md)
 - [`packages/engine/CANONICAL-ENGINE.md`](packages/engine/CANONICAL-ENGINE.md)

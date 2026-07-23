@@ -34,6 +34,8 @@ const saveAsset = mock(
     generationJobId: asset.generationJobId ?? null,
     generationBatchIndex: asset.generationBatchIndex ?? null,
     parentId: null,
+    sourceId: asset.sourceId ?? null,
+    editInstruction: asset.editInstruction ?? null,
     sliceIndex: null,
     createdAt: "2026-07-20T00:00:00.000Z",
   }),
@@ -59,6 +61,9 @@ const generateReplicateAsset = mock(
 const resumeReplicateAsset = mock(async () => ({
   data: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
 }));
+const buildSpritePrompt = mock(
+  ({ subject }: { subject: string }) => `sprite: ${subject}`,
+);
 
 function jobRecord(
   input: ReserveGenerationJobInput,
@@ -266,7 +271,7 @@ function buildDeps(): AssetGenerateDeps {
     uploadReplicateFile,
     sheetPoses: ["idle", "attacking", "running", "jumping"],
     aspectRatioFor: (sheetPoses) => (sheetPoses?.length ? "21:9" : "1:1"),
-    spritePrompt: ({ subject }) => `sprite: ${subject}`,
+    spritePrompt: buildSpritePrompt,
     generateReplicateAsset,
     resumeReplicateAsset,
     saveAsset,
@@ -287,6 +292,7 @@ beforeEach(() => {
   uploadReplicateFile.mockClear();
   generateReplicateAsset.mockClear();
   resumeReplicateAsset.mockClear();
+  buildSpritePrompt.mockClear();
   readAssetImage.mockImplementation(async () => null);
   uploadReplicateFile.mockImplementation(
     async () => "https://files.replicate.com/reference.png",
@@ -319,9 +325,12 @@ beforeEach(() => {
     generationJobId: asset.generationJobId ?? null,
     generationBatchIndex: asset.generationBatchIndex ?? null,
     parentId: null,
+    sourceId: asset.sourceId ?? null,
+    editInstruction: asset.editInstruction ?? null,
     sliceIndex: null,
     createdAt: "2026-07-20T00:00:00.000Z",
   }));
+  buildSpritePrompt.mockImplementation(({ subject }) => `sprite: ${subject}`);
 });
 
 async function post(
@@ -523,6 +532,33 @@ test("same idempotency key rejects a different payload", async () => {
   );
 });
 
+test("asset persistence failure keeps paid provider output retryable", async () => {
+  saveAsset.mockImplementationOnce(async () => {
+    throw new Error("object storage unavailable");
+  });
+  const body = {
+    prompt: "Warden",
+    gameSlug: "scourge-survivors",
+  };
+
+  const first = await post(body, "asset-lab:persistence-retry");
+  expect(first.status).toBe(202);
+  expect(await first.json()).toMatchObject({
+    jobId: "job-1",
+    status: "processing",
+    retryable: true,
+  });
+  expect(jobs.jobs.get("job-1")?.status).toBe("processing");
+  expect(jobs.includedBalance).toBe(29);
+
+  const second = await post(body, "asset-lab:persistence-retry");
+  expect(second.status).toBe(200);
+  expect(generateReplicateAsset).toHaveBeenCalledTimes(1);
+  expect(resumeReplicateAsset).toHaveBeenCalledTimes(1);
+  expect(jobs.settledCredits).toBe(1);
+  expect(jobs.includedBalance).toBe(29);
+});
+
 test("terminal provider failure releases the reservation", async () => {
   generateReplicateAsset.mockImplementationOnce(async () => {
     throw new Error("invalid provider input");
@@ -555,4 +591,58 @@ test("concurrent requests cannot oversubscribe the available credits", async () 
   ]);
   expect(generateReplicateAsset).toHaveBeenCalledTimes(1);
   expect(jobs.includedBalance).toBe(0);
+});
+
+test("generate route validates edit requests before provider spend", async () => {
+  let response = await post({
+    prompt: "Warden",
+    gameSlug: "scourge-survivors",
+    editInstruction: "add shoulder armor",
+  });
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({
+    error: "sourceId is required when editInstruction is set",
+  });
+
+  response = await post({
+    prompt: "Warden",
+    gameSlug: "scourge-survivors",
+    sourceId: "3d0a0cf5-b7a2-4cf0-8b4a-dc0ec45b2ec2",
+    editInstruction: " ",
+  });
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({
+    error: "editInstruction must not be empty",
+  });
+  expect(readAssetImage).not.toHaveBeenCalled();
+  expect(generateReplicateAsset).not.toHaveBeenCalled();
+});
+
+test("generate route preserves edit lineage and supports edit batches", async () => {
+  readAssetImage.mockImplementationOnce(async () => Buffer.from([1, 2, 3]));
+
+  const response = await post({
+    prompt: "Warden",
+    description: "bone armor",
+    gameSlug: "scourge-survivors",
+    sourceId: "3d0a0cf5-b7a2-4cf0-8b4a-dc0ec45b2ec2",
+    editInstruction: "  add a glowing toxic core  ",
+    count: 3,
+  });
+
+  expect(response.status).toBe(200);
+  expect(generateReplicateAsset).toHaveBeenCalledTimes(3);
+  expect(buildSpritePrompt).toHaveBeenCalledWith(
+    expect.objectContaining({
+      fromReference: true,
+      editInstruction: "add a glowing toxic core",
+    }),
+  );
+  expect(saveAsset).toHaveBeenCalledTimes(3);
+  for (const call of saveAsset.mock.calls) {
+    expect(call[0]).toMatchObject({
+      sourceId: "3d0a0cf5-b7a2-4cf0-8b4a-dc0ec45b2ec2",
+      editInstruction: "add a glowing toxic core",
+    });
+  }
 });

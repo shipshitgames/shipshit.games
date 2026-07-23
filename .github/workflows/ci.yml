@@ -195,6 +195,11 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
+      - name: Checkout Assetgen
+        uses: actions/checkout@v6
+        with:
+          path: shipshitgames
+
       - name: Checkout Deadrot Assets
         uses: actions/checkout@v6
         with:
@@ -217,23 +222,29 @@ jobs:
           path: |
             ~/.bun/install/cache
             deadrotcom/.turbo
-          key: ${{ runner.os }}-deadrot-assets-${{ hashFiles('deadrotcom/bun.lock', 'deadrotcom/turbo.json', 'deadrotcom/**/package.json') }}
+          key: ${{ runner.os }}-deadrot-assets-${{ hashFiles('shipshitgames/bun.lock', 'shipshitgames/packages/assetgen/package.json', 'deadrotcom/bun.lock', 'deadrotcom/turbo.json', 'deadrotcom/**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-deadrot-assets-
+
+      - name: Install Assetgen Dependencies
+        run: bun install --frozen-lockfile
+        working-directory: shipshitgames
 
       - name: Install Deadrot Dependencies
         run: bun install --frozen-lockfile
         working-directory: deadrotcom
 
+      - name: Verify Declared Assetgen Targets
+        run: >-
+          bun packages/assetgen/src/cli.ts ci-gates
+          --config .github/assetgen/deadrot-assets.ci-gates.json
+          --assets-dir ../deadrotcom/packages/assets
+          --games-root ../deadrotcom/apps/games
+        working-directory: shipshitgames
+
       - name: Verify Deadrot Asset Index
         run: bun run --cwd packages/assets assets:index:check
         working-directory: deadrotcom
-
-      # Do not run `assetgen ci-gates` here until the Deadrot package commits an
-      # assetgen-format index, atlas, or codegen target. Without `--strict` it
-      # checks nothing; with `--strict` the current canonical package correctly
-      # fails because no such target exists. The native index check above is the
-      # real integrity gate today.
 
   desktop-terminal:
     name: Desktop Terminal (node-pty)

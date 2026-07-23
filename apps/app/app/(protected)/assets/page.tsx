@@ -13,6 +13,7 @@ import {
   Scissors,
 } from "lucide-react";
 import { GAMES } from "@shipshitgames/shared";
+import { AssetEditPanel } from "@/components/asset-edit-panel";
 
 const POSES = [
   "idle",
@@ -44,6 +45,8 @@ interface AssetRecord {
   gameSlug: string | null;
   game: string | null;
   parentId: string | null;
+  sourceId: string | null;
+  editInstruction: string | null;
   sliceIndex: number | null;
   url: string;
   createdAt: string;
@@ -88,6 +91,7 @@ export default function AssetsPage() {
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [slicingId, setSlicingId] = useState<string | null>(null);
   const [zippingId, setZippingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [assets, setAssets] = useState<AssetRecord[]>([]);
   const [variantPose, setVariantPose] = useState<Record<string, string>>({});
@@ -122,7 +126,7 @@ export default function AssetsPage() {
       body: Record<string, unknown>,
       expected: number,
       existingIdempotencyKey?: string,
-    ) => {
+    ): Promise<boolean> => {
       setPending(expected);
       setError(null);
       const idempotencyKey = existingIdempotencyKey ?? crypto.randomUUID();
@@ -181,7 +185,7 @@ export default function AssetsPage() {
               `${generationErrors.length} of ${expected} renders failed: ${generationErrors[0]}`,
             );
           }
-          return;
+          return true;
         }
         keepPending = true;
         throw new Error(
@@ -189,6 +193,7 @@ export default function AssetsPage() {
         );
       } catch (e) {
         setError(e instanceof Error ? e.message : "Generation failed");
+        return false;
       } finally {
         if (!keepPending) localStorage.removeItem(PENDING_GENERATION_KEY);
         setPending(0);
@@ -252,6 +257,32 @@ export default function AssetsPage() {
     } finally {
       setRegeneratingId(null);
     }
+  }
+
+  function openEditor(asset: AssetRecord) {
+    if (busy) return;
+    setEditingId(asset.id);
+  }
+
+  async function editAsset(
+    asset: AssetRecord,
+    instruction: string,
+    count: number,
+  ): Promise<boolean> {
+    if (!instruction || busy) return false;
+    return callGenerate(
+      {
+        prompt: asset.subject,
+        description: asset.description ?? undefined,
+        pose: asset.sheetPoses ? undefined : (asset.pose ?? undefined),
+        sheet: Boolean(asset.sheetPoses),
+        gameSlug: asset.gameSlug ?? gameSlug,
+        sourceId: asset.id,
+        editInstruction: instruction,
+        count,
+      },
+      count,
+    );
   }
 
   async function sliceSheet(asset: AssetRecord) {
@@ -528,10 +559,22 @@ export default function AssetsPage() {
                           {asset.pose}
                         </span>
                       )}
+                      {asset.editInstruction && (
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-blood-hot/60 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-bone">
+                          <Sparkles className="size-3" aria-hidden="true" />
+                          Edited variant
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs leading-relaxed text-ash">
                       {asset.subject}
                     </p>
+                    {asset.editInstruction && (
+                      <p className="rounded-md border border-gunmetal/70 bg-void/60 px-3 py-2 text-xs leading-relaxed text-ash">
+                        <span className="font-bold text-bone">Edit:</span>{" "}
+                        {asset.editInstruction}
+                      </p>
+                    )}
                     {frames.length > 0 && (
                       <div className="rounded-md border border-gunmetal/70 bg-void/60 p-2">
                         <div className="grid grid-cols-4 gap-2">
@@ -625,6 +668,20 @@ export default function AssetsPage() {
                       )}
                       <button
                         type="button"
+                        onClick={() =>
+                          editingId === asset.id
+                            ? setEditingId(null)
+                            : openEditor(asset)
+                        }
+                        disabled={busy}
+                        aria-expanded={editingId === asset.id}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-gunmetal px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Sparkles className="size-3.5" aria-hidden="true" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => regenerate(asset)}
                         disabled={busy}
                         className="inline-flex items-center gap-1.5 rounded-md border border-gunmetal px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:cursor-not-allowed disabled:opacity-50"
@@ -648,6 +705,15 @@ export default function AssetsPage() {
                         <Download className="size-4" aria-hidden="true" />
                       </a>
                     </div>
+                    {editingId === asset.id && (
+                      <AssetEditPanel
+                        busy={busy}
+                        onCancel={() => setEditingId(null)}
+                        onSubmit={(instruction, count) =>
+                          editAsset(asset, instruction, count)
+                        }
+                      />
+                    )}
                   </figcaption>
                 </figure>
               );

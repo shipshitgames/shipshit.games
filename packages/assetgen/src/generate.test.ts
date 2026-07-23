@@ -177,6 +177,33 @@ test("generate records reference images used for source-guided assets", async ()
   assert.deepEqual(manifest.assets[0].referenceImages, [reference]);
 });
 
+test("generate --soft-grade preserves sprite geometry and links an advisory gamut report", async () => {
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-generate-grade-test-"));
+  await runGenerate([
+    "--provider", "mock", "--dry-run", "--id", "graded-husk", "--prompt", "a cold blue test sprite",
+    "--kind", "sprite", "--size", "128", "--repo", repo, "--soft-grade", "--usage-log", "off",
+  ]);
+
+  const manifest = JSON.parse(await readFile(join(repo, "src/assets/assets.json"), "utf8"));
+  const entry = manifest.assets[0];
+  assert.deepEqual(entry.dimensions, [128, 128]);
+  assert.deepEqual(entry.frameSize, [128, 128]);
+  assert.deepEqual({ ...entry.colorGrade, outOfGamutRatio: undefined, material: undefined }, {
+    applied: true,
+    advisory: true,
+    blocking: false,
+    report: "reports/graded-husk.color-gamut.json",
+    outOfGamutRatio: undefined,
+    material: undefined,
+  });
+  assert.ok(entry.colorGrade.outOfGamutRatio >= 0 && entry.colorGrade.outOfGamutRatio <= 1);
+  assert.equal(typeof entry.colorGrade.material, "boolean");
+  const report = JSON.parse(await readFile(join(repo, "src/assets", entry.colorGrade.report), "utf8"));
+  assert.equal(report.advisory, true);
+  assert.equal(report.blocking, false);
+  assert.deepEqual(report.dimensions, [128, 128]);
+});
+
 test("generate records multi-view animation sheets as sprite-anim entries", async () => {
   const repo = await mkdtemp(join(tmpdir(), "assetgen-generate-anim-test-"));
 

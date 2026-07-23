@@ -7,3 +7,4 @@ export * from "./distill";
 export * from "./distill-flow";
 export * from "./transcript";
 export * from "./skill-promoter";
+export * from "./stream-content";

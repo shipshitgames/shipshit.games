@@ -62,6 +62,33 @@ export {
   type ManifestSpriteEntry,
 } from './render/AssetCatalog'
 
+// --- engine-core: shared game-development gym harness (UI stays consumer-side) ---
+export {
+  createGymHarness,
+  GYM_SCAFFOLDS,
+  GymHarness,
+  parseGymTuning,
+  stringifyGymTuning,
+  validateGymDefinition,
+  type GymBoundDefinition,
+  type GymBoundKind,
+  type GymBoundOverlay,
+  type GymClipDefinition,
+  type GymEntityDefinition,
+  type GymEntityTuning,
+  type GymGameDefinition,
+  type GymHarnessOptions,
+  type GymListener,
+  type GymParameterDefinition,
+  type GymParameterValue,
+  type GymPersistence,
+  type GymRect,
+  type GymScaffoldDefinition,
+  type GymScaffoldKind,
+  type GymSnapshot,
+  type GymTuningData,
+} from './gym/GymHarness'
+
 // --- engine-core: HUD snapshot fan-out (React stays game-side) ---
 export {
   HudSystem,

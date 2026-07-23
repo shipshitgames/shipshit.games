@@ -1,4 +1,5 @@
-import { resolve, join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, resolve, join } from "node:path";
 import { GAME_VIEW, buildPrompt } from "../style.ts";
 import { defaultProviderForKind } from "../providers.ts";
 import { runAssetPipeline } from "../pipeline.ts";
@@ -20,6 +21,7 @@ import {
   writeBillboardPreview,
 } from "../sprites.ts";
 import { assetsRootForRepo, draftsManifestPath, draftsRoot } from "../drafts.ts";
+import { serializeColorGamutReport } from "../soft-grade";
 import { flag, flagValues, has, intFlag, numberFlag, shortFlagValues } from "./args.ts";
 import { defaultRepo } from "./paths.ts";
 
@@ -92,6 +94,11 @@ export async function runGenerate(argv: string[]): Promise<void> {
   const outlineTint = has(argv, "outline-tint");
   const outlineTintStrength = numberFlag(argv, "outline-tint-strength", 0.5);
   const outlineTintThreshold = intFlag(argv, "outline-tint-threshold", 32);
+  // Canonical DESIGN.md-driven soft grade. Its sidecar is advisory only.
+  const softGrade = has(argv, "soft-grade");
+  if (softGrade && (audioMode || modelMode)) {
+    console.warn(`[assetgen] --soft-grade applies to image assets; skipped for kind=${generationKind}`);
+  }
 
   if (!id || !prompt) {
     printGenerateUsage();
@@ -137,9 +144,12 @@ export async function runGenerate(argv: string[]): Promise<void> {
           size: context.size,
           licenseTerms,
           licenseUrl,
+          softGrade: context.softGrade,
         });
+        const colorGamutReport = sprite.colorGamutReport;
         const meta = sprite.metadata;
         const previewRel = `previews/${context.id}-billboard.html`;
+        const colorReportRel = `reports/${context.id}.color-gamut.json`;
         return {
           data: sprite.data,
           mediaType: "image/webp",
@@ -156,6 +166,18 @@ export async function runGenerate(argv: string[]): Promise<void> {
             views: meta.views,
             sheet: meta.sheet,
             preview: previewRel,
+            ...(colorGamutReport
+              ? {
+                  colorGrade: {
+                    applied: true as const,
+                    advisory: true as const,
+                    blocking: false as const,
+                    report: colorReportRel,
+                    outOfGamutRatio: colorGamutReport.summary.outOfGamutRatio,
+                    material: colorGamutReport.summary.material,
+                  },
+                }
+              : {}),
           },
           licenseExtra: {
             type: meta.license.type,
@@ -173,6 +195,12 @@ export async function runGenerate(argv: string[]): Promise<void> {
               metadata: meta,
             });
             console.log(`[billboard] ${previewPath}`);
+            if (colorGamutReport) {
+              const reportPath = join(outputRoot, colorReportRel);
+              await mkdir(dirname(reportPath), { recursive: true });
+              await writeFile(reportPath, serializeColorGamutReport(colorGamutReport));
+              console.log(`[color-gamut] advisory ${reportPath}`);
+            }
           },
         };
       }
@@ -268,6 +296,7 @@ export async function runGenerate(argv: string[]): Promise<void> {
     outlineTint,
     outlineTintStrength,
     outlineTintThreshold,
+    softGrade,
     human,
     repo,
     ...draftOutput,
@@ -300,7 +329,7 @@ function printGenerateUsage(): void {
       "           [--views front,side,back] [--frames 1] [--fps 8] [--anchor 0.5,1] [--scale 1]\n" +
       "           [--category music|sfx|voice] [--volume 1] [--loop|--no-loop] [--bitrate 128] [--normalize]\n" +
       "           [--ktx2] [--no-draco]\n" +
-      "           [--outline-tint] [--outline-tint-strength 0.5] [--outline-tint-threshold 32]\n" +
+      "           [--outline-tint] [--outline-tint-strength 0.5] [--outline-tint-threshold 32] [--soft-grade]\n" +
       "           [--license <terms>] [--license-url <url>] [--seed <n>] [--authored] [--edit-kind <label>]\n" +
       "           [--draft]  (stage under src/assets/drafts/; publish later with `assetgen promote`)\n" +
       "  assetgen --id <id> --prompt <text> [--game <slug>|shared]\n" +
