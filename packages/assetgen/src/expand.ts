@@ -304,8 +304,16 @@ export async function expandSprite(opts: ExpandOptions): Promise<ExpandResult> {
             usedProvider = clip.provider;
             usedModel = clip.model;
             providerSeen = true;
+            // Sample across the clip's real length (num_frames/fps the provider
+            // actually used) so the sprite spans the whole animation; the
+            // configured --video-duration is only a fallback for generators that
+            // do not report their clip length.
+            const extractDuration =
+              clip.clipSeconds && clip.clipSeconds > 0
+                ? clip.clipSeconds
+                : videoDuration;
             const extracted = clip.frames ?? (clip.data
-              ? await extractVideoFrames(clip.data, action.frames, videoDuration, {
+              ? await extractVideoFrames(clip.data, action.frames, extractDuration, {
                   runner: opts.video?.frameRunner,
                   ffmpegPath: opts.video?.ffmpegPath,
                   extension: clip.extension,

@@ -11,6 +11,7 @@ import {
   falVideoInput,
   generateVideoClip,
   replicateVideoInput,
+  videoClipSeconds,
 } from "./video-expand.ts";
 
 async function keyedFrame(subject: number): Promise<Buffer> {
@@ -112,6 +113,23 @@ test("cleanVideoFrames keys the matte, locks low-variance pixels, and emits a co
   const comparison = await sharp(result.comparison).metadata();
   assert.equal(comparison.format, "webp");
   assert.equal(comparison.width, 16);
+});
+
+test("videoClipSeconds derives the real clip length from the provider payload floors", () => {
+  // At fps=8 the Wan frame floors dominate: replicate emits 81 frames @ 8fps
+  // ≈ 10.1s and fal 17 frames @ 8fps ≈ 2.1s. Frame extraction must sample across
+  // that real length, not the legacy fixed 2s window.
+  assert.equal(
+    videoClipSeconds(replicateVideoInput("https://x.test/o.png", 4, 8)),
+    81 / 8,
+  );
+  assert.equal(
+    videoClipSeconds(falVideoInput("data:image/png;base64,eA==", "run", 4, 8)),
+    17 / 8,
+  );
+  // Payloads without usable timing fall back to 0 so callers use their default.
+  assert.equal(videoClipSeconds({}), 0);
+  assert.equal(videoClipSeconds({ num_frames: 12, frames_per_second: 0 }), 0);
 });
 
 test("mock video generation returns a keyless clip with the requested decoded frame count", async () => {

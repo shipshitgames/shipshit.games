@@ -36,6 +36,12 @@ export interface VideoClip {
   data?: Buffer;
   /** The keyless mock lane supplies decoded frames while preserving the same clip seam. */
   frames?: Buffer[];
+  /**
+   * Real generated clip length in seconds (num_frames / fps the provider
+   * actually used, after its own floors). Frame extraction samples across this
+   * so the sprite spans the whole animation instead of only its opening window.
+   */
+  clipSeconds?: number;
 }
 
 export type VideoClipGenerator = (
@@ -87,6 +93,26 @@ export function falVideoInput(
     resolution: "480p",
     aspect_ratio: "1:1",
   };
+}
+
+/**
+ * Real clip length (seconds) implied by a provider input payload, read straight
+ * from the num_frames / frames_per_second the builder actually emitted so the
+ * value can never drift from the provider's own floors. Returns 0 when the
+ * payload lacks usable timing (caller falls back to its configured duration).
+ */
+export function videoClipSeconds(input: Record<string, unknown>): number {
+  const numFrames = Number(input.num_frames);
+  const fps = Number(input.frames_per_second);
+  if (
+    Number.isFinite(numFrames) &&
+    numFrames > 0 &&
+    Number.isFinite(fps) &&
+    fps > 0
+  ) {
+    return numFrames / fps;
+  }
+  return 0;
 }
 
 export function buildFfmpegFrameArgs(
@@ -300,13 +326,19 @@ async function generateReplicateVideo(
       ? DEFAULT_REPLICATE_VIDEO_MODEL
       : request.model;
   const image = await uploadReplicateFile(request.originData);
+  const input = replicateVideoInput(image, request.frames, request.fps);
   const asset = await generateReplicateAsset(request.prompt, {
     model,
-    input: replicateVideoInput(image, request.frames, request.fps),
+    input,
     timeoutMs: request.timeoutMs ?? 600_000,
     log: request.log,
   });
-  return { ...asset, provider: "replicate", model };
+  return {
+    ...asset,
+    provider: "replicate",
+    model,
+    clipSeconds: videoClipSeconds(input),
+  };
 }
 
 async function generateFalVideo(request: VideoClipRequest): Promise<VideoClip> {
@@ -324,12 +356,16 @@ async function generateFalVideo(request: VideoClipRequest): Promise<VideoClip> {
     "content-type": "application/json",
   };
   const imageUrl = `data:image/png;base64,${(await sharp(request.originData).png().toBuffer()).toString("base64")}`;
+  const input = falVideoInput(
+    imageUrl,
+    request.prompt,
+    request.frames,
+    request.fps,
+  );
   const submit = await fetch(`${base}/${model}`, {
     method: "POST",
     headers,
-    body: JSON.stringify(
-      falVideoInput(imageUrl, request.prompt, request.frames, request.fps),
-    ),
+    body: JSON.stringify(input),
     signal: AbortSignal.timeout(120_000),
   });
   if (!submit.ok)
@@ -378,7 +414,12 @@ async function generateFalVideo(request: VideoClipRequest): Promise<VideoClip> {
   const asset = await downloadGeneratedAsset(url, model, fetch, {
     timeoutMs: 120_000,
   });
-  return { ...asset, provider: "fal", model };
+  return {
+    ...asset,
+    provider: "fal",
+    model,
+    clipSeconds: videoClipSeconds(input),
+  };
 }
 
 function assertFalQueueUrl(value: string, base: string): void {
