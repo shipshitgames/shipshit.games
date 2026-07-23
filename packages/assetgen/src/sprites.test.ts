@@ -152,6 +152,33 @@ test("toSpriteSheetWebp exposes normalized frame buffers for a 1x4 pose sheet", 
   }
 });
 
+test("toSpriteSheetWebp soft grade keeps frame buffers aligned with the graded sheet", async () => {
+  const source = await sharp({
+    create: { width: 64, height: 32, channels: 4, background: { r: 10, g: 30, b: 220, alpha: 1 } },
+  })
+    .png()
+    .toBuffer();
+  const result = await toSpriteSheetWebp(source, {
+    id: "graded-sheet",
+    game: "shared",
+    prompt: "p",
+    provider: "mock",
+    views: ["left", "right"],
+    frameCount: 1,
+    size: 64,
+    softGrade: true,
+  });
+
+  assert.equal(result.colorGamutReport?.blocking, false);
+  assert.deepEqual(result.colorGamutReport?.dimensions, [64, 64]);
+  const sheet = await rawPixels(result.data);
+  for (const frame of result.frames) {
+    const decoded = await rawPixels(frame.data);
+    const sheetOffset = frame.column * result.metadata.frameSize[0];
+    assert.deepEqual(decoded.at(8, 8), sheet.at(sheetOffset + 8, 8));
+  }
+});
+
 test("transparentizeEdgeBackground keys near-black background but keeps the subject", async () => {
   // #0a0a0a (luma ~10) backdrop with a brighter #2a2a2a (luma ~42) subject square.
   const subject = await sharp({ create: { width: 24, height: 24, channels: 4, background: { r: 42, g: 42, b: 42, alpha: 1 } } }).png().toBuffer();

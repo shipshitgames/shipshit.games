@@ -16,6 +16,8 @@ export interface SpritePromptInput {
   sheetPoses?: readonly string[];
   /** Set when reprinting from a reference image. */
   fromReference?: boolean;
+  /** Targeted change to apply while preserving the referenced character. */
+  editInstruction?: string;
 }
 
 export function spritePrompt({
@@ -25,6 +27,7 @@ export function spritePrompt({
   pose,
   sheetPoses,
   fromReference,
+  editInstruction,
 }: SpritePromptInput): string {
   const parts = [subject];
   if (description?.trim()) parts.push(`character design: ${description.trim()}`);
@@ -36,7 +39,12 @@ export function spritePrompt({
   } else if (pose) {
     parts.push(`${pose} pose`);
   }
-  if (fromReference) {
+  if (editInstruction?.trim()) {
+    parts.push(
+      `targeted edit: ${editInstruction.trim()}`,
+      "use the provided reference image as the exact same character: preserve its identity, pose, composition, colors, materials, proportions, silhouette, and every unmentioned detail; change only what the targeted edit requests",
+    );
+  } else if (fromReference) {
     parts.push(
       "use the provided reference image as the exact same character: keep its design, colors, materials, proportions, and silhouette identical, only change the pose and angle",
     );

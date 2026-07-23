@@ -66,9 +66,19 @@ export function hasActiveStudioPass(pass: StudioPassEntitlement | null) {
   return Boolean(pass?.active && isActiveSubscriptionStatus(pass.status));
 }
 
-export function hasSkillsProContentAccess(
-  entitlements: BillingEntitlements,
-) {
+export type StudioPassAccessState =
+  "active" | "canceled" | "inactive" | "not-claimed";
+
+export function studioPassAccessState(
+  pass: StudioPassEntitlement | null,
+): StudioPassAccessState {
+  if (!pass) return "not-claimed";
+  if (hasActiveStudioPass(pass)) return "active";
+  if (pass.status === "canceled") return "canceled";
+  return "inactive";
+}
+
+export function hasSkillsProContentAccess(entitlements: BillingEntitlements) {
   return (
     hasActiveStudioPass(entitlements.studioPass) ||
     Boolean(entitlements.skillsProOneTime?.active)

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "slug": "shipshitshow",
+  "kind": "youtube-channel",
+  "title": "Ship Shit Show",
+  "url": "https://www.youtube.com/@shipshitshow",
+  "priority": "primary",
+  "status": "active",
+  "handle": "@shipshitshow",
+  "channelId": "UCxuriP32znodU-8N7zkwuew",
+  "owner": "Ship Shit Games",
+  "topics": [
+    "build-in-public",
+    "game-production",
+    "studio-operations",
+    "content-repurposing"
+  ],
+  "rights": {
+    "transcriptPolicy": "public-captions",
+    "storeRawTranscript": false,
+    "notes": "Use channel captions as an input to original derivative content. Do not commit raw VOD transcripts through the repurposing flow."
+  },
+  "desiredOutputs": ["tool"],
+  "notes": [
+    "Livestream-only channel whose VODs feed chapter markers, clip candidates, newsletter drafts, and web devlogs.",
+    "Every generated draft requires an editorial review before publication."
+  ]
+}

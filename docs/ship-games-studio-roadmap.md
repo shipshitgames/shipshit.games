@@ -1,10 +1,10 @@
-# Shipshitcode Roadmap
+# Ship Games Studio Roadmap
 
-last_verified: 2026-07-09
+last_verified: 2026-07-22
 status: draft
 
-Shipshitcode is the local-first game production app for Ship Shit Games: Cursor
-for building game universes, not a general code editor clone.
+Ship Games Studio is the local-first game production app for Ship Shit Games:
+Cursor for building game universes, not a general code editor clone.
 
 It opens an IP monorepo like `../deadrotcom`, understands its games, lore,
 asset packages, manifests, and validation commands, then wraps the Ship Shit
@@ -26,7 +26,7 @@ open IP repo
 
 ## Product Shape
 
-Shipshitcode is three surfaces sharing one platform core:
+Ship Games Studio is three surfaces sharing one platform core:
 
 - **Desktop app.** Local project launcher, asset labs, previews, keychain-backed
   provider credentials, terminal execution, repo writes, and game gyms.
@@ -107,7 +107,7 @@ state, while the downstream repo keeps the shippable artifacts.
 
 ## Roadmap
 
-### Phase 0 - Foundations Already Here
+### Foundations Already Here
 
 - `packages/assetgen` owns provider adapters, generation commands, manifests,
   provenance, sprite gates, GLB optimization, draft/promotion flows, and CI
@@ -118,7 +118,7 @@ state, while the downstream repo keeps the shippable artifacts.
 - `packages/tester` provides browser-game QA.
 - `../deadrotcom/packages/assets` is the first downstream runtime asset package.
 
-### Phase 1 - Local IP Loader
+### Studio M0 — Local IP Registry
 
 - Register a local IP repo from the desktop app.
 - Detect games, lore roots, asset packages, scripts, manifests, and package
@@ -133,7 +133,7 @@ Deadrot MVP: open `../deadrotcom`, detect `packages/assets`, detect
 `apps/games/*`, detect `apps/lore/content`, and show a readable project
 overview.
 
-### Phase 2 - Asset, Model, And Audio Labs
+### Studio M1 — Asset Labs MVP
 
 - Wrap existing `assetgen generate` flows in desktop UI.
 - Add explicit model commands:
@@ -150,7 +150,7 @@ overview.
 Deadrot MVP: generate a 3D draft, optimize to runtime GLB, preview it, register
 it, and keep provenance.
 
-### Phase 3 - Gyms And QA Loop
+### Studio M2 — Deadrot Gym Loop
 
 - Launch a selected game or purpose-built asset gym from the desktop app.
 - Inject selected asset drafts/promotions into the playable slice.
@@ -161,18 +161,18 @@ it, and keep provenance.
 Deadrot MVP: select one generated asset, launch a Deadrot gym that uses it, run
 a canvas/screenshot check, and record the result.
 
-### Phase 4 - Promotion And Git Workflow
+### Studio M3 — Promotion + Git Workflow
 
 - Promote accepted drafts into `../deadrotcom/packages/assets`.
 - Update manifests, indexes, provenance, source preservation, and runtime paths.
-- Run Deadrot asset checks and game checks from Shipshitcode.
+- Run Deadrot asset checks and game checks from Ship Games Studio.
 - Prepare a clean commit/PR in the downstream repo.
 - Keep rejected drafts auditable without shipping them.
 
 Deadrot MVP: one button moves a reviewed asset from draft to runtime package,
 runs the gates, and shows the exact downstream diff.
 
-### Phase 5 - Hosted SaaS Sync
+### Studio M4 — SaaS Sync + Workers
 
 - Sync projects, jobs, provider usage, review state, and provenance records.
 - Add remote job workers for expensive model runs.
@@ -184,7 +184,7 @@ runs the gates, and shows the exact downstream diff.
 Deadrot MVP: local-first work still functions offline; hosted sync adds history,
 cost tracking, and sharing.
 
-### Phase 6 - Templates And Factory
+### Studio M5 — Templates + Factory
 
 - Scaffold new IP repos with the same game, lore, asset, gym, and manifest
   contracts.
@@ -207,10 +207,10 @@ Deadrot proves the path; the second IP proves the product.
 
 ## Success Bar
 
-The first useful version is done when Shipshitcode can open Deadrot, generate a
-new game-ready asset, preserve its sources/provenance, optimize and register it,
-write the accepted runtime output into `../deadrotcom/packages/assets`, launch a
-playable Deadrot slice that consumes it by manifest id, run QA gates, and show
-the downstream diff.
+The first useful version is done when Ship Games Studio can open Deadrot,
+generate a new game-ready asset, preserve its sources/provenance, optimize and
+register it, write the accepted runtime output into
+`../deadrotcom/packages/assets`, launch a playable Deadrot slice that consumes
+it by manifest id, run QA gates, and show the downstream diff.
 
 That is the product: the tools to build the game, proven by the game.

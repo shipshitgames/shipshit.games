@@ -1,11 +1,17 @@
 import { auth } from "@clerk/nextjs/server";
 import { CreditCard, KeyRound, PackageOpen } from "lucide-react";
-import { formatUsd, STUDIO_PASS } from "@shipshitgames/shared";
+import {
+  formatUsd,
+  hasActiveStudioPass,
+  STUDIO_PASS,
+  studioPassAccessState,
+} from "@shipshitgames/shared";
 import { redirect } from "next/navigation";
 
 import { ActionCard } from "@/components/action-card";
 import { StatusPill } from "@/components/status-pill";
 import { readBillingEntitlements } from "@/lib/billing";
+import { publishedMemberAssetPacks } from "@/lib/member-assets";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +25,9 @@ export default async function DashboardPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
   const { studioPass: pass } = await readBillingEntitlements(userId);
+  const active = hasActiveStudioPass(pass);
+  const accessState = studioPassAccessState(pass);
+  const packCount = publishedMemberAssetPacks().length;
 
   return (
     <main className="min-h-[calc(100vh-4rem)] px-6 py-12">
@@ -63,10 +72,12 @@ export default async function DashboardPage() {
               </div>
               <div>
                 <dt className="text-xs uppercase tracking-widest text-gunmetal">Access</dt>
-                <dd className="mt-1 text-bone">{pass?.active ? "Unlocked" : "Locked"}</dd>
+                <dd className="mt-1 text-bone">
+                  {active ? "Unlocked" : accessState.replace("-", " ")}
+                </dd>
               </div>
             </dl>
-            {!pass?.active ? (
+            {!active ? (
               <form action="/api/checkout" method="post" className="mt-7">
                 <button
                   type="submit"
@@ -86,6 +97,12 @@ export default async function DashboardPage() {
               <li>Community invite: sent separately when the member community opens</li>
               <li>Access email: {pass?.accessEmailSentAt ? "sent" : "pending/configured sender"}</li>
               <li>Signed Skills link: generated on demand</li>
+              <li>
+                Member asset packs:{" "}
+                {packCount > 0
+                  ? `${packCount} published`
+                  : "none published yet"}
+              </li>
             </ul>
           </aside>
         </div>
@@ -109,7 +126,7 @@ export default async function DashboardPage() {
             href="/access#assets"
             icon={PackageOpen}
             title="Assets"
-            body="Member asset packs belong behind this same Studio Pass entitlement."
+            body="Open signed subscriber-only downloads for every published member asset pack."
             cta="View assets"
           />
         </div>

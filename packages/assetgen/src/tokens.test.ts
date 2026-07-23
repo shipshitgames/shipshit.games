@@ -118,6 +118,14 @@ test("runTokens writes all generated token artifacts without an assets catalog",
   assert.equal(tokensJson.notice.includes("DO NOT EDIT"), true);
   assert.equal(tokensJson.components["button-primary"].backgroundColor, "#c1121f");
   assert.equal(tokensJson.assetgen.gradeParams.pixelGrid, 110);
+  assert.deepEqual(tokensJson.assetgen.gradeParams.softGrade, {
+    strength: 0.18,
+    valueRange: [0.04, 0.9],
+    temperatureRange: [0, 0.45],
+    alphaThreshold: 8,
+    materialPixelRatio: 0.05,
+    exampleLimit: 8,
+  });
 });
 
 test("runTokens rejects DESIGN.md without the authored assetgen canon", async () => {
