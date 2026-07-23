@@ -13,6 +13,8 @@ test("usage events store prompt metadata without raw prompt text", () => {
     provider: "mock",
     kind: "sprite",
     id: "secret-sprite",
+    requestId: "prediction-123",
+    costUsd: 0.5,
     prompt,
     success: true,
     durationMs: 12,
@@ -22,6 +24,8 @@ test("usage events store prompt metadata without raw prompt text", () => {
   assert.equal(event.promptChars, prompt.length);
   assert.equal(typeof event.promptHash, "string");
   assert.equal(event.promptHash?.length, 16);
+  assert.equal(event.requestId, "prediction-123");
+  assert.equal(event.costUsd, 0.5);
 });
 
 test("usage logging can be disabled explicitly", () => {

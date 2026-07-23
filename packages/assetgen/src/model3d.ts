@@ -31,10 +31,20 @@ export const MODEL_KINDS = ["model", "3d"] as const;
 export const MODEL_EXTENSION = "glb";
 /** Media type recorded for generated models. */
 export const MODEL_MEDIA_TYPE = "model/gltf-binary";
+/** Default maximum for an optimized runtime GLB written by generation. */
+export const DEFAULT_MODEL_RUNTIME_BUDGET_BYTES = 20 * 1024 * 1024;
 
 /** True when `kind` should be routed through the 3D-model generator. */
 export function isModelKind(kind: string): boolean {
   return (MODEL_KINDS as readonly string[]).includes(kind);
+}
+
+export function assertModelId(id: string): void {
+  if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(id)) {
+    throw new Error(
+      `invalid model id ${JSON.stringify(id)}; use lowercase letters, digits, dots, dashes, or underscores`,
+    );
+  }
 }
 
 export interface OptimizeModelOptions {
@@ -59,6 +69,20 @@ export interface ModelOptimizeResult {
   summary: ModelSummary;
   /** Animation clip names bundled in the model (convenience view of `summary.animations`). */
   animations: string[];
+}
+
+export function assertModelRuntimeBudget(
+  result: ModelOptimizeResult,
+  maxBytes = DEFAULT_MODEL_RUNTIME_BUDGET_BYTES,
+): void {
+  if (!Number.isFinite(maxBytes) || maxBytes <= 0) {
+    throw new Error(`model runtime budget must be a positive byte count (received ${maxBytes})`);
+  }
+  if (result.data.length > maxBytes) {
+    throw new Error(
+      `optimized model is ${result.data.length} bytes, exceeding the ${maxBytes}-byte runtime budget`,
+    );
+  }
 }
 
 // draco3dgltf's wasm encoder/decoder are expensive to instantiate; build them

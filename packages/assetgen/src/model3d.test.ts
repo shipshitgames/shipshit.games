@@ -5,7 +5,14 @@ import { Document, NodeIO } from "@gltf-transform/core";
 import sharp from "sharp";
 
 import { buildMinimalGlb } from "./glb-fixture.ts";
-import { MODEL_EXTENSION, MODEL_KINDS, MODEL_MEDIA_TYPE, isModelKind, optimizeGlb } from "./model3d.ts";
+import {
+  MODEL_EXTENSION,
+  MODEL_KINDS,
+  MODEL_MEDIA_TYPE,
+  assertModelRuntimeBudget,
+  isModelKind,
+  optimizeGlb,
+} from "./model3d.ts";
 
 function glbContains(glb: Buffer, needle: string): boolean {
   return glb.includes(Buffer.from(needle));
@@ -117,6 +124,15 @@ test("optimizeGlb with --no-draco skips geometry compression", async () => {
   const result = await optimizeGlb(buildMinimalGlb(), { draco: false });
   assert.equal(result.compression.draco, false);
   assert.ok(!glbContains(result.data, "KHR_draco_mesh_compression"), "Draco extension should be absent");
+});
+
+test("assertModelRuntimeBudget rejects optimized GLBs above the configured ceiling", async () => {
+  const result = await optimizeGlb(buildMinimalGlb(), { draco: false });
+  assert.doesNotThrow(() => assertModelRuntimeBudget(result, result.data.length));
+  assert.throws(
+    () => assertModelRuntimeBudget(result, result.data.length - 1),
+    /exceeding the .*runtime budget/,
+  );
 });
 
 test("optimizeGlb compresses embedded textures to WebP", async () => {

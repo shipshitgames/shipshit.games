@@ -1,37 +1,24 @@
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 
 import { assetsManifestPath, assetsRootForRepo } from "../drafts.ts";
 import { register } from "../manifest.ts";
-import type { AssetEntry, ModelCompression } from "../manifest.ts";
-import { optimizeGlb } from "../model3d.ts";
-import type { ModelOptimizeResult } from "../model3d.ts";
+import type { AssetEntry } from "../manifest.ts";
+import { assertModelId, optimizeGlb } from "../model3d.ts";
+import {
+  MODEL_OPTIMIZE_REPORT_VERSION,
+  buildModelOptimizeReport,
+  modelSha256,
+} from "../model-trace.ts";
+import type { ModelOptimizeReport } from "../model-trace.ts";
 import { buildProvenance } from "../provenance.ts";
 import { flag, has } from "./args.ts";
 import { runGenerate } from "./generate.ts";
 import { defaultRepo } from "./paths.ts";
 
-const MODEL_OPTIMIZE_REPORT_VERSION = 1;
 export const MODEL_RIG_SOURCES = ["none", "provider", "artist", "mixamo", "other"] as const;
 export type ModelRigSource = (typeof MODEL_RIG_SOURCES)[number];
-
-export interface ModelOptimizeReport {
-  schemaVersion: typeof MODEL_OPTIMIZE_REPORT_VERSION;
-  source: ModelFileRecord;
-  output: ModelFileRecord;
-  compression: ModelCompression;
-  summary: ModelOptimizeResult["summary"];
-  animations: string[];
-  generatedAt: string;
-}
-
-interface ModelFileRecord {
-  path: string;
-  sha256: string;
-  bytes: number;
-}
 
 export interface OptimizeModelFileOptions {
   inputPath: string;
@@ -154,15 +141,13 @@ export async function optimizeModelFile(
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, optimized.data);
 
-  const report: ModelOptimizeReport = {
-    schemaVersion: MODEL_OPTIMIZE_REPORT_VERSION,
-    source: fileRecord(raw, relativeForReport(reportPath, inputPath)),
-    output: fileRecord(optimized.data, relativeForReport(reportPath, outputPath)),
-    compression: optimized.compression,
-    summary: optimized.summary,
-    animations: optimized.animations,
-    generatedAt: (options.now?.() ?? new Date()).toISOString(),
-  };
+  const report = buildModelOptimizeReport({
+    source: raw,
+    sourcePath: relativeForReport(reportPath, inputPath),
+    optimized,
+    outputPath: relativeForReport(reportPath, outputPath),
+    generatedAt: options.now?.() ?? new Date(),
+  });
   await mkdir(dirname(reportPath), { recursive: true });
   await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n");
   return { outputPath, reportPath, report };
@@ -302,36 +287,20 @@ async function verifyOptimizeReport(
   report: ModelOptimizeReport,
 ): Promise<string> {
   const output = await readFile(inputPath);
-  if (sha256(output) !== report.output.sha256 || output.length !== report.output.bytes) {
+  if (modelSha256(output) !== report.output.sha256 || output.length !== report.output.bytes) {
     throw new Error(`optimized GLB no longer matches ${reportPath}`);
   }
   const sourcePath = resolve(dirname(reportPath), report.source.path);
   if (!existsSync(sourcePath)) throw new Error(`raw model source is missing: ${sourcePath}`);
   const source = await readFile(sourcePath);
-  if (sha256(source) !== report.source.sha256 || source.length !== report.source.bytes) {
+  if (modelSha256(source) !== report.source.sha256 || source.length !== report.source.bytes) {
     throw new Error(`raw model source no longer matches ${reportPath}`);
   }
   return sourcePath;
 }
 
-function fileRecord(data: Buffer, path: string): ModelFileRecord {
-  return { path, sha256: sha256(data), bytes: data.length };
-}
-
-function sha256(data: Buffer): string {
-  return createHash("sha256").update(data).digest("hex");
-}
-
 function relativeForReport(reportPath: string, filePath: string): string {
   return relative(dirname(reportPath), filePath).replaceAll("\\", "/") || ".";
-}
-
-function assertModelId(id: string): void {
-  if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(id)) {
-    throw new Error(
-      `invalid model id ${JSON.stringify(id)}; use lowercase letters, digits, dots, dashes, or underscores`,
-    );
-  }
 }
 
 function modelRigProvenance(
