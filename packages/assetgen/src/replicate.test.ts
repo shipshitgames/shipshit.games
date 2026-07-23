@@ -12,6 +12,7 @@ import {
   generateReplicateAsset,
   hunyuan3dPredictionInput,
   replicatePredictionBody,
+  resumeReplicateAsset,
   uploadReplicateFile,
   waitForReplicatePrediction,
 } from "./replicate";
@@ -21,7 +22,9 @@ interface RecordedCall {
   init?: RequestInit;
 }
 
-function fakeFetch(handler: (url: string, init?: RequestInit) => Response | Promise<Response>): {
+function fakeFetch(
+  handler: (url: string, init?: RequestInit) => Response | Promise<Response>,
+): {
   fetchImpl: typeof fetch;
   calls: RecordedCall[];
 } {
@@ -118,10 +121,16 @@ test("generateHunyuan3dAsset records prediction and input-image provenance", asy
 });
 
 test("uploadReplicateFile posts multipart bytes and returns the Files API URL", async () => {
-  const { fetchImpl, calls } = fakeFetch(() =>
-    new Response(JSON.stringify({ urls: { get: "https://files.replicate.com/reference.png" } }), {
-      headers: { "content-type": "application/json" },
-    }),
+  const { fetchImpl, calls } = fakeFetch(
+    () =>
+      new Response(
+        JSON.stringify({
+          urls: { get: "https://files.replicate.com/reference.png" },
+        }),
+        {
+          headers: { "content-type": "application/json" },
+        },
+      ),
   );
 
   const url = await uploadReplicateFile(Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
@@ -132,7 +141,10 @@ test("uploadReplicateFile posts multipart bytes and returns the Files API URL", 
   assert.equal(url, "https://files.replicate.com/reference.png");
   assert.equal(calls[0]?.url, "https://api.replicate.com/v1/files");
   assert.equal(calls[0]?.init?.method, "POST");
-  assert.equal((calls[0]?.init?.headers as Record<string, string>).authorization, "Bearer unit-key");
+  assert.equal(
+    (calls[0]?.init?.headers as Record<string, string>).authorization,
+    "Bearer unit-key",
+  );
   assert.ok(calls[0]?.init?.body instanceof FormData);
 });
 
@@ -144,7 +156,9 @@ test("generateReplicateAsset drives create, poll, and download with input passth
         JSON.stringify({
           id: "prediction-1",
           status: "processing",
-          urls: { get: "https://api.replicate.com/v1/predictions/prediction-1" },
+          urls: {
+            get: "https://api.replicate.com/v1/predictions/prediction-1",
+          },
         }),
         { headers: { "content-type": "application/json" } },
       );
@@ -165,6 +179,7 @@ test("generateReplicateAsset drives create, poll, and download with input passth
     throw new Error(`unexpected fetch ${url} ${init?.method ?? "GET"}`);
   });
   const sleeps: number[] = [];
+  const snapshots: string[] = [];
 
   const asset = await generateReplicateAsset(
     "parasite-taken host",
@@ -175,6 +190,9 @@ test("generateReplicateAsset drives create, poll, and download with input passth
         image_input: ["https://files.replicate.com/reference.png"],
       },
       pollIntervalMs: 25,
+      onPrediction: (prediction) => {
+        snapshots.push(`${prediction.id}:${prediction.status}`);
+      },
     },
     {
       fetchImpl,
@@ -194,16 +212,48 @@ test("generateReplicateAsset drives create, poll, and download with input passth
       image_input: ["https://files.replicate.com/reference.png"],
     },
   });
-  assert.equal((calls[0]?.init?.headers as Record<string, string>).prefer, "wait=60");
+  assert.equal(
+    (calls[0]?.init?.headers as Record<string, string>).prefer,
+    "wait=60",
+  );
   assert.deepEqual(sleeps, [25]);
+  assert.deepEqual(snapshots, [
+    "prediction-1:processing",
+    "prediction-1:succeeded",
+  ]);
   assert.deepEqual(asset.data, png);
   assert.equal(asset.model, "google/nano-banana-2");
   assert.equal(asset.mediaType, "image/png");
 });
 
+test("resumeReplicateAsset downloads a persisted successful prediction without creating another", async () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  const { fetchImpl, calls } = fakeFetch((url) => {
+    assert.equal(url, "https://cdn.replicate.delivery/resumed.png");
+    return new Response(png, { headers: { "content-type": "image/png" } });
+  });
+
+  const asset = await resumeReplicateAsset(
+    {
+      id: "prediction-resumed",
+      status: "succeeded",
+      output: "https://cdn.replicate.delivery/resumed.png",
+    },
+    { model: "google/nano-banana-2" },
+    { fetchImpl, resolveKey: () => "unit-key" },
+  );
+
+  assert.equal(calls.length, 1);
+  assert.deepEqual(asset.data, png);
+});
+
 test("generateReplicateAsset reports missing credentials with setup guidance", async () => {
   await assert.rejects(
-    generateReplicateAsset("a husk", { model: "google/nano-banana-2" }, { resolveKey: () => undefined }),
+    generateReplicateAsset(
+      "a husk",
+      { model: "google/nano-banana-2" },
+      { resolveKey: () => undefined },
+    ),
     /No Replicate key[\s\S]*REPLICATE_API_TOKEN[\s\S]*shipshit-replicate/,
   );
 });

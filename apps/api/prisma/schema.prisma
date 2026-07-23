@@ -15,38 +15,43 @@ datasource db {
 /// Generated Asset Lab sprite. New images are written to object storage when
 /// configured; `image` stays nullable for local-dev fallback and old rows.
 model Asset {
-  id          String   @id @default(uuid())
-  subject     String
-  description String?
-  fullPrompt  String
-  style       String?
-  pose        String?
-  sheetPoses  String[] @default([])
-  gameSlug    String?
-  game        String?
-  model       String
-  image       Bytes?
-  storageKey  String?
-  imageUrl    String?
-  mediaType   String   @default("image/png")
-  byteSize    Int?
-  ownerId     String?
-  parentId    String?
-  parent      Asset?   @relation("AssetSlices", fields: [parentId], references: [id], onDelete: SetNull)
-  slices      Asset[]  @relation("AssetSlices")
-  sourceId    String?
-  source      Asset?   @relation("AssetEdits", fields: [sourceId], references: [id], onDelete: SetNull)
-  edits       Asset[]  @relation("AssetEdits")
-  editInstruction String?
-  sliceIndex  Int?
-  createdAt   DateTime @default(now())
+  id                   String         @id @default(uuid())
+  subject              String
+  description          String?
+  fullPrompt           String
+  style                String?
+  pose                 String?
+  sheetPoses           String[]       @default([])
+  gameSlug             String?
+  game                 String?
+  model                 String
+  image                 Bytes?
+  storageKey           String?
+  imageUrl             String?
+  mediaType            String         @default("image/png")
+  byteSize             Int?
+  ownerId              String?
+  generationJobId      String?
+  generationJob        GenerationJob? @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
+  generationBatchIndex Int?
+  parentId             String?
+  parent               Asset?         @relation("AssetSlices", fields: [parentId], references: [id], onDelete: SetNull)
+  slices               Asset[]        @relation("AssetSlices")
+  sourceId             String?
+  source               Asset?         @relation("AssetEdits", fields: [sourceId], references: [id], onDelete: SetNull)
+  edits                Asset[]        @relation("AssetEdits")
+  editInstruction      String?
+  sliceIndex           Int?
+  createdAt            DateTime       @default(now())
 
+  @@unique([generationJobId, generationBatchIndex])
+  @@unique([parentId, sliceIndex])
   @@index([createdAt(sort: Desc)])
   @@index([gameSlug])
   @@index([parentId])
   @@index([sourceId])
   @@index([storageKey])
-  @@unique([parentId, sliceIndex])
+  @@index([generationJobId])
 }
 
 /// Mirror of Clerk users, maintained by the Clerk webhook.
@@ -86,9 +91,9 @@ model WebhookEvent {
 /// Canonical durable Studio Pass state. Stripe webhooks are the only writer;
 /// app surfaces read this through the authenticated billing API.
 model StudioPassSubscription {
-  userId               String   @id
+  userId               String    @id
   stripeCustomerId     String
-  stripeSubscriptionId String   @unique
+  stripeSubscriptionId String    @unique
   stripePriceId        String?
   status               String
   active               Boolean
@@ -101,8 +106,8 @@ model StudioPassSubscription {
   skoolInviteSentAt    DateTime?
   accessEmailSentAt    DateTime?
   fulfillmentError     String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@index([stripeCustomerId])
   @@index([active, status])
@@ -110,22 +115,120 @@ model StudioPassSubscription {
 
 /// Canonical durable one-time Skills Pro purchase and refund state.
 model SkillsProPurchase {
-  userId               String   @id
-  active               Boolean  @default(true)
-  stripeCustomerId     String?
-  stripePaymentIntentId String?  @unique
-  checkoutSessionId    String?  @unique
-  purchasedAt          DateTime
-  stripeEventCreatedAt BigInt
-  stripeEventRank      Int
-  stripeEventId        String
-  accessEmailSentAt    DateTime?
-  fulfillmentError     String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  userId                String    @id
+  active                Boolean   @default(true)
+  stripeCustomerId      String?
+  stripePaymentIntentId String?   @unique
+  checkoutSessionId     String?   @unique
+  purchasedAt           DateTime
+  stripeEventCreatedAt  BigInt
+  stripeEventRank       Int
+  stripeEventId         String
+  accessEmailSentAt     DateTime?
+  fulfillmentError      String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@index([stripeCustomerId])
   @@index([active])
+}
+
+/// Available generation credits. Included credits reset with their billing
+/// period; purchased credits never expire. Reservations decrement these
+/// balances atomically before provider work starts.
+model GenerationCreditAccount {
+  ownerId          String   @id
+  includedBalance  Int      @default(0)
+  purchasedBalance Int      @default(0)
+  includedResetAt  DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+/// Durable owner-scoped generation request. The idempotency key prevents a
+/// retried HTTP request or reclaimed worker lease from reserving/spending twice.
+model GenerationJob {
+  id                       String                   @id @default(uuid())
+  ownerId                  String
+  idempotencyKey           String
+  requestHash              String
+  kind                     String
+  request                  Json
+  provider                 String
+  model                    String
+  executionMode            String                   @default("platform")
+  status                   String                   @default("queued")
+  requestedCredits         Int
+  reservedIncludedCredits  Int                      @default(0)
+  reservedPurchasedCredits Int                      @default(0)
+  includedPeriodEndsAt     DateTime
+  attemptCount             Int                      @default(0)
+  leaseOwner               String?
+  leaseExpiresAt           DateTime?
+  retryAt                  DateTime?
+  result                   Json?
+  error                    String?
+  startedAt                DateTime?
+  completedAt              DateTime?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  providerRuns             ProviderRun[]
+  creditEntries            GenerationCreditLedger[]
+  assets                   Asset[]
+
+  @@unique([ownerId, idempotencyKey])
+  @@index([ownerId, createdAt(sort: Desc)])
+  @@index([status, retryAt])
+  @@index([status, leaseExpiresAt])
+}
+
+/// One provider attempt for one output in a generation batch. Replicate
+/// prediction identity and polling state are retained so a replacement worker
+/// can resume the same upstream spend after process loss.
+model ProviderRun {
+  id              String        @id @default(uuid())
+  generationJobId String
+  generationJob   GenerationJob @relation(fields: [generationJobId], references: [id], onDelete: Cascade)
+  batchIndex      Int
+  attempt         Int
+  provider        String
+  model           String
+  executionMode   String
+  status          String        @default("processing")
+  externalId      String?
+  pollUrl         String?
+  request         Json
+  output          Json?
+  creditCost      Int           @default(1)
+  costMicros      BigInt?
+  durationMs      Int?
+  retryable       Boolean?
+  error           String?
+  startedAt       DateTime      @default(now())
+  completedAt     DateTime?
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([generationJobId, batchIndex, attempt])
+  @@index([generationJobId, batchIndex, status])
+  @@index([externalId])
+}
+
+/// Append-only reservation/settlement/release audit. `source` distinguishes
+/// monthly included credits from non-expiring purchased credits; BYOK jobs use
+/// the same ledger with a reduced requested credit cost.
+model GenerationCreditLedger {
+  id              String        @id @default(uuid())
+  ownerId         String
+  generationJobId String
+  generationJob   GenerationJob @relation(fields: [generationJobId], references: [id], onDelete: Cascade)
+  entryKey        String        @unique
+  action          String
+  source          String
+  credits         Int
+  createdAt       DateTime      @default(now())
+
+  @@index([ownerId, createdAt(sort: Desc)])
+  @@index([generationJobId])
 }
 
 /// Durable audit trail for signed member-content grants and denials.

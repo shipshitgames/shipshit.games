@@ -32,6 +32,14 @@ export interface ReplicateRequestOptions {
   pollIntervalMs?: number;
   requestTimeoutMs?: number;
   log?: (chunk: string) => void;
+  /**
+   * Durable callers persist each lifecycle snapshot before continuing. This
+   * keeps the canonical provider client usable by reclaimable workers without
+   * forking Replicate create/poll behavior in the API.
+   */
+  onPrediction?: (
+    prediction: Readonly<ReplicatePrediction>,
+  ) => void | Promise<void>;
 }
 
 export interface Hunyuan3dRequestOptions extends Omit<ReplicateRequestOptions, "input"> {
@@ -100,16 +108,27 @@ export function hunyuan3dPredictionInput(options: {
   };
 }
 
-export async function uploadReplicateFile(image: Buffer, deps: ReplicateDeps = {}): Promise<string> {
+export async function uploadReplicateFile(
+  image: Buffer,
+  deps: ReplicateDeps = {},
+): Promise<string> {
   const key = requireReplicateKey(deps.resolveKey);
   const form = new FormData();
-  form.append("content", new Blob([new Uint8Array(image)], { type: "image/png" }), "reference.png");
-  const res = await (deps.fetchImpl ?? fetch)("https://api.replicate.com/v1/files", {
-    method: "POST",
-    headers: { authorization: `Bearer ${key}` },
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Replicate file upload ${res.status}: ${await res.text()}`);
+  form.append(
+    "content",
+    new Blob([new Uint8Array(image)], { type: "image/png" }),
+    "reference.png",
+  );
+  const res = await (deps.fetchImpl ?? fetch)(
+    "https://api.replicate.com/v1/files",
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}` },
+      body: form,
+    },
+  );
+  if (!res.ok)
+    throw new Error(`Replicate file upload ${res.status}: ${await res.text()}`);
   const json = (await res.json()) as { urls?: { get?: unknown } };
   const url = json.urls?.get;
   if (typeof url !== "string" || !url) {
@@ -124,19 +143,25 @@ async function createReplicatePredictionForInput(
   opts: ReplicateRequestOptions,
   fetchImpl: typeof fetch = fetch,
 ): Promise<ReplicatePrediction> {
-  const res = await fetchImpl(`https://api.replicate.com/v1/models/${opts.model}/predictions`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${key}`,
-      "content-type": "application/json",
-      prefer: "wait=60",
+  const res = await fetchImpl(
+    `https://api.replicate.com/v1/models/${opts.model}/predictions`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${key}`,
+        "content-type": "application/json",
+        prefer: "wait=60",
+      },
+      body: JSON.stringify({ input }),
+      signal: AbortSignal.timeout(opts.requestTimeoutMs ?? 120_000),
     },
-    body: JSON.stringify({ input }),
-    signal: AbortSignal.timeout(opts.requestTimeoutMs ?? 120_000),
-  });
+  );
   if (!res.ok) throw new Error(`replicate ${res.status}: ${await res.text()}`);
   const prediction = (await res.json()) as ReplicatePrediction;
-  opts.log?.(`[replicate] ${prediction.status ?? "created"} ${prediction.id ?? opts.model}\n`);
+  opts.log?.(
+    `[replicate] ${prediction.status ?? "created"} ${prediction.id ?? opts.model}\n`,
+  );
+  await opts.onPrediction?.(prediction);
   return prediction;
 }
 
@@ -156,7 +181,10 @@ export async function waitForReplicatePrediction(
   deps: Pick<ReplicateDeps, "fetchImpl" | "sleep"> = {},
 ): Promise<ReplicatePrediction> {
   const fetchImpl = deps.fetchImpl ?? fetch;
-  const sleep = deps.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  const sleep =
+    deps.sleep ??
+    ((milliseconds) =>
+      new Promise((resolve) => setTimeout(resolve, milliseconds)));
   const done = new Set(["succeeded", "failed", "canceled"]);
   let current = prediction;
   const started = Date.now();
@@ -165,7 +193,9 @@ export async function waitForReplicatePrediction(
 
   while (current.status && !done.has(current.status)) {
     if (Date.now() - started > timeoutMs) {
-      throw new Error(`replicate: timed out after ${Math.round(timeoutMs / 1000)}s`);
+      throw new Error(
+        `replicate: timed out after ${Math.round(timeoutMs / 1000)}s`,
+      );
     }
     const pollUrl = current.urls?.get ?? current.urls?.self;
     if (!pollUrl) throw new Error("replicate: prediction has no polling URL");
@@ -174,14 +204,21 @@ export async function waitForReplicatePrediction(
       headers: { authorization: `Bearer ${key}` },
       signal: AbortSignal.timeout(opts.requestTimeoutMs ?? 120_000),
     });
-    if (!res.ok) throw new Error(`replicate poll ${res.status}: ${await res.text()}`);
+    if (!res.ok)
+      throw new Error(`replicate poll ${res.status}: ${await res.text()}`);
     current = (await res.json()) as ReplicatePrediction;
     opts.log?.(`[replicate] ${current.status ?? "poll"}\n`);
+    await opts.onPrediction?.(current);
   }
 
   if (current.status !== "succeeded") {
-    const detail = typeof current.error === "string" && current.error ? `: ${current.error}` : "";
-    throw new Error(`replicate: prediction ${current.status ?? "failed"}${detail}`);
+    const detail =
+      typeof current.error === "string" && current.error
+        ? `: ${current.error}`
+        : "";
+    throw new Error(
+      `replicate: prediction ${current.status ?? "failed"}${detail}`,
+    );
   }
   return current;
 }
@@ -193,10 +230,38 @@ export async function generateReplicateAsset(
 ): Promise<GeneratedAsset> {
   const key = requireReplicateKey(deps.resolveKey);
   const fetchImpl = deps.fetchImpl ?? fetch;
-  const prediction = await createReplicatePrediction(key, prompt, opts, fetchImpl);
-  const completed = await waitForReplicatePrediction(prediction, key, opts, deps);
+  const prediction = await createReplicatePrediction(
+    key,
+    prompt,
+    opts,
+    fetchImpl,
+  );
+  return resumeReplicateAsset(prediction, opts, deps);
+}
+
+/**
+ * Continue an already-created prediction. Durable workers pass the last
+ * persisted snapshot here after a lease is reclaimed, avoiding a second paid
+ * provider request.
+ */
+export async function resumeReplicateAsset(
+  prediction: ReplicatePrediction,
+  opts: ReplicateRequestOptions,
+  deps: ReplicateDeps = {},
+): Promise<GeneratedAsset> {
+  const key = requireReplicateKey(deps.resolveKey);
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const completed = await waitForReplicatePrediction(
+    prediction,
+    key,
+    opts,
+    deps,
+  );
   const url = outputUrl(completed.output);
-  if (!url) throw new Error("replicate: prediction completed without a downloadable output URL");
+  if (!url)
+    throw new Error(
+      "replicate: prediction completed without a downloadable output URL",
+    );
   const downloaded = await downloadGeneratedAsset(url, opts.model, fetchImpl, {
     timeoutMs: opts.requestTimeoutMs,
   });

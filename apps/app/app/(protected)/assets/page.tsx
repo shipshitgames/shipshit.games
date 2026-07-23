@@ -1,13 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Archive, Loader2, Sparkles, Download, Gamepad2, RefreshCw, ImageIcon, Scissors } from "lucide-react";
+import {
+  Archive,
+  Loader2,
+  Sparkles,
+  Download,
+  Gamepad2,
+  RefreshCw,
+  ImageIcon,
+  Scissors,
+} from "lucide-react";
 import { GAMES } from "@shipshitgames/shared";
 import { AssetEditPanel } from "@/components/asset-edit-panel";
 
-const POSES = ["idle", "attacking", "running", "jumping", "side view", "back view"] as const;
+const POSES = [
+  "idle",
+  "attacking",
+  "running",
+  "jumping",
+  "side view",
+  "back view",
+] as const;
 const BATCH_SIZES = [1, 2, 3, 4] as const;
+const PENDING_GENERATION_KEY = "shipshitgames:pending-generation:v1";
+const RESUME_POLL_MS = 30_000;
+const MAX_RESUME_POLLS = 20;
 const chip = (active: boolean) =>
   `rounded-md border px-3 py-1.5 text-xs font-bold uppercase tracking-widest ${
     active
@@ -33,17 +52,35 @@ interface AssetRecord {
   createdAt: string;
 }
 
-function safeFileName(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 56) || "asset";
+interface PendingGeneration {
+  body: Record<string, unknown>;
+  expected: number;
+  idempotencyKey: string;
 }
 
-function mergeAssets(current: AssetRecord[], incoming: AssetRecord[]): AssetRecord[] {
+function safeFileName(value: string): string {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 56) || "asset"
+  );
+}
+
+function mergeAssets(
+  current: AssetRecord[],
+  incoming: AssetRecord[],
+): AssetRecord[] {
   const byId = new Map(current.map((asset) => [asset.id, asset]));
   for (const asset of incoming) byId.set(asset.id, asset);
-  return Array.from(byId.values()).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  return Array.from(byId.values()).sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
 }
 
 export default function AssetsPage() {
+  const resumedPendingGeneration = useRef(false);
   const [prompt, setPrompt] = useState("");
   const [description, setDescription] = useState("");
   const [sheet, setSheet] = useState(false);
@@ -60,7 +97,10 @@ export default function AssetsPage() {
   const [variantPose, setVariantPose] = useState<Record<string, string>>({});
 
   const busy = pending > 0;
-  const topLevelAssets = useMemo(() => assets.filter((asset) => !asset.parentId), [assets]);
+  const topLevelAssets = useMemo(
+    () => assets.filter((asset) => !asset.parentId),
+    [assets],
+  );
   const framesByParent = useMemo(() => {
     const grouped: Record<string, AssetRecord[]> = {};
     for (const asset of assets) {
@@ -81,27 +121,105 @@ export default function AssetsPage() {
       .catch(() => {});
   }, []);
 
-  async function callGenerate(body: Record<string, unknown>, expected: number): Promise<boolean> {
-    setPending(expected);
-    setError(null);
+  const callGenerate = useCallback(
+    async (
+      body: Record<string, unknown>,
+      expected: number,
+      existingIdempotencyKey?: string,
+    ): Promise<boolean> => {
+      setPending(expected);
+      setError(null);
+      const idempotencyKey = existingIdempotencyKey ?? crypto.randomUUID();
+      localStorage.setItem(
+        PENDING_GENERATION_KEY,
+        JSON.stringify({
+          body,
+          expected,
+          idempotencyKey,
+        } satisfies PendingGeneration),
+      );
+      let keepPending = false;
+      try {
+        for (let attempt = 0; attempt < MAX_RESUME_POLLS; attempt += 1) {
+          let res: Response;
+          try {
+            res = await fetch("/api/assets/generate", {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "idempotency-key": idempotencyKey,
+              },
+              body: JSON.stringify(body),
+            });
+          } catch {
+            keepPending = true;
+            await new Promise((resolve) => setTimeout(resolve, RESUME_POLL_MS));
+            continue;
+          }
+          if (!res.ok) {
+            throw new Error(`Request failed (${res.status})`);
+          }
+          let json: Record<string, unknown>;
+          try {
+            json = (await res.json()) as Record<string, unknown>;
+          } catch {
+            keepPending = true;
+            await new Promise((resolve) => setTimeout(resolve, RESUME_POLL_MS));
+            continue;
+          }
+          if (res.status === 202) {
+            keepPending = true;
+            await new Promise((resolve) => setTimeout(resolve, RESUME_POLL_MS));
+            continue;
+          }
+          keepPending = false;
+          const generatedAssets = Array.isArray(json.assets)
+            ? (json.assets as AssetRecord[])
+            : [];
+          const generationErrors = Array.isArray(json.errors)
+            ? json.errors.map(String)
+            : [];
+          setAssets((prev) => mergeAssets(prev, generatedAssets));
+          if (generationErrors.length) {
+            setError(
+              `${generationErrors.length} of ${expected} renders failed: ${generationErrors[0]}`,
+            );
+          }
+          return true;
+        }
+        keepPending = true;
+        throw new Error(
+          "Generation is still processing. This page will resume it on your next visit.",
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Generation failed");
+        return false;
+      } finally {
+        if (!keepPending) localStorage.removeItem(PENDING_GENERATION_KEY);
+        setPending(0);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (resumedPendingGeneration.current) return;
+    resumedPendingGeneration.current = true;
     try {
-      const res = await fetch("/api/assets/generate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
-      setAssets((prev) => mergeAssets(prev, json.assets ?? []));
-      if (json.errors?.length) setError(`${json.errors.length} of ${expected} renders failed: ${json.errors[0]}`);
-      return true;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed");
-      return false;
-    } finally {
-      setPending(0);
+      const pending = JSON.parse(
+        localStorage.getItem(PENDING_GENERATION_KEY) ?? "null",
+      ) as PendingGeneration | null;
+      if (pending?.body && pending.expected && pending.idempotencyKey) {
+        void callGenerate(
+          pending.body,
+          pending.expected,
+          pending.idempotencyKey,
+        );
+      }
+    } catch {
+      localStorage.removeItem(PENDING_GENERATION_KEY);
     }
-  }
+  }, [callGenerate]);
 
   async function generate() {
     if (!prompt.trim() || busy) return;
@@ -126,7 +244,9 @@ export default function AssetsPage() {
         {
           prompt: asset.subject,
           description: asset.description ?? undefined,
-          pose: asset.sheetPoses ? undefined : (variantPose[asset.id] ?? asset.pose ?? undefined),
+          pose: asset.sheetPoses
+            ? undefined
+            : (variantPose[asset.id] ?? asset.pose ?? undefined),
           sheet: Boolean(asset.sheetPoses),
           gameSlug: asset.gameSlug ?? gameSlug,
           sourceId: asset.id,
@@ -154,7 +274,7 @@ export default function AssetsPage() {
       {
         prompt: asset.subject,
         description: asset.description ?? undefined,
-        pose: asset.sheetPoses ? undefined : asset.pose ?? undefined,
+        pose: asset.sheetPoses ? undefined : (asset.pose ?? undefined),
         sheet: Boolean(asset.sheetPoses),
         gameSlug: asset.gameSlug ?? gameSlug,
         sourceId: asset.id,
@@ -176,7 +296,8 @@ export default function AssetsPage() {
         body: JSON.stringify({ id: asset.id }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `Slice failed (${res.status})`);
+      if (!res.ok)
+        throw new Error(json.error ?? `Slice failed (${res.status})`);
       setAssets((prev) => mergeAssets(prev, json.assets ?? []));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Slice failed");
@@ -196,7 +317,9 @@ export default function AssetsPage() {
         body: JSON.stringify({ ids: frames.map((frame) => frame.id) }),
       });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({ error: `Zip failed (${res.status})` }));
+        const json = await res
+          .json()
+          .catch(() => ({ error: `Zip failed (${res.status})` }));
         throw new Error(json.error ?? `Zip failed (${res.status})`);
       }
       const blob = await res.blob();
@@ -223,12 +346,15 @@ export default function AssetsPage() {
           Generate game sprites.
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ash">
-          Nano Banana 2 renders through Replicate using the studio art bible, framed for the
-          selected game. Reprints reuse the original image so the character stays consistent.
+          Nano Banana 2 renders through Replicate using the studio art bible,
+          framed for the selected game. Reprints reuse the original image so the
+          character stays consistent.
         </p>
 
         <div className="mt-10 rounded-md border border-gunmetal bg-coal p-6">
-          <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">Game</p>
+          <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">
+            Game
+          </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {GAMES.map((g) => (
               <button
@@ -280,7 +406,8 @@ export default function AssetsPage() {
             htmlFor="sprite-description"
             className="mt-4 block font-display text-xs font-bold uppercase tracking-widest text-ash"
           >
-            Character design <span className="text-ash/50">(keeps renders consistent)</span>
+            Character design{" "}
+            <span className="text-ash/50">(keeps renders consistent)</span>
           </label>
           <textarea
             id="sprite-description"
@@ -292,22 +419,39 @@ export default function AssetsPage() {
           />
           <div className="mt-4 flex flex-wrap gap-8">
             <div>
-              <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">Mode</p>
+              <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">
+                Mode
+              </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <button type="button" onClick={() => setSheet(false)} className={chip(!sheet)}>
+                <button
+                  type="button"
+                  onClick={() => setSheet(false)}
+                  className={chip(!sheet)}
+                >
                   single
                 </button>
-                <button type="button" onClick={() => setSheet(true)} className={chip(sheet)}>
+                <button
+                  type="button"
+                  onClick={() => setSheet(true)}
+                  className={chip(sheet)}
+                >
                   1×4 pose sheet
                 </button>
               </div>
             </div>
             {!sheet && (
               <div>
-                <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">Pose</p>
+                <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">
+                  Pose
+                </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {POSES.map((p) => (
-                    <button key={p} type="button" onClick={() => setPose(p)} className={chip(pose === p)}>
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPose(p)}
+                      className={chip(pose === p)}
+                    >
                       {p}
                     </button>
                   ))}
@@ -315,10 +459,17 @@ export default function AssetsPage() {
               </div>
             )}
             <div>
-              <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">Batch</p>
+              <p className="font-display text-xs font-bold uppercase tracking-widest text-ash">
+                Batch
+              </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {BATCH_SIZES.map((n) => (
-                  <button key={n} type="button" onClick={() => setBatch(n)} className={chip(batch === n)}>
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setBatch(n)}
+                    className={chip(batch === n)}
+                  >
                     ×{n}
                   </button>
                 ))}
@@ -335,11 +486,14 @@ export default function AssetsPage() {
         <h2 className="mt-14 font-display text-2xl font-bold uppercase tracking-tight text-bone">
           Gallery
           <span className="ml-3 text-sm font-normal normal-case tracking-normal text-ash">
-            {topLevelAssets.length} asset{topLevelAssets.length === 1 ? "" : "s"}
+            {topLevelAssets.length} asset
+            {topLevelAssets.length === 1 ? "" : "s"}
           </span>
         </h2>
         {topLevelAssets.length === 0 && !busy ? (
-          <p className="mt-4 text-sm text-ash/70">Nothing generated yet. Render your first sprite above.</p>
+          <p className="mt-4 text-sm text-ash/70">
+            Nothing generated yet. Render your first sprite above.
+          </p>
         ) : (
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: pending }, (_, i) => (
@@ -349,7 +503,10 @@ export default function AssetsPage() {
               >
                 <div className="flex aspect-square w-full animate-pulse items-center justify-center bg-void">
                   <div className="flex flex-col items-center gap-3 text-ash">
-                    <Loader2 className="size-8 animate-spin text-hellfire" aria-hidden="true" />
+                    <Loader2
+                      className="size-8 animate-spin text-hellfire"
+                      aria-hidden="true"
+                    />
                     <span className="font-display text-xs font-bold uppercase tracking-widest">
                       Rendering…
                     </span>
@@ -409,7 +566,9 @@ export default function AssetsPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs leading-relaxed text-ash">{asset.subject}</p>
+                    <p className="text-xs leading-relaxed text-ash">
+                      {asset.subject}
+                    </p>
                     {asset.editInstruction && (
                       <p className="rounded-md border border-gunmetal/70 bg-void/60 px-3 py-2 text-xs leading-relaxed text-ash">
                         <span className="font-bold text-bone">Edit:</span>{" "}
@@ -450,9 +609,14 @@ export default function AssetsPage() {
                     <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-gunmetal/60 pt-3">
                       {!asset.sheetPoses && (
                         <select
-                          value={variantPose[asset.id] ?? asset.pose ?? POSES[0]}
+                          value={
+                            variantPose[asset.id] ?? asset.pose ?? POSES[0]
+                          }
                           onChange={(e) =>
-                            setVariantPose((prev) => ({ ...prev, [asset.id]: e.target.value }))
+                            setVariantPose((prev) => ({
+                              ...prev,
+                              [asset.id]: e.target.value,
+                            }))
                           }
                           aria-label="Pose for reprint"
                           className="flex-1 rounded-md border border-gunmetal bg-void px-2 py-1.5 text-xs text-bone focus:border-hellfire focus:outline-none"
@@ -472,11 +636,16 @@ export default function AssetsPage() {
                           className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-gunmetal px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {slicingId === asset.id ? (
-                            <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                            <Loader2
+                              className="size-3.5 animate-spin"
+                              aria-hidden="true"
+                            />
                           ) : (
                             <Scissors className="size-3.5" aria-hidden="true" />
                           )}
-                          {frames.length >= expectedFrames ? "Frames ready" : "Slice frames"}
+                          {frames.length >= expectedFrames
+                            ? "Frames ready"
+                            : "Slice frames"}
                         </button>
                       )}
                       {frames.length > 0 && (
@@ -487,7 +656,10 @@ export default function AssetsPage() {
                           className="inline-flex items-center gap-1.5 rounded-md border border-gunmetal px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {zippingId === asset.id ? (
-                            <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                            <Loader2
+                              className="size-3.5 animate-spin"
+                              aria-hidden="true"
+                            />
                           ) : (
                             <Archive className="size-3.5" aria-hidden="true" />
                           )}
@@ -497,7 +669,9 @@ export default function AssetsPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          editingId === asset.id ? setEditingId(null) : openEditor(asset)
+                          editingId === asset.id
+                            ? setEditingId(null)
+                            : openEditor(asset)
                         }
                         disabled={busy}
                         aria-expanded={editingId === asset.id}
@@ -513,7 +687,10 @@ export default function AssetsPage() {
                         className="inline-flex items-center gap-1.5 rounded-md border border-gunmetal px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-bone hover:border-hellfire hover:text-hellfire disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {regeneratingId === asset.id ? (
-                          <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                          <Loader2
+                            className="size-3.5 animate-spin"
+                            aria-hidden="true"
+                          />
                         ) : (
                           <RefreshCw className="size-3.5" aria-hidden="true" />
                         )}
@@ -532,7 +709,9 @@ export default function AssetsPage() {
                       <AssetEditPanel
                         busy={busy}
                         onCancel={() => setEditingId(null)}
-                        onSubmit={(instruction, count) => editAsset(asset, instruction, count)}
+                        onSubmit={(instruction, count) =>
+                          editAsset(asset, instruction, count)
+                        }
                       />
                     )}
                   </figcaption>
