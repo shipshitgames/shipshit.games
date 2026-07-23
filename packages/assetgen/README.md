@@ -170,6 +170,21 @@ curl -fsSL https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js
   | openssl dgst -sha384 -binary | openssl base64 -A
 ```
 
+### HD-2D bake contract
+
+`@shipshitgames/assetgen/hd2d-bake` exports the versioned, renderer-agnostic
+handoff for the model-to-sprite bake lane. `validateHd2dBakeManifest` checks
+source-model provenance, safe relative paths, camera-family selection, action
+timing, views, pivots/origins, and runtime direction bindings before any stage
+touches a renderer or filesystem. `buildHd2dBakePlan` then emits a canonical
+action × view × frame worklist, clip frame ranges, output paths, and typed
+direction-to-clip bindings.
+
+The checked-in presets cover FPS billboard, top-down, isometric, arcade, and
+side-on reads with bone/blood/hellfire lighting. This contract does not render
+GLBs, sample skeletons, pixelize frames, or write assets; those are explicit
+downstream stages so every boundary stays independently testable.
+
 ## Draft & promote (issue #54)
 
 By default `generate` writes straight into `src/assets/assets.json`. Pass

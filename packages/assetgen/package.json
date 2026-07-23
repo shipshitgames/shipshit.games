@@ -27,6 +27,10 @@
       "types": "./src/asset-qa/index.ts",
       "default": "./src/asset-qa/index.ts"
     },
+    "./hd2d-bake": {
+      "types": "./src/hd2d-bake.ts",
+      "default": "./src/hd2d-bake.ts"
+    },
     "./asset-qa.schema.json": "./asset-qa.schema.json",
     "./src/*": "./src/*"
   },
