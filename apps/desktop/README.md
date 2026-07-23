@@ -234,6 +234,44 @@ repo-relative subdirectory. `command` + `args` may be used instead for a custom
 launcher. If `url` is present, the Studio opens it externally after starting the
 process.
 
+## Gym checks
+
+Any gym with a `url` is checkable from the Gyms pane: Check boots the gym's
+process, polls the url until it answers, then drives it with the tester CLI
+(`packages/tester`) and records the verdict — pass only comes from a parsed
+`report.json` with `pass: true`; boot failures, readiness timeouts, and operator
+stops always finalize as failed. Run records and tester artifacts (report,
+screenshots) live under `userData/gym-checks/<runId>/`, and every spawned child
+dies with the run. An optional `tester` block tunes the drive — all fields are
+optional, `press`/`hold`/`shots` accept a string or an array, numbers clamp to
+sane ranges. Set `SSG_TESTER_CHANNEL=chrome` to run checks against a
+preinstalled Chrome instead of the Playwright-managed Chromium.
+
+```json
+{
+  "gyms": [
+    {
+      "id": "playable",
+      "command": "node",
+      "args": ["server.mjs", "5175"],
+      "url": "http://127.0.0.1:5175/",
+      "tester": {
+        "ready": "flag:__GAME_READY__",
+        "canvas": "#scene",
+        "press": ["ArrowRight", "Space"],
+        "hold": ["ArrowUp:400"],
+        "shots": ["after-input"],
+        "observeMs": 2000,
+        "frames": 0,
+        "checkBlank": true,
+        "readyTimeoutMs": 15000,
+        "bootTimeoutMs": 30000
+      }
+    }
+  ]
+}
+```
+
 The Homebrew cask should point at the signed/notarized `.dmg` uploaded to a
 GitHub release.
 

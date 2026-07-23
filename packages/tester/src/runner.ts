@@ -209,7 +209,10 @@ export async function runGameTest(opts: TesterOptions): Promise<GameTestReport> 
 
   try {
     await mkdir(opts.outDir, { recursive: true });
-    browser = await chromium.launch({ headless: !opts.headed });
+    browser = await chromium.launch({
+      headless: !opts.headed,
+      ...(opts.channel ? { channel: opts.channel } : {}),
+    });
     const context = await browser.newContext({ viewport: opts.viewport });
     page = await context.newPage();
     page.on("console", (msg) => {

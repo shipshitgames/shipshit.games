@@ -29,6 +29,11 @@ export const IPC_INVOKE_CHANNELS = {
   projectsSetActive: "projects:setActive",
   gymsList: "gyms:list",
   gymsLaunch: "gyms:launch",
+  gymsCheckStart: "gyms:checkStart",
+  gymsCheckList: "gyms:checkList",
+  gymsCheckGet: "gyms:checkGet",
+  gymsCheckStop: "gyms:checkStop",
+  gymsCheckImage: "gyms:checkImage",
   keysStatus: "keys:status",
   keysSet: "keys:set",
   studioModels: "studio:models",
@@ -67,6 +72,7 @@ export const IPC_EVENT_CHANNELS = {
   studioTranscodeLog: "studio:transcode-log",
   terminalData: "terminal:data",
   terminalExit: "terminal:exit",
+  gymsCheckEvent: "gyms:check-event",
 } as const;
 
 export const IPC_CHANNELS = {
@@ -305,6 +311,19 @@ export interface ProjectState {
   activeManifestPath: string | null;
 }
 
+export interface GymTesterConfig {
+  ready: string;
+  readyTimeoutMs: number;
+  canvas: string;
+  press: string[];
+  hold: string[];
+  shots: string[];
+  observeMs: number;
+  frames: number;
+  checkBlank: boolean;
+  bootTimeoutMs: number;
+}
+
 export interface GymSummary {
   id: string;
   label: string;
@@ -315,6 +334,74 @@ export interface GymSummary {
   args: string[];
   url: string | null;
   cwd: string;
+  tester: GymTesterConfig | null;
+}
+
+export type GymCheckStatus = "booting" | "testing" | "passed" | "failed";
+
+export interface GymCheckScreenshot {
+  name: string;
+  /** Basename inside the run's tester directory. */
+  file: string;
+  atMs: number;
+}
+
+export interface GymCheckReportSummary {
+  pass: boolean;
+  failures: string[];
+  pageErrors: string[];
+  consoleErrors: string[];
+  ready: {
+    ok: boolean;
+    mode: string;
+    waitedMs: number;
+    error: string | null;
+  };
+  canvas: {
+    found: boolean;
+    selector: string;
+    width: number;
+    height: number;
+    blank: boolean | null;
+    fillRatio: number | null;
+    uniqueColors: number | null;
+  };
+  screenshots: GymCheckScreenshot[];
+  durationMs: number;
+  url: string;
+}
+
+export interface GymCheckRun {
+  id: string;
+  projectId: string;
+  projectName: string;
+  gymId: string;
+  gymLabel: string;
+  url: string;
+  status: GymCheckStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  error: string | null;
+  bootLog: string;
+  testerLog: string;
+  report: GymCheckReportSummary | null;
+  reportDir: string;
+  pid: number | null;
+}
+
+export interface GymCheckStartResult {
+  ok: boolean;
+  runId?: string;
+  error?: string;
+  run?: GymCheckRun;
+}
+
+export interface GymCheckEventPayload {
+  runId: string;
+  status: GymCheckStatus;
+  chunk?: string;
+  source?: "boot" | "tester";
+  done?: boolean;
 }
 
 export interface GymProject {
@@ -564,6 +651,7 @@ export interface StudioEventPayloads {
   [IPC_EVENT_CHANNELS.studioTranscodeLog]: string;
   [IPC_EVENT_CHANNELS.terminalData]: TerminalPayload;
   [IPC_EVENT_CHANNELS.terminalExit]: TerminalExitPayload;
+  [IPC_EVENT_CHANNELS.gymsCheckEvent]: GymCheckEventPayload;
 }
 
 export interface StudioApi {
@@ -638,6 +726,19 @@ export interface StudioApi {
     list: () => Promise<GymsState>;
     launch: (projectId: string, gymId: string) => Promise<GymLaunchResult>;
   };
+  gymChecks: {
+    start: (projectId: string, gymId: string) => Promise<GymCheckStartResult>;
+    list: (projectId?: string) => Promise<{ runs: GymCheckRun[] }>;
+    get: (runId: string) => Promise<{ run: GymCheckRun | null }>;
+    stop: (runId: string) => Promise<{ ok: boolean; error?: string }>;
+    image: (
+      runId: string,
+      file: string,
+    ) => Promise<{ dataUrl: string; bytes: number } | null>;
+  };
+  onGymCheckEvent: (
+    callback: (payload: GymCheckEventPayload) => void,
+  ) => () => void;
   keys: {
     status: () => Promise<Record<string, boolean>>;
     set: (provider: string, key: string) => Promise<Record<string, boolean>>;

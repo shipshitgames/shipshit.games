@@ -63,6 +63,8 @@ export interface TesterOptions {
   clickTimeoutMs: number;
   /** Run a headed browser (default headless). */
   headed: boolean;
+  /** Browser channel to launch (e.g. "chrome"); "" uses the Playwright-managed chromium. */
+  channel: string;
   /** When set, write the JSON report here (defaults to <outDir>/report.json). */
   reportJsonPath: string;
   /** When set, write the Markdown report here (defaults to <outDir>/report.md). */
