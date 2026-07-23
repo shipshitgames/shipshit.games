@@ -19,6 +19,10 @@
       "types": "./src/sprites.ts",
       "default": "./src/sprites.ts"
     },
+    "./pose-set": {
+      "types": "./src/pose-set.ts",
+      "default": "./src/pose-set.ts"
+    },
     "./replicate": {
       "types": "./src/replicate.ts",
       "default": "./src/replicate.ts"
@@ -32,6 +36,7 @@
       "default": "./src/hd2d-bake.ts"
     },
     "./asset-qa.schema.json": "./asset-qa.schema.json",
+    "./pose-set.schema.json": "./pose-set.schema.json",
     "./src/*": "./src/*"
   },
   "scripts": {
