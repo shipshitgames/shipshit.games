@@ -90,6 +90,7 @@ class MemoryGenerationJobs implements GenerationJobStore {
   jobs = new Map<string, GenerationJobRecord>();
   idempotency = new Map<string, string>();
   runs: ProviderRunRecord[] = [];
+  leaseOwners = new Map<string, string>();
   settledCredits = 0;
 
   async reserve(input: ReserveGenerationJobInput) {
@@ -124,7 +125,7 @@ class MemoryGenerationJobs implements GenerationJobStore {
   async claim(
     ownerId: string,
     jobId: string,
-    _leaseOwner: string,
+    leaseOwner: string,
     leaseExpiresAt: Date,
   ): Promise<ClaimGenerationJobResult> {
     const job = this.jobs.get(jobId)!;
@@ -138,30 +139,42 @@ class MemoryGenerationJobs implements GenerationJobStore {
     job.status = "processing";
     job.attemptCount += 1;
     job.leaseExpiresAt = leaseExpiresAt;
+    this.leaseOwners.set(jobId, leaseOwner);
     return { state: "claimed", job: { ...job } };
   }
 
   async renewLease(
     ownerId: string,
     jobId: string,
-    _leaseOwner: string,
+    leaseOwner: string,
     leaseExpiresAt: Date,
   ) {
     const job = this.jobs.get(jobId);
-    if (!job || job.ownerId !== ownerId || job.status !== "processing") {
+    if (
+      !job ||
+      job.ownerId !== ownerId ||
+      job.status !== "processing" ||
+      this.leaseOwners.get(jobId) !== leaseOwner
+    ) {
       return false;
     }
     job.leaseExpiresAt = leaseExpiresAt;
     return true;
   }
 
-  async requeue(ownerId: string, jobId: string, _leaseOwner: string) {
+  async requeue(ownerId: string, jobId: string, leaseOwner: string) {
     const job = this.jobs.get(jobId);
-    if (!job || job.ownerId !== ownerId || job.status !== "processing") {
+    if (
+      !job ||
+      job.ownerId !== ownerId ||
+      job.status !== "processing" ||
+      this.leaseOwners.get(jobId) !== leaseOwner
+    ) {
       return false;
     }
     job.status = "queued";
     job.leaseExpiresAt = null;
+    this.leaseOwners.delete(jobId);
     return true;
   }
 
@@ -243,6 +256,7 @@ class MemoryGenerationJobs implements GenerationJobStore {
     job.status = "succeeded";
     job.result = result;
     job.leaseExpiresAt = null;
+    this.leaseOwners.delete(jobId);
     return { ...job };
   }
 
@@ -259,6 +273,7 @@ class MemoryGenerationJobs implements GenerationJobStore {
     job.status = "failed";
     job.error = error;
     job.leaseExpiresAt = null;
+    this.leaseOwners.delete(jobId);
     return { ...job };
   }
 }
