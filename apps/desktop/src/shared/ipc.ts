@@ -8,6 +8,10 @@
 export const IPC_INVOKE_CHANNELS = {
   studioGenerate: "studio:generate",
   studioPixelize: "studio:pixelize",
+  spritesList: "sprites:list",
+  spritesLoad: "sprites:load",
+  spritesSaveDraft: "sprites:saveDraft",
+  spritesPromote: "sprites:promote",
   studioListGames: "studio:listGames",
   studioResearch: "studio:research",
   resourcesList: "resources:list",
@@ -93,6 +97,7 @@ export interface GenerateOptions {
   ktx2?: boolean;
   draco?: boolean;
   rig?: string;
+  draft?: boolean;
 }
 
 export interface GenResult {
@@ -122,6 +127,51 @@ export interface PixelizeResult {
   cutout?: { tool: string; reason?: string } | null;
   log?: string;
   error?: string;
+}
+
+export type SpriteEditorOrigin = "draft" | "promoted";
+
+export interface SpriteEditorAsset {
+  id: string;
+  kind: string;
+  game: string;
+  path: string;
+  origin: SpriteEditorOrigin;
+  prompt: string | null;
+  provider: string | null;
+  dimensions: [number, number] | null;
+  frameSize: [number, number] | null;
+  frames: number;
+  fps: number | null;
+  views: string[];
+  sheet: { columns: number; rows: number; usedColumns: number; usedRows: number } | null;
+  provenance: Record<string, unknown> | null;
+  human: { authored: boolean; editKind?: string } | null;
+  license: Record<string, unknown>;
+}
+
+export interface SpriteEditorListResult {
+  ok: boolean;
+  projectId: string;
+  game: string;
+  assets: SpriteEditorAsset[];
+  error?: string;
+}
+
+export interface SpriteEditorLoadResult {
+  ok: boolean;
+  asset?: SpriteEditorAsset;
+  dataUrl?: string;
+  error?: string;
+}
+
+export interface SpriteEditorSaveResult extends SpriteEditorLoadResult {
+  correctedOffPalette?: number;
+  log?: string;
+}
+
+export interface SpriteEditorPromoteResult extends SpriteEditorLoadResult {
+  log?: string;
 }
 
 export interface ResearchResult {
@@ -503,6 +553,20 @@ export interface StudioApi {
   versions: Record<string, string>;
   generate: (opts: GenerateOptions) => Promise<GenResult>;
   pixelize: (opts: PixelizeOptions) => Promise<PixelizeResult>;
+  sprites: {
+    list: (projectId: string | undefined, game: string) => Promise<SpriteEditorListResult>;
+    load: (projectId: string | undefined, game: string, asset: Pick<SpriteEditorAsset, "id" | "kind" | "origin">) => Promise<SpriteEditorLoadResult>;
+    saveDraft: (opts: {
+      projectId?: string;
+      game: string;
+      asset: Pick<SpriteEditorAsset, "id" | "kind" | "origin">;
+      dataUrl: string;
+      width: number;
+      height: number;
+      offPaletteCount: number;
+    }) => Promise<SpriteEditorSaveResult>;
+    promote: (projectId: string | undefined, game: string, asset: Pick<SpriteEditorAsset, "id" | "kind" | "origin">) => Promise<SpriteEditorPromoteResult>;
+  };
   listGames: () => Promise<string[]>;
   onGenLog: (cb: (chunk: string) => void) => () => void;
   research: (opts: { url: string; slug: string; provider?: string }) => Promise<ResearchResult>;

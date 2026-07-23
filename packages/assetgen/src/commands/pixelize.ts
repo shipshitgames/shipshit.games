@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import { pixelizeDetailed, resolvePaletteByName, PIXELIZE_PALETTES } from "../pixelize.ts";
+import { pixelizeDetailed } from "../pixelize.ts";
+import { resolvePaletteByName, PIXELIZE_PALETTES } from "../pixelize-palette.ts";
 import { normalizeCutoutMode } from "../pixelize-opts.ts";
 import { maybeUpscale, normalizeScale } from "../upscale.ts";
 import { flag, has, intFlag } from "./args.ts";
@@ -11,7 +12,8 @@ export async function runPixelizeCommand(argv: string[]): Promise<void> {
   if (!inPath || !outPath) {
     console.error(
       "usage: assetgen pixelize --in <raw.png> --out <sprite.webp> [--height 110] [--bg 42] " +
-        "[--cutout auto|rembg|flood|none] [--palette doom] [--upscale] [--upscale-scale 2|4] [--upscale-model <name>]",
+        "[--cutout auto|rembg|flood|none] [--palette doom] [--no-trim] [--preserve-size] " +
+        "[--upscale] [--upscale-scale 2|4] [--upscale-model <name>]",
     );
     process.exit(1);
   }
@@ -43,9 +45,12 @@ export async function runPixelizeCommand(argv: string[]): Promise<void> {
     bgThreshold: intFlag(argv, "bg", 42),
     cutout,
     palette,
+    trim: !has(argv, "no-trim"),
+    resize: !has(argv, "preserve-size"),
   });
   await mkdir(dirname(outPath), { recursive: true });
   await writeFile(outPath, buf);
   console.log(`[pixelize] cutout: ${cutoutInfo.tool}${cutoutInfo.reason ? ` (${cutoutInfo.reason})` : ""}`);
-  console.log(`[pixelize] ${inPath} -> ${outPath} (${(buf.length / 1024).toFixed(1)} kb, ${height}px grid)`);
+  const sizeLabel = has(argv, "preserve-size") ? "source dimensions" : `${height}px grid`;
+  console.log(`[pixelize] ${inPath} -> ${outPath} (${(buf.length / 1024).toFixed(1)} kb, ${sizeLabel})`);
 }

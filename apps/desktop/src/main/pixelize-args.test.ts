@@ -37,6 +37,14 @@ test("buildPixelizeArgs honors valid options", () => {
   expect(args.slice(-8)).toEqual(["--height", "180", "--bg", "60", "--cutout", "rembg", "--palette", "doom"]);
 });
 
+test("buildPixelizeArgs can palette-lock without trimming or resizing", () => {
+  const { args } = buildPixelizeArgs({
+    assetgenPath: ASSETGEN, inPath: IN, outPath: OUT,
+    opts: { trim: false, preserveSize: true },
+  });
+  expect(args.slice(-2)).toEqual(["--no-trim", "--preserve-size"]);
+});
+
 test("buildPixelizeArgs clamps wild grid height and bg threshold", () => {
   const tiny = buildPixelizeArgs({ assetgenPath: ASSETGEN, inPath: IN, outPath: OUT, opts: { height: 2, bgThreshold: -5 } });
   expect(tiny.height).toBe(16);

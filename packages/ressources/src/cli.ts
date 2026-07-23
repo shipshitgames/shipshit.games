@@ -23,6 +23,7 @@ import { distillSource } from "./distill-flow";
 import { packageRoot } from "./paths";
 import { generateRulesReport, type RulesReportOptions } from "./reports";
 import { promoteSkill } from "./skill-promoter";
+import { buildStreamContent, parseTimedTranscript } from "./stream-content";
 import { fetchTranscript } from "./transcript";
 import {
   isDuplicatePolicy,
@@ -30,6 +31,8 @@ import {
   type DerivativeKind,
   type DuplicatePolicy,
   type SourceManifest,
+  type StreamContentProvider,
+  type TimedTranscriptSegment,
   type TranscriptRightsStatus,
 } from "./types";
 
@@ -225,6 +228,76 @@ async function runDistill(): Promise<void> {
   log(`[wrote] ${out} (${(rules.length / 1024).toFixed(1)} kb)`);
 }
 
+async function runVodContent(): Promise<void> {
+  const sourceSlug = flag("source") ?? "shipshitshow";
+  const url = flag("url");
+  const transcriptFile = flag("transcript-file");
+  const providerFlag = flag("provider") ?? "codex";
+  const rightsFlag = flag("rights");
+  const duplicateFlag = flag("duplicate") ?? "skip";
+  const root = resolve(flag("root") ?? packageRoot);
+
+  if (!url) throw new Error("vod-content requires --url <youtube-url>");
+  if (argv.includes("--transcript-file") && !transcriptFile) {
+    throw new Error("--transcript-file requires a path");
+  }
+  if (argv.includes("--source") && !flag("source"))
+    throw new Error("--source requires a source slug");
+  if (argv.includes("--title") && !flag("title"))
+    throw new Error("--title requires a non-empty title");
+  if (argv.includes("--slug") && !flag("slug"))
+    throw new Error("--slug requires a non-empty slug");
+  if (argv.includes("--rights") && !rightsFlag) {
+    throw new Error("--rights requires a reviewed transcript rights status");
+  }
+  if (!isTranscriptRightsStatus(rightsFlag ?? "public-captions")) {
+    throw new Error(`unknown transcript rights status: ${rightsFlag}`);
+  }
+  if (!isDuplicatePolicy(duplicateFlag)) {
+    throw new Error(`unknown duplicate policy: ${duplicateFlag}`);
+  }
+  if (providerFlag !== "codex" && providerFlag !== "mock") {
+    throw new Error(`unknown provider: ${providerFlag} (use codex | mock)`);
+  }
+  if (transcriptFile && !rightsFlag) {
+    throw new Error(
+      "vod-content with --transcript-file requires explicit --rights",
+    );
+  }
+
+  let title = flag("title");
+  let transcript: string;
+  let segments: TimedTranscriptSegment[];
+  if (transcriptFile) {
+    transcript = await readFile(resolve(transcriptFile), "utf8");
+    segments = parseTimedTranscript(transcript);
+    if (!title)
+      throw new Error("vod-content with --transcript-file requires --title");
+  } else {
+    const fetched = await fetchTranscript(url, (message) =>
+      console.log(message),
+    );
+    transcript = fetched.transcript;
+    segments = fetched.segments;
+    title ??= fetched.title;
+  }
+
+  const result = await buildStreamContent({
+    sourceSlug,
+    title: title!,
+    url,
+    transcript,
+    segments,
+    rightsStatus: (rightsFlag ?? "public-captions") as TranscriptRightsStatus,
+    provider: providerFlag as StreamContentProvider,
+    duplicatePolicy: duplicateFlag,
+    slug: flag("slug"),
+    root,
+    log: (message) => console.log(message),
+  });
+  console.log(`[vod-content-${result.status}] ${result.manifestPath}`);
+}
+
 function help(): void {
   console.log(`usage: ressources <command> [flags]
 
@@ -238,6 +311,8 @@ commands:
   new-derivative    create a skill/app/tool/rule candidate
   promote-skill     promote a reviewed skill candidate into .agents/skills
   source-sync       sync YouTube channel video metadata with yt-dlp
+  vod-content       turn a timestamped VOD transcript into chapters, clips, newsletter, and devlog
+  stream-content    compatibility alias for vod-content
   rules-report      report derivative rules by source, topic, and status
   sync-channel      compatibility alias for source-sync
 
@@ -253,6 +328,8 @@ examples:
   bun packages/ressources/src/cli.ts new-derivative --kind skill --slug my-skill --title "My Skill" --source-transcript transcripts/source/video.resource.json
   bun packages/ressources/src/cli.ts promote-skill --candidate packages/ressources/derivatives/skills/my-skill.resource.json --dry-run
   bun packages/ressources/src/cli.ts source-sync --source ai-oriented-dev --limit 50
+  bun packages/ressources/src/cli.ts vod-content --url <youtube-url>
+  bun packages/ressources/src/cli.ts vod-content --transcript-file timed.txt --title "Stream title" --url <source-url> --rights user-provided --provider mock
   bun packages/ressources/src/cli.ts rules-report --out rules-report.md`);
 }
 
@@ -376,6 +453,12 @@ async function run(): Promise<void> {
         sourcesDir: root ? resolve(root, "sources") : undefined,
       });
       console.log(`[sync] ${synced.sourceSlug} videos=${synced.videos.length}`);
+      return;
+    }
+
+    case "vod-content":
+    case "stream-content": {
+      await runVodContent();
       return;
     }
 

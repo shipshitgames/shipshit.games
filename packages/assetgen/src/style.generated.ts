@@ -1,4 +1,4 @@
-/* GENERATED FROM lore/DESIGN.md v0.1.0 hash:73277f2a - DO NOT EDIT. Run: bun assetgen tokens */
+/* GENERATED FROM lore/DESIGN.md v0.1.0 hash:1e1658cd - DO NOT EDIT. Run: bun assetgen tokens */
 // Asset-generation style, compiled from DESIGN.md frontmatter.
 // style.ts re-exports these; edit the design source, not this file.
 
@@ -110,6 +110,20 @@ export const GRADE_PARAMS = {
   "preserveEmissive": true,
   "blackPoint": "#0a0a0a",
   "encode": "webp-lossless",
+  "softGrade": {
+    "strength": 0.18,
+    "valueRange": [
+      0.04,
+      0.9
+    ],
+    "temperatureRange": [
+      0,
+      0.45
+    ],
+    "alphaThreshold": 8,
+    "materialPixelRatio": 0.05,
+    "exampleLimit": 8
+  },
   "cutout": {
     "tool": "rembg",
     "order": "after-generate-before-downscale"

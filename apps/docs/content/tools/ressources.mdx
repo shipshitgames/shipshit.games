@@ -1,88 +1,245 @@
 ---
 title: Ressources
-description: Turn sources into reusable build rulesets.
+description: Capture cleared sources and promote reusable studio knowledge.
 ---
 
 # Ressources
 
-`packages/ressources` is the single studio package for source manifests,
-transcript capture, distillation, and derivative rules, skills, apps, and tool
-candidates.
+`@shipshitgames/ressources` is the package-first learning pipeline for the
+studio. It catalogs useful sources, records transcript provenance, distills
+original build rules, and promotes reviewed derivatives into rules, skills,
+apps, and tools.
 
 ```txt
-source -> transcript/resource -> distilled rule -> skill/app/tool candidate
+source manifest
+  -> transcript metadata (+ cleared text when allowed)
+  -> distilled rule
+  -> reviewed skill, app, or tool candidate
 ```
 
-There is no separate legacy research package. The legacy `research` binary name
-is only a compatibility alias for `packages/ressources/src/cli.ts`.
+The package and CLI are the source of truth. The Desktop Studio wraps those
+commands for local review; it does not implement a second capture, validation,
+or promotion pipeline.
 
-## Basic run
+## Install and validate
+
+Ressources is currently a private workspace package, so run it from a checkout
+of this monorepo:
 
 ```bash
-bun packages/ressources/src/cli.ts distill \
-  --url "https://www.youtube.com/watch?v=..." \
-  --out rules.md
+bun install
+bun packages/ressources/src/cli.ts validate
 ```
 
-## Offline proof
+The legacy `research` binary name is only a compatibility alias for the same
+CLI entrypoint. New documentation and integrations should use `ressources`.
 
-Use `mock` to prove extraction and output shape with no model.
+Use the inventory commands to inspect the library. Add `--json` when another
+tool, such as Desktop Studio, needs the stable machine-readable contract.
 
 ```bash
-bun packages/ressources/src/cli.ts distill \
-  --url "<url>" \
-  --provider mock \
-  --out /tmp/rules.md
+bun packages/ressources/src/cli.ts sources
+bun packages/ressources/src/cli.ts transcripts --json
+bun packages/ressources/src/cli.ts derivatives --json
 ```
 
-## Already have a transcript
+## Distill a source
 
-```bash
-bun packages/ressources/src/cli.ts distill \
-  --transcript-file transcript.txt \
-  --title "Tutorial title" \
-  --out rules.md
-```
-
-## Transcript engine
-
-The preferred path is `yt-dlp` because YouTube timed text can require visitor
-or PoToken handling.
+Network capture of YouTube captions uses `yt-dlp` and prefers manual English
+captions when available:
 
 ```bash
 brew install yt-dlp
+
+bun packages/ressources/src/cli.ts distill \
+  --source ai-oriented-dev \
+  --url "https://www.youtube.com/watch?v=VIDEO_ID" \
+  --duplicate skip
 ```
 
-Optionally point to a specific binary:
+Set `RESSOURCES_YT_DLP` when the executable is not on `PATH`. Use the `mock`
+provider to prove the extraction and output shape without a model call:
 
 ```bash
-RESSOURCES_YT_DLP=/path/to/yt-dlp bun packages/ressources/src/cli.ts distill --url "<url>"
+bun packages/ressources/src/cli.ts distill \
+  --url "https://example.com/tutorial" \
+  --provider mock \
+  --out /tmp/example-rules.md
 ```
 
-## Raw transcript policy
+If you already have transcript text with known rights, distill it without a
+network request:
 
-Every source manifest must declare `rights.transcriptPolicy`,
-`rights.storeRawTranscript`, and `rights.notes`.
+```bash
+bun packages/ressources/src/cli.ts distill \
+  --source ai-oriented-dev \
+  --transcript-file transcript.txt \
+  --title "Tutorial title" \
+  --url "https://example.com/tutorial" \
+  --rights user-provided \
+  --out-transcript packages/ressources/transcripts/ai-oriented-dev/tutorial.transcript.md \
+  --duplicate versioned
+```
 
-Raw transcript text may be committed only when the source manifest opts in with
-`storeRawTranscript: true` and the transcript sidecar records known rights, such
-as `user-provided`, `permissioned`, `official-api`, or `public-captions`.
-Sources with `storeRawTranscript: false` should stay as links plus original
-distilled notes.
+Omit `--out-transcript` when the raw text must not be stored. Source-aware
+distillation still writes the transcript metadata sidecar and the original
+rules derivative.
 
-Run validation before promoting new source or transcript material:
+## Create records explicitly
+
+Create a transcript placeholder before dropping in cleared text:
+
+```bash
+bun packages/ressources/src/cli.ts new-transcript \
+  --source ai-oriented-dev \
+  --url "https://www.youtube.com/watch?v=VIDEO_ID" \
+  --title "Tutorial title"
+```
+
+Create a rule, skill, app, or tool candidate from transcript or rule manifests:
+
+```bash
+bun packages/ressources/src/cli.ts new-derivative \
+  --kind skill \
+  --slug ai-oriented-level-design-loop \
+  --title "AI Oriented Level Design Loop" \
+  --source-transcript transcripts/ai-oriented-dev/tutorial.resource.json
+```
+
+Skill candidates have an explicit review gate. Preview the generated skill,
+then approve the unchanged candidate:
+
+```bash
+bun packages/ressources/src/cli.ts promote-skill \
+  --candidate packages/ressources/derivatives/skills/ai-oriented-level-design-loop.resource.json \
+  --dry-run
+
+bun packages/ressources/src/cli.ts promote-skill \
+  --candidate packages/ressources/derivatives/skills/ai-oriented-level-design-loop.resource.json \
+  --approve
+```
+
+Promotion never commits or publishes the generated skill.
+
+## Manifest contracts
+
+The schemas in `packages/ressources/schemas` are the public contracts and the
+runtime validation source of truth:
+
+| Record     | Location                               | Schema                            |
+| ---------- | -------------------------------------- | --------------------------------- |
+| Source     | `sources/<source>/source.json`         | `source.schema.json`              |
+| Transcript | `transcripts/<source>/*.resource.json` | `transcript-resource.schema.json` |
+| Derivative | `derivatives/<kind>/*.resource.json`   | `derivative.schema.json`          |
+
+A source manifest declares what the source is for and how its transcript may be
+handled:
+
+```json
+{
+  "schemaVersion": 1,
+  "slug": "example-game-dev",
+  "kind": "youtube-channel",
+  "title": "Example Game Dev",
+  "url": "https://example.com/channel",
+  "priority": "inbox",
+  "status": "active",
+  "topics": ["game-production"],
+  "rights": {
+    "transcriptPolicy": "permissioned",
+    "storeRawTranscript": true,
+    "notes": "Written permission covers transcript storage in this repository."
+  },
+  "desiredOutputs": ["rule", "skill"],
+  "notes": ["Extract repeatable production workflows, not general commentary."]
+}
+```
+
+A derivative manifest links original work back to its source records:
+
+```json
+{
+  "schemaVersion": 1,
+  "slug": "example-level-design-loop",
+  "kind": "skill",
+  "title": "Example Level Design Loop",
+  "status": "candidate",
+  "sourceTranscripts": ["transcripts/example-game-dev/tutorial.resource.json"],
+  "outputPath": "derivatives/skills/example-level-design-loop.md",
+  "summary": "A reviewed, repeatable level-design workflow.",
+  "tags": ["level-design", "game-production"]
+}
+```
+
+`validate` checks schema shape plus cross-file rules: unique slugs, valid
+transcript-to-source links, confined output paths, referenced file existence,
+and raw-transcript storage policy.
+
+## Rights and copyright policy
+
+Do not mirror copyrighted books, articles, documentation, videos, or captions
+into this repository merely because they are reachable online.
+
+- Every source must declare `rights.transcriptPolicy`,
+  `rights.storeRawTranscript`, and source-specific handling notes.
+- Raw transcript text may be committed only when its recorded rights are
+  `user-provided`, `permissioned`, `official-api`, or `public-captions` and the
+  source manifest permits storage.
+- `unknown` rights never authorize raw-text storage.
+- When storage is not allowed, keep only the source link, transcript metadata,
+  and original distilled notes.
+- Derivatives must be original, specific, and useful. Never copy raw transcript
+  passages into rules, skills, app specs, or tool specs.
+- Never store secrets, credentials, personal data, or private source material.
+
+Run validation before opening a pull request that adds or changes library
+records:
 
 ```bash
 bun packages/ressources/src/cli.ts validate
 ```
 
-## Output rule
+## Contribution flow
 
-Ressources output should be concrete enough that an agent can build from it:
+1. Add or update `sources/<slug>/source.json` with topics, desired outputs, and
+   an explicit rights policy.
+2. Create transcript metadata with `new-transcript`, or use source-aware
+   `distill` to produce the metadata and first rule together.
+3. Add raw transcript text only when both the source policy and recorded rights
+   allow it.
+4. Distill concrete implementation rules; do not submit transcript summaries
+   with no reusable workflow.
+5. Create a `rule`, `skill`, `app`, or `tool` candidate with
+   `new-derivative`. Rules capture durable constraints; skills capture
+   repeatable agent workflows; apps and tools capture bounded product or CLI
+   opportunities.
+6. Run `validate`, inspect the derivative inventory, and review provenance.
+7. For skills, run `promote-skill --dry-run` before `--approve`. Review and
+   commit the generated `.agents/skills/<slug>/SKILL.md` separately.
 
-- extracted mechanic or implementation rules
-- important constraints
-- reusable checklists
-- source URL and title
-- no raw transcript dumps in derivative files
-- no secrets or personal data
+The checked-in `fixtures/valid` and `fixtures/invalid` trees show minimal
+records without relying on third-party content.
+
+## Package-first, desktop-wrapped
+
+`packages/ressources` owns manifests, schemas, capture, distillation,
+validation, inventories, reporting, and promotion. `apps/desktop` invokes the
+same CLI, streams logs, renders its JSON inventories, previews confined
+derivatives, and enforces the same dry-run-before-approval skill gate.
+
+This boundary keeps headless CI, direct CLI use, and the desktop UI on one
+contract. New reusable behavior belongs in the package first; Electron should
+only orchestrate and present it.
+
+## Toolbox roadmap
+
+The complete toolbox plan is tracked in
+[epic #96](https://github.com/shipshitgames/shipshit.games/issues/96). Its first
+implementation slices cover the
+[package boundary](https://github.com/shipshitgames/shipshit.games/issues/97),
+[inventory commands](https://github.com/shipshitgames/shipshit.games/issues/98),
+[source distillation](https://github.com/shipshitgames/shipshit.games/issues/99),
+[CI fixtures](https://github.com/shipshitgames/shipshit.games/issues/100),
+[skill promotion](https://github.com/shipshitgames/shipshit.games/issues/103),
+[source reports](https://github.com/shipshitgames/shipshit.games/issues/104), and
+the [Desktop resources pane](https://github.com/shipshitgames/shipshit.games/issues/105).

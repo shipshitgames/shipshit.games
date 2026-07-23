@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { softGradeRgba, type ColorGamutReport, type SoftGradeConfig } from "./soft-grade";
 
 /** Round to the nearest integer and clamp into a valid 0-255 RGBA channel byte. */
 function toByte(value: number): number {
@@ -37,6 +38,13 @@ export interface ToWebpOptions {
   outlineTintStrength?: number;
   /** Max value any RGB channel may have for a pixel to count as a "black" outline. Default 32. */
   outlineTintThreshold?: number;
+  /** Opt into the canonical non-destructive color grade and advisory report. */
+  softGrade?: boolean | Partial<SoftGradeConfig>;
+}
+
+export interface ToWebpResult {
+  data: Buffer;
+  colorGamutReport?: ColorGamutReport;
 }
 
 export interface OutlineTintOptions {
@@ -201,6 +209,11 @@ export function tintHardOutline(
  * defringe the alpha edge, and encode an optimized (lossless by default) `.webp`.
  */
 export async function toWebp(buf: Buffer, opts: ToWebpOptions = {}): Promise<Buffer> {
+  return (await toWebpDetailed(buf, opts)).data;
+}
+
+/** `toWebp` plus the optional advisory gamut report used by pipeline sidecars. */
+export async function toWebpDetailed(buf: Buffer, opts: ToWebpOptions = {}): Promise<ToWebpResult> {
   const {
     size,
     lossless = true,
@@ -210,6 +223,7 @@ export async function toWebp(buf: Buffer, opts: ToWebpOptions = {}): Promise<Buf
     outlineTint = false,
     outlineTintStrength = 0.5,
     outlineTintThreshold = 32,
+    softGrade = false,
   } = opts;
 
   let img = sharp(buf).trim();
@@ -220,8 +234,17 @@ export async function toWebp(buf: Buffer, opts: ToWebpOptions = {}): Promise<Buf
     });
   }
 
-  if (defringe || outlineTint) {
+  let colorGamutReport: ColorGamutReport | undefined;
+  if (defringe || outlineTint || softGrade) {
     const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    if (softGrade) {
+      colorGamutReport = softGradeRgba(
+        data,
+        info.width,
+        info.height,
+        typeof softGrade === "object" ? softGrade : {},
+      ).report;
+    }
     // Tint the outline first so the recoloured silhouette — not raw black — is
     // what `bleedAlphaEdges` then dilates outward into the transparent margin.
     if (outlineTint) {
@@ -235,5 +258,6 @@ export async function toWebp(buf: Buffer, opts: ToWebpOptions = {}): Promise<Buf
   }
 
   const webp = lossless ? { lossless: true, effort: 5 } : { quality, effort: 5 };
-  return img.webp(webp).toBuffer();
+  const data = await img.webp(webp).toBuffer();
+  return { data, ...(colorGamutReport ? { colorGamutReport } : {}) };
 }
