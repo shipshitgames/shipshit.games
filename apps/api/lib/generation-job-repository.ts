@@ -349,6 +349,24 @@ export const generationJobRepository: GenerationJobStore = {
     return renewed.count === 1;
   },
 
+  async requeue(ownerId, jobId, leaseOwner) {
+    const requeued = await db.generationJob.updateMany({
+      where: {
+        id: jobId,
+        ownerId,
+        status: "processing",
+        leaseOwner,
+      },
+      data: {
+        status: "queued",
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        retryAt: new Date(),
+      },
+    });
+    return requeued.count === 1;
+  },
+
   async findResumableProviderRun(jobId, batchIndex) {
     const row = await db.providerRun.findFirst({
       where: {

@@ -71,6 +71,7 @@ export interface GenerationJobStore {
     leaseOwner: string,
     leaseExpiresAt: Date,
   ): Promise<boolean>;
+  requeue(ownerId: string, jobId: string, leaseOwner: string): Promise<boolean>;
   findResumableProviderRun(
     jobId: string,
     batchIndex: number,

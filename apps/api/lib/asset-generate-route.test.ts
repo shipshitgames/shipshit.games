@@ -155,6 +155,16 @@ class MemoryGenerationJobs implements GenerationJobStore {
     return true;
   }
 
+  async requeue(ownerId: string, jobId: string, _leaseOwner: string) {
+    const job = this.jobs.get(jobId);
+    if (!job || job.ownerId !== ownerId || job.status !== "processing") {
+      return false;
+    }
+    job.status = "queued";
+    job.leaseExpiresAt = null;
+    return true;
+  }
+
   async findResumableProviderRun(jobId: string, batchIndex: number) {
     return (
       this.runs.find(
@@ -548,7 +558,7 @@ test("asset persistence failure keeps paid provider output retryable", async () 
     status: "processing",
     retryable: true,
   });
-  expect(jobs.jobs.get("job-1")?.status).toBe("processing");
+  expect(jobs.jobs.get("job-1")?.status).toBe("queued");
   expect(jobs.includedBalance).toBe(29);
 
   const second = await post(body, "asset-lab:persistence-retry");

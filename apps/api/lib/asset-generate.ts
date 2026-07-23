@@ -610,7 +610,10 @@ export async function handleAssetGenerate(
     const providerProducedOutput = results.some(
       (result) => result.status === "fulfilled",
     );
-    if (providerProducedOutput) return processingResponse(claimed.job.id);
+    if (providerProducedOutput) {
+      await deps.jobs.requeue(auth.userId, claimed.job.id, leaseOwner);
+      return processingResponse(claimed.job.id);
+    }
     return failJobResponse(
       deps,
       auth.userId,
