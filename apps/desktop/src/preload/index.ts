@@ -29,6 +29,12 @@ const studioApi: StudioApi = {
   // Pixelize (#66): re-grade a generated sprite onto the true DOOM pixel grid
   // (rembg/flood-fill cutout → box-downscale → palette-lock), for a before/after.
   pixelize: (opts) => ipcRenderer.invoke(IPC_CHANNELS.studioPixelize, opts),
+  sprites: {
+    list: (projectId, game) => ipcRenderer.invoke(IPC_CHANNELS.spritesList, { projectId, game }),
+    load: (projectId, game, asset) => ipcRenderer.invoke(IPC_CHANNELS.spritesLoad, { projectId, game, asset }),
+    saveDraft: (opts) => ipcRenderer.invoke(IPC_CHANNELS.spritesSaveDraft, opts),
+    promote: (projectId, game, asset) => ipcRenderer.invoke(IPC_CHANNELS.spritesPromote, { projectId, game, asset }),
+  },
   listGames: () => ipcRenderer.invoke(IPC_CHANNELS.studioListGames),
   // Live generation log stream. Returns an unsubscribe fn.
   onGenLog: (cb) => subscribe(IPC_CHANNELS.studioGenLog, cb),

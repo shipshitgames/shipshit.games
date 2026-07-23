@@ -21,6 +21,8 @@ interface BuildPixelizeArgsInput {
     bgThreshold?: unknown;
     cutout?: unknown;
     palette?: unknown;
+    trim?: unknown;
+    preserveSize?: unknown;
   };
 }
 
@@ -39,6 +41,8 @@ export function buildPixelizeArgs({ assetgenPath, inPath, outPath, opts = {} }: 
     "--cutout", cutout,
     "--palette", palette,
   ];
+  if (opts.trim === false) args.push("--no-trim");
+  if (opts.preserveSize === true) args.push("--preserve-size");
   return { args, height, bg, cutout, palette };
 }
 

@@ -44,6 +44,14 @@ export async function runExpand(argv: string[]): Promise<void> {
   const upscale = has(argv, "upscale")
     ? { scale: normalizeScale(intFlag(argv, "upscale-scale", 4)), model: flag(argv, "upscale-model") }
     : undefined;
+  const video = method === "video"
+    ? {
+        duration: numberFlag(argv, "video-duration", 2),
+        keyColor: flag(argv, "key", "#00ff00"),
+        staticThreshold: intFlag(argv, "static-threshold", 10),
+        ffmpegPath: flag(argv, "ffmpeg"),
+      }
+    : undefined;
 
   const totalFrames = actions.reduce((sum, a) => sum + a.frames, 0) * directions.length;
   console.log(
@@ -71,6 +79,7 @@ export async function runExpand(argv: string[]): Promise<void> {
     anchor,
     scale,
     upscale,
+    video,
     outputRoot,
     usageLogPath: usageLog,
     licenseTerms,
@@ -89,13 +98,15 @@ function printExpandUsage(): void {
     "usage:\n" +
       "  assetgen expand --in <origin.png> [--actions idle,run:6,attack] [--dirs 1|4|8]\n" +
       "           [--id <id>] [--game <slug>|shared] [--provider mock|openai|fal|codex|replicate]\n" +
-      "           [--model <model>] [--method controlnet|pixellab|animdrawings]\n" +
+      "           [--model <model>] [--method controlnet|pixellab|animdrawings|video]\n" +
       "           [--frames 4] [--fps 8] [--size 256] [--height 110] [--anchor 0.5,1] [--scale 1]\n" +
       "           [--upscale] [--upscale-scale 2|4] [--upscale-model <name>]\n" +
+      "           [--video-duration 2] [--key '#00ff00'] [--static-threshold 10] [--ffmpeg <path>]\n" +
       "           [--repo <game-repo-path>] [--out <assets-root>] [--usage-log <path|off>]\n" +
       "           [--license <terms>] [--license-url <url>] [--dry-run]\n" +
       "\n  Expands ONE origin sprite into a directional sprite-anim sheet + frame map.\n" +
       "  Per-action frame counts: --actions idle:2,run:6,attack:4 (falls back to --frames).\n" +
+      "  --method video accepts mock, fal (fal-ai/wan/v2.2-a14b/image-to-video), or Replicate (wan-video/wan-2.2-i2v-fast).\n" +
       "  --upscale runs Real-ESRGAN on each raw frame BEFORE pixelize downscales it;\n" +
       "  a no-op (never fails) when realesrgan-ncnn-vulkan is not installed.",
   );

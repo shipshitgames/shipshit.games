@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shipshit.games/schemas/pose-set.schema.json",
+  "title": "Ship Shit Games canonical entity pose set",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "entityId",
+    "game",
+    "source",
+    "design",
+    "poses",
+    "generatedAt"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "const": "https://shipshit.games/schemas/pose-set.schema.json"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "entityId": {
+      "$ref": "#/$defs/slug"
+    },
+    "game": {
+      "$ref": "#/$defs/slug"
+    },
+    "source": {
+      "type": "object",
+      "required": ["assetId", "image", "sha256", "catalog", "dimensions"],
+      "additionalProperties": false,
+      "properties": {
+        "assetId": {
+          "$ref": "#/$defs/slug"
+        },
+        "image": {
+          "$ref": "#/$defs/safePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "catalog": {
+          "$ref": "#/$defs/safePath"
+        },
+        "dimensions": {
+          "$ref": "#/$defs/dimensions"
+        }
+      }
+    },
+    "design": {
+      "type": "object",
+      "required": [
+        "tokenSource",
+        "styleSuffixHash",
+        "palette",
+        "paletteColors",
+        "proportions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tokenSource": {
+          "const": "DESIGN.md#assetgen"
+        },
+        "styleSuffixHash": {
+          "$ref": "#/$defs/shortHash"
+        },
+        "palette": {
+          "const": "doom"
+        },
+        "paletteColors": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          }
+        },
+        "proportions": {
+          "const": "source-reference-locked"
+        }
+      }
+    },
+    "poses": {
+      "type": "object",
+      "required": ["idle", "walk", "attack", "hit", "death"],
+      "additionalProperties": false,
+      "properties": {
+        "idle": {
+          "$ref": "#/$defs/pose"
+        },
+        "walk": {
+          "$ref": "#/$defs/pose"
+        },
+        "attack": {
+          "$ref": "#/$defs/pose"
+        },
+        "hit": {
+          "$ref": "#/$defs/pose"
+        },
+        "death": {
+          "$ref": "#/$defs/pose"
+        }
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
+    }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "nonBlank": {
+      "type": "string",
+      "minLength": 1
+    },
+    "safePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*\\\\).+$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "shortHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "dimensions": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "integer",
+          "minimum": 1
+        }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "license": {
+      "type": "object",
+      "required": ["tool", "plan", "date", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "plan": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "kind": {
+          "const": "pose-reference"
+        },
+        "type": {
+          "type": "string"
+        },
+        "terms": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "generatedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "provider",
+        "reproducible",
+        "promptHash",
+        "styleSuffixHash",
+        "date"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "model": {
+          "type": "string"
+        },
+        "modelVersion": {
+          "type": "string"
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reproducible": {
+          "type": "boolean"
+        },
+        "promptHash": {
+          "$ref": "#/$defs/shortHash"
+        },
+        "styleSuffixHash": {
+          "$ref": "#/$defs/shortHash"
+        },
+        "requestId": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        }
+      }
+    },
+    "pose": {
+      "type": "object",
+      "required": [
+        "image",
+        "sha256",
+        "dimensions",
+        "prompt",
+        "provenance",
+        "license"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "$ref": "#/$defs/safePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "dimensions": {
+          "$ref": "#/$defs/dimensions"
+        },
+        "prompt": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "license": {
+          "$ref": "#/$defs/license"
+        }
+      }
+    }
+  }
+}

@@ -20,10 +20,12 @@ import { createArtLabStore } from "./art-lab";
 import { createMapsStore } from "./maps";
 import { createGallery } from "./gallery";
 import { createGymLauncher } from "./gyms";
+import { createSpriteEditorStore } from "./sprite-editor";
 import { DEFAULT_GAME } from "./settings";
 import { buildGenerateArgs } from "./generate-args";
 import { buildPixelizeArgs, decodePixelizeDataUrl, parsePixelizeCutout } from "./pixelize-args";
 import { parseGenerateResult, dataUrlFor } from "./generate-result";
+import { parseWroteLine, streamCommand } from "./stream-command";
 import {
   fingerprintResourceFile,
   parseResourceInventory,
@@ -128,6 +130,7 @@ const gallery = createGallery({
   assetsRoot: () => ASSETS_PKG_CANDIDATES.find((p) => fs.existsSync(path.join(p, "games"))) || null,
   assetBaseUrl: () => readAssetBaseUrl(process.env),
 });
+const spriteEditor = createSpriteEditorStore();
 
 function runResourcesCommand(
   args: string[],
@@ -340,6 +343,22 @@ ipcMain.handle(IPC_CHANNELS.galleryListGames, () => gallery.listGames());
 ipcMain.handle(IPC_CHANNELS.galleryList, (_e, payload = {}) => gallery.list(resolveGame(payload), payload));
 ipcMain.handle(IPC_CHANNELS.galleryImage, (_e, payload = {}) => gallery.image(payload.path));
 
+// ---- sprite editor (#90): load a draft/final, palette-lock edits, then promote ----
+ipcMain.handle(IPC_CHANNELS.spritesList, (_e, payload = {}) => {
+  try {
+    return spriteEditor.list(resolveProjectTarget(payload));
+  } catch (error) {
+    return { ok: false, projectId: "", game: String(payload?.game || ""), assets: [], error: String((error as Error)?.message ?? error) };
+  }
+});
+ipcMain.handle(IPC_CHANNELS.spritesLoad, (_e, payload = {}) => {
+  try {
+    return spriteEditor.load(resolveProjectTarget(payload), payload.asset);
+  } catch (error) {
+    return { ok: false, error: String((error as Error)?.message ?? error) };
+  }
+});
+
 // ---- audio transcode (ffmpeg → WebM/Opus, the studio audio format) ----
 ipcMain.handle(IPC_CHANNELS.studioPickAudioFiles, async () => {
   const r = await dialog.showOpenDialog({
@@ -375,15 +394,16 @@ ipcMain.handle(IPC_CHANNELS.studioTranscodeAudio, async (e, opts) => {
     if (normalize) args.push("-af", "loudnorm");
     args.push(out);
     send(`$ ffmpeg -i ${path.basename(input)} → audio/${category}/${path.basename(out)} (opus ${bitrate}k${normalize ? ", loudnorm" : ""})\n`);
-    const code = await new Promise((resolve) => {
-      let child;
-      try { child = spawn(ffmpeg, args); }
-      catch (err) { send(`spawn failed: ${err}\n`); return resolve(-1); }
-      child.stdout.on("data", (d) => { const s = d.toString(); log += s; send(s); });
-      child.stderr.on("data", (d) => { const s = d.toString(); log += s; send(s); });
-      child.on("error", (err) => { send(`\nffmpeg error: ${err} — is ffmpeg installed and on PATH?\n`); });
-      child.on("close", resolve);
+    const run = await streamCommand({
+      command: ffmpeg,
+      args,
+      onChunk: send,
+      timeoutMs: 300_000,
+      spawnFn: spawn,
+      formatProcessError: (error) => `\nffmpeg error: ${error} — is ffmpeg installed and on PATH?\n`,
     });
+    log += run.log;
+    const code = run.code;
     if (code === 0) {
       try {
         await register(target.manifestPath, {
@@ -415,27 +435,24 @@ ipcMain.handle(IPC_CHANNELS.studioGenerate, async (e, opts) => {
   send(`$ assetgen --provider ${provider} --game ${game} --kind ${kind} --id ${opts?.id}${model ? ` --model ${model}` : ""}\n`);
   send(`[repo] ${repo}\n`);
   send(`[manifest] ${target.manifestPath}\n`);
-  return await new Promise((resolve) => {
-    let child;
-    try { child = spawn("bun", args, { cwd: STUDIO_REPO }); }
-    catch (err) { send(`spawn failed: ${err}\n`); return resolve({ ok: false, log: String(err), path: null, dataUrl: null }); }
-    let buf = "";
-    const onData = (d) => { const s = d.toString(); buf += s; send(s); };
-    child.stdout.on("data", onData);
-    child.stderr.on("data", onData);
-    child.on("error", (err) => { send(`\nprocess error: ${err}\n`); });
-    const killer = setTimeout(() => { try { child.kill("SIGKILL"); send("\n[timed out after 300s]\n"); } catch {} }, 300_000);
-    child.on("close", async (code) => {
-      clearTimeout(killer);
-      const parsed = parseGenerateResult(buf);
-      const p = buf.match(/\[billboard\] (.+?\.html)/);
-      let dataUrl = null, outPath = null, previewPath = null, mediaType = null;
-      if (parsed) { outPath = parsed.path; mediaType = parsed.mediaType; try { dataUrl = dataUrlFor(parsed, await fs.promises.readFile(outPath)); } catch {} }
-      if (p) previewPath = p[1].trim();
-      send(`\n[exit ${code}]\n`);
-      resolve({ ok: code === 0 && !!parsed, log: buf, path: outPath, dataUrl, previewPath, mediaType });
-    });
+  const run = await streamCommand({
+    command: "bun",
+    args,
+    cwd: STUDIO_REPO,
+    onChunk: send,
+    timeoutMs: 300_000,
+    spawnFn: spawn,
   });
+  if (!run.spawned) {
+    return { ok: false, log: run.log, path: null, dataUrl: null };
+  }
+  const parsed = parseGenerateResult(run.log);
+  const p = run.log.match(/\[billboard\] (.+?\.html)/);
+  let dataUrl = null, outPath = null, previewPath = null, mediaType = null;
+  if (parsed) { outPath = parsed.path; mediaType = parsed.mediaType; try { dataUrl = dataUrlFor(parsed, await fs.promises.readFile(outPath)); } catch {} }
+  if (p) previewPath = p[1].trim();
+  send(`\n[exit ${run.code}]\n`);
+  return { ok: run.code === 0 && !!parsed, log: run.log, path: outPath, dataUrl, previewPath, mediaType };
 });
 
 // ---- pixelize (#66): re-grade a generated sprite onto the true DOOM pixel grid ----
@@ -454,7 +471,7 @@ function readPixelizeSource(payload: any): { buffer: Buffer } | { error: string 
   return { error: "nothing to pixelize — generate a sprite first" };
 }
 
-ipcMain.handle(IPC_CHANNELS.studioPixelize, async (_e, payload = {}) => {
+async function runPixelizePayload(payload: any = {}) {
   const source = readPixelizeSource(payload);
   if ("error" in source) return { ok: false, error: source.error };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-pixelize-"));
@@ -492,6 +509,79 @@ ipcMain.handle(IPC_CHANNELS.studioPixelize, async (_e, payload = {}) => {
     return { ok: false, error: String((err as Error)?.message ?? err) };
   } finally {
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+  }
+}
+
+ipcMain.handle(IPC_CHANNELS.studioPixelize, (_e, payload = {}) => runPixelizePayload(payload));
+
+ipcMain.handle(IPC_CHANNELS.spritesSaveDraft, async (_e, payload = {}) => {
+  try {
+    const target = resolveProjectTarget(payload);
+    const source = spriteEditor.load(target, payload.asset);
+    const width = Math.floor(Number(payload.width));
+    const height = Math.floor(Number(payload.height));
+    if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1 || width > 8192 || height > 8192) {
+      throw new Error("edited sprite dimensions must be integers between 1 and 8192");
+    }
+    if (source.asset?.dimensions && (source.asset.dimensions[0] !== width || source.asset.dimensions[1] !== height)) {
+      throw new Error(`pixel edits must preserve ${source.asset.dimensions[0]}×${source.asset.dimensions[1]} sheet geometry`);
+    }
+    const pixelized = await runPixelizePayload({
+      dataUrl: payload.dataUrl,
+      height,
+      bgThreshold: 0,
+      cutout: "none",
+      palette: "doom",
+      trim: false,
+      preserveSize: true,
+    });
+    if (!pixelized.ok || !("dataUrl" in pixelized) || !pixelized.dataUrl) {
+      throw new Error(("error" in pixelized && pixelized.error) || "palette-lock postprocess failed");
+    }
+    const decoded = decodePixelizeDataUrl(pixelized.dataUrl);
+    if (!decoded?.buffer.length) throw new Error("palette-lock postprocess returned no image");
+    const saved = await spriteEditor.saveDraft(target, payload.asset, decoded.buffer);
+    return {
+      ...saved,
+      correctedOffPalette: Math.max(0, Math.floor(Number(payload.offPaletteCount) || 0)),
+      log: pixelized.log,
+    };
+  } catch (error) {
+    return { ok: false, error: String((error as Error)?.message ?? error) };
+  }
+});
+
+ipcMain.handle(IPC_CHANNELS.spritesPromote, async (_e, payload = {}) => {
+  try {
+    const target = resolveProjectTarget(payload);
+    if (payload.asset?.origin !== "draft") throw new Error("only a saved draft can be promoted");
+    // Resolve the exact draft before spawning so a forged id/kind cannot select a
+    // different manifest entry. assetgen remains the one canonical promoter.
+    spriteEditor.load(target, payload.asset);
+    const sameIdDrafts = spriteEditor.list(target).assets.filter(
+      (asset) => asset.origin === "draft" && asset.id === payload.asset.id,
+    );
+    if (sameIdDrafts.length !== 1) {
+      throw new Error(`cannot promote ${payload.asset.id}: ${sameIdDrafts.length} draft kinds share that id`);
+    }
+    const run = await new Promise<{ code: number | null; log: string }>((resolve) => {
+      const args = [ASSETGEN, "promote", "--id", payload.asset.id, "--repo", target.repoPath];
+      let child;
+      try { child = spawn("bun", args, { cwd: STUDIO_REPO }); }
+      catch (error) { resolve({ code: -1, log: `spawn failed: ${error}` }); return; }
+      let log = "";
+      const collect = (data) => { log += data.toString(); };
+      child.stdout.on("data", collect);
+      child.stderr.on("data", collect);
+      child.on("error", (error) => { log += `\nprocess error: ${error}\n`; });
+      const killer = setTimeout(() => { try { child.kill("SIGKILL"); log += "\n[timed out after 120s]\n"; } catch {} }, 120_000);
+      child.on("close", (code) => { clearTimeout(killer); resolve({ code, log }); });
+    });
+    if (run.code !== 0) throw new Error(run.log.trim() || `assetgen promote exited ${run.code}`);
+    const loaded = spriteEditor.load(target, { ...payload.asset, origin: "promoted" });
+    return { ...loaded, log: run.log };
+  } catch (error) {
+    return { ok: false, error: String((error as Error)?.message ?? error) };
   }
 });
 
@@ -617,25 +707,23 @@ ipcMain.handle(IPC_CHANNELS.studioResearch, async (e, opts) => {
   if (!url) { send("no url provided\n"); return { ok: false, log: "no url", path: null, rules: null }; }
   const args = [RESSOURCES, "distill", "--url", url, "--provider", provider, "--out", out];
   send(`$ ressources distill --url ${url} --provider ${provider} --out ${out}\n`);
-  return await new Promise((resolve) => {
-    let child;
-    try { child = spawn("bun", args, { cwd: STUDIO_REPO, env: process.env }); }
-    catch (err) { send(`spawn failed: ${err}\n`); return resolve({ ok: false, log: String(err), path: null, rules: null }); }
-    let buf = "";
-    const onData = (d) => { const s = d.toString(); buf += s; send(s); };
-    child.stdout.on("data", onData);
-    child.stderr.on("data", onData);
-    child.on("error", (err) => { send(`\nprocess error: ${err}\n`); });
-    const killer = setTimeout(() => { try { child.kill("SIGKILL"); send("\n[timed out after 300s]\n"); } catch {} }, 300_000);
-    child.on("close", async (code) => {
-      clearTimeout(killer);
-      const m = buf.match(/\[wrote\] (.+?\.md)/);
-      let outPath = null, rules = null;
-      if (m) { outPath = m[1].trim(); try { rules = await fs.promises.readFile(outPath, "utf8"); } catch {} }
-      send(`\n[exit ${code}]\n`);
-      resolve({ ok: code === 0 && !!m, log: buf, path: outPath, rules });
-    });
+  const run = await streamCommand({
+    command: "bun",
+    args,
+    cwd: STUDIO_REPO,
+    env: process.env,
+    onChunk: send,
+    timeoutMs: 300_000,
+    spawnFn: spawn,
   });
+  if (!run.spawned) {
+    return { ok: false, log: run.log, path: null, rules: null };
+  }
+  const outPath = parseWroteLine(run.log, "md");
+  let rules = null;
+  if (outPath) { try { rules = await fs.promises.readFile(outPath, "utf8"); } catch {} }
+  send(`\n[exit ${run.code}]\n`);
+  return { ok: run.code === 0 && !!outPath, log: run.log, path: outPath, rules };
 });
 
 /** @type {BrowserWindow | null} */

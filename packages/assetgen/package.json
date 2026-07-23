@@ -19,6 +19,10 @@
       "types": "./src/sprites.ts",
       "default": "./src/sprites.ts"
     },
+    "./pose-set": {
+      "types": "./src/pose-set.ts",
+      "default": "./src/pose-set.ts"
+    },
     "./replicate": {
       "types": "./src/replicate.ts",
       "default": "./src/replicate.ts"
@@ -27,8 +31,13 @@
       "types": "./src/asset-qa/index.ts",
       "default": "./src/asset-qa/index.ts"
     },
+    "./hd2d-bake": {
+      "types": "./src/hd2d-bake.ts",
+      "default": "./src/hd2d-bake.ts"
+    },
     "./asset-qa.schema.json": "./asset-qa.schema.json",
     "./ci-gates.schema.json": "./ci-gates.schema.json",
+    "./pose-set.schema.json": "./pose-set.schema.json",
     "./src/*": "./src/*"
   },
   "scripts": {

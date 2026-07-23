@@ -1,0 +1,164 @@
+{
+  "$schema": "https://shipshit.games/schemas/pose-set.schema.json",
+  "schemaVersion": 1,
+  "entityId": "scourge-swarm",
+  "game": "scourge-survivors",
+  "source": {
+    "assetId": "scourge-swarm",
+    "image": "source.svg",
+    "sha256": "e9e1339fead6515a12768a20b3ed2f7c476536c413b9fa4b318d3e3d51fffe6f",
+    "catalog": "assets-catalog.json",
+    "dimensions": [64, 64]
+  },
+  "design": {
+    "tokenSource": "DESIGN.md#assetgen",
+    "styleSuffixHash": "f727575ea41dd308",
+    "palette": "doom",
+    "paletteColors": [
+      "#000000",
+      "#0a0a0a",
+      "#161214",
+      "#241a1a",
+      "#34343c",
+      "#4a4a52",
+      "#6a655e",
+      "#8a8278",
+      "#b3ab9e",
+      "#e9e3d6",
+      "#3a0a0e",
+      "#7a0f16",
+      "#c1121f",
+      "#ff2a18",
+      "#5a2e18",
+      "#8a4b2a",
+      "#b06a32",
+      "#d98a4a",
+      "#a83c00",
+      "#ff6a00",
+      "#ffa030",
+      "#ffce5c",
+      "#2c5410",
+      "#5a9a18",
+      "#8bdc1f"
+    ],
+    "proportions": "source-reference-locked"
+  },
+  "poses": {
+    "idle": {
+      "image": "idle.svg",
+      "sha256": "ef7b9aa001a2278277b4b495d314eef2d7939e14dbe4d460490c768ea29f5957",
+      "dimensions": [64, 64],
+      "prompt": "Checked-in Scourge Swarm idle reference fixture",
+      "provenance": {
+        "provider": "fixture",
+        "model": "checked-in-svg",
+        "reproducible": true,
+        "promptHash": "09091d04cc825d3e",
+        "styleSuffixHash": "f727575ea41dd308",
+        "date": "2026-07-22"
+      },
+      "license": {
+        "tool": "fixture",
+        "plan": "checked-in-svg",
+        "date": "2026-07-22",
+        "kind": "pose-reference",
+        "type": "hand-authored",
+        "terms": "repository reference fixture",
+        "generatedAt": "2026-07-22T00:00:00.000Z"
+      }
+    },
+    "walk": {
+      "image": "walk.svg",
+      "sha256": "c6516b5670f626c250d33e77b9831a6b17d3a8f2d3d863319bf11506043c80a4",
+      "dimensions": [64, 64],
+      "prompt": "Checked-in Scourge Swarm walk reference fixture",
+      "provenance": {
+        "provider": "fixture",
+        "model": "checked-in-svg",
+        "reproducible": true,
+        "promptHash": "bb913e8ffb7063c7",
+        "styleSuffixHash": "f727575ea41dd308",
+        "date": "2026-07-22"
+      },
+      "license": {
+        "tool": "fixture",
+        "plan": "checked-in-svg",
+        "date": "2026-07-22",
+        "kind": "pose-reference",
+        "type": "hand-authored",
+        "terms": "repository reference fixture",
+        "generatedAt": "2026-07-22T00:00:00.000Z"
+      }
+    },
+    "attack": {
+      "image": "attack.svg",
+      "sha256": "4e5cf3f5fc0d301677ed462ea8a79a675db150569fb2417b35cf3c9a19f93a8c",
+      "dimensions": [64, 64],
+      "prompt": "Checked-in Scourge Swarm attack reference fixture",
+      "provenance": {
+        "provider": "fixture",
+        "model": "checked-in-svg",
+        "reproducible": true,
+        "promptHash": "caaead0b84fdc83a",
+        "styleSuffixHash": "f727575ea41dd308",
+        "date": "2026-07-22"
+      },
+      "license": {
+        "tool": "fixture",
+        "plan": "checked-in-svg",
+        "date": "2026-07-22",
+        "kind": "pose-reference",
+        "type": "hand-authored",
+        "terms": "repository reference fixture",
+        "generatedAt": "2026-07-22T00:00:00.000Z"
+      }
+    },
+    "hit": {
+      "image": "hit.svg",
+      "sha256": "d0e028519d513d61cfa10299a52367a43e7b24a7df25cf3a4b1a40a3f6cf9082",
+      "dimensions": [64, 64],
+      "prompt": "Checked-in Scourge Swarm hit reference fixture",
+      "provenance": {
+        "provider": "fixture",
+        "model": "checked-in-svg",
+        "reproducible": true,
+        "promptHash": "2315d22c80b7e8f9",
+        "styleSuffixHash": "f727575ea41dd308",
+        "date": "2026-07-22"
+      },
+      "license": {
+        "tool": "fixture",
+        "plan": "checked-in-svg",
+        "date": "2026-07-22",
+        "kind": "pose-reference",
+        "type": "hand-authored",
+        "terms": "repository reference fixture",
+        "generatedAt": "2026-07-22T00:00:00.000Z"
+      }
+    },
+    "death": {
+      "image": "death.svg",
+      "sha256": "b81ecb59dfb01734ad7dfacb351c526bf32a3c38f0c923df8c38039816c66633",
+      "dimensions": [64, 64],
+      "prompt": "Checked-in Scourge Swarm death reference fixture",
+      "provenance": {
+        "provider": "fixture",
+        "model": "checked-in-svg",
+        "reproducible": true,
+        "promptHash": "73c31e25b5efce89",
+        "styleSuffixHash": "f727575ea41dd308",
+        "date": "2026-07-22"
+      },
+      "license": {
+        "tool": "fixture",
+        "plan": "checked-in-svg",
+        "date": "2026-07-22",
+        "kind": "pose-reference",
+        "type": "hand-authored",
+        "terms": "repository reference fixture",
+        "generatedAt": "2026-07-22T00:00:00.000Z"
+      }
+    }
+  },
+  "generatedAt": "2026-07-22T00:00:00.000Z"
+}

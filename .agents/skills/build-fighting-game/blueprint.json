@@ -1,0 +1,88 @@
+{
+  "gameType": "fighting",
+  "genreAliases": [
+    "fighting game",
+    "brawler",
+    "competitive brawler",
+    "platform fighter",
+    "arena fighter",
+    "versus fighter",
+    "combat arena"
+  ],
+  "assetClasses": [
+    {
+      "category": "sprite",
+      "items": [
+        "4 fighter pose-sheet sets: movement, guard, light, heavy, special, hit, KO, victory",
+        "Duel arena",
+        "Arena stage with spawn points and ring-out bounds"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "ui",
+      "items": [
+        "fighter and mode select",
+        "Duel health and KO state",
+        "Arena damage percent and stocks",
+        "light, heavy, and special cooldowns",
+        "guard and round state",
+        "results and Warline-compatible result"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "vfx",
+      "items": [
+        "light, heavy, and special trails and impacts",
+        "guard contact",
+        "hit flash and bounded camera shake",
+        "KO, ring-out, stock loss, and victory"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "music",
+      "items": [
+        "fight loop",
+        "fighter select and result SFX",
+        "movement and guard SFX",
+        "light, heavy, and special SFX",
+        "impact, KO, ring-out, and stock SFX"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "sprite",
+      "items": [
+        "additional fighters and alternate pose sheets",
+        "additional Duel arenas and Arena stages",
+        "fighter cosmetics"
+      ],
+      "mvp": false
+    },
+    {
+      "category": "ui",
+      "items": [
+        "online lobby and matchmaking",
+        "tournament bracket",
+        "frame-data viewer",
+        "match history"
+      ],
+      "mvp": false
+    }
+  ],
+  "mvpSlice": [
+    "4 fighter pose-sheet sets",
+    "fighter and mode select",
+    "Duel mode: 1v1 KO",
+    "Arena mode: damage-percent knockback and stocks",
+    "light, heavy, and special attacks with cooldowns",
+    "guard",
+    "deterministic hit and knockback physics",
+    "hit flash and bounded camera shake",
+    "Warline-compatible result",
+    "HUD: Duel health, Arena percent/stocks, cooldowns, guard, round, and results",
+    "one fight loop plus movement, attack, guard, impact, KO, ring-out, and result SFX"
+  ]
+}

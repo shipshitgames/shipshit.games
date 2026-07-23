@@ -3,6 +3,7 @@ import type { AssetRecord, NewAsset } from "./assets";
 
 const MODEL = "google/nano-banana-2";
 const MAX_BATCH = 4;
+const MAX_EDIT_INSTRUCTION_LENGTH = 500;
 
 interface AuthenticatedUser {
   userId: string;
@@ -61,15 +62,34 @@ export async function handleAssetGenerate(
   const auth = await deps.requireAuth(request);
   if (auth instanceof Response) return auth;
 
-  const { prompt, description, gameSlug, pose, count, sourceId, sheet } = await request
-    .json()
-    .catch(() => ({}) as Record<string, unknown>);
+  const { prompt, description, gameSlug, pose, count, sourceId, editInstruction, sheet } =
+    await request.json().catch(() => ({}) as Record<string, unknown>);
   if (!prompt || typeof prompt !== "string") {
     return Response.json({ error: "prompt is required" }, { status: 400 });
   }
   const game = deps.games.find((candidate) => candidate.slug === gameSlug);
   if (!game) {
     return Response.json({ error: `unknown game: ${gameSlug}` }, { status: 400 });
+  }
+  if (sourceId !== undefined && typeof sourceId !== "string") {
+    return Response.json({ error: "sourceId must be a string" }, { status: 400 });
+  }
+  const normalizedEditInstruction =
+    typeof editInstruction === "string" ? editInstruction.trim() : "";
+  if (editInstruction !== undefined && !normalizedEditInstruction) {
+    return Response.json({ error: "editInstruction must not be empty" }, { status: 400 });
+  }
+  if (normalizedEditInstruction.length > MAX_EDIT_INSTRUCTION_LENGTH) {
+    return Response.json(
+      { error: `editInstruction must be ${MAX_EDIT_INSTRUCTION_LENGTH} characters or fewer` },
+      { status: 400 },
+    );
+  }
+  if (normalizedEditInstruction && !sourceId) {
+    return Response.json(
+      { error: "sourceId is required when editInstruction is set" },
+      { status: 400 },
+    );
   }
   const batch = Math.min(Math.max(Number(count) || 1, 1), MAX_BATCH);
   // Each render is paid Replicate spend; DB counting keeps this limit shared
@@ -97,7 +117,7 @@ export async function handleAssetGenerate(
 
   let referenceUrl: string | undefined;
   if (sourceId) {
-    const source = await deps.readAssetImage(String(sourceId), auth.userId);
+    const source = await deps.readAssetImage(sourceId, auth.userId);
     if (!source) {
       return Response.json(
         { error: `source asset not found: ${sourceId}` },
@@ -122,6 +142,7 @@ export async function handleAssetGenerate(
     pose: typeof pose === "string" ? pose : undefined,
     sheetPoses,
     fromReference: Boolean(referenceUrl),
+    editInstruction: normalizedEditInstruction || undefined,
   });
   const input: Record<string, unknown> = {
     aspect_ratio: deps.aspectRatioFor(sheetPoses),
@@ -164,6 +185,8 @@ export async function handleAssetGenerate(
           game: game.title,
           model: MODEL,
           ownerId: auth.userId,
+          sourceId: sourceId || null,
+          editInstruction: normalizedEditInstruction || null,
         },
         result.value.data,
       );

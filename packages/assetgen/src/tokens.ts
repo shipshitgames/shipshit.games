@@ -373,6 +373,14 @@ function derivedAssetgenConfig(design: JsonObject, colors: Record<string, string
       preserveEmissive: true,
       blackPoint: colors.void ?? "#0a0a0a",
       encode: "webp-lossless",
+      softGrade: {
+        strength: 0.18,
+        valueRange: [0.04, 0.9],
+        temperatureRange: [0, 0.45],
+        alphaThreshold: 8,
+        materialPixelRatio: 0.05,
+        exampleLimit: 8,
+      },
       cutout: {
         tool: "rembg",
         order: "after-generate-before-downscale",

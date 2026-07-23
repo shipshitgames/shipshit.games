@@ -143,6 +143,43 @@ test("e2e: expand records --method and derives the id from the origin filename",
   }
 });
 
+test("e2e: video expand runs keyless mock clip -> cleanup -> pixelize -> pack -> manifest", async () => {
+  const origin = await writeOriginFixture();
+  const repo = await mkdtemp(join(tmpdir(), "assetgen-expand-e2e-video-"));
+  try {
+    const result = await runCli([
+      "--in", origin,
+      "--actions", "idle:2,attack:2",
+      "--dirs", "1",
+      "--provider", "mock",
+      "--method", "video",
+      "--game", "shared",
+      "--repo", repo,
+      "--usage-log", "off",
+      "--size", "48",
+      "--height", "24",
+    ]);
+    assert.equal(result.exitCode, 0, `cli failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+
+    const anim = JSON.parse(await readFile(join(repo, "src/assets/sprites/warden.anim.json"), "utf8"));
+    assert.equal(anim.method, "video");
+    assert.equal(anim.provider, "mock");
+    assert.equal(anim.model, "mock-video");
+    assert.equal(anim.frameCount, 4);
+    assert.equal(anim.video.keyColor, "#00ff00");
+    assert.ok(anim.video.keyedPixels > 0);
+    assert.ok(anim.video.lockedPixels > 0);
+    assert.equal(existsSync(join(repo, "src/assets/previews/warden-video-cleanup.webp")), true);
+
+    const manifest = JSON.parse(await readFile(join(repo, "src/assets/assets.json"), "utf8"));
+    assert.equal(manifest.assets[0].kind, "sprite-anim");
+    assert.equal(manifest.assets[0].provider, "mock");
+    assert.deepEqual(manifest.assets[0].referenceImages, [origin]);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("e2e: expand exits non-zero without --in", async () => {
   const result = await runCli(["--actions", "idle"]);
   assert.equal(result.exitCode, 1);

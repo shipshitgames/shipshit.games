@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import sharp from "sharp";
+import { softGradeRgba, type ColorGamutReport } from "./soft-grade";
 
 // Moved to sprite-prompt.ts (pure, no sharp) so API bundles can import it
 // without native deps; re-exported here so existing imports keep working.
@@ -23,6 +24,8 @@ export interface SpriteSheetOptions {
   licenseTerms?: string;
   licenseUrl?: string;
   generatedAt?: string;
+  /** Apply the canonical soft grade before the final sheet encode. */
+  softGrade?: boolean;
 }
 
 export interface SpriteSheetMetadata {
@@ -53,6 +56,7 @@ export interface SpriteSheetResult {
   data: Buffer;
   metadata: SpriteSheetMetadata;
   frames: SpriteSheetFrame[];
+  colorGamutReport?: ColorGamutReport;
 }
 
 export interface SpriteSheetFrame {
@@ -113,7 +117,7 @@ export async function toSpriteSheetWebp(input: Buffer, opts: SpriteSheetOptions)
   const srcCellHeight = Math.max(1, Math.floor(sourceHeight / layout.usedRows));
 
   const cells: sharp.OverlayOptions[] = [];
-  const frames: SpriteSheetFrame[] = [];
+  const frameSlots: Array<Omit<SpriteSheetFrame, "data">> = [];
   for (let row = 0; row < layout.usedRows; row++) {
     for (let col = 0; col < layout.usedColumns; col++) {
       const left = Math.min(col * srcCellWidth, sourceWidth - srcCellWidth);
@@ -123,10 +127,8 @@ export async function toSpriteSheetWebp(input: Buffer, opts: SpriteSheetOptions)
         .resize(frameWidth, frameHeight, { fit: "contain", background: TRANSPARENT })
         .png()
         .toBuffer();
-      const frameData = await sharp(cell).webp({ lossless: true, effort: 5 }).toBuffer();
       cells.push({ input: cell, left: col * frameWidth, top: row * frameHeight });
-      frames.push({
-        data: frameData,
+      frameSlots.push({
         frame: frameCount > 1 ? col : 0,
         view: frameCount > 1 ? views[row] ?? views[0] ?? "front" : views[col] ?? views[0] ?? "front",
         column: col,
@@ -136,7 +138,7 @@ export async function toSpriteSheetWebp(input: Buffer, opts: SpriteSheetOptions)
     }
   }
 
-  const data = await sharp({
+  const composed = await sharp({
     create: {
       width: sheetWidth,
       height: sheetHeight,
@@ -145,12 +147,38 @@ export async function toSpriteSheetWebp(input: Buffer, opts: SpriteSheetOptions)
     },
   })
     .composite(cells)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const sheetData = Buffer.from(composed.data);
+  const colorGamutReport = opts.softGrade
+    ? softGradeRgba(sheetData, composed.info.width, composed.info.height).report
+    : undefined;
+  const frames: SpriteSheetFrame[] = [];
+  for (const slot of frameSlots) {
+    const frameData = await sharp(sheetData, {
+      raw: { width: composed.info.width, height: composed.info.height, channels: 4 },
+    })
+      .extract({
+        left: slot.column * frameWidth,
+        top: slot.row * frameHeight,
+        width: frameWidth,
+        height: frameHeight,
+      })
+      .webp({ lossless: true, effort: 5 })
+      .toBuffer();
+    frames.push({ ...slot, data: frameData });
+  }
+  const data = await sharp(sheetData, {
+    raw: { width: composed.info.width, height: composed.info.height, channels: 4 },
+  })
     .webp({ lossless: true, effort: 5 })
     .toBuffer();
 
   return {
     data,
     frames,
+    ...(colorGamutReport ? { colorGamutReport } : {}),
     metadata: {
       dimensions: [sheetWidth, sheetHeight],
       frameSize: [frameWidth, frameHeight],

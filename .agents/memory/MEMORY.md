@@ -1,6 +1,6 @@
 # Ship Shit Games Studio Repo - Repo Memory
 
-last_verified: 2026-07-09
+last_verified: 2026-07-22
 
 ## What this is
 The studio/tooling monorepo (Turborepo + Bun), GitHub
@@ -72,7 +72,7 @@ which is the Obsidian vault root.
 ## Product Architecture
 
 Planning epic: GitHub issue #301. Canonical roadmap:
-`docs/shipshitcode-roadmap.md`.
+`docs/ship-games-studio-roadmap.md`.
 
 - `apps/app` is the hosted source of truth for account, entitlement, and future
   cross-device project/job history.
