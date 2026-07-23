@@ -509,22 +509,13 @@ async function runPixelizePayload(payload: any = {}) {
       outPath,
       opts: payload,
     });
-    const run = await new Promise<{ code: number | null; log: string }>((resolve) => {
-      let child;
-      try {
-        child = spawn(toolingRuntime.assetgen.command, args, {
-          cwd: toolingRuntime.assetgen.cwd,
-          env: { ...process.env, ...toolingRuntime.assetgen.env },
-        });
-      }
-      catch (err) { return resolve({ code: -1, log: `spawn failed: ${err}` }); }
-      let buf = "";
-      const onData = (d) => { buf += d.toString(); };
-      child.stdout.on("data", onData);
-      child.stderr.on("data", onData);
-      child.on("error", (err) => { buf += `\nprocess error: ${err}\n`; });
-      const killer = setTimeout(() => { try { child.kill("SIGKILL"); buf += "\n[timed out after 120s]\n"; } catch {} }, 120_000);
-      child.on("close", (code) => { clearTimeout(killer); resolve({ code, log: buf }); });
+    const run = await streamCommand({
+      command: toolingRuntime.assetgen.command,
+      args,
+      cwd: toolingRuntime.assetgen.cwd,
+      env: { ...process.env, ...toolingRuntime.assetgen.env },
+      timeoutMs: 120_000,
+      spawnFn: spawn,
     });
     if (run.code !== 0 || !fs.existsSync(outPath)) {
       return { ok: false, error: `pixelize exited ${run.code}`, log: run.log, cutout: parsePixelizeCutout(run.log) };
@@ -598,23 +589,14 @@ ipcMain.handle(IPC_CHANNELS.spritesPromote, async (_e, payload = {}) => {
     if (sameIdDrafts.length !== 1) {
       throw new Error(`cannot promote ${payload.asset.id}: ${sameIdDrafts.length} draft kinds share that id`);
     }
-    const run = await new Promise<{ code: number | null; log: string }>((resolve) => {
-      const args = [...toolingRuntime.assetgen.argsPrefix, "promote", "--id", payload.asset.id, "--repo", target.repoPath];
-      let child;
-      try {
-        child = spawn(toolingRuntime.assetgen.command, args, {
-          cwd: toolingRuntime.assetgen.cwd,
-          env: { ...process.env, ...toolingRuntime.assetgen.env },
-        });
-      }
-      catch (error) { resolve({ code: -1, log: `spawn failed: ${error}` }); return; }
-      let log = "";
-      const collect = (data) => { log += data.toString(); };
-      child.stdout.on("data", collect);
-      child.stderr.on("data", collect);
-      child.on("error", (error) => { log += `\nprocess error: ${error}\n`; });
-      const killer = setTimeout(() => { try { child.kill("SIGKILL"); log += "\n[timed out after 120s]\n"; } catch {} }, 120_000);
-      child.on("close", (code) => { clearTimeout(killer); resolve({ code, log }); });
+    const args = [...toolingRuntime.assetgen.argsPrefix, "promote", "--id", payload.asset.id, "--repo", target.repoPath];
+    const run = await streamCommand({
+      command: toolingRuntime.assetgen.command,
+      args,
+      cwd: target.repoPath,
+      env: { ...process.env, ...toolingRuntime.assetgen.env },
+      timeoutMs: 120_000,
+      spawnFn: spawn,
     });
     if (run.code !== 0) throw new Error(run.log.trim() || `assetgen promote exited ${run.code}`);
     const loaded = spriteEditor.load(target, { ...payload.asset, origin: "promoted" });

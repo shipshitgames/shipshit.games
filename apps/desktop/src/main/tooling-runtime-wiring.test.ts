@@ -2,6 +2,10 @@ import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 
 const mainSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+const buildRuntimeSource = await readFile(
+  new URL("../../scripts/build-tooling-runtime.ts", import.meta.url),
+  "utf8",
+);
 const packageJson = JSON.parse(
   await readFile(new URL("../../package.json", import.meta.url), "utf8"),
 );
@@ -27,4 +31,17 @@ test("electron-builder ships the generated runtime outside ASAR", () => {
       filter: ["**/*"],
     },
   ]);
+});
+
+test("isolated runtime installs dependencies for every bundled workspace tool", () => {
+  for (const packagePath of [
+    "packages/assetgen/package.json",
+    "packages/ressources/package.json",
+    "packages/tester/package.json",
+  ]) {
+    expect(buildRuntimeSource).toContain(`packageJson("${packagePath}")`);
+  }
+  expect(buildRuntimeSource).toContain(
+    "Object.keys(ressources.dependencies ?? {})",
+  );
 });

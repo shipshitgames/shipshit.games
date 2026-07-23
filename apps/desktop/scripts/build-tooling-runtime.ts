@@ -74,13 +74,15 @@ function lockedVersion(lock: string, name: string): string {
 }
 
 async function installRuntimeDependencies(): Promise<Record<string, string>> {
-  const [lock, assetgen, tester] = await Promise.all([
+  const [lock, assetgen, ressources, tester] = await Promise.all([
     readFile(lockPath, "utf8"),
     packageJson("packages/assetgen/package.json"),
+    packageJson("packages/ressources/package.json"),
     packageJson("packages/tester/package.json"),
   ]);
   const names = new Set([
     ...Object.keys(assetgen.dependencies ?? {}),
+    ...Object.keys(ressources.dependencies ?? {}),
     ...Object.keys(tester.dependencies ?? {}),
   ]);
   const dependencies = Object.fromEntries(
