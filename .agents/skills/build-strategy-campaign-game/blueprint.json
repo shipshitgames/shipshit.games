@@ -1,0 +1,92 @@
+{
+  "gameType": "strategy-campaign",
+  "genreAliases": [
+    "strategy campaign",
+    "strategy campaign game",
+    "strategy hub",
+    "persistent strategy front",
+    "persistent war front",
+    "campaign strategy",
+    "war map strategy",
+    "war-map strategy",
+    "grand strategy hub"
+  ],
+  "assetClasses": [
+    {
+      "category": "model",
+      "items": [
+        "3D portal-lobby shell and map table",
+        "operation portal bays",
+        "region, lane, and breach indicators",
+        "5 PBR texture sets"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "ui",
+      "items": [
+        "SVG war map with stable region, lane, and breach IDs",
+        "4 resource counters and cost previews",
+        "Fortify, Muster, Deploy, and Recon command controls",
+        "order acknowledgement and failure feedback",
+        "tick clock and local/live status",
+        "accessible faction legend",
+        "operation result state"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "vfx",
+      "items": [
+        "portal activation",
+        "command acknowledgement",
+        "lane pressure and fortification",
+        "breach escalation",
+        "recon reveal",
+        "front-state changes"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "music",
+      "items": [
+        "strategy gameplay loop",
+        "portal and tick SFX",
+        "Fortify, Muster, Deploy, and Recon SFX",
+        "resource and invalid-command SFX",
+        "breach alert and operation-result SFX"
+      ],
+      "mvp": true
+    },
+    {
+      "category": "model",
+      "items": [
+        "additional theater lobbies",
+        "faction-specific portal variants",
+        "decorative campaign-table props"
+      ],
+      "mvp": false
+    },
+    {
+      "category": "ui",
+      "items": [
+        "campaign history",
+        "multiple-theater selector",
+        "diplomacy and research views",
+        "seasonal front archive"
+      ],
+      "mvp": false
+    }
+  ],
+  "mvpSlice": [
+    "3D portal lobby with portal bays and 5 PBR texture sets",
+    "SVG war map: regions, lanes, and breaches",
+    "4-resource campaign economy",
+    "Fortify, Muster, Deploy, and Recon commands",
+    "deterministic LOCAL tick loop with save and reload",
+    "LIVE PartyKit-ready transport seam",
+    "faction-coded map, commands, and status feedback",
+    "idempotent operation-result ingestion",
+    "one strategy loop plus portal, command, resource, alert, and result SFX"
+  ]
+}
