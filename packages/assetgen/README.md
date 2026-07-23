@@ -68,6 +68,18 @@ bun packages/assetgen/src/cli.ts generate --provider mock --dry-run \
   --prompt "a parasite-taken Scourge host sprint cycle" \
   --views front,side,back --frames 4 --fps 12 --scale 1.5 \
   --license "internal prototype; review before shipping"
+
+# Image-to-video sprite expansion: one clip per action/facing, evenly sampled,
+# chroma-keyed, static-pixel locked, pixelized, packed, and registered. Mock runs
+# the complete pipeline without provider keys or ffmpeg.
+bun packages/assetgen/src/cli.ts expand --method video --provider mock \
+  --in ./refs/swarm-husk.png --id swarm-husk --game scourge-survivors \
+  --actions idle:4,run:6,attack:4 --dirs 4 --repo ../deadrotcom
+
+# Real Wan 2.2 image-to-video through fal; Replicate accepts its owner/model id.
+FAL_KEY=... bun packages/assetgen/src/cli.ts expand --method video --provider fal \
+  --model fal-ai/wan/v2.2-a14b/image-to-video --in ./refs/swarm-husk.png \
+  --actions idle:4 --dirs 1 --repo ../deadrotcom
 ```
 
 ## `muzzle-tuner` — studio-side weapon flash placement
