@@ -1,11 +1,14 @@
 import crypto from "crypto";
-
-export type AccessResource = "skills-pro";
+import {
+  isContentAccessResource,
+  type ContentAccessResource,
+} from "@shipshitgames/shared";
 
 export type AccessTokenPayload = {
   sub: string;
   email: string;
-  resource: AccessResource;
+  resource: ContentAccessResource;
+  resourceId?: string;
   iat: number;
   exp: number;
   nonce: string;
@@ -51,10 +54,11 @@ export function createAccessToken(
 }
 
 export function verifyAccessToken(token: string) {
-  const [encodedPayload, signature] = token.split(".");
-  if (!encodedPayload || !signature) {
+  const segments = token.split(".");
+  if (segments.length !== 2) {
     throw new Error("Malformed access token");
   }
+  const [encodedPayload, signature] = segments;
 
   const expected = sign(encodedPayload);
   const expectedBuffer = Buffer.from(expected);
@@ -66,10 +70,23 @@ export function verifyAccessToken(token: string) {
     throw new Error("Invalid access token signature");
   }
 
-  const payload = JSON.parse(decode(encodedPayload)) as AccessTokenPayload;
-  if (payload.exp < Math.floor(Date.now() / 1000)) {
+  const payload = JSON.parse(
+    decode(encodedPayload),
+  ) as Partial<AccessTokenPayload>;
+  if (
+    typeof payload.sub !== "string" ||
+    typeof payload.email !== "string" ||
+    !isContentAccessResource(payload.resource) ||
+    typeof payload.iat !== "number" ||
+    typeof payload.exp !== "number" ||
+    typeof payload.nonce !== "string" ||
+    (payload.resourceId !== undefined && typeof payload.resourceId !== "string")
+  ) {
+    throw new Error("Invalid access token payload");
+  }
+  if (payload.exp <= Math.floor(Date.now() / 1000)) {
     throw new Error("Expired access token");
   }
 
-  return payload;
+  return payload as AccessTokenPayload;
 }

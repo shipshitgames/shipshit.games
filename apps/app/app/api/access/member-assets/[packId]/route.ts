@@ -1,20 +1,21 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
+import { verifyAccessToken } from "@/lib/access-token";
 import { readBillingEntitlements } from "@/lib/billing";
 import { recordContentAccess } from "@/lib/content-access";
-import { privateContentUrl } from "@/lib/content-url";
-import { hasSkillsProContentAccess, primaryEmail } from "@/lib/entitlements";
-import { verifyAccessToken } from "@/lib/access-token";
+import { hasActiveStudioPass, primaryEmail } from "@/lib/entitlements";
+import { memberAssetPackDestination } from "@/lib/member-assets";
 import { appUrl } from "@/lib/urls";
 
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest) {
+type RouteContext = { params: Promise<{ packId: string }> };
+
+export async function GET(request: NextRequest, { params }: RouteContext) {
+  const { packId } = await params;
   const token = request.nextUrl.searchParams.get("token");
-  if (!token) {
-    return new NextResponse("Missing token", { status: 400 });
-  }
+  if (!token) return new NextResponse("Missing token", { status: 400 });
 
   let payload;
   try {
@@ -22,11 +23,13 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return new NextResponse(
       error instanceof Error ? error.message : "Invalid token",
-      { status: 401 }
+      { status: 401 },
     );
   }
-
-  if (payload.resource !== "skills-pro") {
+  if (
+    payload.resource !== "member-asset-pack" ||
+    payload.resourceId !== packId
+  ) {
     return new NextResponse("Invalid resource", { status: 400 });
   }
 
@@ -42,47 +45,37 @@ export async function GET(request: NextRequest) {
     client.users.getUser(payload.sub),
     readBillingEntitlements(payload.sub),
   ]);
+  const event = {
+    resource: "member-asset-pack" as const,
+    resourceId: packId,
+  };
   if (
     primaryEmail(user) !== payload.email ||
-    !hasSkillsProContentAccess(entitlements)
+    !hasActiveStudioPass(entitlements.studioPass)
   ) {
-    await recordContentAccess({
-      resource: "skills-pro",
-      outcome: "denied",
-    }).catch(() => undefined);
-    return new NextResponse("No Skills Pro access", { status: 403 });
+    await recordContentAccess({ ...event, outcome: "denied" }).catch(
+      () => undefined,
+    );
+    return new NextResponse("No member asset access", { status: 403 });
   }
 
-  let targetUrl: string;
-  try {
-    targetUrl = privateContentUrl(
-      process.env.SKILLS_PRO_PRIVATE_URL,
-      "SKILLS_PRO_PRIVATE_URL",
+  const destination = memberAssetPackDestination(packId);
+  if (!destination) {
+    await recordContentAccess({ ...event, outcome: "unavailable" }).catch(
+      () => undefined,
     );
-  } catch {
-    await recordContentAccess({
-      resource: "skills-pro",
-      outcome: "unavailable",
-    }).catch(() => undefined);
-    return NextResponse.json(
-      {
-        error: "SKILLS_PRO_PRIVATE_URL is not configured yet.",
-        message:
-          "The signed Skills Pro gate is working, but there is no private destination URL configured.",
-      },
-      { status: 503 }
-    );
+    return new NextResponse("Member asset pack not found", { status: 404 });
   }
 
   try {
-    await recordContentAccess({ resource: "skills-pro", outcome: "granted" });
+    await recordContentAccess({ ...event, outcome: "granted" });
   } catch {
     return new NextResponse("Access audit is temporarily unavailable", {
       status: 503,
     });
   }
 
-  const response = NextResponse.redirect(targetUrl, 303);
+  const response = NextResponse.redirect(destination, 303);
   response.headers.set("cache-control", "private, no-store");
   response.headers.set("referrer-policy", "no-referrer");
   return response;

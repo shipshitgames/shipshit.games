@@ -137,7 +137,7 @@ export const billingFulfillment: BillingFulfillment = {
         eventId: input.eventId,
         email: input.email,
         subject: "Your Ship Shit Games Studio Pass access",
-        text: `Your Studio Pass is ready. Open ${url} to access Skills Pro and member assets.`,
+        text: `Your Studio Pass is ready. Open ${url} to access Skills Pro and published member asset packs. Community access is included when the private community opens.`,
         heading: "Studio Pass is ready",
         ctaLabel: "Open access",
         ctaUrl: url,

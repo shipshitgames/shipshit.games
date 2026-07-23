@@ -44,18 +44,20 @@ test("verify rejects a token whose signature byte was tampered", () => {
   const flipped = signature[0] === "A" ? "B" : "A";
   const tampered = `${encodedPayload}.${flipped}${signature.slice(1)}`;
 
-  expect(() => verifyAccessToken(tampered)).toThrow("Invalid access token signature");
+  expect(() => verifyAccessToken(tampered)).toThrow(
+    "Invalid access token signature",
+  );
 });
 
 test("verify rejects a payload swapped under a captured signature", () => {
   const token = createAccessToken(input);
   const signature = token.split(".")[1];
   const forgedPayload = Buffer.from(
-    JSON.stringify({ ...input, iat: 0, exp: 9999999999, nonce: "forged" })
+    JSON.stringify({ ...input, iat: 0, exp: 9999999999, nonce: "forged" }),
   ).toString("base64url");
 
   expect(() => verifyAccessToken(`${forgedPayload}.${signature}`)).toThrow(
-    "Invalid access token signature"
+    "Invalid access token signature",
   );
 });
 
@@ -64,7 +66,9 @@ test("verify rejects a signature produced under a different secret", () => {
   const token = createAccessToken(input);
   process.env.ACCESS_SIGNING_SECRET = SECRET;
 
-  expect(() => verifyAccessToken(token)).toThrow("Invalid access token signature");
+  expect(() => verifyAccessToken(token)).toThrow(
+    "Invalid access token signature",
+  );
 });
 
 test("verify rejects an expired token", () => {
@@ -74,7 +78,21 @@ test("verify rejects an expired token", () => {
 });
 
 test("verify rejects a malformed token with no signature segment", () => {
-  expect(() => verifyAccessToken("only-one-segment")).toThrow("Malformed access token");
+  expect(() => verifyAccessToken("only-one-segment")).toThrow(
+    "Malformed access token",
+  );
+});
+
+test("verify rejects a token with extra segments", () => {
+  const token = createAccessToken(input);
+  expect(() => verifyAccessToken(`${token}.extra`)).toThrow(
+    "Malformed access token",
+  );
+});
+
+test("verify rejects a token at its exact expiry boundary", () => {
+  const token = createAccessToken(input, 0);
+  expect(() => verifyAccessToken(token)).toThrow("Expired access token");
 });
 
 test("verify rejects an empty token", () => {
@@ -93,5 +111,7 @@ test("createAccessToken throws when no signing secret is configured", () => {
   delete process.env.ACCESS_SIGNING_SECRET;
   delete process.env.CLERK_SECRET_KEY;
 
-  expect(() => createAccessToken(input)).toThrow("Missing ACCESS_SIGNING_SECRET");
+  expect(() => createAccessToken(input)).toThrow(
+    "Missing ACCESS_SIGNING_SECRET",
+  );
 });
