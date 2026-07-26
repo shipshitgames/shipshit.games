@@ -7,7 +7,10 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Placeholder env mirrors CI so the production build succeeds without secrets.
  */
-const PORT = 3000;
+// Overridable so the suite can run beside a dev server already holding 3000 —
+// without it, an unrelated `next dev` on the default port aborts the whole run
+// at webServer startup before a single test executes. CI leaves it unset.
+const PORT = Number(process.env.WEB_E2E_PORT ?? 3000);
 const baseURL = `http://localhost:${PORT}`;
 
 const ciEnv = {
@@ -49,7 +52,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "bun run build && bun run start",
+    command: `bun run build && bun run start --port ${PORT}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

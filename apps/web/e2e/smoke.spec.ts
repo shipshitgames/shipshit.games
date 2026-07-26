@@ -50,7 +50,7 @@ test("game gallery lists catalogue entries and links to detail pages", async ({ 
   );
   await expect(scourge.getByRole("link", { name: /^source$/i })).toHaveAttribute(
     "href",
-    "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/scourge-survivors",
+    "https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/scourge-survivors",
   );
 
   await expect(
