@@ -62,7 +62,12 @@ test("every game carries a status label and the required gallery fields", () => 
     expect(Array.isArray(game.proofPoints)).toBe(true);
     expect(game.proofPoints.length).toBeGreaterThan(0);
     const demoUrl = game.demoUrl as string;
-    expect(game.repoUrl).toStartWith("https://github.com/shipshitgames/deadrot.com");
+    // Pin the whole source link, not just its host. These once pointed at a
+    // `develop` branch that deadrot.com does not have, so every card in the
+    // gallery linked to a 404 while a prefix-only assertion stayed green.
+    expect(game.repoUrl).toBe(
+      `https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/${game.slug}`,
+    );
     expect(demoUrl).toStartWith("https://");
     expect(game.playUrl).toStartWith("https://deadrot.com/");
     expect(game.readinessIssueUrl).toStartWith("https://github.com/shipshitgames/deadrot.com/issues/");
