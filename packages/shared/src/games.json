@@ -27,7 +27,7 @@
         "Complete run loop: menu, death summary, restart, victory summary",
         "3D animated Scourge and full weapon viewmodels — idle, fire, reload, jump",
         "Multi-level arenas with stairs, openable doors and windows, enterable buildings",
-        "Desktop and mobile E2E journeys over real play, no console errors"
+        "Desktop and mobile E2E journeys over real play, no unexpected console errors"
       ]
     },
     {
