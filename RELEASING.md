@@ -43,10 +43,10 @@ config).
 > in the box's `authorized_keys`. CI now *reaches* the live box.
 >
 > **Box wiring (the deploy script matches this):** Caddy on the host terminates TLS and
-> reverse-proxies `api.shipshit.games → shipshit-api:3005` and
+> reverse-proxies `api.shipshit.games → api-shipshit-games:3005` and
 > `api.deadrot.com → deadrot-api:3004` **by container name** over a shared
 > external docker network `shipshit`. So the api container must be named
-> `shipshit-api` and join `shipshit` — `deploy-production.sh` now does this
+> `api-shipshit-games` and join `shipshit` — `deploy-production.sh` now does this
 > directly with `docker run` and creates the network if missing.
 >
 > **First-deploy swap (one-time):** the box currently runs the api from a *manual*
@@ -54,7 +54,7 @@ config).
 > the deploy container name now equals the running one, a CI deploy's
 > `remove_conflicting_container` drops the manual ECR container and brings the
 > ghcr one up on the same name + network — Caddy never notices. Cut over with
-> `docker rm -f shipshit-api` on the box, then run the studio deploy (`force_api`).
+> `docker rm -f api-shipshit-games` on the box, then run the studio deploy (`force_api`).
 > The manual ECR image is then abandoned. **deadrot needs the same:** its compose
 > container must be `deadrot-api` on the `shipshit` network (not `api-deadrot-com`
 > + a localhost port) or Caddy will 502.

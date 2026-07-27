@@ -11,13 +11,13 @@
 #
 # Topology: this container joins the host's shared `shipshit` docker network
 # alongside deadrot-api and the Caddy reverse proxy. Caddy terminates TLS and
-# proxies api.shipshit.games -> shipshit-api:3005 BY CONTAINER NAME over that
+# proxies api.shipshit.games -> api-shipshit-games:3005 BY CONTAINER NAME over that
 # network — so container_name is load-bearing — which is why only a localhost
 # port is published, not a public one.
 services:
   api:
     image: ${API_IMAGE:-ghcr.io/shipshitgames/shipshit.games/api:${IMAGE_TAG:-latest}}
-    container_name: shipshit-api
+    container_name: api-shipshit-games
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -53,7 +53,7 @@ services:
       retries: 3
 
 # Shared external bridge created on the host (carries deadrot-api + Caddy too).
-# deploy-production.sh creates it if missing; Caddy proxies to shipshit-api:3005.
+# deploy-production.sh creates it if missing; Caddy proxies to api-shipshit-games:3005.
 networks:
   shipshit:
     external: true

@@ -13,10 +13,10 @@ set -euo pipefail
 ENV_FILE=".env.production"
 DEPLOY_ENV="production"
 CONTAINER_PREFIX="shipshit"
-# The api container MUST be named `shipshit-api`: the host's Caddy reverse proxy
-# routes api.shipshit.games -> shipshit-api:3005 by container name over the shared
+# The api container MUST be named `api-shipshit-games`: the host's Caddy reverse proxy
+# routes api.shipshit.games -> api-shipshit-games:3005 by container name over the shared
 # `shipshit` network. Must match the deploy-common.sh container name.
-declare -A CONTAINER_NAMES=([api]="shipshit-api")
+declare -A CONTAINER_NAMES=([api]="api-shipshit-games")
 DEPLOY_HEADER="Production Deployment — api.shipshit.games"
 
 REGISTRY="ghcr.io"
