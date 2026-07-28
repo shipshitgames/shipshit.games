@@ -50,8 +50,11 @@ test("game gallery lists catalogue entries and links to detail pages", async ({ 
   );
   await expect(scourge.getByRole("link", { name: /^source$/i })).toHaveAttribute(
     "href",
-    "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/scourge-survivors",
+    "https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/scourge-survivors",
   );
+  // The badge is the claim the gallery makes about this game — assert it, or a
+  // silent status regression in games.json ships with a green suite.
+  await expect(scourge).toContainText("Finished");
 
   await expect(
     page.locator('[data-testid="game-card"][data-game-slug="pactfall"]'),
