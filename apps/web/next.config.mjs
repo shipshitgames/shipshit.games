@@ -23,6 +23,8 @@ const assetPattern = assetOriginPattern();
 const nextConfig = {
   reactStrictMode: true,
   images: {
+    // Assets are already delivered by the configured CDN/origin.
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",

@@ -5,6 +5,10 @@ const withNextra = nextra({
 });
 
 export default withNextra({
+  images: {
+    // Assets are already delivered by the configured CDN/origin.
+    unoptimized: true,
+  },
   turbopack: {
     resolveAlias: {
       "next-mdx-import-source-file": "./mdx-components.js",
