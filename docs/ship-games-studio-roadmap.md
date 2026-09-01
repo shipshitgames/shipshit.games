@@ -161,6 +161,40 @@ it, and keep provenance.
 Deadrot MVP: select one generated asset, launch a Deadrot gym that uses it, run
 a canvas/screenshot check, and record the result.
 
+### Studio M2.1 — Deterministic Game QA
+
+Harden the M2 gym evidence into a repeatable visual and performance gate. Reuse
+the existing tester and Deadrot proof tours; do not build another browser
+harness.
+
+- [#393](https://github.com/shipshitgames/shipshit.games/issues/393) - make
+  `@shipshitgames/tester` fail closed on console/capture errors, require its
+  browser integration lane in CI, stamp reproducibility metadata, and make the
+  package consumable across repos.
+- [#394](https://github.com/shipshitgames/shipshit.games/issues/394) - add
+  seeded/forkable random sources and manual fixed-frame test primitives to
+  `@shipshitgames/engine`; remove ambient `Math.random()` from shared gameplay
+  and spawn paths.
+- [#395](https://github.com/shipshitgames/shipshit.games/issues/395) - add named
+  capture scenarios, fresh-page isolation, exact frame pumping, and fail-closed
+  visual baseline comparison to the tester.
+- [#396](https://github.com/shipshitgames/shipshit.games/issues/396) - profile
+  real scripted gameplay with boot and frame-time distributions, hitch
+  attribution, render/resource metrics, and versioned per-game budgets.
+- [deadrot.com#556](https://github.com/shipshitgames/deadrot.com/issues/556) -
+  migrate the existing eight-game proof tours onto the shared tester, keep
+  game-specific recipes/baselines in Deadrot, and emit Studio-compatible
+  `CheckRun` evidence.
+
+Performance budgets start report-only and become blocking only after at least
+three reviewed baseline runs. Shader pre-warming is not a roadmap requirement;
+add it only when the profiler proves in-play compilation stalls.
+
+Deadrot MVP: Scourge Survivors exposes at least three named deterministic
+scenarios, two independent runs compare cleanly on the supported CI lane,
+negative fixtures prove the gate fails closed, and the resulting visual plus
+performance evidence attaches to one Studio `CheckRun`.
+
 ### Studio M3 — Promotion + Git Workflow
 
 - Promote accepted drafts into `../deadrotcom/packages/assets`.
