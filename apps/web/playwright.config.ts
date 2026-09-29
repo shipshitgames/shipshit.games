@@ -7,8 +7,27 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Placeholder env mirrors CI so the production build succeeds without secrets.
  */
-const PORT = 3000;
+// Overridable so the suite can run beside a dev server already holding 3000 —
+// without it, an unrelated `next dev` on the default port aborts the whole run
+// at webServer startup before a single test executes. CI leaves it unset.
+//
+// Setting the override means "serve mine on this port", so it also turns off
+// `reuseExistingServer`: with reuse left on, an override aimed at a port that
+// something else already holds would silently test that unrelated app and
+// report green. Failing on EADDRINUSE is the honest outcome. The default port
+// keeps reuse, which is what makes a local re-run fast.
+const portOverride = process.env.WEB_E2E_PORT;
+const PORT = parsePort(portOverride);
 const baseURL = `http://localhost:${PORT}`;
+
+function parsePort(value: string | undefined): number {
+  if (value === undefined) return 3000;
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new Error(`WEB_E2E_PORT must be an integer between 1 and 65535, got ${JSON.stringify(value)}`);
+  }
+  return port;
+}
 
 const ciEnv = {
   NEXT_TELEMETRY_DISABLED: "1",
@@ -49,9 +68,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "bun run build && bun run start",
+    command: `bun run build && bun run start --port ${PORT}`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !process.env.CI && portOverride === undefined,
     timeout: 180_000,
     env: ciEnv,
   },

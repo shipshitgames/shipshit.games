@@ -12,21 +12,22 @@
       "slug": "scourge-survivors",
       "title": "Scourge Survivors",
       "blurb": "First-person horde-survivors — Vampire Survivors x DOOM.",
-      "status": "playable",
+      "status": "finished",
       "faction": "Pyre",
       "genre": "FPS Survivors",
       "courseAngle": "Flagship proof for scoped slicing, runtime assets, HUD polish, and E2E playability.",
-      "summary": "A brutal first-person survivor run inside the Deadrot war: hold the breach, burn back the Scourge, and turn one playable slice into the studio's first finished case study.",
+      "summary": "A brutal first-person survivor run inside the Deadrot war: hold the breach, burn back the Scourge, and fight room to room through multi-storey ruins. The studio's first finished case study, start to summary.",
       "coverPath": "/images/games/scourge-survivors.webp",
       "demoUrl": "https://scourge-survivors.vercel.app",
       "deadrotUrl": "https://deadrot.com/games/scourge-survivors",
       "playUrl": "https://deadrot.com/scourge-survivors",
       "readinessIssueUrl": "https://github.com/shipshitgames/deadrot.com/issues/242",
-      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/scourge-survivors",
+      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/scourge-survivors",
       "proofPoints": [
-        "Finished-product run loop from menu to summary",
-        "Runtime asset catalog and pixel-art reskin",
-        "Desktop/mobile E2E journey for real play"
+        "Complete run loop: menu, death summary, restart, victory summary",
+        "3D animated Scourge and full weapon viewmodels — idle, fire, reload, jump",
+        "Multi-level arenas with stairs, openable doors and windows, enterable buildings",
+        "Desktop and mobile E2E journeys over real play, no unexpected console errors"
       ]
     },
     {
@@ -43,7 +44,7 @@
       "deadrotUrl": "https://deadrot.com/games/deadlane",
       "playUrl": "https://deadrot.com/deadlane",
       "readinessIssueUrl": "https://github.com/shipshitgames/deadrot.com/issues/243",
-      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/deadlane",
+      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/deadlane",
       "proofPoints": [
         "Grid, pathfinding, towers, waves, and economy",
         "Clear build/fight/fail/restart loop",
@@ -64,7 +65,7 @@
       "deadrotUrl": "https://deadrot.com/games/pactfall",
       "playUrl": "https://deadrot.com/pactfall",
       "readinessIssueUrl": "https://github.com/shipshitgames/deadrot.com/issues/246",
-      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/pactfall",
+      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/pactfall",
       "proofPoints": [
         "Champion/ability model with constrained v1 scope",
         "Lane objective and Scourge pressure",
@@ -85,7 +86,7 @@
       "deadrotUrl": "https://deadrot.com/games/starblight",
       "playUrl": "https://deadrot.com/starblight",
       "readinessIssueUrl": "https://github.com/shipshitgames/deadrot.com/issues/247",
-      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/starblight",
+      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/starblight",
       "proofPoints": [
         "Orbital shooter direction locked on the Deadrot board",
         "MOBA/lane scope deferred into Pactfall/Bloodlane",
@@ -106,7 +107,7 @@
       "deadrotUrl": "https://deadrot.com/games/redline",
       "playUrl": "https://deadrot.com/redline",
       "readinessIssueUrl": "https://github.com/shipshitgames/deadrot.com/issues/244",
-      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/redline",
+      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/redline",
       "proofPoints": [
         "One complete course with fail/finish/restart",
         "Speed, hazard, checkpoint, and crash feedback",
@@ -127,7 +128,7 @@
       "deadrotUrl": "https://deadrot.com/games/rothulk",
       "playUrl": "https://deadrot.com/rothulk",
       "readinessIssueUrl": "https://github.com/shipshitgames/deadrot.com/issues/245",
-      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/rothulk",
+      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/rothulk",
       "proofPoints": [
         "Traversal, hazard, HP, and ignite loop",
         "One complete level before campaign scope",
@@ -148,7 +149,7 @@
       "deadrotUrl": "https://deadrot.com/warline",
       "playUrl": "https://deadrot.com/warline",
       "readinessIssueUrl": "https://github.com/shipshitgames/deadrot.com/issues/248",
-      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/develop/apps/games/warline",
+      "repoUrl": "https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/warline",
       "proofPoints": [
         "Strategy front loop with visible operation feedback",
         "Offline/live mode clarity",

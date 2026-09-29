@@ -29,9 +29,11 @@ test("scourge survivors brief shows the lore-driven sections", async ({ page }) 
     "href",
     "https://scourge-survivors.vercel.app",
   );
+  // Pin the whole href, not a prefix: these once pointed at a `develop` branch
+  // deadrot.com does not have, and a loose pattern let the 404 ship.
   await expect(page.getByRole("link", { name: /source repo/i })).toHaveAttribute(
     "href",
-    /github\.com\/shipshitgames\/deadrot\.com\/tree\/develop\/apps\/games\/scourge-survivors/,
+    "https://github.com/shipshitgames/deadrot.com/tree/master/apps/games/scourge-survivors",
   );
   await expect(page.getByRole("link", { name: /skills library/i })).toHaveAttribute(
     "href",
