@@ -17,7 +17,12 @@
 #   - Resolves the issue/PR title via the GitHub API and slugifies it.
 #   - Branch name:  <type>/<number>-<slug>     e.g. feat/65-add-login-screen
 #   - Base branch:  develop -> master -> main  (first that exists wins)
-#   - Worktree dir: <repo-root>/.worktrees/<branch-with-slashes-as-dashes>
+#   - Worktree dir: <worktree home>/<owner-repo>/<branch-with-slashes-as-dashes>
+#                   OUTSIDE the repository. The home is $GIT_WT_HOME if set, else the
+#                   calling agent's home (~/.claude/worktrees, ~/.codex/worktrees,
+#                   ~/.grok/worktrees; detected from the nearest agent process above
+#                   this shell), else ~/worktrees. <owner-repo> comes from the origin
+#                   remote, lowercased (e.g. shipshitgames-shipshit.games).
 #   - Prints WORKTREE_PATH=<abs-path> and BRANCH=<name> on the last lines.
 #
 # Requires: git, gh (authenticated).
@@ -33,8 +38,53 @@ command -v gh  >/dev/null 2>&1 || die "gh CLI not found (needed to read the issu
 INPUT="$1"
 TYPE="${2:-feat}"
 
-# --- Locate the repository root -------------------------------------------
-TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repository"
+# --- Locate the primary checkout ------------------------------------------
+# The primary checkout owns the ignored env files and the worktree registry, even
+# when this script runs from inside a linked worktree.
+COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || die "not inside a git repository"
+TOPLEVEL="$(dirname "$COMMON_DIR")"
+
+# --- Resolve the worktree home (never inside a repository) -----------------
+agent_worktree_home() {
+  if [ -n "${GIT_WT_HOME:-}" ]; then
+    printf '%s\n' "$GIT_WT_HOME"
+    return
+  fi
+  local pid="$PPID" comm hops=0
+  while [ -n "$pid" ] && [ "$pid" -gt 1 ] && [ "$hops" -lt 64 ]; do
+    comm="$(ps -o comm= -p "$pid" 2>/dev/null || true)"
+    case "${comm##*/}" in
+      claude) printf '%s\n' "$HOME/.claude/worktrees"; return ;;
+      codex|codex-*) printf '%s\n' "$HOME/.codex/worktrees"; return ;;
+      grok|grok-[0-9]*) printf '%s\n' "$HOME/.grok/worktrees"; return ;;
+    esac
+    # Native Claude installs run a versioned binary: .../claude/versions/<semver>.
+    if [[ "$comm" == */claude/versions/* ]]; then
+      printf '%s\n' "$HOME/.claude/worktrees"
+      return
+    fi
+    pid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
+    hops=$((hops + 1))
+  done
+  printf '%s\n' "$HOME/worktrees"
+}
+
+# Repository identity comes from the origin remote (owner-repo), not the checkout
+# directory name, so unrelated checkouts with the same folder name never collide.
+repo_slug() {
+  local url
+  url="$(git -C "$TOPLEVEL" remote get-url origin 2>/dev/null || true)"
+  url="${url%/}"
+  url="${url%.git}"
+  if [[ "$url" =~ ([^/:]+)/([^/:]+)$ ]]; then
+    url="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}"
+  else
+    url="$(basename "$TOPLEVEL")"
+  fi
+  printf '%s' "$url" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-'
+}
+
+WT_ROOT="$(agent_worktree_home)/$(repo_slug)"
 
 # --- Extract the issue/PR number ------------------------------------------
 NUMBER=""
@@ -68,7 +118,7 @@ SLUG="$(printf '%s' "$TITLE" \
 [ -n "$SLUG" ] || SLUG="issue"
 
 BRANCH="$TYPE/$NUMBER-$SLUG"
-WTDIR="$TOPLEVEL/.worktrees/${BRANCH//\//-}"
+WTDIR="$WT_ROOT/${BRANCH//\//-}"
 
 # --- Determine the base branch (develop -> master -> main) ----------------
 if git remote get-url origin >/dev/null 2>&1; then
@@ -114,7 +164,7 @@ include_env_local_files() {
 }
 
 # --- Create the worktree --------------------------------------------------
-mkdir -p "$TOPLEVEL/.worktrees"
+mkdir -p "$WT_ROOT"
 
 if [ -e "$WTDIR" ]; then
   printf 'worktree: %s already exists — reusing it.\n' "$WTDIR" >&2

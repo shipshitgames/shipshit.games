@@ -1,6 +1,6 @@
 ---
 name: worktree
-description: Create a git worktree for a GitHub issue or PR, branched off develop (falling back to master, then main). Use when picking up a ticket — e.g. "/worktree https://github.com/owner/repo/issues/65" creates branch feat/65-<slug> in .worktrees/ and switches into it.
+description: Create a git worktree for a GitHub issue or PR, branched off develop (falling back to master, then main). Use when picking up a ticket — e.g. "/worktree https://github.com/owner/repo/issues/65" creates branch feat/65-<slug> in a worktree outside the repo and switches into it.
 license: MIT
 compatibility: Requires git and an authenticated gh CLI.
 metadata:
@@ -34,7 +34,7 @@ Outputs:
 Creates/Modifies:
 
 - A new branch `<type>/<number>-<slug>`.
-- A worktree at `<repo-root>/.worktrees/<branch-with-slashes-as-dashes>` (gitignored).
+- A worktree at `<worktree-home>/<owner-repo>/<branch-with-slashes-as-dashes>`, outside the repository (see Location).
 
 External Side Effects:
 
@@ -57,8 +57,18 @@ Delegates To:
 - **Base branch**: the first of `develop`, `master`, `main` that exists wins
   (remote-tracking preferred over local). `develop` → `master` is the primary intent;
   `main` is a fallback for repos that use it.
-- **Location**: `.worktrees/` under the repo root, kept out of version control. This
-  sits outside the `apps/*` / `packages/*` workspace globs, so Bun and Turbo ignore it.
+- **Location**: never inside the repository. The helper creates
+  `<worktree-home>/<owner-repo>/<branch-with-slashes-as-dashes>`, where `<owner-repo>`
+  is the lowercased `owner-repo` from the `origin` remote (for example
+  `shipshitgames-shipshit.games`) and `<worktree-home>` is the first of:
+  1. `$GIT_WT_HOME`, when set.
+  2. The calling agent's home, detected from the nearest agent process above the
+     shell: `~/.claude/worktrees`, `~/.codex/worktrees`, or `~/.grok/worktrees`.
+  3. `~/worktrees` (manual runs outside any agent).
+
+  Because the checkout lives outside the tree, Bun, Turbo, and every repo scanner
+  ignore it. Existing `.worktrees/` checkouts stay valid until removed; the
+  `.worktrees/` ignore entries remain so they are never staged.
 
 ## Workflow
 
@@ -118,10 +128,11 @@ session notes before beginning the feature.
 
 ## Cleanup
 
-When the feature is merged or abandoned, remove the worktree from the repo root:
+When the feature is merged or abandoned, remove the worktree from the primary
+checkout, using the `WORKTREE_PATH` the helper printed:
 
 ```bash
-git worktree remove .worktrees/<branch-with-slashes-as-dashes>
+git worktree remove "<WORKTREE_PATH>"
 ```
 
 Add `--force` only if the worktree has uncommitted changes you intend to discard.
