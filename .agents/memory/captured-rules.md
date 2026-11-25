@@ -15,12 +15,12 @@ Rules automatically captured from conversations. Review and promote to permanent
 
 **User said (redacted):**
 
-> "Human Review: is for HUMAN ACTION!!! fixing PRs is for AI agents."
+> "Human Review: is for HUMAN ACTION!!! fixing PRs is for AI agents." (the column is now named `Review`)
 
 **Rule extracted:**
 
 - **Type**: ALWAYS
-- **Action**: Use `Human Review` only when a human action is mandatory. PRs that need code, CI, typecheck, or merge-conflict fixes are AI-agent work and should be `In Progress`. Move closed/deployed/code-complete work to `Done`.
+- **Action**: Use `Review` only when a human action is mandatory. PRs that need code, CI, typecheck, or merge-conflict fixes are AI-agent work and should be `In Progress`. Move closed/deployed/code-complete work to `Done`.
 - **Context**: GitHub project board issue and PR status triage.
 - **Category**: workflow
 

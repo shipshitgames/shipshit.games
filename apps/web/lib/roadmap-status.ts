@@ -12,16 +12,16 @@ export const ROADMAP_COUNT_CATEGORIES: ReadonlyArray<{
 }> = [
   { key: "todo", label: "Backlog" },
   { key: "inProgress", label: "In Progress" },
-  { key: "humanReview", label: "Human Review" },
+  { key: "humanReview", label: "Review" },
   { key: "done", label: "Done" },
   { key: "deferred", label: "Deferred" },
 ];
 
 export function normalizeRoadmapStatus(status: unknown): RoadmapStatus {
   if (status === "Todo" || status === "Backlog") return "Backlog";
+  if (status === "Human Review" || status === "Review") return "Review";
   if (
     status === "In Progress" ||
-    status === "Human Review" ||
     status === "Done" ||
     status === "Deferred"
   ) {
@@ -31,7 +31,9 @@ export function normalizeRoadmapStatus(status: unknown): RoadmapStatus {
 }
 
 export function roadmapStatusLabel(status: RoadmapStatus): string {
-  return status === "Todo" ? "Backlog" : status;
+  if (status === "Todo") return "Backlog";
+  if (status === "Human Review") return "Review";
+  return status;
 }
 
 export function roadmapCount(counts: RoadmapCounts, key: RoadmapCountKey): number {
@@ -44,7 +46,7 @@ export interface RoadmapItemInput {
 }
 
 const ACTIONABLE_STATUS_ORDER: Partial<Record<RoadmapStatus, number>> = {
-  "Human Review": 0,
+  Review: 0,
   "In Progress": 1,
   Backlog: 2,
 };
@@ -66,7 +68,7 @@ export function summarizeRoadmapItems(items: readonly RoadmapItemInput[]): {
     const status = normalizeRoadmapStatus(item.status);
     if (status === "Backlog") counts.todo += 1;
     else if (status === "In Progress") counts.inProgress += 1;
-    else if (status === "Human Review") counts.humanReview += 1;
+    else if (status === "Review") counts.humanReview += 1;
     else if (status === "Done") counts.done += 1;
     else if (status === "Deferred") counts.deferred += 1;
 
