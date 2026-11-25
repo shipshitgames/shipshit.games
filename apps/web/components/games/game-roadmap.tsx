@@ -71,7 +71,7 @@ export function GameRoadmap({
                 <li key={item.title} className="flex items-center gap-3 px-5 py-3">
                   <span
                     className={`shrink-0 rounded-md border px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-widest ${
-                      item.status === "Human Review"
+                      item.status === "Review" || item.status === "Human Review"
                         ? "border-bone/60 bg-bone/10 text-bone"
                         : item.status === "In Progress"
                           ? "border-hellfire/60 bg-hellfire/10 text-hellfire"

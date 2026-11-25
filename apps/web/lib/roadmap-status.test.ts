@@ -15,9 +15,15 @@ describe("roadmap status normalization", () => {
     expect(roadmapStatusLabel("Todo")).toBe("Backlog");
   });
 
+  test("maps the legacy Human Review option to canonical Review", () => {
+    expect(normalizeRoadmapStatus("Human Review")).toBe("Review");
+    expect(normalizeRoadmapStatus("Review")).toBe("Review");
+    expect(roadmapStatusLabel("Human Review")).toBe("Review");
+  });
+
   test("recognizes every live GitHub project option", () => {
     expect(normalizeRoadmapStatus("In Progress")).toBe("In Progress");
-    expect(normalizeRoadmapStatus("Human Review")).toBe("Human Review");
+    expect(normalizeRoadmapStatus("Review")).toBe("Review");
     expect(normalizeRoadmapStatus("Done")).toBe("Done");
     expect(normalizeRoadmapStatus("Deferred")).toBe("Deferred");
     expect(normalizeRoadmapStatus("unexpected")).toBe("Other");
@@ -30,7 +36,8 @@ describe("roadmap summaries", () => {
       { title: "Later", status: "Deferred" },
       { title: "Queued", status: "Backlog" },
       { title: "Building", status: "In Progress" },
-      { title: "Needs a person", status: "Human Review" },
+      { title: "Needs a person", status: "Review" },
+      { title: "Legacy review", status: "Human Review" },
       { title: "Legacy queue", status: "Todo" },
       { title: "Shipped", status: "Done" },
       { title: "Unknown", status: "Custom" },
@@ -39,12 +46,13 @@ describe("roadmap summaries", () => {
     expect(summary.counts).toEqual({
       todo: 2,
       inProgress: 1,
-      humanReview: 1,
+      humanReview: 2,
       done: 1,
       deferred: 1,
     });
     expect(summary.topItems).toEqual([
-      { title: "Needs a person", status: "Human Review" },
+      { title: "Needs a person", status: "Review" },
+      { title: "Legacy review", status: "Review" },
       { title: "Building", status: "In Progress" },
       { title: "Queued", status: "Backlog" },
       { title: "Legacy queue", status: "Backlog" },

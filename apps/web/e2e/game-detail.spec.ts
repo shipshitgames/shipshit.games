@@ -64,7 +64,7 @@ test("scourge survivors brief shows the lore-driven sections", async ({ page }) 
   await expect(counts).toBeVisible();
   await expect(counts).toContainText("Backlog");
   await expect(counts).toContainText("In Progress");
-  await expect(counts).toContainText("Human Review");
+  await expect(counts).toContainText("Review");
   await expect(counts).toContainText("Done");
   await expect(counts).toContainText("Deferred");
   await expect(counts.locator("span").first()).toHaveText(/^\d+$/);
